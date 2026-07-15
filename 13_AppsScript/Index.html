@@ -568,19 +568,33 @@
       color: var(--red);
     }
 
-    .hamburger-btn {
-      background: transparent;
-      border: none;
-      font-size: 20px;
+    .sidebar-toggle-btn {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      color: var(--text-dim);
-      padding: 8px 12px;
-      transition: color 0.2s;
-      margin-right: 12px;
+      flex-shrink: 0;
+      transition: all 0.2s;
     }
 
-    .hamburger-btn:hover {
-      color: var(--text);
+    .sidebar-toggle-btn:hover {
+      border-color: var(--brass);
+      color: var(--brass);
+    }
+
+    .sidebar-toggle-btn svg {
+      transition: transform 0.2s ease;
+      color: currentColor;
+      stroke: currentColor;
+    }
+
+    .app-sidebar.collapsed .sidebar-toggle-btn svg {
+      transform: rotate(180deg);
     }
 
     .alert {
@@ -713,7 +727,9 @@
     <div class="screen-wrapper active" id="screenDashboard">
       <div class="dash-header">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <h2 style="margin: 0; font-size: 20px;">Dashboard PPG</h2>
         </div>
       </div>
@@ -773,7 +789,9 @@
       <div class="dash-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+            <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
             <h2 style="margin: 0; font-size: 20px;">Data Santri</h2>
           </div>
           <button class="btn btn-primary" onclick="window.openModalSantri()">+ Tambah Santri</button>
@@ -864,7 +882,9 @@
       <div class="dash-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <div style="display: flex; align-items: center; gap: 12px;">
-            <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+            <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
             <h2 style="margin: 0; font-size: 20px;">Data Guru</h2>
           </div>
           <button class="btn btn-primary" onclick="window.openModalGuru()">+ Tambah Guru</button>
@@ -930,7 +950,9 @@
     <div class="screen-wrapper" id="screenAbsensi">
       <div class="dash-header">
         <div style="display: flex; align-items: center; gap: 12px;">
-          <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
           <h2 style="margin: 0; font-size: 20px;">Absensi Santri</h2>
         </div>
       </div>
