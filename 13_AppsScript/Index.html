@@ -467,6 +467,25 @@
       overflow-y: auto;
     }
 
+    /* Mobile modal: full-screen or nearly full-screen */
+    @media (max-width: 479px) {
+      .modal-content {
+        width: 95%;
+        max-width: 100%;
+        max-height: 95vh;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: 20px;
+      }
+    }
+
+    @media (min-width: 480px) and (max-width: 767px) {
+      .modal-content {
+        width: 90%;
+        max-width: 95%;
+        padding: 24px;
+      }
+    }
+
     .modal-header {
       font-size: 18px;
       font-weight: 700;
@@ -657,6 +676,301 @@
     .tab-button.active {
       color: var(--brass) !important;
       border-bottom-color: var(--brass) !important;
+    }
+
+    /* ═════ MOBILE OPTIMIZATION ═════ */
+    /* Extra Small (xs): 320px - 479px (phones) */
+    @media (max-width: 479px) {
+      html, body {
+        font-size: 13px;
+      }
+
+      .app-layout {
+        flex-direction: column;
+      }
+
+      .app-sidebar {
+        width: 100%;
+        position: fixed;
+        left: -100%;
+        height: 100vh;
+        top: 0;
+        z-index: 999;
+        transition: left 0.3s;
+        max-height: 100vh;
+      }
+
+      .app-sidebar.mobile-open {
+        left: 0;
+      }
+
+      .app-sidebar.collapsed {
+        width: 100%;
+        left: -100%;
+      }
+
+      .app-content {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      .sidebar-toggle-btn {
+        display: flex;
+        position: fixed;
+        top: 16px;
+        left: 16px;
+        width: 44px;
+        height: 44px;
+        z-index: 100;
+      }
+
+      .dash-header {
+        padding: 16px;
+        padding-top: 70px;
+      }
+
+      .dash-header h2 {
+        font-size: 18px;
+      }
+
+      .dash-container {
+        padding: 16px;
+      }
+
+      .kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .kpi-card {
+        padding: 16px;
+      }
+
+      .kpi-value {
+        font-size: 28px;
+      }
+
+      .data-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .data-table {
+        font-size: 12px;
+      }
+
+      .data-table th,
+      .data-table td {
+        padding: 10px 8px;
+      }
+
+      .btn {
+        padding: 12px 16px;
+        min-height: 44px;
+        font-size: 13px;
+      }
+
+      .btn-icon {
+        min-width: 44px;
+        min-height: 44px;
+        padding: 10px;
+      }
+
+      .modal-content {
+        width: 95%;
+        max-width: 100%;
+        max-height: 90vh;
+        padding: 20px;
+      }
+
+      .modal-header {
+        font-size: 16px;
+      }
+
+      .form-input, .form-select {
+        font-size: 16px;
+        padding: 12px;
+      }
+
+      .search-input {
+        font-size: 16px;
+        padding: 12px 14px;
+      }
+
+      .dash-section-title {
+        font-size: 16px;
+        margin-bottom: 16px;
+      }
+
+      .modal-footer {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .modal-footer button {
+        width: 100%;
+      }
+
+      .tab-button {
+        padding: 10px 12px !important;
+        font-size: 12px !important;
+      }
+
+      .sidebar-user {
+        padding: 10px;
+      }
+
+      .sidebar-user-avatar {
+        width: 28px;
+        height: 28px;
+        font-size: 11px;
+      }
+
+      .sidebar-user-name,
+      .sidebar-user-role {
+        font-size: 11px;
+      }
+
+      .sidebar-logout {
+        padding: 8px 10px;
+        font-size: 11px;
+      }
+    }
+
+    /* Small (sm): 480px - 767px (larger phones) */
+    @media (max-width: 767px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .data-table {
+        font-size: 12px;
+      }
+
+      .dash-header {
+        padding: 16px;
+      }
+
+      .dash-container {
+        padding: 16px 12px;
+      }
+
+      .modal-content {
+        width: 90%;
+        max-width: 100%;
+      }
+
+      .btn {
+        font-size: 13px;
+      }
+    }
+
+    /* Medium (md): 768px - 1023px (tablets) */
+    @media (min-width: 768px) and (max-width: 1023px) {
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .dash-container {
+        padding: 24px 20px;
+        max-width: 100%;
+      }
+    }
+
+    /* Large (lg): 1024px - 1279px (small desktops) */
+    @media (min-width: 1024px) and (max-width: 1279px) {
+      .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      }
+
+      .dash-container {
+        max-width: 1000px;
+      }
+    }
+
+    /* Extra Large (xl): 1280px+ (desktops) */
+    @media (min-width: 1280px) {
+      .kpi-grid {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .dash-container {
+        max-width: 1200px;
+      }
+    }
+
+    /* Touch interaction improvements */
+    @media (hover: none) and (pointer: coarse) {
+      /* Mobile devices */
+      .btn,
+      .btn-primary,
+      .btn-secondary,
+      .btn-icon,
+      .sidebar-menu-link,
+      .sidebar-logout,
+      .tab-button {
+        min-height: 44px;
+        min-width: 44px;
+        padding: 10px 12px;
+      }
+
+      .btn-icon {
+        padding: 8px;
+      }
+
+      .sidebar-menu-link {
+        padding: 14px 16px;
+      }
+
+      /* Remove hover effects on touch devices */
+      .btn:active {
+        opacity: 0.8;
+      }
+
+      .sidebar-menu-link:active {
+        background: var(--panel-2);
+      }
+    }
+
+    /* Form optimization for mobile */
+    @media (max-width: 767px) {
+      input[type="text"],
+      input[type="email"],
+      input[type="date"],
+      input[type="number"],
+      select,
+      textarea {
+        font-size: 16px;
+      }
+
+      .form-group {
+        margin-bottom: 14px;
+      }
+    }
+
+    /* Chart responsiveness */
+    @media (max-width: 767px) {
+      #chartAttendanceTrend,
+      #chartAttendanceByKelompok,
+      #chartGenderDistribution,
+      #chartJenjangDistribution,
+      #chartGrowthMetrics {
+        height: 300px !important;
+      }
+    }
+
+    /* Table horizontal scroll on mobile */
+    @media (max-width: 767px) {
+      .data-table-wrapper {
+        border-radius: var(--radius);
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .data-table th:nth-child(n+6),
+      .data-table td:nth-child(n+6) {
+        min-width: 80px;
+      }
     }
   </style>
 </head>
@@ -2034,15 +2348,18 @@
       chartData.push([row.week, row.percent]);
     });
 
+    const isMobile = window.innerWidth < 768;
     const options = {
       title: 'Trend Kehadiran Mingguan',
       curveType: 'function',
-      legend: { position: 'bottom' },
-      hAxis: { slantedText: true },
-      vAxis: { minValue: 0, maxValue: 100 },
+      legend: { position: isMobile ? 'none' : 'bottom' },
+      hAxis: { slantedText: !isMobile, title: isMobile ? '' : 'Minggu' },
+      vAxis: { minValue: 0, maxValue: 100, title: isMobile ? '' : 'Kehadiran (%)' },
       colors: ['#D97706'],
-      pointSize: 5,
-      backgroundColor: { fill: 'transparent' }
+      pointSize: isMobile ? 3 : 5,
+      titleTextStyle: { fontSize: isMobile ? 13 : 16 },
+      backgroundColor: { fill: 'transparent' },
+      chartArea: { width: isMobile ? '85%' : '90%', height: isMobile ? '75%' : '80%' }
     };
 
     const chart = new google.visualization.LineChart(document.getElementById('chartAttendanceTrend'));
@@ -2057,12 +2374,15 @@
       chartData.push([row.kelompok_nama, row.percent, color]);
     });
 
+    const isMobile = window.innerWidth < 768;
     const options = {
       title: 'Kehadiran Per Kelompok (30 hari)',
       legend: { position: 'none' },
-      hAxis: { slantedText: true },
-      vAxis: { minValue: 0, maxValue: 100 },
-      backgroundColor: { fill: 'transparent' }
+      hAxis: { slantedText: !isMobile, title: isMobile ? '' : 'Kelompok' },
+      vAxis: { minValue: 0, maxValue: 100, title: isMobile ? '' : 'Kehadiran (%)' },
+      titleTextStyle: { fontSize: isMobile ? 13 : 16 },
+      backgroundColor: { fill: 'transparent' },
+      chartArea: { width: isMobile ? '80%' : '90%', height: isMobile ? '75%' : '80%' }
     };
 
     const chart = new google.visualization.BarChart(document.getElementById('chartAttendanceByKelompok'));
@@ -2089,11 +2409,15 @@
       chartData.push([gender, count]);
     });
 
+    const isMobile = window.innerWidth < 768;
     const options = {
       title: 'Distribusi Gender Santri',
       pieHole: 0.4,
       colors: ['#D97706', '#059669', '#64748B'],
-      backgroundColor: { fill: 'transparent' }
+      titleTextStyle: { fontSize: isMobile ? 13 : 16 },
+      legend: { position: isMobile ? 'bottom' : 'bottom', textStyle: { fontSize: isMobile ? 11 : 12 } },
+      backgroundColor: { fill: 'transparent' },
+      chartArea: { width: isMobile ? '95%' : '90%', height: isMobile ? '75%' : '80%' }
     };
 
     const chart = new google.visualization.PieChart(document.getElementById('chartGenderDistribution'));
@@ -2107,12 +2431,16 @@
       chartData.push([jenjang, count]);
     });
 
+    const isMobile = window.innerWidth < 768;
     const options = {
       title: 'Distribusi Santri Per Jenjang',
-      legend: { position: 'bottom' },
-      hAxis: { slantedText: true },
+      legend: { position: isMobile ? 'none' : 'bottom' },
+      hAxis: { slantedText: !isMobile, title: isMobile ? '' : 'Jenjang' },
+      vAxis: { title: isMobile ? '' : 'Jumlah' },
       colors: ['#059669'],
-      backgroundColor: { fill: 'transparent' }
+      titleTextStyle: { fontSize: isMobile ? 13 : 16 },
+      backgroundColor: { fill: 'transparent' },
+      chartArea: { width: isMobile ? '85%' : '90%', height: isMobile ? '75%' : '80%' }
     };
 
     const chart = new google.visualization.ColumnChart(document.getElementById('chartJenjangDistribution'));
@@ -2183,11 +2511,16 @@
       chartData.push([row.month, row.santri, row.guru]);
     });
 
+    const isMobile = window.innerWidth < 768;
     const options = {
       title: 'Pertumbuhan Santri & Guru',
-      legend: { position: 'bottom' },
+      legend: { position: isMobile ? 'none' : 'bottom', textStyle: { fontSize: isMobile ? 11 : 12 } },
       colors: ['#D97706', '#059669'],
-      backgroundColor: { fill: 'transparent' }
+      titleTextStyle: { fontSize: isMobile ? 13 : 16 },
+      hAxis: { slantedText: !isMobile, title: isMobile ? '' : 'Bulan' },
+      vAxis: { title: isMobile ? '' : 'Jumlah' },
+      backgroundColor: { fill: 'transparent' },
+      chartArea: { width: isMobile ? '80%' : '90%', height: isMobile ? '75%' : '80%' }
     };
 
     const chart = new google.visualization.ColumnChart(document.getElementById('chartGrowthMetrics'));
@@ -2408,8 +2741,38 @@
 
   window.toggleSidebar = function () {
     const sidebar = document.querySelector('.app-sidebar');
-    sidebar.classList.toggle('collapsed');
+    const isMobile = window.innerWidth < 768;
+
+    if (isMobile) {
+      // Mobile: toggle slide-in/out
+      sidebar.classList.toggle('mobile-open');
+    } else {
+      // Desktop: toggle collapsed state
+      sidebar.classList.toggle('collapsed');
+    }
   };
+
+  // Close mobile sidebar when clicking outside
+  document.addEventListener('click', function (event) {
+    const sidebar = document.querySelector('.app-sidebar');
+    const toggleBtn = document.querySelector('.sidebar-toggle-btn');
+
+    if (window.innerWidth < 768 && sidebar.classList.contains('mobile-open')) {
+      if (!sidebar.contains(event.target) && !toggleBtn.contains(event.target)) {
+        sidebar.classList.remove('mobile-open');
+      }
+    }
+  });
+
+  // Close mobile sidebar when clicking menu item
+  document.querySelectorAll('.sidebar-menu-link').forEach(link => {
+    link.addEventListener('click', function () {
+      if (window.innerWidth < 768) {
+        const sidebar = document.querySelector('.app-sidebar');
+        setTimeout(() => sidebar.classList.remove('mobile-open'), 100);
+      }
+    });
+  });
 </script>
 
 </body>
