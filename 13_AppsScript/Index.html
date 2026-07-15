@@ -728,6 +728,12 @@
           <span>Laporan & Export</span>
         </a>
       </li>
+      <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('statistics')">
+          <span style="font-size: 18px;">📊</span>
+          <span>Statistik</span>
+        </a>
+      </li>
     </ul>
 
     <div class="sidebar-footer">
@@ -1127,8 +1133,130 @@
         </div>
       </div>
     </div>
+
+    <!-- STATISTIK SCREEN -->
+    <div class="screen-wrapper" id="screenStatistics">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Statistik & Analytics</h2>
+        </div>
+      </div>
+
+      <div class="dash-container">
+        <div class="alert alert-error" id="statsError" style="display: none;"></div>
+
+        <!-- Tab Navigation -->
+        <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 32px; overflow-x: auto;">
+          <button class="tab-button active" onclick="window.switchStatsTab('attendance')" id="tabAttendance" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;">
+            📈 Kehadiran
+          </button>
+          <button class="tab-button" onclick="window.switchStatsTab('demographics')" id="tabDemographics" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;">
+            👥 Demografi
+          </button>
+          <button class="tab-button" onclick="window.switchStatsTab('performance')" id="tabPerformance" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;">
+            🏆 Ranking
+          </button>
+          <button class="tab-button" onclick="window.switchStatsTab('growth')" id="tabGrowth" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap;">
+            📊 Growth
+          </button>
+        </div>
+
+        <!-- TAB 1: ATTENDANCE ANALYTICS -->
+        <div id="tabContentAttendance" style="display: block;">
+          <div class="dash-section-title">Trend Kehadiran (90 hari terakhir)</div>
+          <div id="chartAttendanceTrend" style="width: 100%; height: 400px; background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+            ⏳ Memuat chart...
+          </div>
+
+          <div class="dash-section-title">Kehadiran Per Kelompok (30 hari)</div>
+          <div id="chartAttendanceByKelompok" style="width: 100%; height: 400px; background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+            ⏳ Memuat chart...
+          </div>
+        </div>
+
+        <!-- TAB 2: DEMOGRAPHICS -->
+        <div id="tabContentDemographics" style="display: none;">
+          <div class="dash-section-title">Distribusi Gender Santri</div>
+          <div id="chartGenderDistribution" style="width: 100%; height: 400px; background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+            ⏳ Memuat chart...
+          </div>
+
+          <div class="dash-section-title">Santri Per Jenjang</div>
+          <div id="chartJenjangDistribution" style="width: 100%; height: 400px; background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+            ⏳ Memuat chart...
+          </div>
+        </div>
+
+        <!-- TAB 3: PERFORMANCE & RANKING -->
+        <div id="tabContentPerformance" style="display: none;">
+          <div class="dash-section-title">Top 10 Santri (Kehadiran Terbaik Bulan Ini)</div>
+          <div class="data-table-wrapper" style="margin-bottom: 32px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama Santri</th>
+                  <th style="text-align: center;">Hadir</th>
+                  <th style="text-align: center;">Total</th>
+                  <th style="text-align: right;">Persentase</th>
+                </tr>
+              </thead>
+              <tbody id="topAttendeesBody">
+                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">⏳ Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="dash-section-title">Bottom 10 Santri (Kehadiran Terendah Bulan Ini)</div>
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>Nama Santri</th>
+                  <th style="text-align: center;">Hadir</th>
+                  <th style="text-align: center;">Absen</th>
+                  <th style="text-align: right;">Persentase</th>
+                </tr>
+              </thead>
+              <tbody id="worstAttendeesBody">
+                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">⏳ Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 4: GROWTH METRICS -->
+        <div id="tabContentGrowth" style="display: none;">
+          <div class="dash-section-title">Pertumbuhan Santri & Guru (6 bulan terakhir)</div>
+          <div id="chartGrowthMetrics" style="width: 100%; height: 400px; background: var(--panel-2); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 32px; display: flex; align-items: center; justify-content: center; color: var(--text-dim);">
+            ⏳ Memuat chart...
+          </div>
+
+          <div class="dash-section-title">Ringkasan</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+            <div style="background: var(--panel-2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Total Santri</div>
+              <div style="font-size: 32px; font-weight: 700; color: var(--brass);" id="growthTotalSantri">—</div>
+            </div>
+            <div style="background: var(--panel-2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 8px; text-transform: uppercase;">Total Guru</div>
+              <div style="font-size: 32px; font-weight: 700; color: var(--sage);" id="growthTotalGuru">—</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
+
+<script>
+  // Load Google Charts library
+  google.charts.load('current', {'packages':['corechart', 'table']});
+</script>
 
 <script>
   window.currentToken = null;
@@ -1241,7 +1369,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan', 'statistics'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -1257,6 +1385,7 @@
     if (screenName === 'santri') window.loadSantriList();
     if (screenName === 'guru') window.loadGuruList();
     if (screenName === 'laporan') window.initLaporanScreen();
+    if (screenName === 'statistics') window.initStatisticsScreen();
   };
 
   window.loadDashboard = function () {
@@ -1701,6 +1830,245 @@
     printWindow.document.write(content);
     printWindow.document.close();
     setTimeout(() => printWindow.print(), 250);
+  };
+
+  /* ═════ STATISTIK FUNCTIONS ═════ */
+
+  window.initStatisticsScreen = function () {
+    // Load first tab (attendance)
+    window.loadAttendanceStatistics();
+  };
+
+  window.switchStatsTab = function (tabName) {
+    // Hide all tabs
+    document.getElementById('tabContentAttendance').style.display = 'none';
+    document.getElementById('tabContentDemographics').style.display = 'none';
+    document.getElementById('tabContentPerformance').style.display = 'none';
+    document.getElementById('tabContentGrowth').style.display = 'none';
+
+    // Remove active state from buttons
+    document.getElementById('tabAttendance').style.borderBottomColor = 'transparent';
+    document.getElementById('tabAttendance').style.color = 'var(--text-dim)';
+    document.getElementById('tabDemographics').style.borderBottomColor = 'transparent';
+    document.getElementById('tabDemographics').style.color = 'var(--text-dim)';
+    document.getElementById('tabPerformance').style.borderBottomColor = 'transparent';
+    document.getElementById('tabPerformance').style.color = 'var(--text-dim)';
+    document.getElementById('tabGrowth').style.borderBottomColor = 'transparent';
+    document.getElementById('tabGrowth').style.color = 'var(--text-dim)';
+
+    // Show selected tab
+    if (tabName === 'attendance') {
+      document.getElementById('tabContentAttendance').style.display = 'block';
+      document.getElementById('tabAttendance').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabAttendance').style.color = 'var(--brass)';
+      window.loadAttendanceStatistics();
+    } else if (tabName === 'demographics') {
+      document.getElementById('tabContentDemographics').style.display = 'block';
+      document.getElementById('tabDemographics').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabDemographics').style.color = 'var(--brass)';
+      window.loadDemographicsStatistics();
+    } else if (tabName === 'performance') {
+      document.getElementById('tabContentPerformance').style.display = 'block';
+      document.getElementById('tabPerformance').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabPerformance').style.color = 'var(--brass)';
+      window.loadPerformanceStatistics();
+    } else if (tabName === 'growth') {
+      document.getElementById('tabContentGrowth').style.display = 'block';
+      document.getElementById('tabGrowth').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabGrowth').style.color = 'var(--brass)';
+      window.loadGrowthStatistics();
+    }
+  };
+
+  window.loadAttendanceStatistics = function () {
+    // Load attendance trend
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success && result.data.length > 0) {
+          window.drawAttendanceTrendChart(result.data);
+        } else {
+          document.getElementById('chartAttendanceTrend').innerHTML = '<p style="color: var(--text-dim);">Tidak ada data kehadiran 90 hari terakhir.</p>';
+        }
+      })
+      .serverGetAttendanceTrend(window.currentToken, window.currentKelompokId, 90);
+
+    // Load attendance by kelompok
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success && result.data.length > 0) {
+          window.drawAttendanceByKelompokChart(result.data);
+        } else {
+          document.getElementById('chartAttendanceByKelompok').innerHTML = '<p style="color: var(--text-dim);">Tidak ada data kehadiran 30 hari terakhir.</p>';
+        }
+      })
+      .serverGetAttendanceByKelompok(window.currentToken, 30);
+  };
+
+  window.drawAttendanceTrendChart = function (data) {
+    const chartData = [['Minggu', 'Kehadiran (%)']];
+    data.forEach(row => {
+      chartData.push([row.week, row.percent]);
+    });
+
+    const options = {
+      title: 'Trend Kehadiran Mingguan',
+      curveType: 'function',
+      legend: { position: 'bottom' },
+      hAxis: { slantedText: true },
+      vAxis: { minValue: 0, maxValue: 100 },
+      colors: ['#D97706'],
+      pointSize: 5,
+      backgroundColor: { fill: 'transparent' }
+    };
+
+    const chart = new google.visualization.LineChart(document.getElementById('chartAttendanceTrend'));
+    const dataTable = google.visualization.arrayToDataTable(chartData);
+    chart.draw(dataTable, options);
+  };
+
+  window.drawAttendanceByKelompokChart = function (data) {
+    const chartData = [['Kelompok', 'Kehadiran (%)', { role: 'style' }]];
+    data.forEach(row => {
+      const color = row.percent >= 80 ? '#059669' : row.percent >= 60 ? '#FBBF24' : '#DC2626';
+      chartData.push([row.kelompok_nama, row.percent, color]);
+    });
+
+    const options = {
+      title: 'Kehadiran Per Kelompok (30 hari)',
+      legend: { position: 'none' },
+      hAxis: { slantedText: true },
+      vAxis: { minValue: 0, maxValue: 100 },
+      backgroundColor: { fill: 'transparent' }
+    };
+
+    const chart = new google.visualization.BarChart(document.getElementById('chartAttendanceByKelompok'));
+    const dataTable = google.visualization.arrayToDataTable(chartData);
+    chart.draw(dataTable, options);
+  };
+
+  window.loadDemographicsStatistics = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.drawGenderChart(result.data.gender);
+          window.drawJenjangChart(result.data.jenjang);
+        } else {
+          document.getElementById('chartGenderDistribution').innerHTML = '<p style="color: var(--text-dim);">Tidak ada data santri.</p>';
+        }
+      })
+      .serverGetSantriDemographics(window.currentToken, window.currentKelompokId);
+  };
+
+  window.drawGenderChart = function (genderData) {
+    const chartData = [['Gender', 'Jumlah']];
+    Object.entries(genderData).forEach(([gender, count]) => {
+      chartData.push([gender, count]);
+    });
+
+    const options = {
+      title: 'Distribusi Gender Santri',
+      pieHole: 0.4,
+      colors: ['#D97706', '#059669', '#64748B'],
+      backgroundColor: { fill: 'transparent' }
+    };
+
+    const chart = new google.visualization.PieChart(document.getElementById('chartGenderDistribution'));
+    const dataTable = google.visualization.arrayToDataTable(chartData);
+    chart.draw(dataTable, options);
+  };
+
+  window.drawJenjangChart = function (jenjangData) {
+    const chartData = [['Jenjang', 'Jumlah Santri']];
+    Object.entries(jenjangData).forEach(([jenjang, count]) => {
+      chartData.push([jenjang, count]);
+    });
+
+    const options = {
+      title: 'Distribusi Santri Per Jenjang',
+      legend: { position: 'bottom' },
+      hAxis: { slantedText: true },
+      colors: ['#059669'],
+      backgroundColor: { fill: 'transparent' }
+    };
+
+    const chart = new google.visualization.ColumnChart(document.getElementById('chartJenjangDistribution'));
+    const dataTable = google.visualization.arrayToDataTable(chartData);
+    chart.draw(dataTable, options);
+  };
+
+  window.loadPerformanceStatistics = function () {
+    // Load top attendees
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          const tbody = document.getElementById('topAttendeesBody');
+          tbody.innerHTML = '';
+          result.data.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td><strong>${row.nama}</strong></td>
+              <td style="text-align: center;">${row.hadir}</td>
+              <td style="text-align: center;">${row.total}</td>
+              <td style="text-align: right; color: var(--sage); font-weight: 600;">${row.percent}%</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      })
+      .serverGetTopAttendees(window.currentToken, window.currentKelompokId, 10);
+
+    // Load worst attendees
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          const tbody = document.getElementById('worstAttendeesBody');
+          tbody.innerHTML = '';
+          result.data.forEach((row, idx) => {
+            const tr = document.createElement('tr');
+            const color = row.percent >= 60 ? 'var(--text)' : 'var(--red)';
+            tr.innerHTML = `
+              <td>${idx + 1}</td>
+              <td><strong>${row.nama}</strong></td>
+              <td style="text-align: center;">${row.hadir}</td>
+              <td style="text-align: center; color: var(--red);">${row.absen}</td>
+              <td style="text-align: right; font-weight: 600; color: ${color};">${row.percent}%</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+      })
+      .serverGetWorstAttendees(window.currentToken, window.currentKelompokId, 10);
+  };
+
+  window.loadGrowthStatistics = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          document.getElementById('growthTotalSantri').textContent = result.totalSantri;
+          document.getElementById('growthTotalGuru').textContent = result.totalGuru;
+          window.drawGrowthChart(result.data);
+        }
+      })
+      .serverGetGrowthMetrics(window.currentToken, window.currentKelompokId);
+  };
+
+  window.drawGrowthChart = function (growthData) {
+    const chartData = [['Bulan', 'Santri', 'Guru']];
+    growthData.forEach(row => {
+      chartData.push([row.month, row.santri, row.guru]);
+    });
+
+    const options = {
+      title: 'Pertumbuhan Santri & Guru',
+      legend: { position: 'bottom' },
+      colors: ['#D97706', '#059669'],
+      backgroundColor: { fill: 'transparent' }
+    };
+
+    const chart = new google.visualization.ColumnChart(document.getElementById('chartGrowthMetrics'));
+    const dataTable = google.visualization.arrayToDataTable(chartData);
+    chart.draw(dataTable, options);
   };
 
   window.toggleSidebar = function () {
