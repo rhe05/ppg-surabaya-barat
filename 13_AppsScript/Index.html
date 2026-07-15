@@ -643,6 +643,21 @@
         padding: 20px 15px;
       }
     }
+
+    /* ═════ TAB BUTTONS ═════ */
+    .tab-button {
+      border-bottom: 2px solid transparent !important;
+    }
+
+    .tab-button:hover {
+      color: var(--brass) !important;
+      background: rgba(217, 119, 6, 0.02);
+    }
+
+    .tab-button.active {
+      color: var(--brass) !important;
+      border-bottom-color: var(--brass) !important;
+    }
   </style>
 </head>
 <body>
@@ -705,6 +720,12 @@
         <a class="sidebar-menu-link" onclick="window.switchScreen('absensi')">
           <span style="font-size: 18px;">📋</span>
           <span>Absensi</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('laporan')">
+          <span style="font-size: 18px;">📈</span>
+          <span>Laporan & Export</span>
         </a>
       </li>
     </ul>
@@ -983,6 +1004,129 @@
         </div>
       </div>
     </div>
+
+    <!-- LAPORAN & EXPORT SCREEN -->
+    <div class="screen-wrapper" id="screenLaporan">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Laporan & Export</h2>
+        </div>
+      </div>
+
+      <div class="dash-container">
+        <div class="alert alert-success" id="laporanSuccess" style="display: none;"></div>
+        <div class="alert alert-error" id="laporanError" style="display: none;"></div>
+
+        <!-- Tab Navigation -->
+        <div style="display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: 32px;">
+          <button class="tab-button active" onclick="window.switchLaporanTab('export')" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s;" id="tabExport">
+            📥 Export Data
+          </button>
+          <button class="tab-button" onclick="window.switchLaporanTab('summary')" style="padding: 12px 20px; border: none; background: transparent; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-dim); border-bottom: 2px solid transparent; transition: all 0.2s;" id="tabSummary">
+            📊 Ringkasan Kehadiran
+          </button>
+        </div>
+
+        <!-- TAB 1: EXPORT DATA -->
+        <div id="tabContentExport" style="display: block;">
+          <div class="dash-section-title">Export Data Kelompok</div>
+          <p style="color: var(--text-dim); margin-bottom: 24px;">Download data santri, guru, atau absensi dalam format CSV untuk diolah lebih lanjut.</p>
+
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px;">
+            <div style="background: var(--panel-2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+              <div style="font-size: 28px; margin-bottom: 12px;">👤</div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Data Santri</div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">Daftar lengkap santri kelompok Anda</div>
+              <button class="btn btn-primary" style="width: 100%;" onclick="window.exportData('santri')">Export CSV</button>
+            </div>
+
+            <div style="background: var(--panel-2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+              <div style="font-size: 28px; margin-bottom: 12px;">👨‍🏫</div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Data Guru</div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">Daftar lengkap guru pengajar</div>
+              <button class="btn btn-primary" style="width: 100%;" onclick="window.exportData('guru')">Export CSV</button>
+            </div>
+
+            <div style="background: var(--panel-2); padding: 20px; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+              <div style="font-size: 28px; margin-bottom: 12px;">📋</div>
+              <div style="font-weight: 600; margin-bottom: 4px;">Absensi Bulanan</div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">Matrik kehadiran per santri</div>
+              <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                <select class="form-select" id="exportAbsensiMonth" style="flex: 1;">
+                  <option value="">-- Pilih Bulan --</option>
+                </select>
+                <select class="form-select" id="exportAbsensiYear" style="flex: 0.8;">
+                  <option value="">Tahun</option>
+                </select>
+              </div>
+              <button class="btn btn-primary" style="width: 100%;" onclick="window.exportAbsensi()">Export CSV</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: RINGKASAN KEHADIRAN -->
+        <div id="tabContentSummary" style="display: none;">
+          <div class="dash-section-title">Ringkasan Kehadiran Bulan Ini</div>
+
+          <div id="summaryCardsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px;">
+            <div class="kpi-card accent-sage">
+              <div class="kpi-label">Total Santri</div>
+              <div class="kpi-value" id="summaryTotalSantri">—</div>
+              <div class="kpi-unit">siswa</div>
+            </div>
+            <div class="kpi-card accent-brass">
+              <div class="kpi-label">Total Hadir</div>
+              <div class="kpi-value" id="summaryTotalHadir">—</div>
+              <div class="kpi-unit">record</div>
+            </div>
+            <div class="kpi-card accent-volt">
+              <div class="kpi-label">Total Absen</div>
+              <div class="kpi-value" id="summaryTotalAbsen">—</div>
+              <div class="kpi-unit">record</div>
+            </div>
+            <div class="kpi-card accent-sage">
+              <div class="kpi-label">Kehadiran</div>
+              <div class="kpi-value" id="summaryPercent">—</div>
+              <div class="kpi-unit">persen</div>
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="window.printSummary()" style="margin-bottom: 24px;">🖨️ Cetak Ringkasan</button>
+
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Metric</th>
+                  <th style="text-align: right;">Nilai</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Total Record Absensi</td>
+                  <td style="text-align: right; font-weight: 600;" id="detailTotalRecord">—</td>
+                </tr>
+                <tr>
+                  <td>Total Hadir</td>
+                  <td style="text-align: right; font-weight: 600; color: var(--sage);" id="detailHadir">—</td>
+                </tr>
+                <tr>
+                  <td>Total Absen</td>
+                  <td style="text-align: right; font-weight: 600; color: var(--red);" id="detailAbsen">—</td>
+                </tr>
+                <tr>
+                  <td style="font-weight: 600;">Persentase Kehadiran</td>
+                  <td style="text-align: right; font-weight: 700; color: var(--brass);" id="detailPercent">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1097,7 +1241,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -1112,6 +1256,7 @@
     if (screenName === 'dashboard') window.loadDashboard();
     if (screenName === 'santri') window.loadSantriList();
     if (screenName === 'guru') window.loadGuruList();
+    if (screenName === 'laporan') window.initLaporanScreen();
   };
 
   window.loadDashboard = function () {
@@ -1355,6 +1500,207 @@
         }
       })
       .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, absensiList);
+  };
+
+  /* ═════ LAPORAN & EXPORT FUNCTIONS ═════ */
+
+  window.initLaporanScreen = function () {
+    // Populate month and year dropdowns
+    const monthSelect = document.getElementById('exportAbsensiMonth');
+    const yearSelect = document.getElementById('exportAbsensiYear');
+
+    // Months
+    const months = [
+      { val: 1, label: 'Januari' },
+      { val: 2, label: 'Februari' },
+      { val: 3, label: 'Maret' },
+      { val: 4, label: 'April' },
+      { val: 5, label: 'Mei' },
+      { val: 6, label: 'Juni' },
+      { val: 7, label: 'Juli' },
+      { val: 8, label: 'Agustus' },
+      { val: 9, label: 'September' },
+      { val: 10, label: 'Oktober' },
+      { val: 11, label: 'November' },
+      { val: 12, label: 'Desember' },
+    ];
+    months.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.val;
+      opt.textContent = m.label;
+      if (m.val === new Date().getMonth() + 1) opt.selected = true;
+      monthSelect.appendChild(opt);
+    });
+
+    // Years (current year ± 2)
+    const currentYear = new Date().getFullYear();
+    for (let y = currentYear - 2; y <= currentYear + 1; y++) {
+      const opt = document.createElement('option');
+      opt.value = y;
+      opt.textContent = y;
+      if (y === currentYear) opt.selected = true;
+      yearSelect.appendChild(opt);
+    }
+
+    // Load summary on first tab
+    window.loadAbsensiSummary();
+  };
+
+  window.switchLaporanTab = function (tabName) {
+    // Hide all tabs
+    document.getElementById('tabContentExport').style.display = 'none';
+    document.getElementById('tabContentSummary').style.display = 'none';
+
+    // Remove active state from buttons
+    document.getElementById('tabExport').style.borderBottomColor = 'transparent';
+    document.getElementById('tabExport').style.color = 'var(--text-dim)';
+    document.getElementById('tabSummary').style.borderBottomColor = 'transparent';
+    document.getElementById('tabSummary').style.color = 'var(--text-dim)';
+
+    // Show selected tab
+    if (tabName === 'export') {
+      document.getElementById('tabContentExport').style.display = 'block';
+      document.getElementById('tabExport').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabExport').style.color = 'var(--brass)';
+    } else {
+      document.getElementById('tabContentSummary').style.display = 'block';
+      document.getElementById('tabSummary').style.borderBottomColor = 'var(--brass)';
+      document.getElementById('tabSummary').style.color = 'var(--brass)';
+      window.loadAbsensiSummary();
+    }
+  };
+
+  window.exportData = function (type) {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Mengekspor...';
+
+    const handler = function (result) {
+      btn.disabled = false;
+      btn.textContent = 'Export CSV';
+
+      if (result.success) {
+        // Download CSV file
+        const csv = result.data;
+        const filename = result.filename;
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        showAlert('laporanSuccess', `✓ Berhasil export ${type}. File: ${filename}`, 'success');
+      } else {
+        showAlert('laporanError', result.error, 'error');
+      }
+    };
+
+    if (type === 'santri') {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverExportSantri(window.currentToken, window.currentKelompokId);
+    } else if (type === 'guru') {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverExportGuru(window.currentToken, window.currentKelompokId);
+    }
+  };
+
+  window.exportAbsensi = function () {
+    const month = document.getElementById('exportAbsensiMonth').value;
+    const year = document.getElementById('exportAbsensiYear').value;
+
+    if (!month || !year) {
+      showAlert('laporanError', 'Pilih bulan dan tahun dulu.', 'error');
+      return;
+    }
+
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ Mengekspor...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Export CSV';
+
+        if (result.success) {
+          const csv = result.data;
+          const filename = result.filename;
+          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+          const link = document.createElement('a');
+          const url = URL.createObjectURL(blob);
+          link.setAttribute('href', url);
+          link.setAttribute('download', filename);
+          link.style.visibility = 'hidden';
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+
+          showAlert('laporanSuccess', `✓ Berhasil export absensi. File: ${filename}`, 'success');
+        } else {
+          showAlert('laporanError', result.error, 'error');
+        }
+      })
+      .serverExportAbsensiMonthly(window.currentToken, window.currentKelompokId, parseInt(year), parseInt(month));
+  };
+
+  window.loadAbsensiSummary = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          const data = result.data;
+          document.getElementById('summaryTotalSantri').textContent = data.totalSantri;
+          document.getElementById('summaryTotalHadir').textContent = data.totalHadir;
+          document.getElementById('summaryTotalAbsen').textContent = data.totalAbsen;
+          document.getElementById('summaryPercent').textContent = data.persenKehadiran + '%';
+
+          document.getElementById('detailTotalRecord').textContent = data.totalAbsensiRecord;
+          document.getElementById('detailHadir').textContent = data.totalHadir;
+          document.getElementById('detailAbsen').textContent = data.totalAbsen;
+          document.getElementById('detailPercent').textContent = data.persenKehadiran + '%';
+        }
+      })
+      .serverGetAbsensiSummary(window.currentToken, window.currentKelompokId);
+  };
+
+  window.printSummary = function () {
+    const printWindow = window.open('', '', 'width=800,height=600');
+    const content = `
+      <html>
+      <head>
+        <title>Ringkasan Kehadiran</title>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 20px; }
+          h1 { text-align: center; margin-bottom: 20px; }
+          .summary-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+          .summary-table td { padding: 10px; border: 1px solid #ddd; }
+          .summary-table td:last-child { text-align: right; font-weight: bold; }
+          .footer { text-align: center; margin-top: 30px; font-size: 12px; color: #666; }
+        </style>
+      </head>
+      <body>
+        <h1>Ringkasan Kehadiran Bulan Ini</h1>
+        <table class="summary-table">
+          <tr><td>Total Santri</td><td>${document.getElementById('summaryTotalSantri').textContent}</td></tr>
+          <tr><td>Total Record Absensi</td><td>${document.getElementById('detailTotalRecord').textContent}</td></tr>
+          <tr><td>Total Hadir</td><td>${document.getElementById('summaryTotalHadir').textContent}</td></tr>
+          <tr><td>Total Absen</td><td>${document.getElementById('summaryTotalAbsen').textContent}</td></tr>
+          <tr style="background: #f0f0f0;"><td style="font-weight: bold;">Persentase Kehadiran</td><td>${document.getElementById('summaryPercent').textContent}</td></tr>
+        </table>
+        <div class="footer">
+          Dicetak pada: ${new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+      </body>
+      </html>
+    `;
+    printWindow.document.write(content);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 250);
   };
 
   window.toggleSidebar = function () {
