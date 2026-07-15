@@ -734,6 +734,12 @@
           <span>Statistik</span>
         </a>
       </li>
+      <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('usermanagement')" id="menuUserManagement" style="display: none;">
+          <span style="font-size: 18px;">👥</span>
+          <span>User Management</span>
+        </a>
+      </li>
     </ul>
 
     <div class="sidebar-footer">
@@ -1250,6 +1256,123 @@
         </div>
       </div>
     </div>
+
+    <!-- USER MANAGEMENT SCREEN -->
+    <div class="screen-wrapper" id="screenUserManagement">
+      <div class="dash-header">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <h2 style="margin: 0; font-size: 20px;">User Management</h2>
+          </div>
+          <button class="btn btn-primary" onclick="window.openModalCreateUser()">+ Tambah User</button>
+        </div>
+      </div>
+
+      <div class="dash-container">
+        <div class="alert alert-success" id="userMgmtSuccess" style="display: none;"></div>
+        <div class="alert alert-error" id="userMgmtError" style="display: none;"></div>
+
+        <div class="data-table-wrapper" style="margin-bottom: 48px;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Nama</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Scope</th>
+                <th>Status</th>
+                <th style="width: 150px; text-align: center;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="userTableBody">
+              <tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-faint);">⏳ Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Modal Create/Edit User -->
+      <div class="modal-overlay" id="modalUserForm">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="userFormTitle">Tambah User</span>
+            <button class="modal-close-btn" onclick="window.closeModalUserForm()">✕</button>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Nama Lengkap</label>
+            <input type="text" class="form-input" id="userNama" placeholder="Nama lengkap">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Username</label>
+            <input type="text" class="form-input" id="userUsername" placeholder="Username unik" readonly>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-input" id="userEmail" placeholder="email@example.com">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Role</label>
+            <select class="form-select" id="userRole">
+              <option value="">-- Pilih Role --</option>
+              <option value="admin_ppg">Admin PPG</option>
+              <option value="admin_desa">Admin Desa</option>
+              <option value="admin_kelompok">Admin Kelompok</option>
+              <option value="guru">Guru</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scope Type</label>
+            <select class="form-select" id="userScopeType">
+              <option value="">-- Pilih --</option>
+              <option value="ppg">PPG</option>
+              <option value="desa">Desa</option>
+              <option value="kelompok">Kelompok</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Scope ID</label>
+            <input type="number" class="form-input" id="userScopeId" placeholder="ID">
+          </div>
+
+          <div id="userFormMessage" style="background: #FEF3C7; padding: 12px; border-radius: var(--radius); margin-bottom: 16px; font-size: 12px; color: #92400E; display: none;"></div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalUserForm()">Batal</button>
+            <button class="btn btn-primary" id="btnSaveUser" onclick="window.saveUser()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Change Password -->
+      <div class="modal-overlay" id="modalChangePassword">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span>Reset Password</span>
+            <button class="modal-close-btn" onclick="window.closeModalChangePassword()">✕</button>
+          </div>
+
+          <p style="color: var(--text-dim); margin-bottom: 16px;">Password sementara akan di-generate. User harus mengubahnya saat login pertama.</p>
+
+          <div id="resetPasswordResult" style="background: #DBEAFE; padding: 12px; border-radius: var(--radius); margin-bottom: 16px; font-size: 13px; color: #0369A1; display: none;"></div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalChangePassword()">Tutup</button>
+            <button class="btn btn-primary" id="btnResetPassword" onclick="window.confirmResetPassword()">Reset Password</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1369,7 +1492,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan', 'statistics'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -1386,6 +1509,7 @@
     if (screenName === 'guru') window.loadGuruList();
     if (screenName === 'laporan') window.initLaporanScreen();
     if (screenName === 'statistics') window.initStatisticsScreen();
+    if (screenName === 'usermanagement') window.loadUserManagement();
   };
 
   window.loadDashboard = function () {
@@ -2069,6 +2193,217 @@
     const chart = new google.visualization.ColumnChart(document.getElementById('chartGrowthMetrics'));
     const dataTable = google.visualization.arrayToDataTable(chartData);
     chart.draw(dataTable, options);
+  };
+
+  /* ═════ USER MANAGEMENT FUNCTIONS ═════ */
+
+  window.loadUserManagement = function () {
+    // Show User Management menu only for admins
+    const menuItem = document.getElementById('menuUserManagement');
+    if (window.currentUser && ['admin_ppg', 'admin_desa', 'admin_kelompok'].includes(window.currentUser.role)) {
+      menuItem.style.display = 'block';
+    }
+
+    // Load users
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderUserTable(result.data);
+        } else {
+          showAlert('userMgmtError', result.error, 'error');
+        }
+      })
+      .serverGetUsersList(window.currentToken, 1, 100);
+  };
+
+  window.renderUserTable = function (users) {
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada user.</td></tr>';
+      return;
+    }
+
+    users.forEach((user, idx) => {
+      const tr = document.createElement('tr');
+      const roleLabel = {
+        'admin_ppg': 'Admin PPG',
+        'admin_desa': 'Admin Desa',
+        'admin_kelompok': 'Admin Kelompok',
+        'guru': 'Guru'
+      }[user.role] || user.role;
+
+      const scopeLabel = user.scope_type === 'ppg' ? 'PPG' : `${user.scope_type}#${user.scope_id}`;
+      const statusColor = user.status === 'active' ? 'var(--sage)' : 'var(--text-faint)';
+
+      tr.innerHTML = `
+        <td>${idx + 1}</td>
+        <td><strong>${user.nama}</strong></td>
+        <td><code style="background: var(--panel-2); padding: 2px 6px; border-radius: 3px; font-size: 12px;">${user.username}</code></td>
+        <td style="font-size: 12px;">${user.email || '-'}</td>
+        <td><span style="background: rgba(217, 119, 6, 0.1); color: var(--brass); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600;">${roleLabel}</span></td>
+        <td style="font-size: 12px;">${scopeLabel}</td>
+        <td><span style="color: ${statusColor}; font-weight: 600; font-size: 12px;">${user.status === 'active' ? '✓ Aktif' : '✕ Tidak Aktif'}</span></td>
+        <td style="text-align: center;">
+          <button class="btn-icon" onclick="window.editUser(${user.id})" title="Edit">✎</button>
+          <button class="btn-icon" onclick="window.openResetPasswordModal(${user.id})" title="Reset Password">🔑</button>
+          <button class="btn-icon danger" onclick="window.toggleUserStatus(${user.id})" title="Toggle Status">🔄</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  window.openModalCreateUser = function () {
+    window.currentEditingUserId = null;
+    document.getElementById('userFormTitle').textContent = 'Tambah User';
+    document.getElementById('userNama').value = '';
+    document.getElementById('userUsername').value = '';
+    document.getElementById('userUsername').readOnly = true;
+    document.getElementById('userEmail').value = '';
+    document.getElementById('userRole').value = '';
+    document.getElementById('userScopeType').value = '';
+    document.getElementById('userScopeId').value = '';
+    document.getElementById('userFormMessage').style.display = 'block';
+    document.getElementById('userFormMessage').innerHTML = '✓ Password sementara akan di-generate otomatis. User dapat mengubahnya setelah login pertama.';
+    document.getElementById('btnSaveUser').textContent = 'Buat User';
+    document.getElementById('modalUserForm').classList.add('active');
+  };
+
+  window.editUser = function (userId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          const user = result.data;
+          window.currentEditingUserId = userId;
+          document.getElementById('userFormTitle').textContent = 'Edit User';
+          document.getElementById('userNama').value = user.nama;
+          document.getElementById('userUsername').value = user.username;
+          document.getElementById('userUsername').readOnly = true;
+          document.getElementById('userEmail').value = user.email || '';
+          document.getElementById('userRole').value = user.role;
+          document.getElementById('userScopeType').value = user.scope_type;
+          document.getElementById('userScopeId').value = user.scope_id;
+          document.getElementById('userFormMessage').style.display = 'none';
+          document.getElementById('btnSaveUser').textContent = 'Update User';
+          document.getElementById('modalUserForm').classList.add('active');
+        }
+      })
+      .serverGetUserById(window.currentToken, userId);
+  };
+
+  window.saveUser = function () {
+    const nama = document.getElementById('userNama').value;
+    const email = document.getElementById('userEmail').value;
+    const role = document.getElementById('userRole').value;
+    const scopeType = document.getElementById('userScopeType').value;
+    const scopeId = document.getElementById('userScopeId').value;
+
+    if (!nama || !email || !role || !scopeType || !scopeId) {
+      showAlert('userMgmtError', 'Semua field wajib diisi.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnSaveUser');
+    btn.disabled = true;
+    btn.textContent = '⏳ Menyimpan...';
+
+    if (window.currentEditingUserId) {
+      // Update user
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btn.textContent = 'Update User';
+
+          if (result.success) {
+            showAlert('userMgmtSuccess', result.message, 'success');
+            window.closeModalUserForm();
+            window.loadUserManagement();
+          } else {
+            showAlert('userMgmtError', result.error, 'error');
+          }
+        })
+        .serverUpdateUser(window.currentToken, window.currentEditingUserId, {
+          nama, email, role, scope_type: scopeType, scope_id: scopeId
+        });
+    } else {
+      // Create new user
+      const username = document.getElementById('userNama').value.toLowerCase().replace(/\s+/g, '_').substring(0, 20);
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btn.textContent = 'Buat User';
+
+          if (result.success) {
+            showAlert('userMgmtSuccess', result.message, 'success');
+            window.closeModalUserForm();
+            window.loadUserManagement();
+          } else {
+            showAlert('userMgmtError', result.error, 'error');
+          }
+        })
+        .serverCreateUser(window.currentToken, {
+          nama, username, email, role, scope_type: scopeType, scope_id: scopeId
+        });
+    }
+  };
+
+  window.closeModalUserForm = function () {
+    document.getElementById('modalUserForm').classList.remove('active');
+    window.currentEditingUserId = null;
+  };
+
+  window.toggleUserStatus = function (userId) {
+    if (!confirm('Ubah status user?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          showAlert('userMgmtSuccess', result.message, 'success');
+          window.loadUserManagement();
+        } else {
+          showAlert('userMgmtError', result.error, 'error');
+        }
+      })
+      .serverToggleUserStatus(window.currentToken, userId);
+  };
+
+  window.openResetPasswordModal = function (userId) {
+    window.currentResetPasswordUserId = userId;
+    document.getElementById('resetPasswordResult').style.display = 'none';
+    document.getElementById('btnResetPassword').disabled = false;
+    document.getElementById('btnResetPassword').textContent = 'Reset Password';
+    document.getElementById('modalChangePassword').classList.add('active');
+  };
+
+  window.closeModalChangePassword = function () {
+    document.getElementById('modalChangePassword').classList.remove('active');
+    window.currentResetPasswordUserId = null;
+  };
+
+  window.confirmResetPassword = function () {
+    if (!confirm('Reset password user ini? Password sementara baru akan di-generate.')) return;
+
+    const btn = document.getElementById('btnResetPassword');
+    btn.disabled = true;
+    btn.textContent = '⏳ Memproses...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Reset Password';
+
+        if (result.success) {
+          const resultDiv = document.getElementById('resetPasswordResult');
+          resultDiv.innerHTML = `<strong>✓ Berhasil!</strong><br/>Password sementara: <code style="background: white; padding: 2px 4px; border-radius: 2px; font-weight: 600;">${result.tempPassword}</code><br/>Beri tahu user untuk mengubahnya saat login.`;
+          resultDiv.style.display = 'block';
+        } else {
+          showAlert('userMgmtError', result.error, 'error');
+        }
+      })
+      .serverResetPassword(window.currentToken, window.currentResetPasswordUserId);
   };
 
   window.toggleSidebar = function () {

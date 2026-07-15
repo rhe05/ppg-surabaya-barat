@@ -23,7 +23,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'kelompok', ['id', 'desa_id', 'nama', 'status_aktif', 'created_at']);
 
   // 2. PENGGUNA & AKSES
-  createSheetIfNotExists(ss, 'users', ['id', 'nama', 'username', 'password_hash', 'role', 'scope_type', 'scope_id', 'created_at']);
+  createSheetIfNotExists(ss, 'users', ['id', 'nama', 'username', 'password_hash', 'role', 'scope_type', 'scope_id', 'email', 'status', 'created_at', 'updated_at', 'created_by']);
 
   // 3. DATA SANTRI & GURU
   createSheetIfNotExists(ss, 'santri', ['id', 'kelompok_id', 'nama', 'nis', 'gender', 'tanggal_lahir', 'jenjang_saat_ini']);
@@ -128,7 +128,8 @@ function seedData(ss) {
   if (usersSheet.getLastRow() === 1) {
     const hashedPassword = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, 'admin123');
     const passwordHash = hashedPassword.map((b) => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('');
-    usersSheet.appendRow([1, 'Admin PPG', 'admin', passwordHash, 'admin_ppg', 'ppg', 1, new Date().toISOString().split('T')[0]]);
+    const now = new Date().toISOString().split('T')[0];
+    usersSheet.appendRow([1, 'Admin PPG', 'admin', passwordHash, 'admin_ppg', 'ppg', 1, 'admin@ppg.local', 'active', now, now, 'system']);
     console.log('✓ Dummy user (admin/admin123) seeded. WAJIB GANTI PASSWORD sebelum produksi!');
   }
 }
