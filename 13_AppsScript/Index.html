@@ -151,7 +151,8 @@
     .app-layout {
       display: flex;
       min-height: 100vh;
-      background: var(--bg);
+      background: var(--panel);
+      gap: 0;
     }
 
     .app-sidebar {
@@ -164,6 +165,26 @@
       top: 0;
       max-height: 100vh;
       overflow-y: auto;
+      flex-shrink: 0;
+      transition: width 0.3s, margin-left 0.3s;
+    }
+
+    .app-sidebar.collapsed {
+      width: 60px;
+    }
+
+    .app-sidebar.collapsed .sidebar-logo-text,
+    .app-sidebar.collapsed .sidebar-logo-sub,
+    .app-sidebar.collapsed .sidebar-menu span:last-child,
+    .app-sidebar.collapsed .sidebar-user-name,
+    .app-sidebar.collapsed .sidebar-user-role,
+    .app-sidebar.collapsed .sidebar-logout {
+      display: none;
+    }
+
+    .app-sidebar.collapsed .sidebar-menu-link {
+      justify-content: center;
+      padding: 12px;
     }
 
     .sidebar-logo {
@@ -547,6 +568,21 @@
       color: var(--red);
     }
 
+    .hamburger-btn {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--text-dim);
+      padding: 8px 12px;
+      transition: color 0.2s;
+      margin-right: 12px;
+    }
+
+    .hamburger-btn:hover {
+      color: var(--text);
+    }
+
     .alert {
       padding: 12px 14px;
       border-radius: var(--radius);
@@ -676,7 +712,8 @@
     <!-- DASHBOARD SCREEN -->
     <div class="screen-wrapper active" id="screenDashboard">
       <div class="dash-header">
-        <div class="dash-container" style="padding: 0;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
           <h2 style="margin: 0; font-size: 20px;">Dashboard PPG</h2>
         </div>
       </div>
@@ -735,7 +772,10 @@
     <div class="screen-wrapper" id="screenSantri">
       <div class="dash-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 20px;">Data Santri</h2>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+            <h2 style="margin: 0; font-size: 20px;">Data Santri</h2>
+          </div>
           <button class="btn btn-primary" onclick="window.openModalSantri()">+ Tambah Santri</button>
         </div>
       </div>
@@ -823,7 +863,10 @@
     <div class="screen-wrapper" id="screenGuru">
       <div class="dash-header">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <h2 style="margin: 0; font-size: 20px;">Data Guru</h2>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+            <h2 style="margin: 0; font-size: 20px;">Data Guru</h2>
+          </div>
           <button class="btn btn-primary" onclick="window.openModalGuru()">+ Tambah Guru</button>
         </div>
       </div>
@@ -886,7 +929,10 @@
     <!-- ABSENSI SCREEN -->
     <div class="screen-wrapper" id="screenAbsensi">
       <div class="dash-header">
-        <h2 style="margin: 0; font-size: 20px;">Absensi Santri</h2>
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button class="hamburger-btn" onclick="window.toggleSidebar()">☰</button>
+          <h2 style="margin: 0; font-size: 20px;">Absensi Santri</h2>
+        </div>
       </div>
 
       <div class="dash-container">
@@ -1287,6 +1333,11 @@
         }
       })
       .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, absensiList);
+  };
+
+  window.toggleSidebar = function () {
+    const sidebar = document.querySelector('.app-sidebar');
+    sidebar.classList.toggle('collapsed');
   };
 </script>
 
