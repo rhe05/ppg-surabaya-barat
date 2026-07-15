@@ -1,0 +1,187 @@
+// Prisma schema — diterjemahkan langsung dari 07_Architecture/Database Design.md (Tahap 16)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum StatusKelompok {
+  aktif
+  belum_aktif
+}
+
+enum Role {
+  admin_kelompok
+  admin_desa
+  admin_ppg
+}
+
+enum ScopeType {
+  kelompok
+  desa
+  ppg
+}
+
+enum Gender {
+  L
+  P
+}
+
+enum Jenjang {
+  AUD
+  Cabe_Rawit
+  Pra_Remaja
+  Remaja
+}
+
+enum StatusAbsensi {
+  hadir
+  alpa
+  izin
+}
+
+enum StatusMunaqosah {
+  belum_dinilai
+  dinilai
+}
+
+model Ppg {
+  id    Int    @id @default(autoincrement())
+  nama  String
+  desa  Desa[]
+}
+
+model Desa {
+  id        Int         @id @default(autoincrement())
+  ppgId     Int
+  ppg       Ppg         @relation(fields: [ppgId], references: [id])
+  nama      String
+  kelompok  Kelompok[]
+}
+
+model Kelompok {
+  id           Int             @id @default(autoincrement())
+  desaId       Int
+  desa         Desa            @relation(fields: [desaId], references: [id])
+  nama         String
+  statusAktif  StatusKelompok  @default(belum_aktif) // BR-02: hanya admin_ppg boleh ubah
+  createdAt    DateTime        @default(now())
+  santri       Santri[]
+  guru         Guru[]
+}
+
+model User {
+  id            Int        @id @default(autoincrement())
+  nama          String
+  username      String     @unique
+  passwordHash  String
+  role          Role
+  scopeType     ScopeType
+  scopeId       Int        // BR-04: satu role, satu scope — divalidasi di application layer
+  createdAt     DateTime   @default(now())
+}
+
+model Santri {
+  id              Int               @id @default(autoincrement())
+  kelompokId      Int
+  kelompok        Kelompok          @relation(fields: [kelompokId], references: [id])
+  nama            String
+  nis             String            @unique
+  gender          Gender
+  tanggalLahir    DateTime
+  jenjangSaatIni  Jenjang
+  absensi         Absensi[]
+  munaqosah       Munaqosah[]
+  riwayatJenjang  RiwayatJenjang[]
+  kurikulum       KurikulumAkhlaq[]
+  konseling       Konseling[]
+}
+
+model RiwayatJenjang {
+  id            Int      @id @default(autoincrement())
+  santriId      Int
+  santri        Santri   @relation(fields: [santriId], references: [id])
+  jenjangLama   Jenjang
+  jenjangBaru   Jenjang
+  tanggal       DateTime @default(now())
+  catatan       String?
+  dicatatOleh   Int      // BR-14: riwayat tidak ditimpa
+}
+
+model Guru {
+  id          Int       @id @default(autoincrement())
+  kelompokId  Int
+  kelompok    Kelompok  @relation(fields: [kelompokId], references: [id])
+  nama        String
+  kategori    String?   // menunggu klarifikasi padanan TPQ (lihat Database Design §4)
+}
+
+model Absensi {
+  id           Int             @id @default(autoincrement())
+  santriId     Int
+  santri       Santri          @relation(fields: [santriId], references: [id])
+  tanggal      DateTime
+  status       StatusAbsensi
+  dicatatOleh  Int
+
+  @@unique([santriId, tanggal])
+}
+
+model PeriodeMunaqosah {
+  id                   Int         @id @default(autoincrement())
+  semester             String
+  status               String      @default("tutup") // "buka" | "tutup"
+  estimasiBukaKembali  String?     // wajib diisi saat status=tutup (BR-09)
+  kontak               String?
+  diubahOleh           Int?
+  diubahPada           DateTime    @updatedAt
+  munaqosah            Munaqosah[]
+}
+
+model Munaqosah {
+  id           Int               @id @default(autoincrement())
+  santriId     Int
+  santri       Santri            @relation(fields: [santriId], references: [id])
+  periodeId    Int
+  periode      PeriodeMunaqosah  @relation(fields: [periodeId], references: [id])
+  nilai        Int?
+  status       StatusMunaqosah   @default(belum_dinilai)
+  dinilaiOleh  Int?
+  dinilaiPada  DateTime?
+
+  @@unique([santriId, periodeId])
+}
+
+model KurikulumAkhlaq {
+  id               Int      @id @default(autoincrement())
+  santriId         Int
+  santri           Santri   @relation(fields: [santriId], references: [id])
+  semester         String
+  nilaiAkhlaq      Int      // BR-11 — sumber kriteria Santri Teladan
+  catatanCapaian   String?  // ASUMSI cakupan, lihat Feature Breakdown §0
+  dicatatOleh      Int
+}
+
+model Konseling {
+  id           Int      @id @default(autoincrement())
+  santriId     Int
+  santri       Santri   @relation(fields: [santriId], references: [id])
+  tanggal      DateTime
+  kategori     String
+  masalah      String
+  status       String
+  pencatatId   Int      // BR-08: jejak audit wajib
+}
+
+model AuditLog {
+  id               Int      @id @default(autoincrement())
+  tableName        String
+  recordId         Int
+  action           String   // create | update | delete
+  userId           Int
+  timestamp        DateTime @default(now())
+  detailPerubahan  Json?
+}

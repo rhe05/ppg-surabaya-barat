@@ -1,0 +1,47 @@
+name: Deploy Apps Script
+
+# Jalan otomatis tiap kali ada perubahan di folder Apps Script yang di-push ke main.
+# Bisa juga dijalankan manual dari tab "Actions" (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+    paths:
+      - '13_AppsScript/**'
+  workflow_dispatch:
+
+# Cegah dua deploy jalan bersamaan
+concurrency:
+  group: appsscript-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp@3
+
+      - name: Tulis kredensial clasp dari secret
+        run: |
+          printf '%s' "$CLASPRC_JSON" > "$HOME/.clasprc.json"
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+
+      - name: Push kode ke Apps Script
+        working-directory: 13_AppsScript
+        run: clasp push --force
+
+      - name: Deploy web app (update deployment yang sama)
+        working-directory: 13_AppsScript
+        run: |
+          clasp deploy \
+            --deploymentId "${{ vars.APPSSCRIPT_DEPLOYMENT_ID }}" \
+            --description "Auto-deploy dari GitHub Actions @ ${GITHUB_SHA::7}"

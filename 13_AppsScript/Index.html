@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    /* Token dari Design System.md (Tahap 14) */
+    :root {
+      --color-primary: #2563EB;
+      --color-success: #16A34A;
+      --color-danger: #DC2626;
+      --color-neutral-bg: #F8FAFC;
+      --color-surface: #FFFFFF;
+      --color-text-primary: #0F172A;
+      --color-text-secondary: #64748B;
+      --radius-card: 14px;
+      --radius-button: 999px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--color-neutral-bg);
+      color: var(--color-text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--color-surface);
+      border-radius: var(--radius-card);
+      box-shadow: 0 2px 12px rgba(15, 23, 42, 0.08);
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 380px;
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .brand-title {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--color-text-secondary);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--color-text-secondary);
+      margin-bottom: 6px;
+      margin-top: 16px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #E2E8F0;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--color-primary);
+    }
+
+    button.btn-primary {
+      width: 100%;
+      margin-top: 24px;
+      padding: 13px;
+      background: var(--color-primary);
+      color: white;
+      border: none;
+      border-radius: var(--radius-button);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    button.btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    button.btn-secondary {
+      width: 100%;
+      margin-top: 12px;
+      padding: 13px;
+      background: transparent;
+      color: var(--color-text-secondary);
+      border: 1px solid #E2E8F0;
+      border-radius: var(--radius-button);
+      font-size: 14px;
+      font-family: inherit;
+      cursor: pointer;
+    }
+
+    .error-box {
+      background: #FEF2F2;
+      color: var(--color-danger);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: var(--color-success);
+      color: white;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      animation: slideIn 0.2s ease;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(20px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .dashboard-placeholder {
+      display: none;
+      text-align: center;
+    }
+
+    .dashboard-placeholder .welcome {
+      font-size: 16px;
+      margin-bottom: 4px;
+    }
+
+    .dashboard-placeholder .role-badge {
+      display: inline-block;
+      background: #EFF6FF;
+      color: var(--color-primary);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: var(--radius-button);
+      margin-top: 8px;
+      margin-bottom: 24px;
+    }
+
+    .dev-banner {
+      display: none;
+      background: #FFFBEB;
+      color: #92400E;
+      border: 1px solid #FDE68A;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <div class="brand">
+      <div class="brand-title">PPG</div>
+      <div class="brand-subtitle">Surabaya Barat</div>
+    </div>
+
+    <div class="dev-banner" id="devBanner">⚠️ Mode Pengembangan — Login Dinonaktifkan Sementara</div>
+
+    <!-- FORM LOGIN -->
+    <div id="loginForm">
+      <label for="username">Username</label>
+      <input type="text" id="username" autocomplete="username" placeholder="Masukkan username">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
+
+      <div class="error-box" id="errorBox"></div>
+
+      <button class="btn-primary" id="btnLogin" onclick="handleLogin()">Masuk</button>
+    </div>
+
+    <!-- PLACEHOLDER SETELAH LOGIN BERHASIL -->
+    <div class="dashboard-placeholder" id="dashboardPlaceholder">
+      <div class="welcome">Selamat datang, <b id="userNama"></b></div>
+      <div class="role-badge" id="userRole"></div>
+      <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 20px;">
+        Dashboard modul lain menyusul — ini konfirmasi bahwa alur login berjalan.
+      </div>
+      <button class="btn-secondary" onclick="handleLogout()">Keluar</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // Cek dev mode dulu; jika aktif, langsung masuk tanpa login.
+    // Jika tidak aktif, baru cek sesi tersimpan seperti biasa.
+    window.onload = function () {
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (result.devMode) {
+            document.getElementById('devBanner').style.display = 'block';
+            sessionStorage.setItem('ppg_token', result.token);
+            renderDashboard(result.user);
+            return;
+          }
+
+          // Mode normal — cek sesi tersimpan
+          const token = sessionStorage.getItem('ppg_token');
+          if (token) {
+            verifySession(token);
+          }
+        })
+        .withFailureHandler(function () {
+          // Gagal cek dev mode — jatuh ke alur login normal
+          const token = sessionStorage.getItem('ppg_token');
+          if (token) verifySession(token);
+        })
+        .serverCheckDevMode();
+    };
+
+    function showError(msg) {
+      const box = document.getElementById('errorBox');
+      box.textContent = msg;
+      box.style.display = 'block';
+    }
+
+    function hideError() {
+      document.getElementById('errorBox').style.display = 'none';
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.style.display = 'block';
+      setTimeout(() => (toast.style.display = 'none'), 3000);
+    }
+
+    function handleLogin() {
+      hideError();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!username || !password) {
+        showError('Username dan password wajib diisi.');
+        return;
+      }
+
+      const btn = document.getElementById('btnLogin');
+      btn.disabled = true;
+      btn.textContent = 'Memproses...';
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          btn.disabled = false;
+          btn.textContent = 'Masuk';
+
+          if (!result.success) {
+            showError(result.error);
+            return;
+          }
+
+          sessionStorage.setItem('ppg_token', result.token);
+          showToast('Berhasil masuk.');
+          renderDashboard(result.user);
+        })
+        .withFailureHandler(function (err) {
+          btn.disabled = false;
+          btn.textContent = 'Masuk';
+          showError('Terjadi kesalahan sistem. Coba lagi.');
+        })
+        .serverLogin(username, password);
+    }
+
+    function verifySession(token) {
+      google.script.run
+        .withSuccessHandler(function (result) {
+          if (result.success) {
+            renderDashboard(result.user);
+          } else {
+            sessionStorage.removeItem('ppg_token');
+          }
+        })
+        .withFailureHandler(function () {
+          sessionStorage.removeItem('ppg_token');
+        })
+        .serverGetSession(token);
+    }
+
+    function renderDashboard(user) {
+      document.getElementById('loginForm').style.display = 'none';
+      document.getElementById('dashboardPlaceholder').style.display = 'block';
+      document.getElementById('userNama').textContent = user.nama;
+
+      const roleLabel = {
+        admin_kelompok: 'Admin Kelompok',
+        admin_desa: 'Admin Desa',
+        admin_ppg: 'Admin PPG',
+      };
+      document.getElementById('userRole').textContent = roleLabel[user.role] || user.role;
+    }
+
+    function handleLogout() {
+      const token = sessionStorage.getItem('ppg_token');
+      google.script.run.serverLogout(token);
+      sessionStorage.removeItem('ppg_token');
+      document.getElementById('loginForm').style.display = 'block';
+      document.getElementById('dashboardPlaceholder').style.display = 'none';
+      document.getElementById('username').value = '';
+      document.getElementById('password').value = '';
+    }
+  </script>
+
+</body>
+</html>
