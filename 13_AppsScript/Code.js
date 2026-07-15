@@ -1,4 +1,5 @@
 /**
+ * Deploy otomatis via GitHub Actions aktif sejak 2026-07-15.
  * Code.gs — Entry point Web App + autentikasi login.
  * Melengkapi SchemaConfig.gs, Auth.gs, KelompokService.gs, AbsensiService.gs
  * yang sudah dibuat sebelumnya.
