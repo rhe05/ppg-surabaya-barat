@@ -143,8 +143,11 @@ function seedGuru(kelompokAktifIds) {
 }
 
 /**
- * Seed absensi: 7 hari terakhir, kehadiran 70-90% realistis.
+ * Seed absensi: 3 hari terakhir (lebih efisien), kehadiran 70-90% realistis.
  * Hanya untuk santri di kelompok pilot.
+ *
+ * Menggunakan batch setValues() daripada appendRow loop — jauh lebih cepat
+ * (avoid timeout pada 1400+ rows).
  */
 function seedAbsensi(kelompokAktifIds) {
   const absensiSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAMES.ABSENSI);
@@ -160,17 +163,14 @@ function seedAbsensi(kelompokAktifIds) {
 
   const today = new Date();
   let absensiId = 1;
-  let rowCount = 0;
+  const absensiRows = [];
 
-  // Generate 7 hari terakhir
-  for (let dayOffset = 6; dayOffset >= 0; dayOffset--) {
+  // Generate 3 hari terakhir (lebih efisien, masih cukup untuk visualisasi chart)
+  for (let dayOffset = 2; dayOffset >= 0; dayOffset--) {
     const date = new Date(today.getTime() - dayOffset * 24 * 60 * 60 * 1000);
     const dateStr = date.toISOString().split('T')[0];
 
-    // Skip Minggu? (optional — sekarang include semua hari untuk data lengkap)
-    // if (date.getDay() === 0) continue;
-
-    // Untuk setiap santri, 85-95% hadir
+    // Untuk setiap santri, 85% hadir (5% alpa, 10% izin)
     santriPilot.forEach(santri => {
       const rand = Math.random();
       let status = 'hadir';
@@ -180,13 +180,16 @@ function seedAbsensi(kelompokAktifIds) {
       } else if (rand < 0.12) {
         status = 'izin';
       }
-      // else hadir (85%)
 
-      absensiSheet.appendRow([absensiId, santri.id, dateStr, status, 1]); // user_id = 1 (admin dummy)
+      absensiRows.push([absensiId, santri.id, dateStr, status, 1]); // user_id = 1 (admin dummy)
       absensiId++;
-      rowCount++;
     });
   }
 
-  console.log(`✓ ${rowCount} record absensi seeded (7 hari, ${santriPilot.length} santri, ~85% kehadiran).`);
+  // Batch insert via setValues() — jauh lebih cepat
+  if (absensiRows.length > 0) {
+    absensiSheet.getRange(2, 1, absensiRows.length, 5).setValues(absensiRows);
+  }
+
+  console.log(`✓ ${absensiRows.length} record absensi seeded (3 hari, ${santriPilot.length} santri, ~85% kehadiran).`);
 }
