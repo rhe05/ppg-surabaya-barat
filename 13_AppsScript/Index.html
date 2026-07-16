@@ -1037,6 +1037,18 @@
         </a>
       </li>
       <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('munaqosah')">
+          <span style="font-size: 18px;">✍️</span>
+          <span>Munaqosah</span>
+        </a>
+      </li>
+      <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('konseling')">
+          <span style="font-size: 18px;">👨‍🏫</span>
+          <span>Bimbingan Konseling</span>
+        </a>
+      </li>
+      <li>
         <a class="sidebar-menu-link" onclick="window.switchScreen('laporan')">
           <span style="font-size: 18px;">📈</span>
           <span>Laporan & Export</span>
@@ -1327,6 +1339,146 @@
               <button class="btn btn-primary" style="flex: 1;" onclick="window.saveAbsensi()">Simpan Absensi</button>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MUNAQOSAH SCREEN -->
+    <div class="screen-wrapper" id="screenMunaqosah">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Munaqosah (Evaluasi Santri)</h2>
+        </div>
+        <button class="btn btn-primary" onclick="window.openMunaqosahModal()">+ Tambah Penilaian</button>
+      </div>
+      <div style="padding: 16px;">
+        <div class="filter-panel" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <select id="filterPeriodeMunaqosah" onchange="window.loadMunaqosahTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Pilih Periode --</option>
+          </select>
+          <select id="filterKelompokMunaqosah" onchange="window.loadMunaqosahTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Pilih Kelompok --</option>
+          </select>
+          <select id="filterStatusMunaqosah" onchange="window.loadMunaqosahTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Semua Status --</option>
+            <option value="dinilai">Sudah Dinilai</option>
+            <option value="belum_dinilai">Belum Dinilai</option>
+          </select>
+          <button class="btn btn-secondary" onclick="window.downloadMunaqosahPDF()" style="width: 100%;">📥 Download Soal</button>
+        </div>
+
+        <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin-bottom: 16px; font-size: 14px;">
+          Sudah dinilai: <span id="countMunaqosahDinilai">0</span> | Belum dinilai: <span id="countMunaqosahBelum">0</span> | Total: <span id="countMunaqosahTotal">0</span>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Tanggal</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nama Santri</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelas</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelompok</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nilai</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Status</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="munaqosahTableBody" style="background: white;">
+            </tbody>
+          </table>
+        </div>
+
+        <div style="margin-top: 24px;">
+          <h3>Santri Teladan (Nilai ≥ 90)</h3>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">No</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nama</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelas</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nilai</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelompok</th>
+                </tr>
+              </thead>
+              <tbody id="teladanTableBody" style="background: white;">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BIMBINGAN KONSELING SCREEN -->
+    <div class="screen-wrapper" id="screenKonseling">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Bimbingan Konseling</h2>
+        </div>
+        <button class="btn btn-primary" onclick="window.openKonselingModal()">+ Pencatatan Baru</button>
+      </div>
+      <div style="padding: 16px;">
+        <div class="filter-panel" style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <input type="text" id="filterSantriKonseling" placeholder="Cari Santri..." onkeyup="window.loadKonselingTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <select id="filterKategoriKonseling" onchange="window.loadKonselingTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Semua Kategori --</option>
+            <option value="akademik">Akademik</option>
+            <option value="perilaku">Perilaku</option>
+            <option value="emosional">Emosional</option>
+            <option value="sosial">Sosial</option>
+            <option value="kesehatan">Kesehatan</option>
+            <option value="lainnya">Lainnya</option>
+          </select>
+          <select id="filterStatusKonseling" onchange="window.loadKonselingTable()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Semua Status --</option>
+            <option value="aktif">Aktif</option>
+            <option value="selesai">Selesai</option>
+            <option value="pending">Pending</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+          <div style="background: #e3f2fd; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #666;">Total Kasus</p>
+            <span style="font-size: 24px; font-weight: bold; color: #1976d2;" id="statKonselingTotal">0</span>
+          </div>
+          <div style="background: #fff3e0; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #666;">Aktif</p>
+            <span style="font-size: 24px; font-weight: bold; color: #f57c00;" id="statKonselingAktif">0</span>
+          </div>
+          <div style="background: #f3e5f5; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #666;">Pending</p>
+            <span style="font-size: 24px; font-weight: bold; color: #7b1fa2;" id="statKonselingPending">0</span>
+          </div>
+          <div style="background: #e8f5e9; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #666;">Selesai</p>
+            <span style="font-size: 24px; font-weight: bold; color: #388e3c;" id="statKonselingSelesai">0</span>
+          </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Tanggal</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Santri</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kategori</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Masalah</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Status</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Pencatat</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="konselingTableBody" style="background: white;">
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -1687,6 +1839,98 @@
         </div>
       </div>
     </div>
+
+    <!-- Modal Munaqosah Entry/Edit -->
+    <div class="modal-overlay" id="modalMunaqosah">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalMunaqosahTitle">Tambah Penilaian</span>
+          <button class="modal-close-btn" onclick="window.closeMunaqosahModal()">✕</button>
+        </div>
+        <form onsubmit="window.saveMunaqosahForm(event)">
+          <div class="form-group">
+            <label>Periode</label>
+            <select id="formMunaqosahPeriode" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></select>
+          </div>
+          <div class="form-group">
+            <label>Santri</label>
+            <select id="formMunaqosahSantri" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></select>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Penilaian</label>
+            <input type="date" id="formMunaqosahTanggal" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Nilai (0-100)</label>
+            <input type="number" id="formMunaqosahNilai" min="0" max="100" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Catatan</label>
+            <textarea id="formMunaqosahCatatan" rows="3" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.closeMunaqosahModal()">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Konseling Entry/Edit -->
+    <div class="modal-overlay" id="modalKonseling">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalKonselingTitle">Pencatatan Konseling Baru</span>
+          <button class="modal-close-btn" onclick="window.closeKonselingModal()">✕</button>
+        </div>
+        <form onsubmit="window.saveKonselingForm(event)">
+          <div class="form-group">
+            <label>Santri</label>
+            <select id="formKonselingS antri" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;"></select>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Konseling</label>
+            <input type="date" id="formKonselingTanggal" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Kategori</label>
+            <select id="formKonselingKategori" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+              <option value="">-- Pilih Kategori --</option>
+              <option value="akademik">Akademik</option>
+              <option value="perilaku">Perilaku</option>
+              <option value="emosional">Emosional</option>
+              <option value="sosial">Sosial</option>
+              <option value="kesehatan">Kesehatan</option>
+              <option value="lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Masalah / Keluhan</label>
+            <textarea id="formKonselingMasalah" rows="3" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Status</label>
+            <select id="formKonselingStatus" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+              <option value="aktif">Aktif</option>
+              <option value="pending">Pending</option>
+              <option value="selesai">Selesai</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Aksi / Intervensi</label>
+            <textarea id="formKonselingAksi" rows="3" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Catatan Tindak Lanjut</label>
+            <textarea id="formKonselingFollowup" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.closeKonselingModal()">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1806,7 +2050,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -1821,6 +2065,8 @@
     if (screenName === 'dashboard') window.loadDashboard();
     if (screenName === 'santri') window.loadSantriList();
     if (screenName === 'guru') window.loadGuruList();
+    if (screenName === 'munaqosah') window.loadMunaqosahScreen();
+    if (screenName === 'konseling') window.loadKonselingScreen();
     if (screenName === 'laporan') window.initLaporanScreen();
     if (screenName === 'statistics') window.initStatisticsScreen();
     if (screenName === 'usermanagement') window.loadUserManagement();
@@ -2750,6 +2996,309 @@
       // Desktop: toggle collapsed state
       sidebar.classList.toggle('collapsed');
     }
+  };
+
+  /* ═════ MUNAQOSAH FUNCTIONS ═════ */
+
+  window.loadMunaqosahScreen = function () {
+    window.loadMunaqosahTable();
+    window.loadSantriTeladanTable();
+  };
+
+  window.loadMunaqosahTable = function () {
+    const periodeId = document.getElementById('filterPeriodeMunaqosah').value;
+    const kelompokId = document.getElementById('filterKelompokMunaqosah').value;
+    const status = document.getElementById('filterStatusMunaqosah').value;
+
+    if (!periodeId) {
+      document.getElementById('munaqosahTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Pilih periode terlebih dahulu</td></tr>';
+      return;
+    }
+
+    const filters = {};
+    if (kelompokId) filters.kelompokId = kelompokId;
+    if (status) filters.status = status;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderMunaqosahTable(result.data, result.total);
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverGetMunaqosahList(window.currentToken, periodeId, filters);
+  };
+
+  window.renderMunaqosahTable = function (data, total) {
+    const tbody = document.getElementById('munaqosahTableBody');
+    tbody.innerHTML = '';
+
+    const dinilai = data.filter(d => d.status === 'dinilai').length;
+    const belum = data.filter(d => d.status !== 'dinilai').length;
+
+    document.getElementById('countMunaqosahDinilai').textContent = dinilai;
+    document.getElementById('countMunaqosahBelum').textContent = belum;
+    document.getElementById('countMunaqosahTotal').textContent = total;
+
+    data.forEach(item => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.tanggal || '-'}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelas}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelompok_nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold;">${item.nilai}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <span style="background: ${item.status === 'dinilai' ? '#dcfce7' : '#fecaca'}; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            ${item.status === 'dinilai' ? 'Dinilai' : 'Belum'}
+          </span>
+        </td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+          <button class="btn btn-sm" onclick="window.editMunaqosah('${item.id}')" style="padding: 4px 8px; margin-right: 4px;">Edit</button>
+          <button class="btn btn-sm" onclick="window.deleteMunaqosah('${item.id}')" style="padding: 4px 8px; background: #ef4444; color: white;">Hapus</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  };
+
+  window.loadSantriTeladanTable = function () {
+    const periodeId = document.getElementById('filterPeriodeMunaqosah').value;
+    if (!periodeId) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderSantriTeladanTable(result.data);
+        }
+      })
+      .serverGetSantriTeladan(window.currentToken, periodeId, 90);
+  };
+
+  window.renderSantriTeladanTable = function (data) {
+    const tbody = document.getElementById('teladanTableBody');
+    tbody.innerHTML = '';
+
+    data.forEach((item, idx) => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding: 12px; border: 1px solid #ddd;">${idx + 1}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelas}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #059669;">${item.nilai}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelompok_nama}</td>
+      `;
+      tbody.appendChild(row);
+    });
+  };
+
+  window.openMunaqosahModal = function () {
+    document.getElementById('modalMunaqosahTitle').textContent = 'Tambah Penilaian';
+    document.getElementById('formMunaqosahPeriode').value = '';
+    document.getElementById('formMunaqosahSantri').value = '';
+    document.getElementById('formMunaqosahTanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('formMunaqosahNilai').value = '';
+    document.getElementById('formMunaqosahCatatan').value = '';
+    document.getElementById('modalMunaqosah').classList.add('active');
+
+    // Load periode
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          const select = document.getElementById('filterPeriodeMunaqosah');
+          const periodeSelect = document.getElementById('formMunaqosahPeriode');
+          periodeSelect.innerHTML = '<option value="">-- Pilih Periode --</option>';
+          result.data.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.semester;
+            periodeSelect.appendChild(opt);
+            if (!select.value) select.innerHTML += `<option value="${p.id}">${p.semester}</option>`;
+          });
+        }
+      })
+      .serverGetPeriodeMunaqosah(window.currentToken);
+  };
+
+  window.closeMunaqosahModal = function () {
+    document.getElementById('modalMunaqosah').classList.remove('active');
+  };
+
+  window.saveMunaqosahForm = function (event) {
+    event.preventDefault();
+
+    const data = {
+      santri_id: document.getElementById('formMunaqosahSantri').value,
+      periode_id: document.getElementById('formMunaqosahPeriode').value,
+      tanggal: document.getElementById('formMunaqosahTanggal').value,
+      nilai: parseInt(document.getElementById('formMunaqosahNilai').value),
+      catatan: document.getElementById('formMunaqosahCatatan').value,
+    };
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.closeMunaqosahModal();
+          window.loadMunaqosahTable();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverCreateMunaqosah(window.currentToken, data);
+  };
+
+  window.deleteMunaqosah = function (id) {
+    if (!confirm('Hapus penilaian ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.loadMunaqosahTable();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverDeleteMunaqosah(window.currentToken, id);
+  };
+
+  window.downloadMunaqosahPDF = function () {
+    alert('Fitur download PDF akan segera tersedia');
+  };
+
+  /* ═════ KONSELING FUNCTIONS ═════ */
+
+  window.loadKonselingScreen = function () {
+    window.loadKonselingTable();
+  };
+
+  window.loadKonselingTable = function () {
+    const santriFilter = document.getElementById('filterSantriKonseling').value;
+    const kategoriFilter = document.getElementById('filterKategoriKonseling').value;
+    const statusFilter = document.getElementById('filterStatusKonseling').value;
+
+    const filters = {};
+    if (santriFilter) filters.santri_nama = santriFilter;
+    if (kategoriFilter) filters.kategori = kategoriFilter;
+    if (statusFilter) filters.status = statusFilter;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderKonselingTable(result.data);
+          window.updateKonselingStats(result.data);
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverGetKonselingList(window.currentToken, filters);
+  };
+
+  window.renderKonselingTable = function (data) {
+    const tbody = document.getElementById('konselingTableBody');
+    tbody.innerHTML = '';
+
+    data.forEach(item => {
+      const statusColor = {
+        'aktif': '#fbbf24',
+        'pending': '#8b5cf6',
+        'selesai': '#10b981'
+      };
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.tanggal}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.santri_nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">${item.kategori}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 13px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${item.masalah}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <span style="background: ${statusColor[item.status] || '#ddd'}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            ${item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+          </span>
+        </td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">${item.pencatat_nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+          <button class="btn btn-sm" onclick="window.viewKonselingDetail('${item.id}')" style="padding: 4px 8px; margin-right: 4px;">Lihat</button>
+          <button class="btn btn-sm" onclick="window.deleteKonseling('${item.id}')" style="padding: 4px 8px; background: #ef4444; color: white;">Hapus</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  };
+
+  window.updateKonselingStats = function (data) {
+    const total = data.length;
+    const aktif = data.filter(d => d.status === 'aktif').length;
+    const selesai = data.filter(d => d.status === 'selesai').length;
+    const pending = data.filter(d => d.status === 'pending').length;
+
+    document.getElementById('statKonselingTotal').textContent = total;
+    document.getElementById('statKonselingAktif').textContent = aktif;
+    document.getElementById('statKonselingSelesai').textContent = selesai;
+    document.getElementById('statKonselingPending').textContent = pending;
+  };
+
+  window.openKonselingModal = function () {
+    document.getElementById('modalKonselingTitle').textContent = 'Pencatatan Konseling Baru';
+    document.getElementById('formKonselingS antri').value = '';
+    document.getElementById('formKonselingTanggal').value = new Date().toISOString().split('T')[0];
+    document.getElementById('formKonselingKategori').value = '';
+    document.getElementById('formKonselingMasalah').value = '';
+    document.getElementById('formKonselingStatus').value = 'aktif';
+    document.getElementById('formKonselingAksi').value = '';
+    document.getElementById('formKonselingFollowup').value = '';
+    document.getElementById('modalKonseling').classList.add('active');
+  };
+
+  window.closeKonselingModal = function () {
+    document.getElementById('modalKonseling').classList.remove('active');
+  };
+
+  window.saveKonselingForm = function (event) {
+    event.preventDefault();
+
+    const data = {
+      santri_id: document.getElementById('formKonselingS antri').value,
+      tanggal: document.getElementById('formKonselingTanggal').value,
+      kategori: document.getElementById('formKonselingKategori').value,
+      masalah: document.getElementById('formKonselingMasalah').value,
+      status: document.getElementById('formKonselingStatus').value,
+      aksi: document.getElementById('formKonselingAksi').value,
+      catatan_tindak_lanjut: document.getElementById('formKonselingFollowup').value,
+    };
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.closeKonselingModal();
+          window.loadKonselingTable();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverCreateKonseling(window.currentToken, data);
+  };
+
+  window.viewKonselingDetail = function (id) {
+    alert('Fitur view detail akan segera tersedia');
+  };
+
+  window.deleteKonseling = function (id) {
+    if (!confirm('Hapus pencatatan konseling ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.loadKonselingTable();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverDeleteKonseling(window.currentToken, id);
   };
 
   // Close mobile sidebar when clicking outside

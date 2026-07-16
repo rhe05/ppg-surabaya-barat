@@ -20,6 +20,7 @@ const SHEET_NAMES = {
   ABSENSI: 'absensi',
   MUNAQOSAH: 'munaqosah',
   PERIODE_MUNAQOSAH: 'periode_munaqosah',
+  KONSELING: 'konseling',
   KURIKULUM_AKHLAQ: 'kurikulum_akhlaq',
   AUDIT_LOG: 'audit_log',
 };

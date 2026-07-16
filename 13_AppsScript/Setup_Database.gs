@@ -34,13 +34,16 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'absensi', ['id', 'santri_id', 'tanggal', 'status', 'dicatat_oleh']);
 
   // 5. PENILAIAN & EVALUASI
-  createSheetIfNotExists(ss, 'munaqosah', ['id', 'santri_id', 'periode_id', 'nilai', 'status', 'dinilai_oleh', 'dinilai_pada']);
+  createSheetIfNotExists(ss, 'munaqosah', ['id', 'santri_id', 'periode_id', 'tanggal', 'kelas', 'wilayah', 'nilai', 'status', 'catatan', 'dinilai_oleh', 'dinilai_pada']);
   createSheetIfNotExists(ss, 'periode_munaqosah', ['id', 'semester', 'status', 'estimasi_buka_kembali', 'kontak', 'diubah_oleh', 'diubah_pada']);
 
-  // 6. MODUL KURIKULUM
+  // 6. BIMBINGAN KONSELING
+  createSheetIfNotExists(ss, 'konseling', ['id', 'santri_id', 'kelompok_id', 'tanggal', 'kategori', 'masalah', 'status', 'aksi', 'pencatat_id', 'dibuat_pada', 'diupdate_pada', 'catatan_tindak_lanjut']);
+
+  // 7. MODUL KURIKULUM
   createSheetIfNotExists(ss, 'kurikulum_akhlaq', ['id', 'santri_id', 'semester', 'nilai_akhlaq', 'catatan_capaian', 'dicatat_oleh']);
 
-  // 7. AUDIT & LOGS
+  // 8. AUDIT & LOGS
   createSheetIfNotExists(ss, 'audit_log', ['id', 'table_name', 'record_id', 'action', 'user_id', 'timestamp', 'detail_perubahan']);
 
   console.log('✅ Semua 12 sheet berhasil dibuat atau sudah ada.');
