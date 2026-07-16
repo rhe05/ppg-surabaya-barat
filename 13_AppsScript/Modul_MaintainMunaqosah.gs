@@ -369,3 +369,259 @@ function serverGetMunaqosahStats(token, periodeId, filters = {}) {
     },
   };
 }
+
+/**
+ * GENERATE soal report (HTML) untuk di-download/print as PDF.
+ * Return: HTML string yang bisa dibuka di tab baru
+ */
+function serverGenerateSoalReport(token, periodeId, kelompokId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  // RBAC
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  // Get data
+  const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH)
+    .filter(m => m.periode_id == periodeId);
+
+  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
+  const periodeData = readSheetAsObjects(SHEET_NAMES.PERIODE_MUNAQOSAH)
+    .find(p => p.id == periodeId);
+
+  if (!periodeData) {
+    return { success: false, error: 'Periode tidak ditemukan.' };
+  }
+
+  // Build HTML report
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('id-ID');
+
+  let html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Laporan Soal Ujian - Periode ${periodeData.semester}</title>
+      <style>
+        * { margin: 0; padding: 0; }
+        body {
+          font-family: Arial, sans-serif;
+          line-height: 1.6;
+          color: #333;
+          background: #f5f5f5;
+          padding: 20px;
+        }
+        .print-area {
+          background: white;
+          max-width: 21cm;
+          margin: 0 auto;
+          padding: 40px;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .header {
+          text-align: center;
+          border-bottom: 3px solid #333;
+          padding-bottom: 20px;
+          margin-bottom: 30px;
+        }
+        .header h1 {
+          font-size: 24px;
+          margin-bottom: 5px;
+          color: #000;
+        }
+        .header p {
+          font-size: 13px;
+          color: #666;
+        }
+        .info-section {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 30px;
+          font-size: 13px;
+        }
+        .info-item {
+          display: grid;
+          grid-template-columns: 120px 1fr;
+          gap: 10px;
+        }
+        .info-item strong {
+          font-weight: bold;
+        }
+        .soal-list {
+          margin-top: 20px;
+        }
+        .soal-item {
+          page-break-inside: avoid;
+          margin-bottom: 15px;
+          padding: 15px;
+          border-left: 4px solid #007bff;
+          background: #f9f9f9;
+        }
+        .soal-item .no {
+          font-weight: bold;
+          color: #007bff;
+          display: inline-block;
+          width: 30px;
+        }
+        .soal-item .nama {
+          font-weight: bold;
+        }
+        .soal-item .nilai {
+          color: #28a745;
+          font-weight: bold;
+        }
+        .soal-item .status {
+          display: inline-block;
+          padding: 3px 8px;
+          border-radius: 4px;
+          font-size: 11px;
+          margin-left: 10px;
+        }
+        .status-dinilai {
+          background: #d4edda;
+          color: #155724;
+        }
+        .status-belum {
+          background: #f8d7da;
+          color: #721c24;
+        }
+        .summary {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 2px solid #ddd;
+          font-size: 13px;
+        }
+        .summary-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 20px;
+          margin-top: 15px;
+        }
+        .summary-item {
+          text-align: center;
+          padding: 15px;
+          background: #f0f0f0;
+          border-radius: 4px;
+        }
+        .summary-item .value {
+          font-size: 24px;
+          font-weight: bold;
+          color: #007bff;
+        }
+        .summary-item .label {
+          font-size: 12px;
+          color: #666;
+          margin-top: 5px;
+        }
+        .footer {
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 1px solid #ddd;
+          font-size: 11px;
+          color: #999;
+          text-align: center;
+        }
+        @media print {
+          body { background: white; padding: 0; }
+          .print-area { box-shadow: none; padding: 0; }
+          .print-area { page-break-inside: avoid; }
+        }
+      </style>
+    </head>
+    <body>
+      <div class="print-area">
+        <div class="header">
+          <h1>📋 Laporan Soal Ujian</h1>
+          <p>Rekapitulasi Data Penilaian Santri</p>
+        </div>
+
+        <div class="info-section">
+          <div class="info-item">
+            <strong>Periode:</strong>
+            <span>${periodeData.semester}</span>
+          </div>
+          <div class="info-item">
+            <strong>Tanggal:</strong>
+            <span>${dateStr}</span>
+          </div>
+        </div>
+
+        <div class="soal-list">
+          <h3 style="margin-bottom: 15px;">Daftar Soal Ujian:</h3>
+  `;
+
+  // Add soal items
+  let no = 1;
+  let dinilai = 0;
+  let totalNilai = 0;
+
+  munaqosahData.forEach(soal => {
+    const santri = santriData.find(s => s.id == soal.santri_id);
+    if (!santri) return;
+
+    const isDinilai = soal.status === 'dinilai';
+    if (isDinilai) {
+      dinilai++;
+      totalNilai += Number(soal.nilai || 0);
+    }
+
+    html += `
+      <div class="soal-item">
+        <span class="no">${no}.</span>
+        <span class="nama">${santri.nama}</span>
+        <span class="nilai">${soal.nilai || '-'}</span>
+        <span class="status ${isDinilai ? 'status-dinilai' : 'status-belum'}">
+          ${isDinilai ? '✓ Dinilai' : '○ Belum Dinilai'}
+        </span>
+      </div>
+    `;
+    no++;
+  });
+
+  const avgNilai = dinilai > 0 ? (totalNilai / dinilai).toFixed(2) : 0;
+  const totalSoal = munaqosahData.length;
+
+  html += `
+        </div>
+
+        <div class="summary">
+          <h3>Ringkasan Statistik:</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="value">${totalSoal}</div>
+              <div class="label">Total Soal</div>
+            </div>
+            <div class="summary-item">
+              <div class="value">${dinilai}</div>
+              <div class="label">Sudah Dinilai</div>
+            </div>
+            <div class="summary-item">
+              <div class="value">${totalSoal - dinilai}</div>
+              <div class="label">Belum Dinilai</div>
+            </div>
+            <div class="summary-item">
+              <div class="value">${avgNilai}</div>
+              <div class="label">Rata-rata Nilai</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Laporan ini di-generate otomatis oleh Sistem Manajemen TPQ PPG Surabaya Barat</p>
+          <p>Cetak/Export sebagai PDF: Tekan Ctrl+P atau gunakan menu Print</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return {
+    success: true,
+    html: html,
+    title: `Laporan_Soal_${periodeData.semester.replace(/\s+/g, '_')}_${now.toISOString().split('T')[0]}`,
+  };
+}

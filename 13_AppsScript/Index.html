@@ -3488,7 +3488,33 @@
   };
 
   window.downloadMunaqosahPDF = function () {
-    alert('Fitur download PDF akan segera tersedia');
+    const periodeId = document.getElementById('filterPeriodeMunaqosah').value;
+
+    if (!periodeId) {
+      alert('Pilih periode terlebih dahulu');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          // Buka HTML report di tab baru
+          const newWindow = window.open();
+          newWindow.document.write(result.html);
+          newWindow.document.close();
+
+          // Set title
+          newWindow.document.title = result.title;
+
+          // Auto print setelah load (optional)
+          setTimeout(() => {
+            newWindow.print();
+          }, 500);
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverGenerateSoalReport(window.currentToken, periodeId, window.currentKelompokId);
   };
 
   /* ═════ KONSELING FUNCTIONS ═════ */
