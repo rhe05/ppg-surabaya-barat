@@ -1407,6 +1407,20 @@
         <div class="alert alert-success" id="absensiSuccess"></div>
         <div class="alert alert-error" id="absensiError"></div>
 
+        <!-- SANTRI BERISIKO ALERT -->
+        <div id="absensiBerisiko" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius-lg); padding: 16px; margin-bottom: 24px;">
+          <div style="display: flex; align-items: start; gap: 12px;">
+            <div style="font-size: 20px; flex-shrink: 0;">⚠️</div>
+            <div style="flex: 1;">
+              <p style="margin: 0 0 12px 0; font-weight: 600; color: var(--red);">Santri Memerlukan Perhatian</p>
+              <p style="margin: 0 0 12px 0; font-size: 13px; color: #7f1d1d;">Santri berikut memiliki tingkat kehadiran rendah (Alpa >20%) dalam bulan ini:</p>
+              <div id="berisiko-list" style="max-height: 200px; overflow-y: auto; font-size: 13px;">
+                <!-- Dinamis diisi via JS -->
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="data-table-wrapper" style="margin-bottom: 24px;">
           <div style="padding: 24px;">
             <div class="form-group">
@@ -2755,6 +2769,10 @@
     const tanggal = document.getElementById('absensiTanggal').value;
     if (!tanggal) return;
 
+    // Load santri berisiko for current month
+    const [year, month] = tanggal.split('-');
+    window.loadSantriBerisiko(parseInt(year), parseInt(month));
+
     google.script.run
       .withSuccessHandler(function (result) {
         if (result.success) {
@@ -2782,6 +2800,33 @@
         }
       })
       .serverGetAbsensiForm(window.currentToken, window.currentKelompokId, tanggal);
+  };
+
+  window.loadSantriBerisiko = function (year, month) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success && result.data && result.data.length > 0) {
+          const berisiko = result.data.filter(s => s.berisiko);
+          if (berisiko.length > 0) {
+            const berisikContainer = document.getElementById('absensiBerisiko');
+            const listDiv = document.getElementById('berisiko-list');
+            listDiv.innerHTML = berisiko
+              .map(s => `
+                <div style="padding: 8px 0; border-bottom: 1px solid #fecaca; display: flex; justify-content: space-between; align-items: center;">
+                  <span style="color: #7f1d1d;"><strong>${s.nama}</strong> — ${s.alpa_pct}% Alpa</span>
+                  <span style="font-size: 11px; color: #991b1b;">Hadir: ${s.hadir}, Alpa: ${s.alpa}, Izin: ${s.izin}</span>
+                </div>
+              `)
+              .join('');
+            berisikContainer.style.display = 'block';
+          } else {
+            document.getElementById('absensiBerisiko').style.display = 'none';
+          }
+        } else {
+          document.getElementById('absensiBerisiko').style.display = 'none';
+        }
+      })
+      .serverGetSantriBerisiko(window.currentToken, window.currentKelompokId, year, month);
   };
 
   window.updateAbsensiSummary = function () {

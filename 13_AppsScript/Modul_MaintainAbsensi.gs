@@ -175,3 +175,83 @@ function serverGetAbsensiSummary(token, kelompokId, tanggal) {
 
   return { success: true, data: summary };
 }
+
+/**
+ * GET santri yang "perlu perhatian" (Alpa >20% dalam bulan tertentu).
+ * Business Rule BR-13: Santri dengan Alpa >20% dalam 1 bulan ditandai "perlu perhatian".
+ *
+ * @param {string} token - Session token
+ * @param {string} kelompokId - Target Kelompok ID
+ * @param {number} year - Tahun (YYYY)
+ * @param {number} month - Bulan (1-12)
+ * @returns {Object} { success, data: [{santri_id, nama, hadir, alpa, izin, total, alpa_pct, berisiko}] }
+ */
+function serverGetSantriBerisiko(token, kelompokId, year, month) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  // Get all santri in kelompok
+  const santriList = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
+  const santriMap = {};
+  santriList.forEach(s => {
+    santriMap[s.id] = s.nama;
+  });
+
+  // Get absensi for the month
+  const allAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
+
+  const monthAbsensi = allAbsensi.filter(a => {
+    return a.tanggal >= monthStart && a.tanggal <= monthEnd && santriMap[a.santri_id];
+  });
+
+  // Calculate stats per santri
+  const santriStats = {};
+  santriList.forEach(s => {
+    santriStats[s.id] = { hadir: 0, alpa: 0, izin: 0 };
+  });
+
+  monthAbsensi.forEach(a => {
+    if (santriStats[a.santri_id]) {
+      if (a.status === 'hadir') santriStats[a.santri_id].hadir++;
+      else if (a.status === 'alpa') santriStats[a.santri_id].alpa++;
+      else if (a.status === 'izin') santriStats[a.santri_id].izin++;
+    }
+  });
+
+  // Build result with berisiko flag
+  const result = [];
+  Object.keys(santriStats).forEach(santriId => {
+    const stats = santriStats[santriId];
+    const total = stats.hadir + stats.alpa + stats.izin;
+    const alpaPct = total > 0 ? Math.round((stats.alpa / total) * 100) : 0;
+    const berisiko = alpaPct > 20; // BR-13: >20% alpa is concerning
+
+    result.push({
+      santri_id: santriId,
+      nama: santriMap[santriId],
+      hadir: stats.hadir,
+      alpa: stats.alpa,
+      izin: stats.izin,
+      total,
+      alpa_pct: alpaPct,
+      berisiko,
+    });
+  });
+
+  // Filter & sort: berisiko santri first, then by alpa % descending
+  const berisiko = result.filter(r => r.berisiko).sort((a, b) => b.alpa_pct - a.alpa_pct);
+  const normal = result.filter(r => !r.berisiko);
+
+  return {
+    success: true,
+    data: berisiko.concat(normal),
+    berisiko_count: berisiko.length,
+    threshold: 20,
+  };
+}
