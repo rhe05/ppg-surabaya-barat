@@ -587,6 +587,56 @@
       transition: width 0.5s ease;
     }
 
+    .pengumuman-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
+    }
+
+    .pengumuman-card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .pengumuman-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .pengumuman-card-date {
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+      white-space: nowrap;
+      flex-shrink: 0;
+      padding-top: 2px;
+    }
+
+    .pengumuman-card-body {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      white-space: pre-wrap;
+      margin-bottom: 12px;
+    }
+
+    .pengumuman-card-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pengumuman-card-actions .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
     /* ═════ TABLE & FORM ═════ */
     .data-table-wrapper {
       background: var(--panel);
@@ -1464,9 +1514,10 @@
             <label class="form-label">Jenjang</label>
             <select class="form-select" id="santriJenjang">
               <option value="">-- Pilih Jenjang --</option>
-              <option value="AUD">AUD</option>
+              <option value="AUD">AUD (PAUD)</option>
               <option value="Cabe Rawit">Cabe Rawit</option>
               <option value="Pra Remaja">Pra Remaja</option>
+              <option value="Remaja SMA">Remaja SMA</option>
               <option value="Remaja">Remaja</option>
             </select>
           </div>
@@ -1487,7 +1538,7 @@
           </div>
 
           <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #166534;">
-            <strong>Format CSV/Excel:</strong> Nama, NIS, Gender (L/P), Tanggal Lahir (YYYY-MM-DD), Jenjang (AUD/Cabe Rawit/Pra Remaja/Remaja)
+            <strong>Format CSV/Excel:</strong> Nama, NIS, Gender (L/P), Tanggal Lahir (YYYY-MM-DD), Jenjang (AUD/Cabe Rawit/Pra Remaja/Remaja SMA/Remaja)
           </div>
 
           <div class="form-group">
@@ -1627,12 +1678,13 @@
           <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
             <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </button>
-          <h2 style="margin: 0; font-size: 20px;">Dashboard Guru</h2>
+          <h2 style="margin: 0; font-size: 20px;">Dashboard Kelompok</h2>
           <span class="guru-dash-context-badge" id="guruDashKelompokBadge">—</span>
         </div>
       </div>
 
       <div class="dash-container">
+        <!-- ═══ DATA GURU ═══ -->
         <div class="dash-section-title">Ringkasan Tenaga Pengajar</div>
 
         <div class="guru-dash-kpi-row">
@@ -1663,8 +1715,6 @@
           </div>
         </div>
 
-        <div class="dash-section-title">Daftar Guru</div>
-
         <div class="data-table-wrapper">
           <table class="data-table">
             <thead>
@@ -1678,6 +1728,243 @@
               <tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- ═══ DATA SANTRI ═══ -->
+        <div class="dash-section-title">Ringkasan Santri</div>
+
+        <div class="guru-dash-kpi-row">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Total Santri</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdTotalSantri">0</span>
+              <span class="guru-dash-kpi-unit">santri</span>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Laki-laki</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdSantriL">0</span>
+              <span class="guru-dash-kpi-unit" id="kdSantriLPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdSantriLBar" style="width: 0%; background: var(--sage);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Perempuan</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdSantriP">0</span>
+              <span class="guru-dash-kpi-unit" id="kdSantriPPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdSantriPBar" style="width: 0%; background: var(--volt);"></div></div>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Nama</th>
+                <th>NIS</th>
+                <th>Gender</th>
+                <th>Jenjang</th>
+              </tr>
+            </thead>
+            <tbody id="kdSantriTableBody">
+              <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ═══ DATA KELAS ═══ -->
+        <div class="dash-section-title">Data Kelas</div>
+
+        <div class="guru-dash-kpi-row">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">PAUD</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdKelasAUD">0</span>
+              <span class="guru-dash-kpi-unit" id="kdKelasAUDPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasAUDBar" style="width: 0%; background: var(--brass);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Cabe Rawit</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdKelasCabeRawit">0</span>
+              <span class="guru-dash-kpi-unit" id="kdKelasCabeRawitPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasCabeRawitBar" style="width: 0%; background: var(--sage);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Pra Remaja</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdKelasPraRemaja">0</span>
+              <span class="guru-dash-kpi-unit" id="kdKelasPraRemajaPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasPraRemajaBar" style="width: 0%; background: var(--volt);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Remaja SMA</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdKelasRemajaSMA">0</span>
+              <span class="guru-dash-kpi-unit" id="kdKelasRemajaSMAPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaSMABar" style="width: 0%; background: var(--brass);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Remaja</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdKelasRemaja">0</span>
+              <span class="guru-dash-kpi-unit" id="kdKelasRemajaPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaBar" style="width: 0%; background: var(--sage);"></div></div>
+          </div>
+        </div>
+
+        <!-- ═══ DATA ABSEN ═══ -->
+        <div class="dash-section-title">Data Absen (Bulan Ini)</div>
+
+        <div class="guru-dash-kpi-row">
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Persentase Kehadiran</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdAbsenPct">0</span>
+              <span class="guru-dash-kpi-unit">%</span>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Total Hadir</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdAbsenHadir">0</span>
+              <span class="guru-dash-kpi-unit">record</span>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Santri Berisiko</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="kdAbsenBerisiko">0</span>
+              <span class="guru-dash-kpi-unit">santri</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ JADWAL KBM ═══ -->
+        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Jadwal KBM</span>
+          <button class="btn btn-primary" onclick="window.openModalJadwalKBM()">+ Tambah Jadwal</button>
+        </div>
+
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 110px;">Hari</th>
+                <th style="width: 140px;">Jam</th>
+                <th>Keterangan</th>
+                <th style="width: 100px; text-align: center;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="kdJadwalTableBody">
+              <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ═══ PENGUMUMAN ═══ -->
+        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Pengumuman</span>
+          <button class="btn btn-primary" onclick="window.openModalPengumuman()">+ Tambah Pengumuman</button>
+        </div>
+
+        <div id="kdPengumumanList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px;">
+          <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
+        </div>
+      </div>
+
+      <!-- Modal Jadwal KBM -->
+      <div class="modal-overlay" id="modalJadwalKBM">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="modalJadwalKBMTitle">Tambah Jadwal KBM</span>
+            <button class="modal-close-btn" onclick="window.closeModalJadwalKBM()">×</button>
+          </div>
+
+          <input type="hidden" id="jadwalKBMId">
+
+          <div class="form-group">
+            <label class="form-label">Hari</label>
+            <select class="form-select" id="jadwalKBMHari">
+              <option value="">-- Pilih Hari --</option>
+              <option value="Senin">Senin</option>
+              <option value="Selasa">Selasa</option>
+              <option value="Rabu">Rabu</option>
+              <option value="Kamis">Kamis</option>
+              <option value="Jumat">Jumat</option>
+              <option value="Sabtu">Sabtu</option>
+              <option value="Minggu">Minggu</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Jam Mulai</label>
+            <input type="time" class="form-input" id="jadwalKBMJamMulai">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Jam Selesai</label>
+            <input type="time" class="form-input" id="jadwalKBMJamSelesai">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Keterangan</label>
+            <input type="text" class="form-input" id="jadwalKBMKeterangan" placeholder="Misal: Kelas Tahsin & Hafalan">
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalJadwalKBM()">Batal</button>
+            <button class="btn btn-primary" onclick="window.saveJadwalKBM()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Pengumuman -->
+      <div class="modal-overlay" id="modalPengumuman">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="modalPengumumanTitle">Tambah Pengumuman</span>
+            <button class="modal-close-btn" onclick="window.closeModalPengumuman()">×</button>
+          </div>
+
+          <input type="hidden" id="pengumumanId">
+
+          <div class="form-group">
+            <label class="form-label">Judul</label>
+            <input type="text" class="form-input" id="pengumumanJudul" placeholder="Judul pengumuman">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tanggal</label>
+            <input type="date" class="form-input" id="pengumumanTanggal">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Isi</label>
+            <textarea class="form-input" id="pengumumanIsi" rows="4" placeholder="Isi pengumuman" style="width: 100%; font-family: inherit;"></textarea>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalPengumuman()">Batal</button>
+            <button class="btn btn-primary" onclick="window.savePengumuman()">Simpan</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2717,9 +3004,7 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
-  window.loadGuruDashboard = function (kelompokId, kelompokName) {
-    document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
-
+  window.loadKelompokDashboardGuru_ = function (kelompokId) {
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
@@ -2760,6 +3045,304 @@
       .serverGetGuruList(window.currentToken, kelompokId);
   };
 
+  window.loadKelompokDashboardSantriKelas_ = function (kelompokId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+
+        const santri = result.data;
+        const total = santri.length;
+
+        // --- Ringkasan Santri (gender) ---
+        const lakiLaki = santri.filter(s => String(s.gender).toUpperCase() === 'L').length;
+        const perempuan = santri.filter(s => String(s.gender).toUpperCase() === 'P').length;
+        const lPct = total > 0 ? Math.round((lakiLaki / total) * 100) : 0;
+        const pPct = total > 0 ? Math.round((perempuan / total) * 100) : 0;
+
+        document.getElementById('kdTotalSantri').textContent = total;
+        document.getElementById('kdSantriL').textContent = lakiLaki;
+        document.getElementById('kdSantriP').textContent = perempuan;
+        document.getElementById('kdSantriLPct').textContent = lPct + '%';
+        document.getElementById('kdSantriPPct').textContent = pPct + '%';
+        document.getElementById('kdSantriLBar').style.width = lPct + '%';
+        document.getElementById('kdSantriPBar').style.width = pPct + '%';
+
+        const tbody = document.getElementById('kdSantriTableBody');
+        tbody.innerHTML = '';
+
+        if (santri.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada data santri untuk kelompok ini.</td></tr>';
+        } else {
+          santri.forEach((s, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${i + 1}</td>
+              <td>${s.nama}</td>
+              <td>${s.nis}</td>
+              <td>${s.gender}</td>
+              <td>${s.jenjang_saat_ini || '-'}</td>
+            `;
+            tbody.appendChild(tr);
+          });
+        }
+
+        // --- Data Kelas (breakdown per jenjang) ---
+        const kelasMap = { 'AUD': 0, 'Cabe Rawit': 0, 'Pra Remaja': 0, 'Remaja SMA': 0, 'Remaja': 0 };
+        santri.forEach(s => {
+          if (kelasMap.hasOwnProperty(s.jenjang_saat_ini)) kelasMap[s.jenjang_saat_ini]++;
+        });
+
+        const kelasIds = {
+          'AUD': 'kdKelasAUD',
+          'Cabe Rawit': 'kdKelasCabeRawit',
+          'Pra Remaja': 'kdKelasPraRemaja',
+          'Remaja SMA': 'kdKelasRemajaSMA',
+          'Remaja': 'kdKelasRemaja',
+        };
+
+        Object.keys(kelasMap).forEach(jenjang => {
+          const count = kelasMap[jenjang];
+          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+          const baseId = kelasIds[jenjang];
+          document.getElementById(baseId).textContent = count;
+          document.getElementById(baseId + 'Pct').textContent = pct + '%';
+          document.getElementById(baseId + 'Bar').style.width = pct + '%';
+        });
+      })
+      .serverGetSantriList(window.currentToken, kelompokId);
+  };
+
+  window.loadKelompokDashboardAbsen_ = function (kelompokId) {
+    const now = new Date();
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+
+        const rows = result.data;
+        const totalHadir = rows.reduce((sum, r) => sum + r.hadir, 0);
+        const totalAlpa = rows.reduce((sum, r) => sum + r.alpa, 0);
+        const totalIzin = rows.reduce((sum, r) => sum + r.izin, 0);
+        const totalRecord = totalHadir + totalAlpa + totalIzin;
+        const persenKehadiran = totalRecord > 0 ? Math.round((totalHadir / totalRecord) * 100) : 0;
+
+        document.getElementById('kdAbsenPct').textContent = persenKehadiran;
+        document.getElementById('kdAbsenHadir').textContent = totalHadir;
+        document.getElementById('kdAbsenBerisiko').textContent = result.berisiko_count;
+      })
+      .serverGetSantriBerisiko(window.currentToken, kelompokId, now.getFullYear(), now.getMonth() + 1);
+  };
+
+  window.loadKelompokDashboardJadwal_ = function (kelompokId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+
+        const tbody = document.getElementById('kdJadwalTableBody');
+        tbody.innerHTML = '';
+
+        if (result.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</td></tr>';
+          return;
+        }
+
+        result.data.forEach(j => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${j.hari}</td>
+            <td>${j.jam_mulai} - ${j.jam_selesai}</td>
+            <td>${j.keterangan || '-'}</td>
+            <td style="text-align: center;">
+              <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="window.editJadwalKBM('${j.id}', '${j.hari}', '${j.jam_mulai}', '${j.jam_selesai}', '${(j.keterangan || '').replace(/'/g, "\\'")}')">Edit</button>
+              <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; color: var(--red);" onclick="window.deleteJadwalKBM('${j.id}')">Hapus</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      })
+      .serverGetJadwalKBM(window.currentToken, kelompokId);
+  };
+
+  window.openModalJadwalKBM = function () {
+    document.getElementById('modalJadwalKBMTitle').textContent = 'Tambah Jadwal KBM';
+    document.getElementById('jadwalKBMId').value = '';
+    document.getElementById('jadwalKBMHari').value = '';
+    document.getElementById('jadwalKBMJamMulai').value = '';
+    document.getElementById('jadwalKBMJamSelesai').value = '';
+    document.getElementById('jadwalKBMKeterangan').value = '';
+    document.getElementById('modalJadwalKBM').classList.add('active');
+  };
+
+  window.editJadwalKBM = function (id, hari, jamMulai, jamSelesai, keterangan) {
+    document.getElementById('modalJadwalKBMTitle').textContent = 'Edit Jadwal KBM';
+    document.getElementById('jadwalKBMId').value = id;
+    document.getElementById('jadwalKBMHari').value = hari;
+    document.getElementById('jadwalKBMJamMulai').value = jamMulai;
+    document.getElementById('jadwalKBMJamSelesai').value = jamSelesai;
+    document.getElementById('jadwalKBMKeterangan').value = keterangan;
+    document.getElementById('modalJadwalKBM').classList.add('active');
+  };
+
+  window.closeModalJadwalKBM = function () {
+    document.getElementById('modalJadwalKBM').classList.remove('active');
+  };
+
+  window.saveJadwalKBM = function () {
+    const id = document.getElementById('jadwalKBMId').value;
+    const hari = document.getElementById('jadwalKBMHari').value;
+    const jamMulai = document.getElementById('jadwalKBMJamMulai').value;
+    const jamSelesai = document.getElementById('jadwalKBMJamSelesai').value;
+    const keterangan = document.getElementById('jadwalKBMKeterangan').value;
+
+    if (!hari || !jamMulai || !jamSelesai) {
+      alert('Hari, jam mulai, dan jam selesai wajib diisi.');
+      return;
+    }
+
+    const handler = function (result) {
+      if (result.success) {
+        window.closeModalJadwalKBM();
+        window.loadKelompokDashboardJadwal_(window.currentKelompokId);
+      } else {
+        alert(result.error);
+      }
+    };
+
+    if (id) {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverUpdateJadwalKBM(window.currentToken, id, { hari, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan });
+    } else {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverCreateJadwalKBM(window.currentToken, { kelompok_id: window.currentKelompokId, hari, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan });
+    }
+  };
+
+  window.deleteJadwalKBM = function (id) {
+    if (!confirm('Hapus jadwal ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.loadKelompokDashboardJadwal_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverDeleteJadwalKBM(window.currentToken, id);
+  };
+
+  window.loadKelompokDashboardPengumuman_ = function (kelompokId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+
+        const list = document.getElementById('kdPengumumanList');
+        list.innerHTML = '';
+
+        if (result.data.length === 0) {
+          list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada pengumuman untuk kelompok ini.</div>';
+          return;
+        }
+
+        result.data.forEach(p => {
+          const card = document.createElement('div');
+          card.className = 'pengumuman-card';
+          card.innerHTML = `
+            <div class="pengumuman-card-header">
+              <div class="pengumuman-card-title">${p.judul}</div>
+              <div class="pengumuman-card-date">${p.tanggal}</div>
+            </div>
+            <div class="pengumuman-card-body">${p.isi}</div>
+            <div class="pengumuman-card-actions">
+              <button class="btn btn-secondary" onclick='window.editPengumuman(${JSON.stringify(String(p.id))}, ${JSON.stringify(p.judul)}, ${JSON.stringify(p.isi)}, ${JSON.stringify(p.tanggal)})'>Edit</button>
+              <button class="btn btn-secondary" style="color: var(--red);" onclick="window.deletePengumuman('${p.id}')">Hapus</button>
+            </div>
+          `;
+          list.appendChild(card);
+        });
+      })
+      .serverGetPengumuman(window.currentToken, kelompokId);
+  };
+
+  window.openModalPengumuman = function () {
+    document.getElementById('modalPengumumanTitle').textContent = 'Tambah Pengumuman';
+    document.getElementById('pengumumanId').value = '';
+    document.getElementById('pengumumanJudul').value = '';
+    document.getElementById('pengumumanTanggal').valueAsDate = new Date();
+    document.getElementById('pengumumanIsi').value = '';
+    document.getElementById('modalPengumuman').classList.add('active');
+  };
+
+  window.editPengumuman = function (id, judul, isi, tanggal) {
+    document.getElementById('modalPengumumanTitle').textContent = 'Edit Pengumuman';
+    document.getElementById('pengumumanId').value = id;
+    document.getElementById('pengumumanJudul').value = judul;
+    document.getElementById('pengumumanTanggal').value = tanggal;
+    document.getElementById('pengumumanIsi').value = isi;
+    document.getElementById('modalPengumuman').classList.add('active');
+  };
+
+  window.closeModalPengumuman = function () {
+    document.getElementById('modalPengumuman').classList.remove('active');
+  };
+
+  window.savePengumuman = function () {
+    const id = document.getElementById('pengumumanId').value;
+    const judul = document.getElementById('pengumumanJudul').value.trim();
+    const tanggal = document.getElementById('pengumumanTanggal').value;
+    const isi = document.getElementById('pengumumanIsi').value.trim();
+
+    if (!judul || !isi) {
+      alert('Judul dan isi pengumuman wajib diisi.');
+      return;
+    }
+
+    const handler = function (result) {
+      if (result.success) {
+        window.closeModalPengumuman();
+        window.loadKelompokDashboardPengumuman_(window.currentKelompokId);
+      } else {
+        alert(result.error);
+      }
+    };
+
+    if (id) {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverUpdatePengumuman(window.currentToken, id, { judul, isi, tanggal });
+    } else {
+      google.script.run
+        .withSuccessHandler(handler)
+        .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal });
+    }
+  };
+
+  window.deletePengumuman = function (id) {
+    if (!confirm('Hapus pengumuman ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.loadKelompokDashboardPengumuman_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverDeletePengumuman(window.currentToken, id);
+  };
+
+  window.loadKelompokDashboard = function (kelompokId, kelompokName) {
+    document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
+
+    window.loadKelompokDashboardGuru_(kelompokId);
+    window.loadKelompokDashboardSantriKelas_(kelompokId);
+    window.loadKelompokDashboardAbsen_(kelompokId);
+    window.loadKelompokDashboardJadwal_(kelompokId);
+    window.loadKelompokDashboardPengumuman_(kelompokId);
+  };
+
   window.selectKelompok = function (event, kelompokId, kelompokName) {
     event.preventDefault();
     event.stopPropagation();
@@ -2778,7 +3361,7 @@
     });
     document.getElementById('screenGuruDashboard').classList.add('active');
 
-    window.loadGuruDashboard(kelompokId, kelompokName);
+    window.loadKelompokDashboard(kelompokId, kelompokName);
   };
 
   window.switchScreen = function (screenName) {

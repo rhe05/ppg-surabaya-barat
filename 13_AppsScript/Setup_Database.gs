@@ -52,7 +52,13 @@ function setupDatabaseStructure() {
   // 10. AUDIT & LOGS
   createSheetIfNotExists(ss, 'audit_log', ['id', 'table_name', 'record_id', 'action', 'user_id', 'timestamp', 'detail_perubahan']);
 
-  console.log('✅ Semua 14 sheet berhasil dibuat atau sudah ada.');
+  // 11. JADWAL KBM (jadwal rutin mingguan per Kelompok)
+  createSheetIfNotExists(ss, 'jadwal_kbm', ['id', 'kelompok_id', 'hari', 'jam_mulai', 'jam_selesai', 'keterangan', 'dibuat_oleh', 'dibuat_pada']);
+
+  // 12. PENGUMUMAN (per Kelompok)
+  createSheetIfNotExists(ss, 'pengumuman', ['id', 'kelompok_id', 'judul', 'isi', 'tanggal', 'dibuat_oleh', 'dibuat_pada']);
+
+  console.log('✅ Semua 16 sheet berhasil dibuat atau sudah ada.');
 
   // Seed data
   seedData(ss);

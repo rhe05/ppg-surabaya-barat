@@ -25,6 +25,8 @@ const SHEET_NAMES = {
   CALENDAR_EVENTS: 'calendar_events',
   FILES: 'files',
   AUDIT_LOG: 'audit_log',
+  JADWAL_KBM: 'jadwal_kbm',
+  PENGUMUMAN: 'pengumuman',
 };
 
 /**

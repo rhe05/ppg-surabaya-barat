@@ -179,8 +179,8 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
       rowError = 'Tanggal Lahir format YYYY-MM-DD';
     }
     // Validasi: Jenjang
-    else if (!row.jenjang_saat_ini || !['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja'].includes(String(row.jenjang_saat_ini).trim())) {
-      rowError = 'Jenjang tidak valid (AUD, Cabe Rawit, Pra Remaja, Remaja)';
+    else if (!row.jenjang_saat_ini || !['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'].includes(String(row.jenjang_saat_ini).trim())) {
+      rowError = 'Jenjang tidak valid (AUD, Cabe Rawit, Pra Remaja, Remaja SMA, Remaja)';
     }
     // Validasi: Duplicate NIS
     else if (existingNis.has(String(row.nis).trim().toUpperCase())) {
