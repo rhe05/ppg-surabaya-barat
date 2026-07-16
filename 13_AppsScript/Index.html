@@ -322,6 +322,16 @@
       font-weight: 600;
     }
 
+    .sidebar-tree-link-2.disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .sidebar-tree-link-2.disabled:hover {
+      background: transparent;
+      color: var(--text-dim);
+    }
+
     .app-sidebar.collapsed .sidebar-menu-text,
     .app-sidebar.collapsed .sidebar-caret {
       display: none;
@@ -1186,10 +1196,10 @@
             </a>
             <ul class="sidebar-tree sidebar-tree-2" id="kelompokSubmenuPetemon">
               <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 1, 'Kelp Petemon')">Kelp Petemon</a></li>
-              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 2, 'Kelp Simo')">Kelp Simo</a></li>
-              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 4, 'Kelp Asja')">Kelp Asja</a></li>
-              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 3, 'Kelp Jl Sem')">Kelp Jl Sem</a></li>
-              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 5, 'Kelp DST')">Kelp DST</a></li>
+              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Simo</a></li>
+              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Asja</a></li>
+              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Jl Sem</a></li>
+              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp DST</a></li>
             </ul>
           </li>
           <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Purwodadi</span></a></li>
