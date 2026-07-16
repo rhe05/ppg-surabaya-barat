@@ -246,6 +246,91 @@
       font-weight: 600;
     }
 
+    /* ═════ SIDEBAR: DESA/KELOMPOK TREE ═════ */
+    .sidebar-caret {
+      margin-left: auto;
+      font-size: 9px;
+      color: var(--text-faint);
+      transition: transform 0.25s ease;
+      flex-shrink: 0;
+    }
+
+    .sidebar-caret.rotated {
+      transform: rotate(90deg);
+    }
+
+    .sidebar-tree {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease;
+    }
+
+    .sidebar-tree.open {
+      max-height: 400px;
+    }
+
+    .sidebar-tree-link {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px 10px 48px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sidebar-tree-link:hover {
+      color: var(--text);
+      background: var(--panel-2);
+    }
+
+    .sidebar-tree-link.disabled {
+      cursor: not-allowed;
+      opacity: 0.45;
+    }
+
+    .sidebar-tree-link.disabled:hover {
+      background: transparent;
+      color: var(--text-dim);
+    }
+
+    .sidebar-tree-link-2 {
+      display: block;
+      padding: 9px 20px 9px 68px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sidebar-tree-link-2:hover {
+      color: var(--text);
+      background: var(--panel-2);
+    }
+
+    .sidebar-tree-link-2.active {
+      color: var(--brass);
+      background: rgba(217, 119, 6, 0.08);
+      font-weight: 600;
+    }
+
+    .app-sidebar.collapsed .sidebar-menu-text,
+    .app-sidebar.collapsed .sidebar-caret {
+      display: none;
+    }
+
+    .app-sidebar.collapsed .sidebar-tree {
+      display: none !important;
+    }
+
     .sidebar-footer {
       padding: 20px;
       border-top: 1px solid var(--border);
@@ -1086,6 +1171,32 @@
           <span style="font-size: 18px;">📊</span>
           <span>Statistik</span>
         </a>
+      </li>
+      <li>
+        <a class="sidebar-menu-link" onclick="window.toggleDesaMenu(event)" id="menuDesaToggle" style="display: none;">
+          <span style="font-size: 18px;">🗺️</span>
+          <span class="sidebar-menu-text">Desa</span>
+          <span class="sidebar-caret" id="desaCaret">▸</span>
+        </a>
+        <ul class="sidebar-tree" id="desaSubmenu">
+          <li class="sidebar-tree-item">
+            <a class="sidebar-tree-link" onclick="window.toggleKelompokMenu(event)">
+              <span>Ds Petemon</span>
+              <span class="sidebar-caret" id="caretDesaPetemon">▸</span>
+            </a>
+            <ul class="sidebar-tree sidebar-tree-2" id="kelompokSubmenuPetemon">
+              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 1, 'Kelp Petemon')">Kelp Petemon</a></li>
+              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 2, 'Kelp Simo')">Kelp Simo</a></li>
+              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 4, 'Kelp Asja')">Kelp Asja</a></li>
+              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 3, 'Kelp Jl Sem')">Kelp Jl Sem</a></li>
+              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 5, 'Kelp DST')">Kelp DST</a></li>
+            </ul>
+          </li>
+          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Purwodadi</span></a></li>
+          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Tanbar</span></a></li>
+          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Tantim</span></a></li>
+          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Benowo</span></a></li>
+        </ul>
       </li>
       <li>
         <a class="sidebar-menu-link" onclick="window.switchScreen('usermanagement')" id="menuUserManagement" style="display: none;">
@@ -2406,6 +2517,9 @@
     }[user.role] || user.role;
     document.getElementById('userAvatar').textContent = user.nama[0].toUpperCase();
 
+    // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
+    document.getElementById('menuDesaToggle').style.display = (user.role === 'admin_ppg') ? 'flex' : 'none';
+
     window.loadDashboard();
   }
 
@@ -2419,6 +2533,45 @@
     document.getElementById('appLayout').style.display = 'none';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
+  };
+
+  window.toggleDesaMenu = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const submenu = document.getElementById('desaSubmenu');
+    const caret = document.getElementById('desaCaret');
+    const isOpen = submenu.classList.toggle('open');
+    caret.classList.toggle('rotated', isOpen);
+  };
+
+  window.toggleKelompokMenu = function (event) {
+    event.preventDefault();
+    event.stopPropagation();
+    const submenu = document.getElementById('kelompokSubmenuPetemon');
+    const caret = document.getElementById('caretDesaPetemon');
+    const isOpen = submenu.classList.toggle('open');
+    caret.classList.toggle('rotated', isOpen);
+  };
+
+  window.selectKelompok = function (event, kelompokId, kelompokName) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    window.currentKelompokId = kelompokId;
+
+    document.querySelectorAll('.sidebar-tree-link-2').forEach(link => link.classList.remove('active'));
+    event.target.closest('.sidebar-tree-link-2').classList.add('active');
+
+    document.querySelectorAll('.sidebar-menu-link').forEach(link => link.classList.remove('active'));
+
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
+    screens.forEach(s => {
+      const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
+      if (screen) screen.classList.remove('active');
+    });
+    document.getElementById('screenSantri').classList.add('active');
+
+    window.loadSantriList();
   };
 
   window.switchScreen = function (screenName) {
