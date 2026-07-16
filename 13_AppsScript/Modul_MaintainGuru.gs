@@ -51,6 +51,13 @@ function serverAddGuru(token, kelompokId, guruData) {
     kelompokId,
     guruData.nama.trim(),
     guruData.kategori,
+    guruData.tempat_lahir || '',
+    guruData.tanggal_lahir || '',
+    guruData.jenis_kelamin || '',
+    guruData.mulai_mengajar || '',
+    guruData.alamat || '',
+    guruData.nomor_wa || '',
+    guruData.pendidikan || '',
   ]);
 
   logAudit('guru', id, 'create', user.id, JSON.stringify(guruData));

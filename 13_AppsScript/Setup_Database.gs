@@ -27,7 +27,7 @@ function setupDatabaseStructure() {
 
   // 3. DATA SANTRI & GURU
   createSheetIfNotExists(ss, 'santri', ['id', 'kelompok_id', 'nama', 'nis', 'gender', 'tanggal_lahir', 'jenjang_saat_ini']);
-  createSheetIfNotExists(ss, 'guru', ['id', 'kelompok_id', 'nama', 'kategori']);
+  createSheetIfNotExists(ss, 'guru', ['id', 'kelompok_id', 'nama', 'kategori', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'mulai_mengajar', 'alamat', 'nomor_wa', 'pendidikan']);
   createSheetIfNotExists(ss, 'riwayat_jenjang', ['id', 'santri_id', 'jenjang_lama', 'jenjang_baru', 'tanggal', 'catatan', 'dicatat_oleh']);
 
   // 4. KEHADIRAN
@@ -60,10 +60,37 @@ function setupDatabaseStructure() {
 
   console.log('✅ Semua 16 sheet berhasil dibuat atau sudah ada.');
 
+  // Migrasi: tambah kolom baru ke sheet 'guru' yang sudah ada (aman dijalankan berulang)
+  migrateGuruSchemaAddFields_(ss);
+
   // Seed data
   seedData(ss);
 
   console.log('✅ Database setup selesai.');
+}
+
+/**
+ * Migrasi sheet 'guru' yang SUDAH ADA: tambah kolom baru di akhir jika belum ada.
+ * createSheetIfNotExists() tidak mengubah sheet yang sudah eksis, jadi kolom baru
+ * (tempat_lahir dst) perlu ditambahkan manual di sini supaya deployment lama ikut update.
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migrateGuruSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('guru');
+  if (!sheet) return;
+
+  const newColumns = ['tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'mulai_mengajar', 'alamat', 'nomor_wa', 'pendidikan'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "guru" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "guru" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**

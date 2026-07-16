@@ -671,6 +671,140 @@
       transform: rotate(90deg);
     }
 
+    /* ═════ CUSTOM DATE PICKER (modern, tanpa dependency eksternal) ═════ */
+    .ppg-datepicker {
+      display: none;
+      position: fixed;
+      z-index: 1100;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05), 0 20px 40px -12px rgba(15, 23, 42, 0.25);
+      padding: 16px;
+      width: 296px;
+    }
+
+    .ppg-datepicker.open {
+      display: block;
+    }
+
+    .ppg-datepicker-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .ppg-datepicker-nav-btn {
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      color: var(--text-dim);
+      transition: all 0.15s;
+    }
+
+    .ppg-datepicker-nav-btn:hover {
+      background: var(--brass);
+      color: white;
+      border-color: var(--brass);
+    }
+
+    .ppg-datepicker-selects {
+      display: flex;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .ppg-datepicker-selects select {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 4px;
+      font-size: 12px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--panel);
+      min-width: 0;
+    }
+
+    .ppg-datepicker-selects select:first-child {
+      flex: 1.3;
+    }
+
+    .ppg-datepicker-selects select:last-child {
+      flex: 1;
+    }
+
+    .ppg-datepicker-weekdays,
+    .ppg-datepicker-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .ppg-datepicker-weekday {
+      text-align: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      padding: 4px 0 8px;
+    }
+
+    .ppg-datepicker-day {
+      text-align: center;
+      padding: 7px 0;
+      font-size: 12.5px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text);
+      transition: all 0.15s;
+    }
+
+    .ppg-datepicker-day:hover {
+      background: var(--panel-2);
+    }
+
+    .ppg-datepicker-day.muted {
+      color: var(--text-faint);
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .ppg-datepicker-day.muted:hover {
+      background: transparent;
+    }
+
+    .ppg-datepicker-day.today {
+      font-weight: 700;
+      color: var(--brass);
+    }
+
+    .ppg-datepicker-day.selected {
+      background: var(--brass);
+      color: white;
+      font-weight: 700;
+    }
+
+    .guru-kelp-umur-badge {
+      display: inline-flex;
+      margin-top: 8px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(5, 150, 105, 0.1);
+      color: var(--sage);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
     /* ═════ TABLE & FORM ═════ */
     .data-table-wrapper {
       background: var(--panel);
@@ -1791,8 +1925,62 @@
                 <option value="">-- Pilih Kategori --</option>
                 <option value="Muballigh Tugasan">Muballigh Tugasan</option>
                 <option value="Muballigh Setempat">Muballigh Setempat</option>
-                <option value="Guru Mutu">Guru Mutu</option>
                 <option value="Guru Bantu">Guru Bantu</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Jenis Kelamin</label>
+              <select class="form-select" id="guruKelpGender">
+                <option value="">-- Pilih Jenis Kelamin --</option>
+                <option value="L">Laki-laki</option>
+                <option value="P">Perempuan</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tempat Lahir</label>
+              <input type="text" class="form-input" id="guruKelpTempatLahir" placeholder="Misal: Surabaya">
+            </div>
+
+            <div class="form-group" style="position: relative;">
+              <label class="form-label">Tanggal Lahir</label>
+              <input type="text" class="form-input" id="guruKelpTglLahirDisplay" data-datepicker-trigger placeholder="Pilih tanggal lahir" readonly onclick="window.toggleDatePicker('guruKelpTglLahir')">
+              <input type="hidden" id="guruKelpTglLahir">
+              <div class="ppg-datepicker" id="guruKelpTglLahirPicker"></div>
+              <div class="guru-kelp-umur-badge" id="guruKelpUmurBadge" style="display: none;">Umur: <strong id="guruKelpUmur">—</strong></div>
+            </div>
+
+            <div class="form-group" style="position: relative;">
+              <label class="form-label">Mulai Mengajar</label>
+              <input type="text" class="form-input" id="guruKelpMulaiMengajarDisplay" data-datepicker-trigger placeholder="Pilih tanggal mulai mengajar" readonly onclick="window.toggleDatePicker('guruKelpMulaiMengajar')">
+              <input type="hidden" id="guruKelpMulaiMengajar">
+              <div class="ppg-datepicker" id="guruKelpMulaiMengajarPicker"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Alamat Rumah (Domisili Saat Ini)</label>
+              <textarea class="form-input" id="guruKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nomor WA</label>
+              <input type="tel" class="form-input" id="guruKelpNomorWA" placeholder="08xxxxxxxxxx">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Pendidikan</label>
+              <select class="form-select" id="guruKelpPendidikan">
+                <option value="">-- Pilih Pendidikan --</option>
+                <option value="SD/Sederajat">SD/Sederajat</option>
+                <option value="SMP/Sederajat">SMP/Sederajat</option>
+                <option value="SMA/SMK/Sederajat">SMA/SMK/Sederajat</option>
+                <option value="Pondok Pesantren">Pondok Pesantren</option>
+                <option value="D3">D3</option>
+                <option value="S1">S1</option>
+                <option value="S2">S2</option>
+                <option value="S3">S3</option>
+                <option value="Lainnya">Lainnya</option>
               </select>
             </div>
 
@@ -3088,20 +3276,186 @@
     label.textContent = isHidden ? 'Sembunyikan Daftar Guru' : 'Lihat Daftar Guru';
   };
 
+  /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
+  window.ppgDatePickerState = {};
+
+  window.toggleDatePicker = function (inputId) {
+    const picker = document.getElementById(inputId + 'Picker');
+    const willOpen = !picker.classList.contains('open');
+
+    document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
+
+    if (willOpen) {
+      const trigger = document.getElementById(inputId + 'Display');
+      const rect = trigger.getBoundingClientRect();
+      const pickerHeight = 360;
+      const openBelow = rect.bottom + pickerHeight + 10 <= window.innerHeight;
+
+      picker.style.top = openBelow ? (rect.bottom + 6) + 'px' : (rect.top - pickerHeight - 6) + 'px';
+      picker.style.left = Math.min(rect.left, window.innerWidth - 296 - 12) + 'px';
+
+      const existing = document.getElementById(inputId).value;
+      const base = existing ? new Date(existing + 'T00:00:00') : new Date();
+      window.ppgDatePickerState[inputId] = {
+        year: base.getFullYear(),
+        month: base.getMonth(),
+        selected: existing || null,
+      };
+      window.renderDatePicker(inputId);
+      picker.classList.add('open');
+    }
+  };
+
+  window.renderDatePicker = function (inputId) {
+    const state = window.ppgDatePickerState[inputId];
+    const picker = document.getElementById(inputId + 'Picker');
+
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const weekdays = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+    const firstDay = new Date(state.year, state.month, 1).getDay();
+    const daysInMonth = new Date(state.year, state.month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(state.year, state.month, 0).getDate();
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const currentYear = new Date().getFullYear();
+    let yearOptions = '';
+    for (let y = currentYear + 1; y >= currentYear - 90; y--) {
+      yearOptions += `<option value="${y}" ${y === state.year ? 'selected' : ''}>${y}</option>`;
+    }
+    const monthOptions = monthNames.map((m, i) => `<option value="${i}" ${i === state.month ? 'selected' : ''}>${m}</option>`).join('');
+
+    let daysHtml = '';
+    for (let i = firstDay - 1; i >= 0; i--) {
+      daysHtml += `<div class="ppg-datepicker-day muted">${daysInPrevMonth - i}</div>`;
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${state.year}-${String(state.month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      let cls = 'ppg-datepicker-day';
+      if (dateStr === todayStr) cls += ' today';
+      if (dateStr === state.selected) cls += ' selected';
+      daysHtml += `<div class="${cls}" onclick="window.pickDate('${inputId}', '${dateStr}')">${d}</div>`;
+    }
+    const totalCells = firstDay + daysInMonth;
+    const trailing = (7 - (totalCells % 7)) % 7;
+    for (let d = 1; d <= trailing; d++) {
+      daysHtml += `<div class="ppg-datepicker-day muted">${d}</div>`;
+    }
+
+    picker.innerHTML = `
+      <div class="ppg-datepicker-header">
+        <button type="button" class="ppg-datepicker-nav-btn" onclick="window.shiftDatePickerMonth('${inputId}', -1)">‹</button>
+        <div class="ppg-datepicker-selects">
+          <select onchange="window.setDatePickerMonth('${inputId}', this.value)">${monthOptions}</select>
+          <select onchange="window.setDatePickerYear('${inputId}', this.value)">${yearOptions}</select>
+        </div>
+        <button type="button" class="ppg-datepicker-nav-btn" onclick="window.shiftDatePickerMonth('${inputId}', 1)">›</button>
+      </div>
+      <div class="ppg-datepicker-weekdays">${weekdays.map(w => `<div class="ppg-datepicker-weekday">${w}</div>`).join('')}</div>
+      <div class="ppg-datepicker-days">${daysHtml}</div>
+    `;
+  };
+
+  window.shiftDatePickerMonth = function (inputId, delta) {
+    const state = window.ppgDatePickerState[inputId];
+    state.month += delta;
+    if (state.month < 0) { state.month = 11; state.year--; }
+    if (state.month > 11) { state.month = 0; state.year++; }
+    window.renderDatePicker(inputId);
+  };
+
+  window.setDatePickerMonth = function (inputId, month) {
+    window.ppgDatePickerState[inputId].month = parseInt(month);
+    window.renderDatePicker(inputId);
+  };
+
+  window.setDatePickerYear = function (inputId, year) {
+    window.ppgDatePickerState[inputId].year = parseInt(year);
+    window.renderDatePicker(inputId);
+  };
+
+  window.pickDate = function (inputId, dateStr) {
+    window.ppgDatePickerState[inputId].selected = dateStr;
+    document.getElementById(inputId).value = dateStr;
+
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const d = new Date(dateStr + 'T00:00:00');
+    document.getElementById(inputId + 'Display').value = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+
+    document.getElementById(inputId + 'Picker').classList.remove('open');
+
+    if (inputId === 'guruKelpTglLahir') {
+      window.updateGuruKelpUmur();
+    }
+  };
+
+  document.addEventListener('click', function (e) {
+    const isTrigger = e.target.hasAttribute('data-datepicker-trigger');
+    const isInsidePicker = e.target.closest('.ppg-datepicker');
+    if (!isTrigger && !isInsidePicker) {
+      document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
+    }
+  });
+
+  // Tutup date picker jika modal (atau area manapun) di-scroll, supaya posisi
+  // popup (position:fixed) tidak meleset dari input pemicunya.
+  document.addEventListener('scroll', function () {
+    document.querySelectorAll('.ppg-datepicker.open').forEach(p => p.classList.remove('open'));
+  }, true);
+
+  window.updateGuruKelpUmur = function () {
+    const tglLahir = document.getElementById('guruKelpTglLahir').value;
+    const badge = document.getElementById('guruKelpUmurBadge');
+
+    if (!tglLahir) {
+      badge.style.display = 'none';
+      return;
+    }
+
+    const birth = new Date(tglLahir + 'T00:00:00');
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+
+    document.getElementById('guruKelpUmur').textContent = age + ' tahun';
+    badge.style.display = 'inline-flex';
+  };
+
   window.openModalGuruKelp = function () {
     document.getElementById('guruKelpNama').value = '';
     document.getElementById('guruKelpKategori').value = '';
+    document.getElementById('guruKelpGender').value = '';
+    document.getElementById('guruKelpTempatLahir').value = '';
+    document.getElementById('guruKelpTglLahir').value = '';
+    document.getElementById('guruKelpTglLahirDisplay').value = '';
+    document.getElementById('guruKelpMulaiMengajar').value = '';
+    document.getElementById('guruKelpMulaiMengajarDisplay').value = '';
+    document.getElementById('guruKelpAlamat').value = '';
+    document.getElementById('guruKelpNomorWA').value = '';
+    document.getElementById('guruKelpPendidikan').value = '';
+    document.getElementById('guruKelpUmurBadge').style.display = 'none';
     document.getElementById('modalGuruKelp').classList.add('active');
   };
 
   window.closeModalGuruKelp = function () {
     document.getElementById('modalGuruKelp').classList.remove('active');
+    document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
   };
 
   window.saveGuruKelp = function () {
     const data = {
       nama: document.getElementById('guruKelpNama').value,
       kategori: document.getElementById('guruKelpKategori').value,
+      jenis_kelamin: document.getElementById('guruKelpGender').value,
+      tempat_lahir: document.getElementById('guruKelpTempatLahir').value.trim(),
+      tanggal_lahir: document.getElementById('guruKelpTglLahir').value,
+      mulai_mengajar: document.getElementById('guruKelpMulaiMengajar').value,
+      alamat: document.getElementById('guruKelpAlamat').value.trim(),
+      nomor_wa: document.getElementById('guruKelpNomorWA').value.trim(),
+      pendidikan: document.getElementById('guruKelpPendidikan').value,
     };
 
     if (!data.nama.trim() || !data.kategori) {
