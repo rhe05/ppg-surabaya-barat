@@ -637,6 +637,40 @@
       font-size: 12px;
     }
 
+    /* Dashboard Kelompok: judul seksi pertama dinaikkan supaya jaraknya dengan
+       header "Dashboard Kelompok" di atasnya tidak terlalu jauh. */
+    #screenGuruDashboard .dash-container {
+      padding-top: 18px;
+    }
+
+    .guru-dash-toggle-table {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0 0 16px;
+      font-family: inherit;
+    }
+
+    .guru-dash-toggle-table:hover {
+      color: var(--brass);
+    }
+
+    .guru-dash-toggle-table .guru-dash-toggle-caret {
+      font-size: 10px;
+      transition: transform 0.2s ease;
+      display: inline-block;
+    }
+
+    .guru-dash-toggle-table.open .guru-dash-toggle-caret {
+      transform: rotate(90deg);
+    }
+
     /* ═════ TABLE & FORM ═════ */
     .data-table-wrapper {
       background: var(--panel);
@@ -1685,7 +1719,10 @@
 
       <div class="dash-container">
         <!-- ═══ DATA GURU ═══ -->
-        <div class="dash-section-title">Ringkasan Tenaga Pengajar</div>
+        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Data Guru</span>
+          <button class="btn btn-primary" onclick="window.openModalGuruKelp()">+ Tambah Guru</button>
+        </div>
 
         <div class="guru-dash-kpi-row">
           <div class="guru-dash-kpi-card accent-brass">
@@ -1715,7 +1752,12 @@
           </div>
         </div>
 
-        <div class="data-table-wrapper">
+        <button type="button" class="guru-dash-toggle-table" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
+          <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
+          <span id="guruTableToggleLabel">Lihat Daftar Guru</span>
+        </button>
+
+        <div class="data-table-wrapper" id="guruDashTableWrapper" style="display: none;">
           <table class="data-table">
             <thead>
               <tr>
@@ -1728,6 +1770,37 @@
               <tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <!-- Modal Tambah Guru (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalGuruKelp">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Tambah Guru</span>
+              <button class="modal-close-btn" onclick="window.closeModalGuruKelp()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nama</label>
+              <input type="text" class="form-input" id="guruKelpNama" placeholder="Nama lengkap">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Kategori</label>
+              <select class="form-select" id="guruKelpKategori">
+                <option value="">-- Pilih Kategori --</option>
+                <option value="Muballigh Tugasan">Muballigh Tugasan</option>
+                <option value="Muballigh Setempat">Muballigh Setempat</option>
+                <option value="Guru Mutu">Guru Mutu</option>
+                <option value="Guru Bantu">Guru Bantu</option>
+              </select>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalGuruKelp()">Batal</button>
+              <button class="btn btn-primary" onclick="window.saveGuruKelp()">Simpan</button>
+            </div>
+          </div>
         </div>
 
         <!-- ═══ DATA SANTRI ═══ -->
@@ -3002,6 +3075,50 @@
     const caret = document.getElementById('caretDesaPetemon');
     const isOpen = submenu.classList.toggle('open');
     caret.classList.toggle('rotated', isOpen);
+  };
+
+  window.toggleGuruTable = function () {
+    const wrapper = document.getElementById('guruDashTableWrapper');
+    const btn = document.getElementById('guruTableToggleBtn');
+    const label = document.getElementById('guruTableToggleLabel');
+    const isHidden = wrapper.style.display === 'none';
+
+    wrapper.style.display = isHidden ? 'block' : 'none';
+    btn.classList.toggle('open', isHidden);
+    label.textContent = isHidden ? 'Sembunyikan Daftar Guru' : 'Lihat Daftar Guru';
+  };
+
+  window.openModalGuruKelp = function () {
+    document.getElementById('guruKelpNama').value = '';
+    document.getElementById('guruKelpKategori').value = '';
+    document.getElementById('modalGuruKelp').classList.add('active');
+  };
+
+  window.closeModalGuruKelp = function () {
+    document.getElementById('modalGuruKelp').classList.remove('active');
+  };
+
+  window.saveGuruKelp = function () {
+    const data = {
+      nama: document.getElementById('guruKelpNama').value,
+      kategori: document.getElementById('guruKelpKategori').value,
+    };
+
+    if (!data.nama.trim() || !data.kategori) {
+      alert('Nama dan Kategori wajib diisi.');
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.closeModalGuruKelp();
+          window.loadKelompokDashboardGuru_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverAddGuru(window.currentToken, window.currentKelompokId, data);
   };
 
   window.loadKelompokDashboardGuru_ = function (kelompokId) {
