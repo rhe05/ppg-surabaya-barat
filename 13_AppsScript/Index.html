@@ -495,6 +495,92 @@
     .kpi-card.accent-brass .kpi-value { color: var(--brass); }
     .kpi-card.accent-volt .kpi-value { color: var(--volt); }
 
+    /* ═════ DASHBOARD GURU (per Kelompok — premium KPI cards) ═════ */
+    .guru-dash-context-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(217, 119, 6, 0.1);
+      color: var(--brass);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .guru-dash-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-bottom: 40px;
+    }
+
+    .guru-dash-kpi-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 26px 24px 22px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.12);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .guru-dash-kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 4px rgba(15, 23, 42, 0.05), 0 16px 32px -14px rgba(15, 23, 42, 0.18);
+    }
+
+    .guru-dash-kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin-bottom: 14px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .guru-dash-kpi-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+    }
+
+    .guru-dash-kpi-value {
+      font-size: clamp(26px, 2.6vw, 38px);
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .guru-dash-kpi-unit {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+    }
+
+    .guru-dash-kpi-card.accent-brass .guru-dash-kpi-value { color: var(--brass); }
+    .guru-dash-kpi-card.accent-sage .guru-dash-kpi-value { color: var(--sage); }
+    .guru-dash-kpi-card.accent-volt .guru-dash-kpi-value { color: var(--volt); }
+
+    .guru-dash-kpi-bar {
+      margin-top: 16px;
+      height: 5px;
+      border-radius: 999px;
+      background: var(--panel-2);
+      overflow: hidden;
+    }
+
+    .guru-dash-kpi-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      transition: width 0.5s ease;
+    }
+
     /* ═════ TABLE & FORM ═════ */
     .data-table-wrapper {
       background: var(--panel);
@@ -1524,6 +1610,68 @@
             <button class="btn btn-secondary" onclick="window.closeModalGuru()">Batal</button>
             <button class="btn btn-primary" onclick="window.saveGuru()">Simpan</button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD GURU (per Kelompok, diakses via sidebar Desa > Kelompok) -->
+    <div class="screen-wrapper" id="screenGuruDashboard">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Dashboard Guru</h2>
+          <span class="guru-dash-context-badge" id="guruDashKelompokBadge">—</span>
+        </div>
+      </div>
+
+      <div class="dash-container">
+        <div class="dash-section-title">Ringkasan Tenaga Pengajar</div>
+
+        <div class="guru-dash-kpi-row">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Total Guru</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="gdTotalGuru">0</span>
+              <span class="guru-dash-kpi-unit">pengajar</span>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Muballigh Tugasan</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="gdTugasan">0</span>
+              <span class="guru-dash-kpi-unit" id="gdTugasanPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdTugasanBar" style="width: 0%; background: var(--sage);"></div></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Muballigh Setempat</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="gdSetempat">0</span>
+              <span class="guru-dash-kpi-unit" id="gdSetempatPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdSetempatBar" style="width: 0%; background: var(--volt);"></div></div>
+          </div>
+        </div>
+
+        <div class="dash-section-title">Daftar Guru</div>
+
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">#</th>
+                <th>Nama</th>
+                <th>Kategori</th>
+              </tr>
+            </thead>
+            <tbody id="guruDashTableBody">
+              <tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -2563,6 +2711,49 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
+  window.loadGuruDashboard = function (kelompokId, kelompokName) {
+    document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+
+        const guru = result.data;
+        const total = guru.length;
+        const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
+        const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
+        const tugasanPct = total > 0 ? Math.round((tugasan / total) * 100) : 0;
+        const setempatPct = total > 0 ? Math.round((setempat / total) * 100) : 0;
+
+        document.getElementById('gdTotalGuru').textContent = total;
+        document.getElementById('gdTugasan').textContent = tugasan;
+        document.getElementById('gdSetempat').textContent = setempat;
+        document.getElementById('gdTugasanPct').textContent = tugasanPct + '%';
+        document.getElementById('gdSetempatPct').textContent = setempatPct + '%';
+        document.getElementById('gdTugasanBar').style.width = tugasanPct + '%';
+        document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
+
+        const tbody = document.getElementById('guruDashTableBody');
+        tbody.innerHTML = '';
+
+        if (guru.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada data guru untuk kelompok ini.</td></tr>';
+          return;
+        }
+
+        guru.forEach((g, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${i + 1}</td>
+            <td>${g.nama}</td>
+            <td>${g.kategori}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      })
+      .serverGetGuruList(window.currentToken, kelompokId);
+  };
+
   window.selectKelompok = function (event, kelompokId, kelompokName) {
     event.preventDefault();
     event.stopPropagation();
@@ -2574,18 +2765,18 @@
 
     document.querySelectorAll('.sidebar-menu-link').forEach(link => link.classList.remove('active'));
 
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
     });
-    document.getElementById('screenSantri').classList.add('active');
+    document.getElementById('screenGuruDashboard').classList.add('active');
 
-    window.loadSantriList();
+    window.loadGuruDashboard(kelompokId, kelompokName);
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
