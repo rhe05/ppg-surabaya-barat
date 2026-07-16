@@ -1254,6 +1254,22 @@
         <div class="alert alert-success" id="guruSuccess"></div>
         <div class="alert alert-error" id="guruError"></div>
 
+        <!-- Guru Summary Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+          <div style="background: #e0f2fe; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #0369a1;">Total Guru</p>
+            <span style="font-size: 28px; font-weight: bold; color: #0284c7;" id="totalGuruCount">0</span>
+          </div>
+          <div style="background: #fef3c7; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #92400e;">Muballigh Tugasan</p>
+            <span style="font-size: 28px; font-weight: bold; color: #d97706;" id="tugasanCount">0</span>
+          </div>
+          <div style="background: #dbeafe; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #0c4a6e;">Muballigh Setempat</p>
+            <span style="font-size: 28px; font-weight: bold; color: #0369a1;" id="setempatCount">0</span>
+          </div>
+        </div>
+
         <input type="text" class="search-input" id="guruSearch" placeholder="Cari nama guru..." onkeyup="window.loadGuruList()">
 
         <div class="data-table-wrapper">
@@ -1393,7 +1409,7 @@
         </div>
 
         <div style="margin-top: 24px;">
-          <h3>Santri Teladan (Nilai ≥ 90)</h3>
+          <h3>Santri Teladan (Nilai ≥90, Akhlaq ≥90, Kehadiran ≥95%)</h3>
           <div style="overflow-x: auto;">
             <table class="data-table" style="width: 100%; border-collapse: collapse;">
               <thead>
@@ -1401,7 +1417,9 @@
                   <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">No</th>
                   <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nama</th>
                   <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelas</th>
-                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nilai</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Nilai</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Akhlaq</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Kehadiran</th>
                   <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kelompok</th>
                 </tr>
               </thead>
@@ -1479,6 +1497,18 @@
             <tbody id="konselingTableBody" style="background: white;">
             </tbody>
           </table>
+        </div>
+
+        <!-- Charts Section -->
+        <div style="margin-top: 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+          <div style="background: white; padding: 16px; border-radius: 4px; border: 1px solid #ddd;">
+            <h3 style="margin-top: 0; margin-bottom: 16px;">Distribusi per Kategori</h3>
+            <div id="chartKonselingKategori" style="height: 300px;"></div>
+          </div>
+          <div style="background: white; padding: 16px; border-radius: 4px; border: 1px solid #ddd;">
+            <h3 style="margin-top: 0; margin-bottom: 16px;">Timeline Kasus (Bulanan)</h3>
+            <div id="chartKonselingTimeline" style="height: 300px;"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -2104,6 +2134,15 @@
         }
       })
       .serverGetDashboardDesaBreakdown();
+
+    // Load Santri Teladan dengan full criteria
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderSantriTeladanTable(result.data);
+        }
+      })
+      .serverGetDashboardSantriTeladan();
   };
 
   window.loadSantriList = function () {
@@ -2205,6 +2244,17 @@
         }
       })
       .serverGetGuruList(window.currentToken, window.currentKelompokId, search);
+
+    // Load guru summary (kategori breakdown)
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          document.getElementById('totalGuruCount').textContent = result.data.total_guru;
+          document.getElementById('tugasanCount').textContent = result.data.tugasan_count;
+          document.getElementById('setempatCount').textContent = result.data.setempat_count;
+        }
+      })
+      .serverGetGuruSummary(window.currentToken);
   };
 
   window.openModalGuru = function () {
@@ -3082,13 +3132,30 @@
 
     data.forEach((item, idx) => {
       const row = document.createElement('tr');
-      row.innerHTML = `
-        <td style="padding: 12px; border: 1px solid #ddd;">${idx + 1}</td>
-        <td style="padding: 12px; border: 1px solid #ddd;">${item.nama}</td>
-        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelas}</td>
-        <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #059669;">${item.nilai}</td>
-        <td style="padding: 12px; border: 1px solid #ddd;">${item.kelompok_nama}</td>
-      `;
+      // Check if has akhlaq field (from dashboard) or not (from munaqosah)
+      const hasAkhlaq = item.akhlaq !== undefined;
+
+      if (hasAkhlaq) {
+        // Dashboard version with akhlaq & kehadiran
+        row.innerHTML = `
+          <td style="padding: 12px; border: 1px solid #ddd;">${idx + 1}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.nama}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.kelas}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #059669; text-align: center;">${item.nilai}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #7c3aed; text-align: center;">${item.akhlaq}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #0891b2; text-align: center;">${item.kehadiran_persen}%</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.kelompok_nama}</td>
+        `;
+      } else {
+        // Munaqosah version (nilai only)
+        row.innerHTML = `
+          <td style="padding: 12px; border: 1px solid #ddd;">${idx + 1}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.nama}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.kelas}</td>
+          <td style="padding: 12px; border: 1px solid #ddd; font-weight: bold; color: #059669;">${item.nilai}</td>
+          <td style="padding: 12px; border: 1px solid #ddd;">${item.kelompok_nama}</td>
+        `;
+      }
       tbody.appendChild(row);
     });
   };
@@ -3172,6 +3239,7 @@
 
   window.loadKonselingScreen = function () {
     window.loadKonselingTable();
+    window.loadKonselingCharts();
   };
 
   window.loadKonselingTable = function () {
@@ -3299,6 +3367,57 @@
         }
       })
       .serverDeleteKonseling(window.currentToken, id);
+  };
+
+  window.loadKonselingCharts = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderKonselingCharts(result.data);
+        }
+      })
+      .serverGetKonselingStats(window.currentToken, {});
+  };
+
+  window.renderKonselingCharts = function (stats) {
+    // Pie Chart: Distribusi Kategori
+    const kategoriData = [['Kategori', 'Jumlah']];
+    Object.entries(stats.distribution_by_kategori).forEach(([kategori, count]) => {
+      kategoriData.push([kategori.charAt(0).toUpperCase() + kategori.slice(1), count]);
+    });
+
+    const kategoriOptions = {
+      title: 'Distribusi Kategori Konseling',
+      pieHole: 0.4,
+      colors: ['#d97706', '#f87171', '#fb923c', '#fbbf24', '#fcd34d', '#a855f7'],
+      chartArea: { width: '90%', height: '90%' }
+    };
+
+    const kategoriChart = new google.visualization.PieChart(document.getElementById('chartKonselingKategori'));
+    const kategoriTable = google.visualization.arrayToDataTable(kategoriData);
+    kategoriChart.draw(kategoriTable, kategoriOptions);
+
+    // Line Chart: Timeline Bulanan
+    const timelineData = [['Bulan', 'Jumlah Kasus']];
+    Object.entries(stats.distribution_by_month).sort().forEach(([month, count]) => {
+      const [year, monthNum] = month.split('-');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      timelineData.push([monthNames[parseInt(monthNum) - 1] + ' ' + year, count]);
+    });
+
+    const timelineOptions = {
+      title: 'Timeline Kasus Konseling (Bulanan)',
+      curveType: 'function',
+      legend: { position: 'bottom' },
+      colors: ['#3b82f6'],
+      hAxis: { slantedText: true },
+      vAxis: { minValue: 0 },
+      chartArea: { width: '90%', height: '85%' }
+    };
+
+    const timelineChart = new google.visualization.LineChart(document.getElementById('chartKonselingTimeline'));
+    const timelineTable = google.visualization.arrayToDataTable(timelineData);
+    timelineChart.draw(timelineTable, timelineOptions);
   };
 
   // Close mobile sidebar when clicking outside

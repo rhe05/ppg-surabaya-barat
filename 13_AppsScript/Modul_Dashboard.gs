@@ -184,3 +184,58 @@ function serverGetKehadiranChart7Hari() {
     datasets: datasets,
   };
 }
+
+/**
+ * GET Santri Teladan untuk Dashboard dengan full criteria:
+ * Nilai (Munaqosah) >= 90 AND Akhlaq (Kurikulum) >= 90 AND Kehadiran >= 95%
+ * Return: [{nama, kelas, nilai, akhlaq, kehadiran_persen, kelompok_nama}] sorted by nilai DESC
+ */
+function serverGetDashboardSantriTeladan() {
+  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
+  const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH);
+  const akhlaqData = readSheetAsObjects(SHEET_NAMES.KURIKULUM_AKHLAQ);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
+
+  // Filter kelompok aktif saja
+  const kelompokAktif = kelompokData.filter(k => k.status_aktif === 'aktif').map(k => k.id);
+  const santriAktif = santriData.filter(s => kelompokAktif.includes(s.kelompok_id));
+
+  const result = santriAktif.map(santri => {
+    // Get latest nilai from munaqosah (any periode, get max value)
+    const nilaiRecords = munaqosahData.filter(m => m.santri_id == santri.id && m.status === 'dinilai');
+    const nilai = nilaiRecords.length > 0 ? Math.max(...nilaiRecords.map(n => Number(n.nilai))) : 0;
+
+    // Get latest akhlaq from kurikulum_akhlaq
+    const akhlaqRecords = akhlaqData.filter(a => a.santri_id == santri.id);
+    const akhlaq = akhlaqRecords.length > 0 ? Math.max(...akhlaqRecords.map(a => Number(a.nilai_akhlaq || 0))) : 0;
+
+    // Calculate kehadiran % (semua waktu atau bulan ini)
+    const absensiSantri = absensiData.filter(a => a.santri_id == santri.id);
+    const hadirCount = absensiSantri.filter(a => a.status === 'hadir').length;
+    const kehadiranPersen = absensiSantri.length > 0 ? Math.round((hadirCount / absensiSantri.length) * 100) : 0;
+
+    // Get kelompok info
+    const kelompok = kelompokData.find(k => k.id == santri.kelompok_id);
+
+    return {
+      santri_id: santri.id,
+      nama: santri.nama,
+      kelas: santri.jenjang_saat_ini,
+      nilai: nilai,
+      akhlaq: akhlaq,
+      kehadiran_persen: kehadiranPersen,
+      kelompok_nama: kelompok ? kelompok.nama : 'Unknown',
+      status: nilai >= 90 && akhlaq >= 90 && kehadiranPersen >= 95 ? 'teladan' : 'not_qualified',
+    };
+  });
+
+  // Filter santri teladan dan sort by nilai DESC
+  const teladanOnly = result.filter(r => r.status === 'teladan').sort((a, b) => b.nilai - a.nilai);
+
+  return {
+    success: true,
+    data: teladanOnly,
+    total: teladanOnly.length,
+  };
+}

@@ -99,3 +99,27 @@ function serverDeleteGuru(token, guruId) {
   logAudit('guru', guruId, 'delete', user.id, 'deleted');
   return { success: true, message: 'Guru berhasil dihapus.' };
 }
+
+/**
+ * GET guru summary by kategori (Muballigh Tugasan vs Muballigh Setempat).
+ * Return: {total_guru, tugasan_count, setempat_count}
+ */
+function serverGetGuruSummary(token) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
+
+  const tugasan = guruData.filter(g => g.kategori === 'Muballigh Tugasan').length;
+  const setempat = guruData.filter(g => g.kategori === 'Muballigh Setempat').length;
+  const total = guruData.length;
+
+  return {
+    success: true,
+    data: {
+      total_guru: total,
+      tugasan_count: tugasan,
+      setempat_count: setempat,
+    },
+  };
+}
