@@ -1049,6 +1049,12 @@
         </a>
       </li>
       <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('kalender')">
+          <span style="font-size: 18px;">📅</span>
+          <span>Kalender Akademik</span>
+        </a>
+      </li>
+      <li>
         <a class="sidebar-menu-link" onclick="window.switchScreen('laporan')">
           <span style="font-size: 18px;">📈</span>
           <span>Laporan & Export</span>
@@ -1513,6 +1519,88 @@
       </div>
     </div>
 
+    <!-- KALENDER AKADEMIK SCREEN -->
+    <div class="screen-wrapper" id="screenKalender">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Kalender Akademik</h2>
+        </div>
+        <button class="btn btn-primary" onclick="window.openKalenderModal()">+ Tambah Event</button>
+      </div>
+      <div style="padding: 16px;">
+        <!-- Navigation Controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+          <button class="btn btn-secondary" onclick="window.prevMonth()" style="width: auto;">← Bulan Sebelumnya</button>
+          <h3 style="margin: 0; min-width: 200px; text-align: center;" id="kalenderTitle">Januari 2026</h3>
+          <button class="btn btn-secondary" onclick="window.nextMonth()" style="width: auto;">Bulan Berikutnya →</button>
+        </div>
+
+        <!-- Summary Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+          <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #0369a1;">Total</p>
+            <span style="font-size: 20px; font-weight: bold; color: #0284c7;" id="kalenderTotalEvents">0</span>
+          </div>
+          <div style="background: #e8f5e9; padding: 12px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #2e7d32;">KBM</p>
+            <span style="font-size: 20px; font-weight: bold; color: #388e3c;" id="kalenderKBMEvents">0</span>
+          </div>
+          <div style="background: #fff3e0; padding: 12px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #e65100;">Ujian</p>
+            <span style="font-size: 20px; font-weight: bold; color: #f57c00;" id="kalenderUjianEvents">0</span>
+          </div>
+          <div style="background: #fce4ec; padding: 12px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #880e4f;">Acara</p>
+            <span style="font-size: 20px; font-weight: bold; color: #c2185b;" id="kalenderAcaraEvents">0</span>
+          </div>
+          <div style="background: #f3e5f5; padding: 12px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 11px; color: #4a148c;">Libur</p>
+            <span style="font-size: 20px; font-weight: bold; color: #7b1fa2;" id="kalenderLiburEvents">0</span>
+          </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div style="background: white; border: 1px solid #ddd; border-radius: 4px; padding: 16px; margin-bottom: 20px;">
+          <div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px;">
+            <!-- Days of week header -->
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Min</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Sen</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Sel</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Rab</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Kam</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Jum</div>
+            <div style="text-align: center; font-weight: bold; padding: 8px; color: #666;">Sab</div>
+            <!-- Calendar dates -->
+            <div id="kalenderGrid" style="display: contents;"></div>
+          </div>
+        </div>
+
+        <!-- Events List -->
+        <div>
+          <h3>Daftar Event</h3>
+          <div style="overflow-x: auto;">
+            <table class="data-table" style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Tanggal</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Judul</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Tipe</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Waktu</th>
+                  <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Lokasi</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="kalenderEventBody" style="background: white;">
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- LAPORAN & EXPORT SCREEN -->
     <div class="screen-wrapper" id="screenLaporan">
       <div class="dash-header">
@@ -1961,6 +2049,58 @@
         </form>
       </div>
     </div>
+
+    <!-- Modal Kalender Event Entry/Edit -->
+    <div class="modal-overlay" id="modalKalender">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalKalenderTitle">Tambah Event</span>
+          <button class="modal-close-btn" onclick="window.closeKalenderModal()">✕</button>
+        </div>
+        <form onsubmit="window.saveKalenderForm(event)">
+          <div class="form-group">
+            <label>Tanggal Event</label>
+            <input type="date" id="formKalenderTanggal" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Judul Event</label>
+            <input type="text" id="formKalenderJudul" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Tipe Event</label>
+            <select id="formKalenderTipe" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+              <option value="">-- Pilih Tipe --</option>
+              <option value="kbm">KBM (Kegiatan Belajar Mengajar)</option>
+              <option value="ujian">Ujian</option>
+              <option value="acara">Acara</option>
+              <option value="libur">Libur</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Deskripsi / Keterangan</label>
+            <textarea id="formKalenderDeskripsi" rows="2" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Lokasi</label>
+            <input type="text" id="formKalenderLokasi" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="form-group">
+              <label>Waktu Mulai (HH:MM)</label>
+              <input type="time" id="formKalenderMulai" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+            <div class="form-group">
+              <label>Waktu Selesai (HH:MM)</label>
+              <input type="time" id="formKalenderSelesai" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.closeKalenderModal()">Batal</button>
+            <button type="submit" class="btn btn-primary">Simpan</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2080,7 +2220,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -2097,6 +2237,7 @@
     if (screenName === 'guru') window.loadGuruList();
     if (screenName === 'munaqosah') window.loadMunaqosahScreen();
     if (screenName === 'konseling') window.loadKonselingScreen();
+    if (screenName === 'kalender') window.loadKalenderScreen();
     if (screenName === 'laporan') window.initLaporanScreen();
     if (screenName === 'statistics') window.initStatisticsScreen();
     if (screenName === 'usermanagement') window.loadUserManagement();
@@ -3418,6 +3559,218 @@
     const timelineChart = new google.visualization.LineChart(document.getElementById('chartKonselingTimeline'));
     const timelineTable = google.visualization.arrayToDataTable(timelineData);
     timelineChart.draw(timelineTable, timelineOptions);
+  };
+
+  /* ═════ KALENDER AKADEMIK FUNCTIONS ═════ */
+
+  window.currentKalenderMonth = new Date();
+
+  window.loadKalenderScreen = function () {
+    window.loadKalenderData();
+  };
+
+  window.loadKalenderData = function () {
+    const tahun = window.currentKalenderMonth.getFullYear();
+    const bulan = window.currentKalenderMonth.getMonth() + 1;
+
+    // Update title
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    document.getElementById('kalenderTitle').textContent = monthNames[bulan - 1] + ' ' + tahun;
+
+    // Load events
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderKalendarGrid(tahun, bulan, result.data);
+          window.renderKalendarEventsList(result.data);
+        }
+      })
+      .serverGetCalendarEvents(window.currentToken, tahun, bulan);
+
+    // Load summary
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          document.getElementById('kalenderTotalEvents').textContent = result.data.total_events;
+          document.getElementById('kalenderKBMEvents').textContent = result.data.by_type.kbm;
+          document.getElementById('kalenderUjianEvents').textContent = result.data.by_type.ujian;
+          document.getElementById('kalenderAcaraEvents').textContent = result.data.by_type.acara;
+          document.getElementById('kalenderLiburEvents').textContent = result.data.by_type.libur;
+        }
+      })
+      .serverGetCalendarEventSummary(window.currentToken, tahun, bulan);
+  };
+
+  window.renderKalendarGrid = function (tahun, bulan, events) {
+    const firstDay = new Date(tahun, bulan - 1, 1).getDay();
+    const daysInMonth = new Date(tahun, bulan, 0).getDate();
+    const grid = document.getElementById('kalenderGrid');
+    grid.innerHTML = '';
+
+    // Empty cells for days before month starts
+    for (let i = 0; i < firstDay; i++) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'background: #f9f9f9; padding: 8px; text-align: center; color: #999; border: 1px solid #eee;';
+      grid.appendChild(empty);
+    }
+
+    // Days of month
+    const eventsByDate = {};
+    events.forEach(e => {
+      if (!eventsByDate[e.tanggal]) eventsByDate[e.tanggal] = [];
+      eventsByDate[e.tanggal].push(e);
+    });
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${tahun}-${String(bulan).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dayEvents = eventsByDate[dateStr] || [];
+      const isToday = new Date().toDateString() === new Date(tahun, bulan - 1, day).toDateString();
+
+      const cell = document.createElement('div');
+      cell.style.cssText = `
+        padding: 8px;
+        border: 1px solid #ddd;
+        min-height: 60px;
+        background: ${isToday ? '#e3f2fd' : 'white'};
+        cursor: pointer;
+        transition: background 0.2s;
+      `;
+      cell.onmouseover = () => cell.style.background = '#f5f5f5';
+      cell.onmouseout = () => cell.style.background = isToday ? '#e3f2fd' : 'white';
+      cell.onclick = () => window.openKalenderModalForDate(dateStr);
+
+      let html = `<strong style="color: ${isToday ? '#1976d2' : '#333'};">${day}</strong>`;
+      if (dayEvents.length > 0) {
+        html += `<div style="font-size: 10px; margin-top: 4px; color: #666;">`;
+        dayEvents.slice(0, 2).forEach(e => {
+          const colors = { kbm: '#388e3c', ujian: '#f57c00', acara: '#c2185b', libur: '#7b1fa2' };
+          html += `<div style="background: ${colors[e.tipe_event] || '#999'}; color: white; padding: 2px 4px; border-radius: 2px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${e.judul_event}</div>`;
+        });
+        if (dayEvents.length > 2) {
+          html += `<div style="color: #999;">+${dayEvents.length - 2} more</div>`;
+        }
+        html += `</div>`;
+      }
+      cell.innerHTML = html;
+      grid.appendChild(cell);
+    }
+  };
+
+  window.renderKalendarEventsList = function (events) {
+    const tbody = document.getElementById('kalenderEventBody');
+    tbody.innerHTML = '';
+
+    if (events.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">Tidak ada event untuk bulan ini</td></tr>';
+      return;
+    }
+
+    events.forEach(event => {
+      const tipeColors = { kbm: '#388e3c', ujian: '#f57c00', acara: '#c2185b', libur: '#7b1fa2' };
+      const tipeLabels = { kbm: 'KBM', ujian: 'Ujian', acara: 'Acara', libur: 'Libur' };
+      const waktu = (event.pukul_mulai || '') + (event.pukul_selesai ? ' - ' + event.pukul_selesai : '');
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding: 12px; border: 1px solid #ddd;">${event.tanggal}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: 500;">${event.judul_event}</td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <span style="background: ${tipeColors[event.tipe_event]}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${tipeLabels[event.tipe_event]}</span>
+        </td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">${waktu || '-'}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">${event.lokasi || '-'}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+          <button class="btn btn-sm" onclick="window.editKalenderEvent('${event.id}')" style="padding: 4px 8px; margin-right: 4px;">Edit</button>
+          <button class="btn btn-sm" onclick="window.deleteKalenderEvent('${event.id}')" style="padding: 4px 8px; background: #ef4444; color: white;">Hapus</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  };
+
+  window.openKalenderModal = function () {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('modalKalenderTitle').textContent = 'Tambah Event';
+    document.getElementById('formKalenderTanggal').value = today;
+    document.getElementById('formKalenderJudul').value = '';
+    document.getElementById('formKalenderTipe').value = '';
+    document.getElementById('formKalenderDeskripsi').value = '';
+    document.getElementById('formKalenderLokasi').value = '';
+    document.getElementById('formKalenderMulai').value = '';
+    document.getElementById('formKalenderSelesai').value = '';
+    document.getElementById('modalKalender').classList.add('active');
+  };
+
+  window.openKalenderModalForDate = function (dateStr) {
+    document.getElementById('modalKalenderTitle').textContent = 'Tambah Event';
+    document.getElementById('formKalenderTanggal').value = dateStr;
+    document.getElementById('formKalenderJudul').value = '';
+    document.getElementById('formKalenderTipe').value = '';
+    document.getElementById('formKalenderDeskripsi').value = '';
+    document.getElementById('formKalenderLokasi').value = '';
+    document.getElementById('formKalenderMulai').value = '';
+    document.getElementById('formKalenderSelesai').value = '';
+    document.getElementById('modalKalender').classList.add('active');
+  };
+
+  window.closeKalenderModal = function () {
+    document.getElementById('modalKalender').classList.remove('active');
+  };
+
+  window.saveKalenderForm = function (event) {
+    event.preventDefault();
+
+    const data = {
+      kelompok_id: window.currentKelompokId,
+      tanggal: document.getElementById('formKalenderTanggal').value,
+      judul_event: document.getElementById('formKalenderJudul').value,
+      deskripsi: document.getElementById('formKalenderDeskripsi').value,
+      tipe_event: document.getElementById('formKalenderTipe').value,
+      lokasi: document.getElementById('formKalenderLokasi').value,
+      pukul_mulai: document.getElementById('formKalenderMulai').value,
+      pukul_selesai: document.getElementById('formKalenderSelesai').value,
+    };
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.closeKalenderModal();
+          window.loadKalenderData();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverCreateCalendarEvent(window.currentToken, data);
+  };
+
+  window.editKalenderEvent = function (eventId) {
+    alert('Fitur edit event akan segera tersedia');
+  };
+
+  window.deleteKalenderEvent = function (eventId) {
+    if (!confirm('Hapus event ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.loadKalenderData();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverDeleteCalendarEvent(window.currentToken, eventId);
+  };
+
+  window.prevMonth = function () {
+    window.currentKalenderMonth.setMonth(window.currentKalenderMonth.getMonth() - 1);
+    window.loadKalenderData();
+  };
+
+  window.nextMonth = function () {
+    window.currentKalenderMonth.setMonth(window.currentKalenderMonth.getMonth() + 1);
+    window.loadKalenderData();
   };
 
   // Close mobile sidebar when clicking outside

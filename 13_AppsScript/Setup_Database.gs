@@ -43,10 +43,13 @@ function setupDatabaseStructure() {
   // 7. MODUL KURIKULUM
   createSheetIfNotExists(ss, 'kurikulum_akhlaq', ['id', 'santri_id', 'semester', 'nilai_akhlaq', 'catatan_capaian', 'dicatat_oleh']);
 
-  // 8. AUDIT & LOGS
+  // 8. KALENDER AKADEMIK
+  createSheetIfNotExists(ss, 'calendar_events', ['id', 'kelompok_id', 'tanggal', 'judul_event', 'deskripsi', 'tipe_event', 'lokasi', 'pukul_mulai', 'pukul_selesai', 'dibuat_oleh', 'dibuat_pada', 'diupdate_pada']);
+
+  // 9. AUDIT & LOGS
   createSheetIfNotExists(ss, 'audit_log', ['id', 'table_name', 'record_id', 'action', 'user_id', 'timestamp', 'detail_perubahan']);
 
-  console.log('✅ Semua 12 sheet berhasil dibuat atau sudah ada.');
+  console.log('✅ Semua 13 sheet berhasil dibuat atau sudah ada.');
 
   // Seed data
   seedData(ss);
