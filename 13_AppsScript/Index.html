@@ -1055,6 +1055,12 @@
         </a>
       </li>
       <li>
+        <a class="sidebar-menu-link" onclick="window.switchScreen('pustakUnduhan')">
+          <span style="font-size: 18px;">📁</span>
+          <span>Pusat Unduhan</span>
+        </a>
+      </li>
+      <li>
         <a class="sidebar-menu-link" onclick="window.switchScreen('laporan')">
           <span style="font-size: 18px;">📈</span>
           <span>Laporan & Export</span>
@@ -1601,6 +1607,68 @@
       </div>
     </div>
 
+    <!-- PUSAT UNDUHAN SCREEN -->
+    <div class="screen-wrapper" id="screenPustakUnduhan">
+      <div class="dash-header">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <button type="button" class="sidebar-toggle-btn" onclick="window.toggleSidebar()" aria-label="Ciutkan/lebarkan sidebar">
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <h2 style="margin: 0; font-size: 20px;">Pusat Unduhan</h2>
+        </div>
+        <button class="btn btn-primary" onclick="window.openPustakUnduhModal()">+ Upload File</button>
+      </div>
+      <div style="padding: 16px;">
+        <!-- Stats Cards -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px;">
+          <div style="background: #e3f2fd; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #0369a1;">Total File</p>
+            <span style="font-size: 24px; font-weight: bold; color: #0284c7;" id="pustakTotalFiles">0</span>
+          </div>
+          <div style="background: #f3e5f5; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #4a148c;">Total Ukuran</p>
+            <span style="font-size: 24px; font-weight: bold; color: #7b1fa2;" id="pustakTotalSize">0 MB</span>
+          </div>
+          <div style="background: #e8f5e9; padding: 16px; border-radius: 4px; text-align: center;">
+            <p style="margin: 0; font-size: 12px; color: #2e7d32;">Total Download</p>
+            <span style="font-size: 24px; font-weight: bold; color: #388e3c;" id="pustakTotalDownloads">0</span>
+          </div>
+        </div>
+
+        <!-- Search & Filter -->
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 12px; margin-bottom: 20px;">
+          <input type="text" id="searchPustakUnduh" placeholder="Cari file..." onkeyup="window.loadPustakUnduhFiles()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          <select id="filterKategoriPustak" onchange="window.loadPustakUnduhFiles()" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <option value="">-- Semua Kategori --</option>
+            <option value="Modul">Modul</option>
+            <option value="Soal">Soal</option>
+            <option value="Dokumen">Dokumen</option>
+            <option value="Pedoman">Pedoman</option>
+            <option value="Lainnya">Lainnya</option>
+          </select>
+        </div>
+
+        <!-- File List -->
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+              <tr style="background: #f0f0f0; border-bottom: 2px solid #ddd;">
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Nama File</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Kategori</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Deskripsi</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Ukuran</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Download</th>
+                <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Pembuat</th>
+                <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="pustakUnduhTableBody" style="background: white;">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- LAPORAN & EXPORT SCREEN -->
     <div class="screen-wrapper" id="screenLaporan">
       <div class="dash-header">
@@ -2101,6 +2169,52 @@
         </form>
       </div>
     </div>
+
+    <!-- Modal Pusat Unduhan Upload -->
+    <div class="modal-overlay" id="modalPustakUnduh">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span id="modalPustakTitle">Upload File Baru</span>
+          <button class="modal-close-btn" onclick="window.closePustakUnduhModal()">✕</button>
+        </div>
+        <form onsubmit="window.savePustakUnduhForm(event)">
+          <div class="form-group">
+            <label>Kategori File</label>
+            <select id="formPustakKategori" required style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+              <option value="">-- Pilih Kategori --</option>
+              <option value="Modul">Modul</option>
+              <option value="Soal">Soal</option>
+              <option value="Dokumen">Dokumen</option>
+              <option value="Pedoman">Pedoman</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nama File</label>
+            <input type="text" id="formPustakNama" required placeholder="Contoh: Modul Hafalan Surat 1" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="form-group">
+            <label>Deskripsi</label>
+            <textarea id="formPustakDeskripsi" rows="3" placeholder="Jelaskan isi file..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-family: sans-serif;"></textarea>
+          </div>
+          <div class="form-group">
+            <label>Google Drive Link / URL File</label>
+            <input type="url" id="formPustakUrl" required placeholder="https://drive.google.com/file/d/..." style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+            <small style="color: #666; margin-top: 4px; display: block;">
+              💡 Tip: Upload file ke Google Drive, share link, dan paste di sini
+            </small>
+          </div>
+          <div class="form-group">
+            <label>Ukuran File (dalam bytes) - Opsional</label>
+            <input type="number" id="formPustakUkuran" placeholder="0" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="window.closePustakUnduhModal()">Batal</button>
+            <button type="submit" class="btn btn-primary">Upload</button>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2220,7 +2334,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -2238,6 +2352,7 @@
     if (screenName === 'munaqosah') window.loadMunaqosahScreen();
     if (screenName === 'konseling') window.loadKonselingScreen();
     if (screenName === 'kalender') window.loadKalenderScreen();
+    if (screenName === 'pustakUnduhan') window.loadPustakUnduhScreen();
     if (screenName === 'laporan') window.initLaporanScreen();
     if (screenName === 'statistics') window.initStatisticsScreen();
     if (screenName === 'usermanagement') window.loadUserManagement();
@@ -3771,6 +3886,132 @@
   window.nextMonth = function () {
     window.currentKalenderMonth.setMonth(window.currentKalenderMonth.getMonth() + 1);
     window.loadKalenderData();
+  };
+
+  /* ═════ PUSAT UNDUHAN FUNCTIONS ═════ */
+
+  window.loadPustakUnduhScreen = function () {
+    window.loadPustakUnduhFiles();
+  };
+
+  window.loadPustakUnduhFiles = function () {
+    const kategori = document.getElementById('filterKategoriPustak').value;
+    const search = document.getElementById('searchPustakUnduh').value;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.renderPustakUnduhTable(result.data);
+        }
+      })
+      .serverGetFilesList(window.currentToken, kategori, search);
+
+    // Load stats
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          document.getElementById('pustakTotalFiles').textContent = result.data.total_files;
+          document.getElementById('pustakTotalSize').textContent = result.data.total_size_mb + ' MB';
+          document.getElementById('pustakTotalDownloads').textContent = result.data.downloads_total;
+        }
+      })
+      .serverGetFileStats(window.currentToken);
+  };
+
+  window.renderPustakUnduhTable = function (data) {
+    const tbody = document.getElementById('pustakUnduhTableBody');
+    tbody.innerHTML = '';
+
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Tidak ada file</td></tr>';
+      return;
+    }
+
+    data.forEach(file => {
+      const kategoriColors = {
+        'Modul': '#388e3c',
+        'Soal': '#f57c00',
+        'Dokumen': '#1976d2',
+        'Pedoman': '#c2185b',
+        'Lainnya': '#7b1fa2'
+      };
+
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td style="padding: 12px; border: 1px solid #ddd; font-weight: 500;">
+          <a href="${file.url}" target="_blank" style="color: #1976d2; text-decoration: none;">
+            📄 ${file.nama_file}
+          </a>
+        </td>
+        <td style="padding: 12px; border: 1px solid #ddd;">
+          <span style="background: ${kategoriColors[file.kategori] || '#999'}; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">
+            ${file.kategori}
+          </span>
+        </td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 13px; max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${file.deskripsi || '-'}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-size: 12px;">${file.ukuran_kb} KB</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center; font-weight: bold; color: #1976d2;">${file.download_count}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; font-size: 12px;">${file.pembuat_nama}</td>
+        <td style="padding: 12px; border: 1px solid #ddd; text-align: center;">
+          <a href="${file.url}" target="_blank" class="btn btn-sm" style="padding: 4px 8px; margin-right: 4px; color: white; background: #388e3c; text-decoration: none; border-radius: 4px;">Download</a>
+          <button class="btn btn-sm" onclick="window.deletePustakUnduhFile('${file.id}')" style="padding: 4px 8px; background: #ef4444; color: white;">Hapus</button>
+        </td>
+      `;
+      tbody.appendChild(row);
+    });
+  };
+
+  window.openPustakUnduhModal = function () {
+    document.getElementById('modalPustakTitle').textContent = 'Upload File Baru';
+    document.getElementById('formPustakKategori').value = '';
+    document.getElementById('formPustakNama').value = '';
+    document.getElementById('formPustakDeskripsi').value = '';
+    document.getElementById('formPustakUrl').value = '';
+    document.getElementById('formPustakUkuran').value = '';
+    document.getElementById('modalPustakUnduh').classList.add('active');
+  };
+
+  window.closePustakUnduhModal = function () {
+    document.getElementById('modalPustakUnduh').classList.remove('active');
+  };
+
+  window.savePustakUnduhForm = function (event) {
+    event.preventDefault();
+
+    const data = {
+      kategori: document.getElementById('formPustakKategori').value,
+      nama_file: document.getElementById('formPustakNama').value,
+      deskripsi: document.getElementById('formPustakDeskripsi').value,
+      url_file: document.getElementById('formPustakUrl').value,
+      ukuran_bytes: parseInt(document.getElementById('formPustakUkuran').value) || 0,
+    };
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.closePustakUnduhModal();
+          window.loadPustakUnduhFiles();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverCreateFile(window.currentToken, data);
+  };
+
+  window.deletePustakUnduhFile = function (fileId) {
+    if (!confirm('Hapus file ini dari Pusat Unduhan?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          alert(result.message);
+          window.loadPustakUnduhFiles();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      })
+      .serverDeleteFile(window.currentToken, fileId);
   };
 
   // Close mobile sidebar when clicking outside

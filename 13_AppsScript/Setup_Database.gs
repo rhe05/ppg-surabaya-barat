@@ -46,10 +46,13 @@ function setupDatabaseStructure() {
   // 8. KALENDER AKADEMIK
   createSheetIfNotExists(ss, 'calendar_events', ['id', 'kelompok_id', 'tanggal', 'judul_event', 'deskripsi', 'tipe_event', 'lokasi', 'pukul_mulai', 'pukul_selesai', 'dibuat_oleh', 'dibuat_pada', 'diupdate_pada']);
 
-  // 9. AUDIT & LOGS
+  // 9. PUSAT UNDUHAN (FILE REPOSITORY)
+  createSheetIfNotExists(ss, 'files', ['id', 'kategori', 'nama_file', 'deskripsi', 'url_file', 'ukuran_bytes', 'dibuat_oleh', 'dibuat_pada', 'diupdate_pada', 'download_count']);
+
+  // 10. AUDIT & LOGS
   createSheetIfNotExists(ss, 'audit_log', ['id', 'table_name', 'record_id', 'action', 'user_id', 'timestamp', 'detail_perubahan']);
 
-  console.log('✅ Semua 13 sheet berhasil dibuat atau sudah ada.');
+  console.log('✅ Semua 14 sheet berhasil dibuat atau sudah ada.');
 
   // Seed data
   seedData(ss);

@@ -23,6 +23,7 @@ const SHEET_NAMES = {
   KONSELING: 'konseling',
   KURIKULUM_AKHLAQ: 'kurikulum_akhlaq',
   CALENDAR_EVENTS: 'calendar_events',
+  FILES: 'files',
   AUDIT_LOG: 'audit_log',
 };
 
