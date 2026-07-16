@@ -1165,7 +1165,10 @@
           </button>
             <h2 style="margin: 0; font-size: 20px;">Data Santri</h2>
           </div>
-          <button class="btn btn-primary" onclick="window.openModalSantri()">+ Tambah Santri</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" onclick="window.openModalSantri()">+ Tambah Santri</button>
+            <button class="btn btn-secondary" onclick="window.openModalBulkImportSantri()" title="Import dari CSV/Excel">📥 Bulk Import</button>
+          </div>
         </div>
       </div>
 
@@ -1243,6 +1246,62 @@
           <div class="modal-footer">
             <button class="btn btn-secondary" onclick="window.closeModalSantri()">Batal</button>
             <button class="btn btn-primary" onclick="window.saveSantri()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Bulk Import Santri -->
+      <div class="modal-overlay" id="modalBulkImportSantri" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+          <div class="modal-header">
+            <span>Bulk Import Santri</span>
+            <button class="modal-close-btn" onclick="window.closeModalBulkImportSantri()">×</button>
+          </div>
+
+          <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #166534;">
+            <strong>Format CSV/Excel:</strong> Nama, NIS, Gender (L/P), Tanggal Lahir (YYYY-MM-DD), Jenjang (AUD/Cabe Rawit/Pra Remaja/Remaja)
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Upload File CSV atau Excel</label>
+            <input type="file" id="bulkImportFile" accept=".csv,.xlsx,.xls" style="padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); width: 100%; font-size: 14px;">
+            <p style="font-size: 12px; color: var(--text-faint); margin-top: 6px;">Contoh: santri.csv atau santri.xlsx (max 200 baris per upload)</p>
+          </div>
+
+          <div id="bulkImportPreview" style="display: none; margin-bottom: 20px;">
+            <label class="form-label">Preview Data (5 baris pertama)</label>
+            <div class="data-table-wrapper" style="max-height: 250px; overflow-y: auto;">
+              <table class="data-table" style="font-size: 12px;">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nama</th>
+                    <th>NIS</th>
+                    <th>Gender</th>
+                    <th>Tgl Lahir</th>
+                    <th>Jenjang</th>
+                  </tr>
+                </thead>
+                <tbody id="bulkImportPreviewBody">
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div id="bulkImportStats" style="display: none; background: var(--panel-2); padding: 12px; border-radius: var(--radius); margin-bottom: 20px; font-size: 13px;">
+            <p style="margin: 0 0 8px 0;"><strong>📊 Statistik:</strong></p>
+            <p style="margin: 4px 0;">Total baris: <strong id="bulkImportRowCount">0</strong></p>
+            <p style="margin: 4px 0;">Valid: <strong id="bulkImportValidCount">0</strong> | Duplikat/Error: <strong id="bulkImportErrorCount">0</strong></p>
+          </div>
+
+          <div id="bulkImportErrors" style="display: none; background: #fef2f2; border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px; margin-bottom: 20px; max-height: 150px; overflow-y: auto;">
+            <p style="margin: 0 0 8px 0; font-weight: bold; color: var(--red);">⚠️ Errors:</p>
+            <div id="bulkImportErrorList" style="font-size: 12px; color: #7f1d1d;"></div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalBulkImportSantri()">Batal</button>
+            <button class="btn btn-primary" id="btnBulkImportProcess" onclick="window.processBulkImportSantri()" disabled>📤 Import Sekarang</button>
           </div>
         </div>
       </div>
@@ -2475,6 +2534,142 @@
         })
         .serverDeleteSantri(window.currentToken, santriId);
     }
+  };
+
+  // BULK IMPORT FUNCTIONS
+  window.openModalBulkImportSantri = function () {
+    document.getElementById('modalBulkImportSantri').style.display = 'flex';
+    document.getElementById('bulkImportFile').value = '';
+    document.getElementById('bulkImportPreview').style.display = 'none';
+    document.getElementById('bulkImportStats').style.display = 'none';
+    document.getElementById('bulkImportErrors').style.display = 'none';
+    document.getElementById('btnBulkImportProcess').disabled = true;
+    window.bulkImportData = [];
+  };
+
+  window.closeModalBulkImportSantri = function () {
+    document.getElementById('modalBulkImportSantri').style.display = 'none';
+  };
+
+  window.processBulkImportSantri = function () {
+    if (!window.bulkImportData || window.bulkImportData.length === 0) {
+      showAlert('santriError', 'Tidak ada data untuk diimpor.', 'error');
+      return;
+    }
+
+    const btn = document.getElementById('btnBulkImportProcess');
+    btn.disabled = true;
+    btn.textContent = '⏳ Memproses...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = '📤 Import Sekarang';
+
+        if (result.success) {
+          showAlert('santriSuccess', result.message, 'success');
+          window.closeModalBulkImportSantri();
+          window.loadSantriList();
+        } else {
+          showAlert('santriError', result.error || 'Gagal import', 'error');
+        }
+
+        if (result.errorReport) {
+          showAlert('santriError', 'Beberapa baris gagal:\n' + result.errorReport, 'error');
+        }
+      })
+      .serverBulkImportSantri(window.currentToken, window.currentKelompokId, window.bulkImportData);
+  };
+
+  // File upload handler - trigger on file selection
+  document.addEventListener('DOMContentLoaded', function () {
+    const fileInput = document.getElementById('bulkImportFile');
+    if (fileInput) {
+      fileInput.addEventListener('change', function (e) {
+        window.handleBulkImportFileSelect(e);
+      });
+    }
+  });
+
+  window.handleBulkImportFileSelect = function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (event) {
+      try {
+        const csv = event.target.result;
+        const rows = window.parseCSV(csv);
+
+        if (rows.length === 0) {
+          showAlert('santriError', 'File kosong atau format tidak valid.', 'error');
+          return;
+        }
+
+        window.bulkImportData = rows;
+
+        // Show preview (max 5 rows)
+        const previewRows = rows.slice(0, 5);
+        const tbody = document.getElementById('bulkImportPreviewBody');
+        tbody.innerHTML = previewRows.map((row, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${row.nama || '-'}</td>
+            <td>${row.nis || '-'}</td>
+            <td>${row.gender || '-'}</td>
+            <td>${row.tanggal_lahir || '-'}</td>
+            <td>${row.jenjang_saat_ini || '-'}</td>
+          </tr>
+        `).join('');
+        document.getElementById('bulkImportPreview').style.display = 'block';
+
+        // Show stats
+        document.getElementById('bulkImportRowCount').textContent = rows.length;
+        document.getElementById('bulkImportStats').style.display = 'block';
+        document.getElementById('btnBulkImportProcess').disabled = false;
+
+        // Note: actual validation happens on server side
+        showAlert('santriSuccess', `${rows.length} baris siap diimpor. Validasi lengkap akan dilakukan saat proses.`, 'success');
+      } catch (err) {
+        showAlert('santriError', 'Error: ' + err.message, 'error');
+      }
+    };
+
+    // Handle both CSV and Excel
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      // For Excel, we need to use a library or convert. For now, fallback to CSV
+      showAlert('santriError', 'Excel format belum didukung. Silakan konversi ke CSV terlebih dahulu.', 'error');
+    } else {
+      showAlert('santriError', 'Format file harus CSV atau Excel.', 'error');
+    }
+  };
+
+  // Helper: Parse CSV (simple implementation)
+  window.parseCSV = function (csv) {
+    const lines = csv.trim().split('\n');
+    if (lines.length < 2) return []; // Header + at least 1 data row
+
+    // Try to auto-detect delimiter (comma or semicolon)
+    const headers = lines[0].split(/[,;]/).map(h => h.trim().toLowerCase());
+    const delimiter = lines[0].includes(';') ? ';' : ',';
+
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(delimiter).map(v => v.trim());
+      if (values.length < 5) continue; // Skip incomplete rows
+
+      const row = {
+        nama: values[0],
+        nis: values[1],
+        gender: values[2],
+        tanggal_lahir: values[3],
+        jenjang_saat_ini: values[4],
+      };
+      rows.push(row);
+    }
+    return rows;
   };
 
   window.loadGuruList = function () {

@@ -119,3 +119,131 @@ function logAudit(tableName, recordId, action, userId, detail) {
 
   auditSheet.appendRow([id, tableName, recordId, action, userId, timestamp, detail]);
 }
+
+/**
+ * BULK IMPORT santri dari CSV/Excel (array of objects).
+ * CSV format: Nama, NIS, Gender, Tanggal Lahir (YYYY-MM-DD), Jenjang
+ *
+ * @param {string} token - Session token
+ * @param {string} kelompokId - Target Kelompok ID
+ * @param {Array} santriRows - Array of santri objects: [{nama, nis, gender, tanggal_lahir, jenjang_saat_ini}, ...]
+ * @returns {Object} { success, successCount, errorCount, errors: [{row, error}], errorReport: string }
+ */
+function serverBulkImportSantri(token, kelompokId, santriRows) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  if (!Array.isArray(santriRows) || santriRows.length === 0) {
+    return { success: false, error: 'Data santri kosong atau format tidak valid.' };
+  }
+
+  // Validasi max 200 rows per import (prevent timeout)
+  if (santriRows.length > 200) {
+    return { success: false, error: 'Maksimal 200 santri per import. Bagi menjadi beberapa file.' };
+  }
+
+  // Load existing santri to check duplicates
+  const existingSantri = readSheetAsObjects(SHEET_NAMES.SANTRI);
+  const existingNis = new Set(existingSantri.map(s => String(s.nis).trim().toUpperCase()));
+
+  const santriSheet = getSheetByName(SHEET_NAMES.SANTRI);
+  const errors = [];
+  const validRows = [];
+  let successCount = 0;
+  let errorCount = 0;
+
+  // Validasi & prepare rows
+  for (let rowIdx = 0; rowIdx < santriRows.length; rowIdx++) {
+    const row = santriRows[rowIdx];
+    const rowNumber = rowIdx + 1; // 1-based untuk user
+    let rowError = '';
+
+    // Validasi: Nama
+    if (!row.nama || String(row.nama).trim() === '') {
+      rowError = 'Nama wajib diisi';
+    }
+    // Validasi: NIS
+    else if (!row.nis || String(row.nis).trim() === '') {
+      rowError = 'NIS wajib diisi';
+    }
+    // Validasi: Gender
+    else if (!row.gender || !['L', 'P'].includes(String(row.gender).trim().toUpperCase())) {
+      rowError = 'Gender harus "L" atau "P"';
+    }
+    // Validasi: Tanggal Lahir (format YYYY-MM-DD)
+    else if (!row.tanggal_lahir || !/^\d{4}-\d{2}-\d{2}$/.test(String(row.tanggal_lahir).trim())) {
+      rowError = 'Tanggal Lahir format YYYY-MM-DD';
+    }
+    // Validasi: Jenjang
+    else if (!row.jenjang_saat_ini || !['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja'].includes(String(row.jenjang_saat_ini).trim())) {
+      rowError = 'Jenjang tidak valid (AUD, Cabe Rawit, Pra Remaja, Remaja)';
+    }
+    // Validasi: Duplicate NIS
+    else if (existingNis.has(String(row.nis).trim().toUpperCase())) {
+      rowError = `NIS "${row.nis}" sudah terdaftar`;
+    }
+
+    if (rowError) {
+      errors.push({ row: rowNumber, error: rowError });
+      errorCount++;
+    } else {
+      // Prepare for insert
+      validRows.push({
+        id: generateId(SHEET_NAMES.SANTRI),
+        kelompok_id: kelompokId,
+        nama: String(row.nama).trim(),
+        nis: String(row.nis).trim(),
+        gender: String(row.gender).trim().toUpperCase(),
+        tanggal_lahir: String(row.tanggal_lahir).trim(),
+        jenjang_saat_ini: String(row.jenjang_saat_ini).trim(),
+      });
+      successCount++;
+    }
+  }
+
+  // Batch insert valid rows
+  if (validRows.length > 0) {
+    try {
+      const dataToInsert = validRows.map(s => [
+        s.id,
+        s.kelompok_id,
+        s.nama,
+        s.nis,
+        s.gender,
+        s.tanggal_lahir,
+        s.jenjang_saat_ini,
+      ]);
+      santriSheet.getRange(santriSheet.getLastRow() + 1, 1, dataToInsert.length, 7).setValues(dataToInsert);
+
+      // Log audit
+      logAudit('santri', 'bulk_import', 'create', user.id, `Bulk: ${successCount} berhasil, ${errorCount} error`);
+    } catch (e) {
+      return {
+        success: false,
+        error: `Gagal import: ${e.toString()}`,
+        successCount,
+        errorCount,
+        errors,
+      };
+    }
+  }
+
+  // Generate error report
+  let errorReport = '';
+  if (errors.length > 0) {
+    errorReport = errors.map(e => `Baris ${e.row}: ${e.error}`).join('\n');
+  }
+
+  return {
+    success: true,
+    message: `${successCount} santri berhasil diimpor. ${errorCount} baris error.`,
+    successCount,
+    errorCount,
+    errors,
+    errorReport,
+  };
+}
