@@ -31,7 +31,7 @@ const DEV_MODE_SKIP_LOGIN = true;
  */
 function doGet(e) {
   return HtmlService.createTemplateFromFile('Index').evaluate()
-    .setTitle('PPG - Surabaya Barat')
+    .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
