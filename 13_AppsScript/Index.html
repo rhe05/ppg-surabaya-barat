@@ -659,6 +659,20 @@
       padding-top: 18px;
     }
 
+    #dataGuruTitle,
+    #dataGenerusTitle {
+      margin-bottom: 14px;
+    }
+
+    #generusJenjangRow {
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    #generusJenjangRow .guru-dash-kpi-card {
+      padding: 18px 16px 16px;
+    }
+
     .guru-dash-toggle-table {
       display: inline-flex;
       align-items: center;
@@ -1882,7 +1896,7 @@
 
       <div class="dash-container">
         <!-- ═══ DATA GURU ═══ -->
-        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="dash-section-title" id="dataGuruTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Guru</span>
           <div style="display: flex; align-items: center; gap: 10px;">
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
@@ -2031,7 +2045,7 @@
         </div>
 
         <!-- ═══ DATA GENERUS ═══ -->
-        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="dash-section-title" id="dataGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Generus</span>
           <div style="display: flex; align-items: center; gap: 10px;">
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
@@ -2087,7 +2101,7 @@
           </table>
         </div>
 
-        <div class="guru-dash-kpi-row">
+        <div class="guru-dash-kpi-row" id="generusJenjangRow">
           <div class="guru-dash-kpi-card accent-brass">
             <div class="guru-dash-kpi-label">PAUD-TK</div>
             <div class="guru-dash-kpi-value-row">
