@@ -884,6 +884,67 @@
       font-weight: 700;
     }
 
+    /* ═════ MODAL TAMBAH GURU — DASHBOARD KELOMPOK (premium layout) ═════ */
+    #modalGuruKelp .modal-content {
+      max-width: 640px;
+    }
+
+    #modalGuruKelp .modal-header {
+      align-items: flex-start;
+      margin-bottom: 22px;
+    }
+
+    #modalGuruKelp .guru-kelp-modal-subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-faint);
+      text-transform: none;
+      letter-spacing: 0;
+    }
+
+    #modalGuruKelp .guru-kelp-section {
+      margin-bottom: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    #modalGuruKelp .guru-kelp-section:first-of-type {
+      padding-top: 0;
+      border-top: none;
+    }
+
+    #modalGuruKelp .guru-kelp-section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--brass);
+      margin-bottom: 16px;
+    }
+
+    #modalGuruKelp .guru-kelp-row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    #modalGuruKelp .form-input,
+    #modalGuruKelp .form-select {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #modalGuruKelp .form-input:focus,
+    #modalGuruKelp .form-select:focus {
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12), 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    @media (max-width: 479px) {
+      #modalGuruKelp .guru-kelp-row-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .guru-kelp-umur-badge {
       display: inline-flex;
       margin-top: 8px;
@@ -2019,78 +2080,99 @@
         <div class="modal-overlay" id="modalGuruKelp">
           <div class="modal-content">
             <div class="modal-header">
-              <span>Tambah Guru</span>
+              <div>
+                <span>Tambah Guru</span>
+                <div class="guru-kelp-modal-subtitle">Lengkapi biodata guru untuk kelompok ini</div>
+              </div>
               <button class="modal-close-btn" onclick="window.closeModalGuruKelp()">×</button>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Nama</label>
-              <input type="text" class="form-input" id="guruKelpNama" placeholder="Nama lengkap">
+            <div class="guru-kelp-section">
+              <div class="guru-kelp-section-title">Data Pribadi</div>
+
+              <div class="form-group">
+                <label class="form-label">Nama</label>
+                <input type="text" class="form-input" id="guruKelpNama" placeholder="Nama lengkap">
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Kategori</label>
+                  <select class="form-select" id="guruKelpKategori">
+                    <option value="">-- Pilih Kategori --</option>
+                    <option value="Muballigh Tugasan">Muballigh Tugasan</option>
+                    <option value="Muballigh Setempat">Muballigh Setempat</option>
+                    <option value="Guru Bantu">Guru Bantu</option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Jenis Kelamin</label>
+                  <select class="form-select" id="guruKelpGender">
+                    <option value="">-- Pilih Jenis Kelamin --</option>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Tempat Lahir</label>
+                  <input type="text" class="form-input" id="guruKelpTempatLahir" placeholder="Misal: Surabaya">
+                </div>
+
+                <div class="form-group" style="position: relative;">
+                  <label class="form-label">Tanggal Lahir</label>
+                  <input type="text" class="form-input" id="guruKelpTglLahirDisplay" data-datepicker-trigger placeholder="Pilih tanggal lahir" readonly onclick="window.toggleDatePicker('guruKelpTglLahir')">
+                  <input type="hidden" id="guruKelpTglLahir">
+                  <div class="ppg-datepicker" id="guruKelpTglLahirPicker"></div>
+                  <div class="guru-kelp-umur-badge" id="guruKelpUmurBadge" style="display: none;">Umur: <strong id="guruKelpUmur">—</strong></div>
+                </div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Kategori</label>
-              <select class="form-select" id="guruKelpKategori">
-                <option value="">-- Pilih Kategori --</option>
-                <option value="Muballigh Tugasan">Muballigh Tugasan</option>
-                <option value="Muballigh Setempat">Muballigh Setempat</option>
-                <option value="Guru Bantu">Guru Bantu</option>
-              </select>
+            <div class="guru-kelp-section">
+              <div class="guru-kelp-section-title">Riwayat Mengajar &amp; Pendidikan</div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group" style="position: relative;">
+                  <label class="form-label">Mulai Mengajar</label>
+                  <input type="text" class="form-input" id="guruKelpMulaiMengajarDisplay" data-datepicker-trigger placeholder="Pilih tanggal mulai mengajar" readonly onclick="window.toggleDatePicker('guruKelpMulaiMengajar')">
+                  <input type="hidden" id="guruKelpMulaiMengajar">
+                  <div class="ppg-datepicker" id="guruKelpMulaiMengajarPicker"></div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Pendidikan</label>
+                  <select class="form-select" id="guruKelpPendidikan">
+                    <option value="">-- Pilih Pendidikan --</option>
+                    <option value="SD/Sederajat">SD/Sederajat</option>
+                    <option value="SMP/Sederajat">SMP/Sederajat</option>
+                    <option value="SMA/SMK/Sederajat">SMA/SMK/Sederajat</option>
+                    <option value="Pondok Pesantren">Pondok Pesantren</option>
+                    <option value="D3">D3</option>
+                    <option value="S1">S1</option>
+                    <option value="S2">S2</option>
+                    <option value="S3">S3</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Jenis Kelamin</label>
-              <select class="form-select" id="guruKelpGender">
-                <option value="">-- Pilih Jenis Kelamin --</option>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
-              </select>
-            </div>
+            <div class="guru-kelp-section">
+              <div class="guru-kelp-section-title">Kontak &amp; Domisili</div>
 
-            <div class="form-group">
-              <label class="form-label">Tempat Lahir</label>
-              <input type="text" class="form-input" id="guruKelpTempatLahir" placeholder="Misal: Surabaya">
-            </div>
+              <div class="form-group">
+                <label class="form-label">Nomor WA</label>
+                <input type="tel" class="form-input" id="guruKelpNomorWA" placeholder="08xxxxxxxxxx">
+              </div>
 
-            <div class="form-group" style="position: relative;">
-              <label class="form-label">Tanggal Lahir</label>
-              <input type="text" class="form-input" id="guruKelpTglLahirDisplay" data-datepicker-trigger placeholder="Pilih tanggal lahir" readonly onclick="window.toggleDatePicker('guruKelpTglLahir')">
-              <input type="hidden" id="guruKelpTglLahir">
-              <div class="ppg-datepicker" id="guruKelpTglLahirPicker"></div>
-              <div class="guru-kelp-umur-badge" id="guruKelpUmurBadge" style="display: none;">Umur: <strong id="guruKelpUmur">—</strong></div>
-            </div>
-
-            <div class="form-group" style="position: relative;">
-              <label class="form-label">Mulai Mengajar</label>
-              <input type="text" class="form-input" id="guruKelpMulaiMengajarDisplay" data-datepicker-trigger placeholder="Pilih tanggal mulai mengajar" readonly onclick="window.toggleDatePicker('guruKelpMulaiMengajar')">
-              <input type="hidden" id="guruKelpMulaiMengajar">
-              <div class="ppg-datepicker" id="guruKelpMulaiMengajarPicker"></div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Alamat Rumah (Domisili Saat Ini)</label>
-              <textarea class="form-input" id="guruKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Nomor WA</label>
-              <input type="tel" class="form-input" id="guruKelpNomorWA" placeholder="08xxxxxxxxxx">
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Pendidikan</label>
-              <select class="form-select" id="guruKelpPendidikan">
-                <option value="">-- Pilih Pendidikan --</option>
-                <option value="SD/Sederajat">SD/Sederajat</option>
-                <option value="SMP/Sederajat">SMP/Sederajat</option>
-                <option value="SMA/SMK/Sederajat">SMA/SMK/Sederajat</option>
-                <option value="Pondok Pesantren">Pondok Pesantren</option>
-                <option value="D3">D3</option>
-                <option value="S1">S1</option>
-                <option value="S2">S2</option>
-                <option value="S3">S3</option>
-                <option value="Lainnya">Lainnya</option>
-              </select>
+              <div class="form-group">
+                <label class="form-label">Alamat Rumah (Domisili Saat Ini)</label>
+                <textarea class="form-input" id="guruKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+              </div>
             </div>
 
             <div class="modal-footer">
