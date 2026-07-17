@@ -190,6 +190,18 @@ After deployment, app accessible at Apps Script deployment URL (stable URL, same
 
 ---
 
+## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
+
+1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah + penanganan. Cocokkan gejala sebelum investigasi baru.
+2. **Cari kode via `FILE_MAP.md`** (peta penanda grep) — JANGAN baca Index.html utuh (±7300 baris, boros token).
+3. **Sebelum commit**: `node tools/check_local.js` (parse semua script + guardrail).
+4. **Setelah deploy**: `node tools/verify_served.js` (ambil & validasi output server sungguhan — satu-satunya cara mendeteksi kerusakan oleh pemroses HtmlService).
+5. **Bug baru = entri baru di ERROR_LOG.md** dalam commit yang sama dengan fix-nya.
+
+⚠️ **Aturan kritis**: dilarang menulis `//` (termasuk URL `http://`) di dalam string JavaScript pada Index.html — HtmlService memotong baris saat serving → layar putih total (ERROR_LOG.md #1).
+
+---
+
 ## Troubleshooting
 
 ### App not loading?

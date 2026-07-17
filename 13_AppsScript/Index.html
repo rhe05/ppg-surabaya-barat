@@ -1,4 +1,19 @@
 <!DOCTYPE html>
+<!--
+  ═══════════════════════════════════════════════════════════════════
+  Index.html — SELURUH frontend app (CSS + HTML + JS, satu file).
+  PETA NAVIGASI LENGKAP: baca FILE_MAP.md di root repo (cari via string
+  penanda/grep, JANGAN baca file ini utuh — ±7300 baris).
+  RIWAYAT BUG & ATURAN KRITIS: ERROR_LOG.md di root repo.
+
+  ⚠️ ATURAN #1 (penyebab layar putih total, ERROR_LOG.md #1):
+  DILARANG menulis "//" (termasuk URL http://) di dalam STRING JavaScript
+  — pemroses HtmlService memotong baris saat serving. URL di atribut HTML
+  (href/src) aman. Cek otomatis: node tools/check_local.js
+
+  Verifikasi setelah deploy: node tools/verify_served.js
+  ═══════════════════════════════════════════════════════════════════
+-->
 <html>
 <head>
   <base target="_top">
@@ -4460,9 +4475,14 @@
     el.value = parts.join('-');
   };
 
-  window.iconViewSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>';
-  window.iconEditSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-  window.iconDeleteSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  /* ATURAN KRITIS (lihat ERROR_LOG.md #1): JANGAN PERNAH menulis garis-miring
+     ganda di dalam string JavaScript (termasuk URL berawalan http maupun xmlns)
+     — pemroses HtmlService Apps Script salah menganggapnya komentar dan memotong
+     baris saat serving, menyebabkan syntax error + layar putih total. Atribut
+     xmlns tidak diperlukan untuk SVG via innerHTML, sengaja dihilangkan. */
+  window.iconViewSvg_ = '<svg viewBox="0 0 24 24" fill="none"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>';
+  window.iconEditSvg_ = '<svg viewBox="0 0 24 24" fill="none"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  window.iconDeleteSvg_ = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   window.escapeHtmlExport_ = function (str) {
     return String(str == null ? '' : str)
