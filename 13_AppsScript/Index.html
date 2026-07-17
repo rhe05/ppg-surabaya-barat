@@ -907,6 +907,23 @@
       gap: 16px;
     }
 
+    .guru-kelp-rtrw-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .guru-kelp-rtrw-row .form-input {
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .guru-kelp-rtrw-sep {
+      color: var(--text-faint);
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
     #modalGuruKelp .form-input,
     #modalGuruKelp .form-select,
     #modalGenerusKelp .form-input,
@@ -2345,7 +2362,7 @@
             <div class="modal-header">
               <div>
                 <span id="modalGuruKelpTitle">Tambah Guru</span>
-                <div class="guru-kelp-modal-subtitle">Lengkapi biodata guru untuk kelompok ini</div>
+                <div class="guru-kelp-modal-subtitle">Lengkapi Biodata Guru</div>
               </div>
               <button class="modal-close-btn" onclick="window.closeModalGuruKelp()">×</button>
             </div>
@@ -2429,12 +2446,45 @@
 
               <div class="form-group">
                 <label class="form-label">Nomor WA</label>
-                <input type="tel" class="form-input" id="guruKelpNomorWA" placeholder="08xxxxxxxxxx">
+                <input type="tel" class="form-input" id="guruKelpNomorWA" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
               </div>
 
               <div class="form-group">
-                <label class="form-label">Alamat Rumah (Domisili Saat Ini)</label>
+                <label class="form-label">Alamat Rumah</label>
                 <textarea class="form-input" id="guruKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">RT/RW</label>
+                  <div class="guru-kelp-rtrw-row">
+                    <input type="text" class="form-input" id="guruKelpRt" placeholder="RT" inputmode="numeric" maxlength="3" oninput="window.digitsOnlyInput_(this)">
+                    <span class="guru-kelp-rtrw-sep">/</span>
+                    <input type="text" class="form-input" id="guruKelpRw" placeholder="RW" inputmode="numeric" maxlength="3" oninput="window.digitsOnlyInput_(this)">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Kode Pos</label>
+                  <input type="text" class="form-input" id="guruKelpKodePos" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
+                </div>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Ds/Kelurahan</label>
+                  <input type="text" class="form-input" id="guruKelpKelurahan" placeholder="Nama desa/kelurahan">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Kabupaten/Kota</label>
+                  <input type="text" class="form-input" id="guruKelpKabupaten" placeholder="Misal: Surabaya">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Provinsi</label>
+                <input type="text" class="form-input" id="guruKelpProvinsi" placeholder="Misal: Jawa Timur">
               </div>
             </div>
 
@@ -2636,7 +2686,7 @@
             <div class="modal-header">
               <div>
                 <span>Tambah Generus</span>
-                <div class="guru-kelp-modal-subtitle">Lengkapi biodata generus untuk kelompok ini</div>
+                <div class="guru-kelp-modal-subtitle">Lengkapi Biodata Generus</div>
               </div>
               <button class="modal-close-btn" onclick="window.closeModalGenerusKelp()">×</button>
             </div>
@@ -2736,8 +2786,41 @@
               <div class="guru-kelp-section-title">Alamat &amp; Orang Tua</div>
 
               <div class="form-group">
-                <label class="form-label">Alamat</label>
+                <label class="form-label">Alamat Rumah</label>
                 <textarea class="form-input" id="generusKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">RT/RW</label>
+                  <div class="guru-kelp-rtrw-row">
+                    <input type="text" class="form-input" id="generusKelpRt" placeholder="RT" inputmode="numeric" maxlength="3" oninput="window.digitsOnlyInput_(this)">
+                    <span class="guru-kelp-rtrw-sep">/</span>
+                    <input type="text" class="form-input" id="generusKelpRw" placeholder="RW" inputmode="numeric" maxlength="3" oninput="window.digitsOnlyInput_(this)">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Kode Pos</label>
+                  <input type="text" class="form-input" id="generusKelpKodePos" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
+                </div>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Ds/Kelurahan</label>
+                  <input type="text" class="form-input" id="generusKelpKelurahan" placeholder="Nama desa/kelurahan">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Kabupaten/Kota</label>
+                  <input type="text" class="form-input" id="generusKelpKabupaten" placeholder="Misal: Surabaya">
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Provinsi</label>
+                <input type="text" class="form-input" id="generusKelpProvinsi" placeholder="Misal: Jawa Timur">
               </div>
 
               <div class="guru-kelp-row-2">
@@ -4023,6 +4106,12 @@
     document.getElementById('generusKelpKlsSekolah').value = '';
     document.getElementById('generusKelpKelasNgaji').value = '';
     document.getElementById('generusKelpAlamat').value = '';
+    document.getElementById('generusKelpRt').value = '';
+    document.getElementById('generusKelpRw').value = '';
+    document.getElementById('generusKelpKodePos').value = '';
+    document.getElementById('generusKelpKelurahan').value = '';
+    document.getElementById('generusKelpKabupaten').value = '';
+    document.getElementById('generusKelpProvinsi').value = '';
     document.getElementById('generusKelpNamaAyah').value = '';
     document.getElementById('generusKelpNamaIbu').value = '';
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
@@ -4077,6 +4166,12 @@
       kelas_sekolah: document.getElementById('generusKelpKlsSekolah').value.trim(),
       kelas_ngaji: document.getElementById('generusKelpKelasNgaji').value.trim(),
       alamat: document.getElementById('generusKelpAlamat').value.trim(),
+      rt: document.getElementById('generusKelpRt').value.trim(),
+      rw: document.getElementById('generusKelpRw').value.trim(),
+      kode_pos: document.getElementById('generusKelpKodePos').value.trim(),
+      kelurahan: document.getElementById('generusKelpKelurahan').value.trim(),
+      kabupaten_kota: document.getElementById('generusKelpKabupaten').value.trim(),
+      provinsi: document.getElementById('generusKelpProvinsi').value.trim(),
       nama_ayah: document.getElementById('generusKelpNamaAyah').value.trim(),
       nama_ibu: document.getElementById('generusKelpNamaIbu').value.trim(),
     };
@@ -4091,6 +4186,16 @@
         }
       })
       .serverAddSantri(window.currentToken, window.currentKelompokId, data);
+  };
+
+  window.digitsOnlyInput_ = function (el) {
+    el.value = el.value.replace(/[^0-9]/g, '');
+  };
+
+  window.formatPhoneDashInput_ = function (el) {
+    const digits = el.value.replace(/[^0-9]/g, '').slice(0, 13);
+    const parts = [digits.slice(0, 4), digits.slice(4, 8), digits.slice(8, 13)].filter(Boolean);
+    el.value = parts.join('-');
   };
 
   window.escapeHtmlExport_ = function (str) {
@@ -4384,6 +4489,12 @@
     document.getElementById('guruKelpMulaiMengajar').value = '';
     document.getElementById('guruKelpMulaiMengajarDisplay').value = '';
     document.getElementById('guruKelpAlamat').value = '';
+    document.getElementById('guruKelpRt').value = '';
+    document.getElementById('guruKelpRw').value = '';
+    document.getElementById('guruKelpKodePos').value = '';
+    document.getElementById('guruKelpKelurahan').value = '';
+    document.getElementById('guruKelpKabupaten').value = '';
+    document.getElementById('guruKelpProvinsi').value = '';
     document.getElementById('guruKelpNomorWA').value = '';
     document.getElementById('guruKelpPendidikan').value = '';
     document.getElementById('guruKelpUmurBadge').style.display = 'none';
@@ -4404,6 +4515,12 @@
       tanggal_lahir: document.getElementById('guruKelpTglLahir').value,
       mulai_mengajar: document.getElementById('guruKelpMulaiMengajar').value,
       alamat: document.getElementById('guruKelpAlamat').value.trim(),
+      rt: document.getElementById('guruKelpRt').value.trim(),
+      rw: document.getElementById('guruKelpRw').value.trim(),
+      kode_pos: document.getElementById('guruKelpKodePos').value.trim(),
+      kelurahan: document.getElementById('guruKelpKelurahan').value.trim(),
+      kabupaten_kota: document.getElementById('guruKelpKabupaten').value.trim(),
+      provinsi: document.getElementById('guruKelpProvinsi').value.trim(),
       nomor_wa: document.getElementById('guruKelpNomorWA').value.trim(),
       pendidikan: document.getElementById('guruKelpPendidikan').value,
     };
@@ -4565,6 +4682,12 @@
     document.getElementById('guruKelpMulaiMengajar').value = g.mulai_mengajar || '';
     document.getElementById('guruKelpMulaiMengajarDisplay').value = window.formatTanggalDisplay_(g.mulai_mengajar);
     document.getElementById('guruKelpAlamat').value = g.alamat || '';
+    document.getElementById('guruKelpRt').value = g.rt || '';
+    document.getElementById('guruKelpRw').value = g.rw || '';
+    document.getElementById('guruKelpKodePos').value = g.kode_pos || '';
+    document.getElementById('guruKelpKelurahan').value = g.kelurahan || '';
+    document.getElementById('guruKelpKabupaten').value = g.kabupaten_kota || '';
+    document.getElementById('guruKelpProvinsi').value = g.provinsi || '';
     document.getElementById('guruKelpNomorWA').value = g.nomor_wa || '';
     document.getElementById('guruKelpPendidikan').value = g.pendidikan || '';
     document.getElementById('modalGuruKelpTitle').textContent = 'Edit Guru';

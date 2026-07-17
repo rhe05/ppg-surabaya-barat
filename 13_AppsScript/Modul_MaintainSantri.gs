@@ -65,6 +65,12 @@ function serverAddSantri(token, kelompokId, santriData) {
     santriData.alamat || '',
     santriData.nama_ayah || '',
     santriData.nama_ibu || '',
+    santriData.rt || '',
+    santriData.rw || '',
+    santriData.kelurahan || '',
+    santriData.kode_pos || '',
+    santriData.kabupaten_kota || '',
+    santriData.provinsi || '',
   ]);
 
   logAudit('santri', id, 'create', user.id, JSON.stringify(santriData));
@@ -99,6 +105,12 @@ function serverUpdateSantri(token, santriId, santriData) {
     alamat: santriData.alamat !== undefined ? santriData.alamat : santri.alamat,
     nama_ayah: santriData.nama_ayah !== undefined ? santriData.nama_ayah : santri.nama_ayah,
     nama_ibu: santriData.nama_ibu !== undefined ? santriData.nama_ibu : santri.nama_ibu,
+    rt: santriData.rt !== undefined ? santriData.rt : santri.rt,
+    rw: santriData.rw !== undefined ? santriData.rw : santri.rw,
+    kelurahan: santriData.kelurahan !== undefined ? santriData.kelurahan : santri.kelurahan,
+    kode_pos: santriData.kode_pos !== undefined ? santriData.kode_pos : santri.kode_pos,
+    kabupaten_kota: santriData.kabupaten_kota !== undefined ? santriData.kabupaten_kota : santri.kabupaten_kota,
+    provinsi: santriData.provinsi !== undefined ? santriData.provinsi : santri.provinsi,
   };
 
   updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);

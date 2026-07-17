@@ -58,6 +58,12 @@ function serverAddGuru(token, kelompokId, guruData) {
     guruData.alamat || '',
     guruData.nomor_wa || '',
     guruData.pendidikan || '',
+    guruData.rt || '',
+    guruData.rw || '',
+    guruData.kelurahan || '',
+    guruData.kode_pos || '',
+    guruData.kabupaten_kota || '',
+    guruData.provinsi || '',
   ]);
 
   logAudit('guru', id, 'create', user.id, JSON.stringify(guruData));
@@ -86,6 +92,12 @@ function serverUpdateGuru(token, guruId, guruData) {
     tanggal_lahir: guruData.tanggal_lahir !== undefined ? guruData.tanggal_lahir : guru.tanggal_lahir,
     mulai_mengajar: guruData.mulai_mengajar !== undefined ? guruData.mulai_mengajar : guru.mulai_mengajar,
     alamat: guruData.alamat !== undefined ? guruData.alamat : guru.alamat,
+    rt: guruData.rt !== undefined ? guruData.rt : guru.rt,
+    rw: guruData.rw !== undefined ? guruData.rw : guru.rw,
+    kelurahan: guruData.kelurahan !== undefined ? guruData.kelurahan : guru.kelurahan,
+    kode_pos: guruData.kode_pos !== undefined ? guruData.kode_pos : guru.kode_pos,
+    kabupaten_kota: guruData.kabupaten_kota !== undefined ? guruData.kabupaten_kota : guru.kabupaten_kota,
+    provinsi: guruData.provinsi !== undefined ? guruData.provinsi : guru.provinsi,
     nomor_wa: guruData.nomor_wa !== undefined ? guruData.nomor_wa : guru.nomor_wa,
     pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };
