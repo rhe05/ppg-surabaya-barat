@@ -25,16 +25,21 @@
 
 ### CSS (blok `<style>`, bagian atas file)
 - `LOGIN SCREEN` · `APP LAYOUT` · `SIDEBAR: DESA/KELOMPOK TREE`
+- `GLOBAL LOADING OVERLAY` — spinner tengah layar tema brass (boot/simpan/hapus/ekspor)
 - `DASHBOARD GURU (per Kelompok` — KPI card premium Dashboard Kelompok
+- `.dash-header-admin-card` — kartu admin kanan atas header Dashboard Kelompok (avatar+nama+role)
+- `.sidebar-footer` — freeze/sticky bottom untuk tombol Keluar
 - `CUSTOM DATE PICKER` — datepicker tanpa library
 - `MODAL TAMBAH GURU / GENERUS` — layout form 2 kolom + section
 - `TABEL DAFTAR GURU` — toolbar filter/search, badge, tombol aksi
-- `MODAL KONFIRMASI HAPUS` — modal hapus premium + spinner
+- `MODAL KONFIRMASI HAPUS` — modal hapus premium (spinner sekarang di `#globalLoadingOverlay`, bukan di tombol)
 - `MODAL DETAIL GURU/GENERUS` — modal detail read-only
 - `MOBILE OPTIMIZATION` — semua breakpoint responsive
 
 ### HTML (screens & modals)
 - `id="screenLogin"` · `id="appLayout"` · `id="screenGuruDashboard"` (Dashboard Kelompok)
+- `id="globalLoadingOverlay"` — spinner global, kontrol via JS di bawah
+- Sidebar: `id="userAvatar"` TIDAK ADA LAGI (kartu admin dipindah ke header Dashboard Kelompok, lihat `id="dashHeaderAdminName/Role/Avatar"`); footer sidebar cuma tombol Keluar
 - Header seksi: `id="dataGuruTitle"` · `id="dataGenerusTitle"`
 - Tabel: `id="guruDashTableWrapper"` · `id="santriDashTableWrapper"`
 - Modal (semua `id="modal..."`): `modalGuruKelp` (tambah/edit guru) ·
@@ -44,6 +49,7 @@
 
 ### JavaScript (blok `<script>` kedua = script utama; cari `window.<nama>`)
 - Boot & auth: `window.onload` → `serverCheckDevMode` → `renderApp` · `handleLogin` · `verifySession`
+- Spinner global (WAJIB dipakai untuk semua momen tunggu baru, jangan buat spinner lokal): `showGlobalLoading_(text)` / `hideGlobalLoading_()`
 - Dashboard Kelompok load: `loadKelompokDashboardGuru_` · `loadKelompokDashboardSantriKelas_` · `loadKelompokDashboardAbsen_`
 - Tabel guru: `toggleGuruDashTable_` · `filterGuruDashTable_` · `renderGuruDashTable_`
 - Tabel generus: `toggleGenerusDashTable_` · `filterSantriDashTable_` · `renderSantriDashTable_`
