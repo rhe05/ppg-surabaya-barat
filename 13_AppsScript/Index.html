@@ -10,6 +10,7 @@
       --sage: #059669;
       --volt: #FBBF24;
       --red: #DC2626;
+      --indigo: #4F46E5;
       --panel: #FFFFFF;
       --panel-2: #F9FAFB;
       --bg: #F8FAFC;
@@ -572,6 +573,7 @@
     .guru-dash-kpi-card.accent-brass .guru-dash-kpi-value { color: var(--brass); }
     .guru-dash-kpi-card.accent-sage .guru-dash-kpi-value { color: var(--sage); }
     .guru-dash-kpi-card.accent-volt .guru-dash-kpi-value { color: var(--volt); }
+    .guru-dash-kpi-card.accent-indigo .guru-dash-kpi-value { color: var(--indigo); }
 
     .guru-dash-kpi-bar {
       margin-top: 16px;
@@ -669,6 +671,19 @@
 
     .guru-dash-toggle-table.open .guru-dash-toggle-caret {
       transform: rotate(90deg);
+    }
+
+    .guru-dash-toggle-table.guru-dash-header-btn {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      color: var(--text);
+    }
+
+    .guru-dash-toggle-table.guru-dash-header-btn:hover {
+      background: var(--border);
+      color: var(--text);
     }
 
     /* ═════ CUSTOM DATE PICKER (modern, tanpa dependency eksternal) ═════ */
@@ -1855,12 +1870,27 @@
         <!-- ═══ DATA GURU ═══ -->
         <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Guru</span>
-          <button class="btn btn-primary" onclick="window.openModalGuruKelp()">+ Tambah Guru</button>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
+              <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
+              <span id="guruTableToggleLabel">Lihat Daftar Guru</span>
+            </button>
+            <button class="btn btn-primary" onclick="window.openModalGuruKelp()">+ Tambah Guru</button>
+          </div>
         </div>
 
         <div class="guru-dash-kpi-row">
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Total MS</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="gdSetempat">0</span>
+              <span class="guru-dash-kpi-unit" id="gdSetempatPct">0%</span>
+            </div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdSetempatBar" style="width: 0%; background: var(--volt);"></div></div>
+          </div>
+
           <div class="guru-dash-kpi-card accent-brass">
-            <div class="guru-dash-kpi-label">Total Guru</div>
+            <div class="guru-dash-kpi-label">Total Guru KBM</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="gdTotalGuru">0</span>
               <span class="guru-dash-kpi-unit">pengajar</span>
@@ -1876,20 +1906,15 @@
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdTugasanBar" style="width: 0%; background: var(--sage);"></div></div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-volt">
-            <div class="guru-dash-kpi-label">Muballigh Setempat</div>
+          <div class="guru-dash-kpi-card accent-indigo">
+            <div class="guru-dash-kpi-label">Guru Bantu</div>
             <div class="guru-dash-kpi-value-row">
-              <span class="guru-dash-kpi-value" id="gdSetempat">0</span>
-              <span class="guru-dash-kpi-unit" id="gdSetempatPct">0%</span>
+              <span class="guru-dash-kpi-value" id="gdBantu">0</span>
+              <span class="guru-dash-kpi-unit" id="gdBantuPct">0%</span>
             </div>
-            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdSetempatBar" style="width: 0%; background: var(--volt);"></div></div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="gdBantuBar" style="width: 0%; background: var(--indigo);"></div></div>
           </div>
         </div>
-
-        <button type="button" class="guru-dash-toggle-table" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
-          <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
-          <span id="guruTableToggleLabel">Lihat Daftar Guru</span>
-        </button>
 
         <div class="data-table-wrapper" id="guruDashTableWrapper" style="display: none;">
           <table class="data-table">
@@ -3484,16 +3509,21 @@
         const total = guru.length;
         const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
         const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
+        const bantu = guru.filter(g => g.kategori === 'Guru Bantu').length;
         const tugasanPct = total > 0 ? Math.round((tugasan / total) * 100) : 0;
         const setempatPct = total > 0 ? Math.round((setempat / total) * 100) : 0;
+        const bantuPct = total > 0 ? Math.round((bantu / total) * 100) : 0;
 
         document.getElementById('gdTotalGuru').textContent = total;
         document.getElementById('gdTugasan').textContent = tugasan;
         document.getElementById('gdSetempat').textContent = setempat;
+        document.getElementById('gdBantu').textContent = bantu;
         document.getElementById('gdTugasanPct').textContent = tugasanPct + '%';
         document.getElementById('gdSetempatPct').textContent = setempatPct + '%';
+        document.getElementById('gdBantuPct').textContent = bantuPct + '%';
         document.getElementById('gdTugasanBar').style.width = tugasanPct + '%';
         document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
+        document.getElementById('gdBantuBar').style.width = bantuPct + '%';
 
         const tbody = document.getElementById('guruDashTableBody');
         tbody.innerHTML = '';
