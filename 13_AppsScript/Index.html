@@ -1218,6 +1218,48 @@
       to { transform: rotate(360deg); }
     }
 
+    /* ═════ MODAL DETAIL GURU/GENERUS — DASHBOARD KELOMPOK (premium, read-only) ═════ */
+    .guru-kelp-detail-modal {
+      max-width: 560px;
+    }
+
+    .guru-kelp-detail-body {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 20px;
+    }
+
+    .guru-kelp-detail-item.full {
+      grid-column: 1 / -1;
+    }
+
+    .guru-kelp-detail-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 4px;
+    }
+
+    .guru-kelp-detail-value {
+      font-size: 13.5px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .guru-kelp-detail-value.empty {
+      color: var(--text-faint);
+      font-weight: 400;
+      font-style: italic;
+    }
+
+    @media (max-width: 479px) {
+      .guru-kelp-detail-body {
+        grid-template-columns: 1fr;
+      }
+    }
+
     .guru-kelp-umur-badge {
       display: inline-flex;
       margin-top: 8px;
@@ -2347,7 +2389,7 @@
                 <th style="width: 80px;">Usia</th>
                 <th>Pendidikan</th>
                 <th>Kategori</th>
-                <th style="width: 76px; text-align: center;">Aksi</th>
+                <th style="width: 96px; text-align: center;">Aksi</th>
               </tr>
             </thead>
             <tbody id="guruDashTableBody">
@@ -2519,6 +2561,58 @@
           </div>
         </div>
 
+        <!-- Modal Detail Guru (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDetailGuruKelp">
+          <div class="modal-content guru-kelp-detail-modal">
+            <div class="modal-header">
+              <span>Detail Guru</span>
+              <button class="modal-close-btn" onclick="window.closeModalDetailGuruKelp()">×</button>
+            </div>
+            <div class="guru-kelp-detail-body" id="guruKelpDetailBody"></div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDetailGuruKelp()">Tutup</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Konfirmasi Hapus Generus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDeleteGenerusKelp">
+          <div class="modal-content guru-kelp-delete-modal">
+            <button class="modal-close-btn guru-kelp-delete-close" onclick="window.closeModalDeleteGenerusKelp()">×</button>
+
+            <div class="guru-kelp-delete-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+
+            <div class="guru-kelp-delete-title">Hapus Generus Ini?</div>
+            <div class="guru-kelp-delete-message">
+              Data <strong id="generusKelpDeleteNama">—</strong> akan dihapus permanen dan tidak bisa dikembalikan.
+            </div>
+
+            <div class="modal-footer guru-kelp-delete-footer">
+              <button class="btn btn-secondary" id="generusKelpDeleteCancelBtn" onclick="window.closeModalDeleteGenerusKelp()">Batal</button>
+              <button class="guru-kelp-btn-danger" id="generusKelpDeleteConfirmBtn" onclick="window.confirmDeleteGenerusKelp()">
+                <span class="guru-kelp-btn-label">Ya, Hapus</span>
+                <span class="guru-kelp-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Detail Generus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDetailGenerusKelp">
+          <div class="modal-content guru-kelp-detail-modal">
+            <div class="modal-header">
+              <span>Detail Generus</span>
+              <button class="modal-close-btn" onclick="window.closeModalDetailGenerusKelp()">×</button>
+            </div>
+            <div class="guru-kelp-detail-body" id="generusKelpDetailBody"></div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDetailGenerusKelp()">Tutup</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Modal Ekspor Guru (khusus Dashboard Kelompok) -->
         <div class="modal-overlay" id="modalEksporGuru">
           <div class="modal-content">
@@ -2612,18 +2706,19 @@
             </select>
             <input type="text" class="search-input guru-kelp-search-input" id="santriDashSearchInput" placeholder="Cari nama generus..." oninput="window.filterSantriDashTable_(this.value)">
           </div>
-          <table class="data-table">
+          <table class="data-table guru-kelp-premium-table">
             <thead>
               <tr>
                 <th style="width: 50px;">No</th>
                 <th>Nama</th>
                 <th>NIS</th>
-                <th>Gender</th>
+                <th style="width: 56px; text-align: center;">L/P</th>
                 <th>Jenjang</th>
+                <th style="width: 96px; text-align: center;">Aksi</th>
               </tr>
             </thead>
             <tbody id="kdSantriTableBody">
-              <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              <tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2685,7 +2780,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <div>
-                <span>Tambah Generus</span>
+                <span id="modalGenerusKelpTitle">Tambah Generus</span>
                 <div class="guru-kelp-modal-subtitle">Lengkapi Biodata Generus</div>
               </div>
               <button class="modal-close-btn" onclick="window.closeModalGenerusKelp()">×</button>
@@ -4106,7 +4201,11 @@
     window.renderSantriDashTable_(window.lastSantriListData || [], scope, query);
   };
 
+  window.currentEditGenerusId = null;
+
   window.openModalGenerusKelp = function () {
+    window.currentEditGenerusId = null;
+    document.getElementById('modalGenerusKelpTitle').textContent = 'Tambah Generus';
     document.getElementById('generusKelpNama').value = '';
     document.getElementById('generusKelpNamaPanggilan').value = '';
     document.getElementById('generusKelpNis').value = '';
@@ -4192,16 +4291,147 @@
       nomor_wa_ibu: document.getElementById('generusKelpNomorWaIbu').value.trim(),
     };
 
+    if (!data.nama.trim() || !data.nis.trim() || !data.gender || !data.tanggal_lahir || !data.jenjang_saat_ini) {
+      alert('Nama, NIS, Gender, Tanggal Lahir, dan Jenjang wajib diisi.');
+      return;
+    }
+
+    const onDone = function (result) {
+      if (result.success) {
+        window.closeModalGenerusKelp();
+        window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
+      } else {
+        alert(result.error);
+      }
+    };
+
+    if (window.currentEditGenerusId) {
+      google.script.run.withSuccessHandler(onDone).serverUpdateSantri(window.currentToken, window.currentEditGenerusId, data);
+    } else {
+      google.script.run.withSuccessHandler(onDone).serverAddSantri(window.currentToken, window.currentKelompokId, data);
+    }
+  };
+
+  window.generusJenjangLabels_ = {
+    'AUD': 'PAUD-TK',
+    'Cabe Rawit': 'Cabe Rawit',
+    'Pra Remaja': 'Pra Remaja',
+    'Remaja SMA': 'Remaja SMA',
+    'Remaja': 'Remaja Pra Nikah',
+  };
+
+  window.viewGenerusKelp = function (id) {
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
+    if (!s) return;
+
+    const html = [
+      window.buildDetailItemHtml_('Nama', s.nama, true),
+      window.buildDetailItemHtml_('Nama Panggilan', s.nama_panggilan),
+      window.buildDetailItemHtml_('NIS', s.nis),
+      window.buildDetailItemHtml_('Jenis Kelamin', s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : ''),
+      window.buildDetailItemHtml_('Tempat Lahir', s.tempat_lahir),
+      window.buildDetailItemHtml_('Tanggal Lahir', s.tanggal_lahir ? window.formatTanggalDisplay_(s.tanggal_lahir) + ' (' + window.calcUsiaThn_(s.tanggal_lahir) + ')' : ''),
+      window.buildDetailItemHtml_('Jenjang', window.generusJenjangLabels_[s.jenjang_saat_ini] || s.jenjang_saat_ini),
+      window.buildDetailItemHtml_('Pendidikan', s.pendidikan),
+      window.buildDetailItemHtml_('Kls Sekolah', s.kelas_sekolah),
+      window.buildDetailItemHtml_('Kelas Ngaji', s.kelas_ngaji),
+      window.buildDetailItemHtml_('Alamat Rumah', s.alamat, true),
+      window.buildDetailItemHtml_('RT/RW', (s.rt || s.rw) ? `${s.rt || '-'} / ${s.rw || '-'}` : ''),
+      window.buildDetailItemHtml_('Kode Pos', s.kode_pos),
+      window.buildDetailItemHtml_('Ds/Kelurahan', s.kelurahan),
+      window.buildDetailItemHtml_('Kabupaten/Kota', s.kabupaten_kota),
+      window.buildDetailItemHtml_('Provinsi', s.provinsi),
+      window.buildDetailItemHtml_('Nama Ayah', s.nama_ayah),
+      window.buildDetailItemHtml_('Nama Ibu', s.nama_ibu),
+      window.buildDetailItemHtml_('Nomor WA Ayah', s.nomor_wa_ayah),
+      window.buildDetailItemHtml_('Nomor WA Ibu', s.nomor_wa_ibu),
+    ].join('');
+
+    document.getElementById('generusKelpDetailBody').innerHTML = html;
+    document.getElementById('modalDetailGenerusKelp').classList.add('active');
+  };
+
+  window.closeModalDetailGenerusKelp = function () {
+    document.getElementById('modalDetailGenerusKelp').classList.remove('active');
+  };
+
+  window.editGenerusKelp = function (id) {
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
+    if (!s) return;
+
+    window.currentEditGenerusId = id;
+    document.getElementById('generusKelpNama').value = s.nama || '';
+    document.getElementById('generusKelpNamaPanggilan').value = s.nama_panggilan || '';
+    document.getElementById('generusKelpNis').value = s.nis || '';
+    document.querySelectorAll('input[name="generusKelpGender"]').forEach(r => { r.checked = r.value === s.gender; });
+    document.getElementById('generusKelpTempatLahir').value = s.tempat_lahir || '';
+    document.getElementById('generusKelpTglLahir').value = s.tanggal_lahir || '';
+    document.getElementById('generusKelpTglLahirDisplay').value = window.formatTanggalDisplay_(s.tanggal_lahir);
+    document.getElementById('generusKelpJenjang').value = s.jenjang_saat_ini || '';
+    document.getElementById('generusKelpPendidikan').value = s.pendidikan || '';
+    window.toggleGenerusKlsSekolah_();
+    document.getElementById('generusKelpKlsSekolah').value = s.kelas_sekolah || '';
+    document.getElementById('generusKelpKelasNgaji').value = s.kelas_ngaji || '';
+    document.getElementById('generusKelpAlamat').value = s.alamat || '';
+    document.getElementById('generusKelpRt').value = s.rt || '';
+    document.getElementById('generusKelpRw').value = s.rw || '';
+    document.getElementById('generusKelpKodePos').value = s.kode_pos || '';
+    document.getElementById('generusKelpKelurahan').value = s.kelurahan || '';
+    document.getElementById('generusKelpKabupaten').value = s.kabupaten_kota || '';
+    document.getElementById('generusKelpProvinsi').value = s.provinsi || '';
+    document.getElementById('generusKelpNamaAyah').value = s.nama_ayah || '';
+    document.getElementById('generusKelpNamaIbu').value = s.nama_ibu || '';
+    document.getElementById('generusKelpNomorWaAyah').value = s.nomor_wa_ayah || '';
+    document.getElementById('generusKelpNomorWaIbu').value = s.nomor_wa_ibu || '';
+    document.getElementById('modalGenerusKelpTitle').textContent = 'Edit Generus';
+    window.updateGenerusKelpUmur();
+    document.getElementById('modalGenerusKelp').classList.add('active');
+  };
+
+  window.pendingDeleteGenerusId_ = null;
+
+  window.deleteGenerusKelp = function (id) {
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
+    window.pendingDeleteGenerusId_ = id;
+    document.getElementById('generusKelpDeleteNama').textContent = s ? s.nama : 'generus ini';
+    document.getElementById('modalDeleteGenerusKelp').classList.add('active');
+  };
+
+  window.closeModalDeleteGenerusKelp = function () {
+    document.getElementById('modalDeleteGenerusKelp').classList.remove('active');
+    window.pendingDeleteGenerusId_ = null;
+    window.setGenerusDeleteLoading_(false);
+  };
+
+  window.setGenerusDeleteLoading_ = function (isLoading) {
+    const confirmBtn = document.getElementById('generusKelpDeleteConfirmBtn');
+    const cancelBtn = document.getElementById('generusKelpDeleteCancelBtn');
+    confirmBtn.classList.toggle('is-loading', isLoading);
+    confirmBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
+  };
+
+  window.confirmDeleteGenerusKelp = function () {
+    const id = window.pendingDeleteGenerusId_;
+    if (!id) return;
+
+    window.setGenerusDeleteLoading_(true);
+
     google.script.run
       .withSuccessHandler(function (result) {
+        window.setGenerusDeleteLoading_(false);
         if (result.success) {
-          window.closeModalGenerusKelp();
+          window.closeModalDeleteGenerusKelp();
           window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
         } else {
           alert(result.error);
         }
       })
-      .serverAddSantri(window.currentToken, window.currentKelompokId, data);
+      .withFailureHandler(function (err) {
+        window.setGenerusDeleteLoading_(false);
+        alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
+      })
+      .serverDeleteSantri(window.currentToken, id);
   };
 
   window.digitsOnlyInput_ = function (el) {
@@ -4213,6 +4443,10 @@
     const parts = [digits.slice(0, 4), digits.slice(4, 8), digits.slice(8, 13)].filter(Boolean);
     el.value = parts.join('-');
   };
+
+  window.iconViewSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 12S5 5 12 5s10.5 7 10.5 7-3.5 7-10.5 7S1.5 12 1.5 12Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>';
+  window.iconEditSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  window.iconDeleteSvg_ = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
   window.escapeHtmlExport_ = function (str) {
     return String(str == null ? '' : str)
@@ -4643,9 +4877,6 @@
       'Muballigh Setempat': 'badge-setempat',
       'Guru Bantu': 'badge-bantu',
     };
-    const iconEdit = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    const iconDelete = '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-
     list.forEach((g, i) => {
       const tr = document.createElement('tr');
       const badgeClass = badgeClassMap[g.kategori] || '';
@@ -4658,8 +4889,9 @@
         <td><span class="guru-kelp-badge ${badgeClass}">${window.escapeHtmlExport_(g.kategori)}</span></td>
         <td style="text-align: center;">
           <span class="guru-kelp-aksi-group">
-            <button class="guru-kelp-aksi-btn" onclick="window.editGuruKelp('${g.id}')" title="Edit">${iconEdit}</button>
-            <button class="guru-kelp-aksi-btn danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">${iconDelete}</button>
+            <button class="guru-kelp-aksi-btn" onclick="window.viewGuruKelp('${g.id}')" title="Lihat Detail">${window.iconViewSvg_}</button>
+            <button class="guru-kelp-aksi-btn" onclick="window.editGuruKelp('${g.id}')" title="Edit">${window.iconEditSvg_}</button>
+            <button class="guru-kelp-aksi-btn danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">${window.iconDeleteSvg_}</button>
           </span>
         </td>
       `;
@@ -4757,6 +4989,46 @@
       .serverDeleteGuru(window.currentToken, id);
   };
 
+  window.buildDetailItemHtml_ = function (label, value, full) {
+    const hasValue = value !== undefined && value !== null && String(value).trim() !== '';
+    const displayValue = hasValue ? window.escapeHtmlExport_(value) : '—';
+    return `
+      <div class="guru-kelp-detail-item${full ? ' full' : ''}">
+        <div class="guru-kelp-detail-label">${label}</div>
+        <div class="guru-kelp-detail-value${hasValue ? '' : ' empty'}">${displayValue}</div>
+      </div>
+    `;
+  };
+
+  window.viewGuruKelp = function (id) {
+    const g = (window.lastGuruListData || []).find(x => String(x.id) === String(id));
+    if (!g) return;
+
+    const html = [
+      window.buildDetailItemHtml_('Nama', g.nama, true),
+      window.buildDetailItemHtml_('Kategori', g.kategori),
+      window.buildDetailItemHtml_('Jenis Kelamin', g.jenis_kelamin === 'L' ? 'Laki-laki' : g.jenis_kelamin === 'P' ? 'Perempuan' : ''),
+      window.buildDetailItemHtml_('Tempat Lahir', g.tempat_lahir),
+      window.buildDetailItemHtml_('Tanggal Lahir', g.tanggal_lahir ? window.formatTanggalDisplay_(g.tanggal_lahir) + ' (' + window.calcUsiaThn_(g.tanggal_lahir) + ')' : ''),
+      window.buildDetailItemHtml_('Mulai Mengajar', g.mulai_mengajar ? window.formatTanggalDisplay_(g.mulai_mengajar) : ''),
+      window.buildDetailItemHtml_('Pendidikan', g.pendidikan),
+      window.buildDetailItemHtml_('Nomor WA', g.nomor_wa),
+      window.buildDetailItemHtml_('Alamat Rumah', g.alamat, true),
+      window.buildDetailItemHtml_('RT/RW', (g.rt || g.rw) ? `${g.rt || '-'} / ${g.rw || '-'}` : ''),
+      window.buildDetailItemHtml_('Kode Pos', g.kode_pos),
+      window.buildDetailItemHtml_('Ds/Kelurahan', g.kelurahan),
+      window.buildDetailItemHtml_('Kabupaten/Kota', g.kabupaten_kota),
+      window.buildDetailItemHtml_('Provinsi', g.provinsi),
+    ].join('');
+
+    document.getElementById('guruKelpDetailBody').innerHTML = html;
+    document.getElementById('modalDetailGuruKelp').classList.add('active');
+  };
+
+  window.closeModalDetailGuruKelp = function () {
+    document.getElementById('modalDetailGuruKelp').classList.remove('active');
+  };
+
   window.loadKelompokDashboardSantriKelas_ = function (kelompokId) {
     google.script.run
       .withSuccessHandler(function (result) {
@@ -4835,7 +5107,7 @@
     }
 
     if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data generus.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data generus.</td></tr>';
       return;
     }
 
@@ -4843,10 +5115,17 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${i + 1}</td>
-        <td>${window.escapeHtmlExport_(s.nama)}</td>
+        <td><span class="guru-kelp-name-text">${window.escapeHtmlExport_(s.nama)}</span></td>
         <td>${window.escapeHtmlExport_(s.nis)}</td>
-        <td>${window.escapeHtmlExport_(s.gender)}</td>
+        <td style="text-align: center;">${window.escapeHtmlExport_(s.gender || '-')}</td>
         <td>${window.escapeHtmlExport_(s.jenjang_saat_ini || '-')}</td>
+        <td style="text-align: center;">
+          <span class="guru-kelp-aksi-group">
+            <button class="guru-kelp-aksi-btn" onclick="window.viewGenerusKelp('${s.id}')" title="Lihat Detail">${window.iconViewSvg_}</button>
+            <button class="guru-kelp-aksi-btn" onclick="window.editGenerusKelp('${s.id}')" title="Edit">${window.iconEditSvg_}</button>
+            <button class="guru-kelp-aksi-btn danger" onclick="window.deleteGenerusKelp('${s.id}')" title="Hapus">${window.iconDeleteSvg_}</button>
+          </span>
+        </td>
       `;
       tbody.appendChild(tr);
     });
