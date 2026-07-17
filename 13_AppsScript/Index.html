@@ -2834,6 +2834,18 @@
                   <input type="text" class="form-input" id="generusKelpNamaIbu" placeholder="Nama ibu">
                 </div>
               </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Nomor WA Ayah</label>
+                  <input type="tel" class="form-input" id="generusKelpNomorWaAyah" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Nomor WA Ibu</label>
+                  <input type="tel" class="form-input" id="generusKelpNomorWaIbu" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
+                </div>
+              </div>
             </div>
 
             <div class="modal-footer">
@@ -4114,6 +4126,8 @@
     document.getElementById('generusKelpProvinsi').value = '';
     document.getElementById('generusKelpNamaAyah').value = '';
     document.getElementById('generusKelpNamaIbu').value = '';
+    document.getElementById('generusKelpNomorWaAyah').value = '';
+    document.getElementById('generusKelpNomorWaIbu').value = '';
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
     document.querySelectorAll('input[name="generusKelpGender"]').forEach(r => r.checked = false);
     window.toggleGenerusKlsSekolah_();
@@ -4174,6 +4188,8 @@
       provinsi: document.getElementById('generusKelpProvinsi').value.trim(),
       nama_ayah: document.getElementById('generusKelpNamaAyah').value.trim(),
       nama_ibu: document.getElementById('generusKelpNamaIbu').value.trim(),
+      nomor_wa_ayah: document.getElementById('generusKelpNomorWaAyah').value.trim(),
+      nomor_wa_ibu: document.getElementById('generusKelpNomorWaIbu').value.trim(),
     };
 
     google.script.run
