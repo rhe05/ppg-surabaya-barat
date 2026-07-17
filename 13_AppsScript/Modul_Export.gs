@@ -43,20 +43,28 @@ function serverExportSantriKelpXlsx(token, kelompokId, scope) {
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   let santri = santriData.filter(s => s.kelompok_id == kelompokId);
-  if (scope === 'paudtk') {
-    santri = santri.filter(s => s.jenjang_saat_ini === 'AUD');
+  if (scope !== 'all') {
+    santri = santri.filter(s => s.jenjang_saat_ini === scope);
   }
 
   const headers = ['No', 'Nama', 'NIS', 'Gender', 'Tanggal Lahir', 'Jenjang'];
   const rows = santri.map((s, i) => [i + 1, s.nama || '', s.nis || '', s.gender || '', s.tanggal_lahir || '', s.jenjang_saat_ini || '']);
 
-  const sheetLabel = scope === 'paudtk' ? 'PAUD-TK' : 'Semua Generus';
+  const scopeLabels = {
+    'AUD': 'PAUD-TK',
+    'Cabe Rawit': 'Cabe Rawit',
+    'Pra Remaja': 'Pra Remaja',
+    'Remaja SMA': 'Remaja SMA',
+    'Remaja': 'Remaja Pra Nikah',
+    'all': 'Semua Generus',
+  };
+  const sheetLabel = scopeLabels[scope] || 'Semua Generus';
   const base64 = buildXlsxBase64_(sheetLabel, headers, rows);
 
   return {
     success: true,
     base64: base64,
-    filename: `Generus_${scope === 'paudtk' ? 'PAUD-TK' : 'Semua'}_${new Date().toISOString().split('T')[0]}.xlsx`,
+    filename: `Generus_${sheetLabel.replace(/\s+/g, '')}_${new Date().toISOString().split('T')[0]}.xlsx`,
   };
 }
 
