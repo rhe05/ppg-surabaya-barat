@@ -1161,6 +1161,11 @@
     }
 
     .guru-kelp-btn-danger {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 100px;
       padding: 10px 16px;
       border: none;
       border-radius: var(--radius);
@@ -1173,9 +1178,43 @@
       transition: opacity 0.2s ease, transform 0.15s ease;
     }
 
-    .guru-kelp-btn-danger:hover {
+    .guru-kelp-btn-danger:hover:not(:disabled) {
       opacity: 0.9;
       transform: translateY(-1px);
+    }
+
+    .guru-kelp-btn-danger:disabled {
+      cursor: not-allowed;
+    }
+
+    .guru-kelp-btn-label {
+      transition: opacity 0.15s ease;
+    }
+
+    .guru-kelp-spinner {
+      display: none;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 15px;
+      height: 15px;
+      margin: -8px 0 0 -8px;
+      border: 2px solid rgba(255, 255, 255, 0.32);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: guruKelpSpin 0.65s linear infinite;
+    }
+
+    .guru-kelp-btn-danger.is-loading .guru-kelp-btn-label {
+      opacity: 0;
+    }
+
+    .guru-kelp-btn-danger.is-loading .guru-kelp-spinner {
+      display: block;
+    }
+
+    @keyframes guruKelpSpin {
+      to { transform: rotate(360deg); }
     }
 
     .guru-kelp-umur-badge {
@@ -2437,8 +2476,11 @@
             </div>
 
             <div class="modal-footer guru-kelp-delete-footer">
-              <button class="btn btn-secondary" onclick="window.closeModalDeleteGuruKelp()">Batal</button>
-              <button class="guru-kelp-btn-danger" onclick="window.confirmDeleteGuruKelp()">Ya, Hapus</button>
+              <button class="btn btn-secondary" id="guruKelpDeleteCancelBtn" onclick="window.closeModalDeleteGuruKelp()">Batal</button>
+              <button class="guru-kelp-btn-danger" id="guruKelpDeleteConfirmBtn" onclick="window.confirmDeleteGuruKelp()">
+                <span class="guru-kelp-btn-label">Ya, Hapus</span>
+                <span class="guru-kelp-spinner" aria-hidden="true"></span>
+              </button>
             </div>
           </div>
         </div>
@@ -4411,20 +4453,36 @@
   window.closeModalDeleteGuruKelp = function () {
     document.getElementById('modalDeleteGuruKelp').classList.remove('active');
     window.pendingDeleteGuruId_ = null;
+    window.setGuruDeleteLoading_(false);
+  };
+
+  window.setGuruDeleteLoading_ = function (isLoading) {
+    const confirmBtn = document.getElementById('guruKelpDeleteConfirmBtn');
+    const cancelBtn = document.getElementById('guruKelpDeleteCancelBtn');
+    confirmBtn.classList.toggle('is-loading', isLoading);
+    confirmBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
   };
 
   window.confirmDeleteGuruKelp = function () {
     const id = window.pendingDeleteGuruId_;
     if (!id) return;
 
+    window.setGuruDeleteLoading_(true);
+
     google.script.run
       .withSuccessHandler(function (result) {
+        window.setGuruDeleteLoading_(false);
         if (result.success) {
           window.closeModalDeleteGuruKelp();
           window.loadKelompokDashboardGuru_(window.currentKelompokId);
         } else {
           alert(result.error);
         }
+      })
+      .withFailureHandler(function (err) {
+        window.setGuruDeleteLoading_(false);
+        alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
       })
       .serverDeleteGuru(window.currentToken, id);
   };
