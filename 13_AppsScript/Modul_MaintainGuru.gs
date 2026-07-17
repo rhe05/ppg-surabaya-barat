@@ -16,8 +16,14 @@ function serverGetGuruList(token, kelompokId, searchQuery = '') {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  let guru = readSheetAsObjects(SHEET_NAMES.GURU);
-  guru = guru.filter(g => g.kelompok_id == kelompokId);
+  // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete di bawah)
+  // — baca dari cache ±50ms vs baca sheet 300-800ms.
+  const cacheKey = 'guru_k' + kelompokId;
+  let guru = cacheGet_(cacheKey);
+  if (!guru) {
+    guru = readSheetAsObjects(SHEET_NAMES.GURU).filter(g => g.kelompok_id == kelompokId);
+    cachePut_(cacheKey, guru, 300);
+  }
 
   // Search by nama
   if (searchQuery.trim()) {
@@ -43,31 +49,38 @@ function serverAddGuru(token, kelompokId, guruData) {
     return { success: false, error: 'Nama dan Kategori wajib diisi.' };
   }
 
-  const id = generateId(SHEET_NAMES.GURU);
-  const guruSheet = getSheetByName(SHEET_NAMES.GURU);
+  try {
+    return withScriptLock_(function () {
+      const id = generateId(SHEET_NAMES.GURU);
+      const guruSheet = getSheetByName(SHEET_NAMES.GURU);
 
-  guruSheet.appendRow([
-    id,
-    kelompokId,
-    guruData.nama.trim(),
-    guruData.kategori,
-    guruData.tempat_lahir || '',
-    guruData.tanggal_lahir || '',
-    guruData.jenis_kelamin || '',
-    guruData.mulai_mengajar || '',
-    guruData.alamat || '',
-    guruData.nomor_wa || '',
-    guruData.pendidikan || '',
-    guruData.rt || '',
-    guruData.rw || '',
-    guruData.kelurahan || '',
-    guruData.kode_pos || '',
-    guruData.kabupaten_kota || '',
-    guruData.provinsi || '',
-  ]);
+      guruSheet.appendRow([
+        id,
+        kelompokId,
+        guruData.nama.trim(),
+        guruData.kategori,
+        guruData.tempat_lahir || '',
+        guruData.tanggal_lahir || '',
+        guruData.jenis_kelamin || '',
+        guruData.mulai_mengajar || '',
+        guruData.alamat || '',
+        guruData.nomor_wa || '',
+        guruData.pendidikan || '',
+        guruData.rt || '',
+        guruData.rw || '',
+        guruData.kelurahan || '',
+        guruData.kode_pos || '',
+        guruData.kabupaten_kota || '',
+        guruData.provinsi || '',
+      ]);
 
-  logAudit('guru', id, 'create', user.id, JSON.stringify(guruData));
-  return { success: true, message: 'Guru berhasil ditambahkan.', id: id };
+      cacheDrop_('guru_k' + kelompokId);
+      logAudit('guru', id, 'create', user.id, JSON.stringify(guruData));
+      return { success: true, message: 'Guru berhasil ditambahkan.', id: id };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menyimpan: ' + e.message };
+  }
 }
 
 /**
@@ -102,9 +115,16 @@ function serverUpdateGuru(token, guruId, guruData) {
     pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };
 
-  updateRowByQuery(SHEET_NAMES.GURU, { id: guru.id }, updates);
-  logAudit('guru', guruId, 'update', user.id, JSON.stringify(updates));
-  return { success: true, message: 'Guru berhasil diperbarui.' };
+  try {
+    return withScriptLock_(function () {
+      updateRowByQuery(SHEET_NAMES.GURU, { id: guru.id }, updates);
+      cacheDrop_('guru_k' + guru.kelompok_id);
+      logAudit('guru', guruId, 'update', user.id, JSON.stringify(updates));
+      return { success: true, message: 'Guru berhasil diperbarui.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal memperbarui: ' + e.message };
+  }
 }
 
 /**
@@ -121,9 +141,16 @@ function serverDeleteGuru(token, guruId) {
     return { success: false, error: 'Anda tidak memiliki akses ke Guru ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.GURU, { id: guru.id });
-  logAudit('guru', guruId, 'delete', user.id, 'deleted');
-  return { success: true, message: 'Guru berhasil dihapus.' };
+  try {
+    return withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.GURU, { id: guru.id });
+      cacheDrop_('guru_k' + guru.kelompok_id);
+      logAudit('guru', guruId, 'delete', user.id, 'deleted');
+      return { success: true, message: 'Guru berhasil dihapus.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menghapus: ' + e.message };
+  }
 }
 
 /**

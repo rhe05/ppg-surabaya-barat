@@ -4335,11 +4335,14 @@
         alert(result.error);
       }
     };
+    const onFail = function (err) {
+      alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+    };
 
     if (window.currentEditGenerusId) {
-      google.script.run.withSuccessHandler(onDone).serverUpdateSantri(window.currentToken, window.currentEditGenerusId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, window.currentEditGenerusId, data);
     } else {
-      google.script.run.withSuccessHandler(onDone).serverAddSantri(window.currentToken, window.currentKelompokId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddSantri(window.currentToken, window.currentKelompokId, data);
     }
   };
 
@@ -4824,11 +4827,14 @@
         alert(result.error);
       }
     };
+    const onFail = function (err) {
+      alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+    };
 
     if (window.currentEditGuruId) {
-      google.script.run.withSuccessHandler(onDone).serverUpdateGuru(window.currentToken, window.currentEditGuruId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, window.currentEditGuruId, data);
     } else {
-      google.script.run.withSuccessHandler(onDone).serverAddGuru(window.currentToken, window.currentKelompokId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddGuru(window.currentToken, window.currentKelompokId, data);
     }
   };
 

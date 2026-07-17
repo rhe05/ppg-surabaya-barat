@@ -190,6 +190,17 @@ After deployment, app accessible at Apps Script deployment URL (stable URL, same
 
 ---
 
+## Formula Kerja AI (standar senior developer — WAJIB)
+
+1. **Minimal diff**: perbaiki HANYA error/fitur yang diminta. Dilarang menulis ulang fungsi/section yang tidak berhubungan, dilarang "sekalian merapikan".
+2. **Hemat token**: mulai dari `FILE_MAP.md` → grep penanda → baca hanya bagian relevan. Dilarang membaca Index.html utuh.
+3. **Diagnosis berbasis bukti**: reproduksi/ukur dulu (tools/, output server, console), baru simpulkan. Dilarang menebak lalu mengedit.
+4. **Aturan mutasi data** (wajib untuk fungsi server baru): bungkus tulis-sheet dalam `withScriptLock_()`, generate id DI DALAM lock, pakai id hasil lookup (bukan parameter mentah), `cacheDrop_()` kunci cache terkait, return `{success, error}` via try/catch — contoh pola: `serverAddGuru`/`serverUpdateGuru`.
+5. **Aturan baca data**: daftar yang sering diakses pakai `cacheGet_`/`cachePut_` + invalidasi di semua mutasinya (kunci: `guru_k<id>`, `santri_k<id>`).
+6. **Setiap perubahan skema sheet** → update `Setup_Database.gs` (header + fungsi migrasi) + ingatkan user jalankan `setupDatabaseStructure()` manual.
+7. **Verifikasi wajib**: `node tools/check_local.js` sebelum commit → deploy → `node tools/verify_served.js`. Belum lolos = belum selesai.
+8. **Regresi**: bug baru ditemukan = entri baru `ERROR_LOG.md` di commit yang sama dengan fix-nya.
+
 ## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
 
 1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah + penanganan. Cocokkan gejala sebelum investigasi baru.

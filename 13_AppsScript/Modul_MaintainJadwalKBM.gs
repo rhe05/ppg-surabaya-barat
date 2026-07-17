@@ -50,23 +50,29 @@ function serverCreateJadwalKBM(token, jadwalData) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const id = generateId(SHEET_NAMES.JADWAL_KBM);
-  const now = new Date().toISOString().split('T')[0];
-  const sheet = getSheetByName(SHEET_NAMES.JADWAL_KBM);
+  try {
+    return withScriptLock_(function () {
+      const id = generateId(SHEET_NAMES.JADWAL_KBM);
+      const now = new Date().toISOString().split('T')[0];
+      const sheet = getSheetByName(SHEET_NAMES.JADWAL_KBM);
 
-  sheet.appendRow([
-    id,
-    jadwalData.kelompok_id,
-    jadwalData.hari,
-    jadwalData.jam_mulai,
-    jadwalData.jam_selesai,
-    jadwalData.keterangan || '',
-    user.id,
-    now,
-  ]);
+      sheet.appendRow([
+        id,
+        jadwalData.kelompok_id,
+        jadwalData.hari,
+        jadwalData.jam_mulai,
+        jadwalData.jam_selesai,
+        jadwalData.keterangan || '',
+        user.id,
+        now,
+      ]);
 
-  logAudit(SHEET_NAMES.JADWAL_KBM, id, 'create', user.id, `Jadwal: ${jadwalData.hari} ${jadwalData.jam_mulai}-${jadwalData.jam_selesai}`);
-  return { success: true, message: 'Jadwal KBM berhasil ditambahkan.', id };
+      logAudit(SHEET_NAMES.JADWAL_KBM, id, 'create', user.id, `Jadwal: ${jadwalData.hari} ${jadwalData.jam_mulai}-${jadwalData.jam_selesai}`);
+      return { success: true, message: 'Jadwal KBM berhasil ditambahkan.', id };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menyimpan: ' + e.message };
+  }
 }
 
 /**
@@ -87,15 +93,21 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
     return { success: false, error: 'Hari tidak valid.' };
   }
 
-  updateRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwalId }, {
-    hari: updates.hari !== undefined ? updates.hari : jadwal.hari,
-    jam_mulai: updates.jam_mulai !== undefined ? updates.jam_mulai : jadwal.jam_mulai,
-    jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jadwal.jam_selesai,
-    keterangan: updates.keterangan !== undefined ? updates.keterangan : jadwal.keterangan,
-  });
+  try {
+    return withScriptLock_(function () {
+      updateRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwal.id }, {
+        hari: updates.hari !== undefined ? updates.hari : jadwal.hari,
+        jam_mulai: updates.jam_mulai !== undefined ? updates.jam_mulai : jadwal.jam_mulai,
+        jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jadwal.jam_selesai,
+        keterangan: updates.keterangan !== undefined ? updates.keterangan : jadwal.keterangan,
+      });
 
-  logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'update', user.id, JSON.stringify(updates));
-  return { success: true, message: 'Jadwal KBM berhasil diperbarui.' };
+      logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'update', user.id, JSON.stringify(updates));
+      return { success: true, message: 'Jadwal KBM berhasil diperbarui.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal memperbarui: ' + e.message };
+  }
 }
 
 /**
@@ -112,7 +124,13 @@ function serverDeleteJadwalKBM(token, jadwalId) {
     return { success: false, error: 'Anda tidak memiliki akses ke jadwal ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwalId });
-  logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'delete', user.id, 'deleted');
-  return { success: true, message: 'Jadwal KBM berhasil dihapus.' };
+  try {
+    return withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwal.id });
+      logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'delete', user.id, 'deleted');
+      return { success: true, message: 'Jadwal KBM berhasil dihapus.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menghapus: ' + e.message };
+  }
 }

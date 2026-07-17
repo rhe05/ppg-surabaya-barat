@@ -18,8 +18,13 @@ function serverGetSantriList(token, kelompokId, searchQuery = '') {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  let santri = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  santri = santri.filter(s => s.kelompok_id == kelompokId);
+  // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete/BulkImport)
+  const cacheKey = 'santri_k' + kelompokId;
+  let santri = cacheGet_(cacheKey);
+  if (!santri) {
+    santri = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
+    cachePut_(cacheKey, santri, 300);
+  }
 
   // Search by nama
   if (searchQuery.trim()) {
@@ -46,37 +51,44 @@ function serverAddSantri(token, kelompokId, santriData) {
     return { success: false, error: 'Semua field wajib diisi.' };
   }
 
-  const id = generateId(SHEET_NAMES.SANTRI);
-  const santriSheet = getSheetByName(SHEET_NAMES.SANTRI);
+  try {
+    return withScriptLock_(function () {
+      const id = generateId(SHEET_NAMES.SANTRI);
+      const santriSheet = getSheetByName(SHEET_NAMES.SANTRI);
 
-  santriSheet.appendRow([
-    id,
-    kelompokId,
-    santriData.nama.trim(),
-    santriData.nis.trim(),
-    santriData.gender,
-    santriData.tanggal_lahir,
-    santriData.jenjang_saat_ini,
-    santriData.nama_panggilan || '',
-    santriData.tempat_lahir || '',
-    santriData.pendidikan || '',
-    santriData.kelas_sekolah || '',
-    santriData.kelas_ngaji || '',
-    santriData.alamat || '',
-    santriData.nama_ayah || '',
-    santriData.nama_ibu || '',
-    santriData.rt || '',
-    santriData.rw || '',
-    santriData.kelurahan || '',
-    santriData.kode_pos || '',
-    santriData.kabupaten_kota || '',
-    santriData.provinsi || '',
-    santriData.nomor_wa_ayah || '',
-    santriData.nomor_wa_ibu || '',
-  ]);
+      santriSheet.appendRow([
+        id,
+        kelompokId,
+        santriData.nama.trim(),
+        santriData.nis.trim(),
+        santriData.gender,
+        santriData.tanggal_lahir,
+        santriData.jenjang_saat_ini,
+        santriData.nama_panggilan || '',
+        santriData.tempat_lahir || '',
+        santriData.pendidikan || '',
+        santriData.kelas_sekolah || '',
+        santriData.kelas_ngaji || '',
+        santriData.alamat || '',
+        santriData.nama_ayah || '',
+        santriData.nama_ibu || '',
+        santriData.rt || '',
+        santriData.rw || '',
+        santriData.kelurahan || '',
+        santriData.kode_pos || '',
+        santriData.kabupaten_kota || '',
+        santriData.provinsi || '',
+        santriData.nomor_wa_ayah || '',
+        santriData.nomor_wa_ibu || '',
+      ]);
 
-  logAudit('santri', id, 'create', user.id, JSON.stringify(santriData));
-  return { success: true, message: 'Santri berhasil ditambahkan.', id: id };
+      cacheDrop_('santri_k' + kelompokId);
+      logAudit('santri', id, 'create', user.id, JSON.stringify(santriData));
+      return { success: true, message: 'Santri berhasil ditambahkan.', id: id };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menyimpan: ' + e.message };
+  }
 }
 
 /**
@@ -117,9 +129,16 @@ function serverUpdateSantri(token, santriId, santriData) {
     nomor_wa_ibu: santriData.nomor_wa_ibu !== undefined ? santriData.nomor_wa_ibu : santri.nomor_wa_ibu,
   };
 
-  updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);
-  logAudit('santri', santriId, 'update', user.id, JSON.stringify(updates));
-  return { success: true, message: 'Santri berhasil diperbarui.' };
+  try {
+    return withScriptLock_(function () {
+      updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);
+      cacheDrop_('santri_k' + santri.kelompok_id);
+      logAudit('santri', santriId, 'update', user.id, JSON.stringify(updates));
+      return { success: true, message: 'Santri berhasil diperbarui.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal memperbarui: ' + e.message };
+  }
 }
 
 /**
@@ -136,9 +155,16 @@ function serverDeleteSantri(token, santriId) {
     return { success: false, error: 'Anda tidak memiliki akses ke Santri ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id });
-  logAudit('santri', santriId, 'delete', user.id, 'deleted');
-  return { success: true, message: 'Santri berhasil dihapus.' };
+  try {
+    return withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id });
+      cacheDrop_('santri_k' + santri.kelompok_id);
+      logAudit('santri', santriId, 'delete', user.id, 'deleted');
+      return { success: true, message: 'Santri berhasil dihapus.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menghapus: ' + e.message };
+  }
 }
 
 /**
@@ -223,9 +249,10 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
       errors.push({ row: rowNumber, error: rowError });
       errorCount++;
     } else {
-      // Prepare for insert
+      // Prepare for insert. ⚠️ id TIDAK digenerate di sini — generateId() dalam
+      // loop tanpa append di antaranya mengembalikan nilai SAMA untuk semua baris
+      // (bug id ganda, ERROR_LOG.md #5). Id diberikan di dalam lock saat insert.
       validRows.push({
-        id: generateId(SHEET_NAMES.SANTRI),
         kelompok_id: kelompokId,
         nama: String(row.nama).trim(),
         nis: String(row.nis).trim(),
@@ -237,19 +264,24 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
     }
   }
 
-  // Batch insert valid rows
+  // Batch insert valid rows — id digenerate DI DALAM lock supaya berurutan
+  // dan tidak bentrok dengan penyimpanan pengguna lain yang berjalan bersamaan.
   if (validRows.length > 0) {
     try {
-      const dataToInsert = validRows.map(s => [
-        s.id,
-        s.kelompok_id,
-        s.nama,
-        s.nis,
-        s.gender,
-        s.tanggal_lahir,
-        s.jenjang_saat_ini,
-      ]);
-      santriSheet.getRange(santriSheet.getLastRow() + 1, 1, dataToInsert.length, 7).setValues(dataToInsert);
+      withScriptLock_(function () {
+        let nextId = generateId(SHEET_NAMES.SANTRI);
+        const dataToInsert = validRows.map(s => [
+          nextId++,
+          s.kelompok_id,
+          s.nama,
+          s.nis,
+          s.gender,
+          s.tanggal_lahir,
+          s.jenjang_saat_ini,
+        ]);
+        santriSheet.getRange(santriSheet.getLastRow() + 1, 1, dataToInsert.length, 7).setValues(dataToInsert);
+        cacheDrop_('santri_k' + kelompokId);
+      });
 
       // Log audit
       logAudit('santri', 'bulk_import', 'create', user.id, `Bulk: ${successCount} berhasil, ${errorCount} error`);

@@ -130,8 +130,11 @@ function updateCell(sheetName, row, col, value) {
  */
 function findRowByQuery(sheetName, query) {
   const objects = readSheetAsObjects(sheetName);
+  // Perbandingan via String() — id dari client (onclick HTML) selalu string,
+  // sedangkan kolom id di sheet numerik. Strict === di sini pernah menyebabkan
+  // update/delete diam-diam gagal (ERROR_LOG.md #2). JANGAN kembalikan ke ===.
   const index = objects.findIndex(obj => {
-    return Object.keys(query).every(key => obj[key] === query[key]);
+    return Object.keys(query).every(key => String(obj[key]) === String(query[key]));
   });
   return index === -1 ? -1 : index + 2; // +2 karena row 1 = header, data dimulai row 2
 }
@@ -223,12 +226,58 @@ function validateUserAccess(token, resourceType, resourceId) {
 /**
  * Generate ID otomatis (integer) untuk entitas baru.
  * Cari MAX(id) di sheet, return max + 1.
+ *
+ * ⚠️ WAJIB dipanggil DI DALAM withScriptLock_() bersama appendRow-nya —
+ * tanpa lock, dua pengguna yang menyimpan bersamaan mendapat id yang sama
+ * (ERROR_LOG.md #5).
  */
 function generateId(sheetName) {
   const objects = readSheetAsObjects(sheetName);
   if (objects.length === 0) return 1;
   const maxId = Math.max(...objects.map(obj => parseInt(obj.id) || 0));
   return maxId + 1;
+}
+
+/**
+ * Jalankan fungsi mutasi di dalam ScriptLock (antri maks 10 detik).
+ * WAJIB membungkus SEMUA operasi tulis (add/update/delete) supaya aman
+ * dipakai banyak pengguna bersamaan. Mencegah: (a) id ganda dari generateId,
+ * (b) salah-baris pada delete/update karena index baris bergeser saat
+ * pengguna lain menghapus di waktu yang sama. (ERROR_LOG.md #5)
+ */
+function withScriptLock_(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(10000)) {
+    throw new Error('Sistem sedang sibuk (banyak yang menyimpan bersamaan). Silakan coba lagi.');
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Cache helpers (ScriptCache) — mempercepat baca daftar yang sering diakses.
+ * Kunci yang dipakai saat ini: 'guru_k<kelompokId>' dan 'santri_k<kelompokId>'.
+ * SEMUA mutasi pada sheet terkait WAJIB memanggil cacheDrop_ kunci tersebut.
+ * Gagal cache (data >100KB / error) tidak fatal — jatuh ke baca sheet biasa.
+ */
+function cacheGet_(key) {
+  try {
+    const v = CacheService.getScriptCache().get(key);
+    return v ? JSON.parse(v) : null;
+  } catch (e) { return null; }
+}
+
+function cachePut_(key, value, seconds) {
+  try {
+    CacheService.getScriptCache().put(key, JSON.stringify(value), seconds || 300);
+  } catch (e) { /* data terlalu besar / cache error — abaikan */ }
+}
+
+function cacheDrop_(key) {
+  try { CacheService.getScriptCache().remove(key); } catch (e) { /* abaikan */ }
 }
 
 /**

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Auto-check sebelum commit (guardrail ERROR_LOG.md) — dipasang dari tools/pre-commit
+node tools/check_local.js || {
+  echo ""
+  echo "COMMIT DIBATALKAN: tools/check_local.js menemukan masalah. Perbaiki dulu."
+  exit 1
+}

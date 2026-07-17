@@ -91,6 +91,35 @@ kemungkinan hilang saat salah satu edit besar. Chart dashboard tidak render.
 
 ---
 
+## #5 — Audit ketahanan: race condition & id ganda (2026-07-17, preventif)
+
+**Temuan audit** (semua sudah diperbaiki di commit yang sama):
+1. `generateId` = max(id)+1 tanpa lock → dua pengguna menyimpan bersamaan
+   dapat id SAMA → edit/hapus bisa mengenai data yang salah.
+2. `serverBulkImportSantri` memanggil `generateId` per baris SEBELUM insert →
+   semua baris impor dapat id identik (bug nyata bahkan single-user).
+3. Delete/update mencari nomor baris lalu memutasi — jika pengguna lain
+   menghapus baris di sela waktu itu, index bergeser → BARIS SALAH terhapus.
+4. Jadwal KBM & Pengumuman update/delete masih memakai id mentah dari klien
+   (pola bug #2) → diam-diam gagal.
+
+**Perbaikan sistemik**:
+- `withScriptLock_(fn)` di `Modul_Utilities.gs` — WAJIB membungkus semua
+  operasi tulis. Sudah diterapkan di semua mutasi Guru, Santri (termasuk bulk
+  import: id digenerate berurutan DI DALAM lock), Jadwal KBM, Pengumuman.
+- `findRowByQuery` sekarang membandingkan via `String()` — menutup seluruh
+  kelas bug #2 untuk semua modul sekaligus.
+- Semua mutasi dibungkus try/catch → selalu return `{success:false, error}`
+  terstruktur, tidak pernah melempar mentah ke klien.
+- Cache baca (`guru_k*`, `santri_k*`, TTL 300 dtk) + invalidasi di tiap
+  mutasi → tampil data dari cache ±50ms vs baca sheet 300-800ms.
+- Git pre-commit hook menjalankan `tools/check_local.js` otomatis.
+
+**Aturan permanen untuk fungsi server BARU**: ikuti pola `serverAddGuru` —
+lock + id-dalam-lock + id hasil lookup + cacheDrop + try/catch terstruktur.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

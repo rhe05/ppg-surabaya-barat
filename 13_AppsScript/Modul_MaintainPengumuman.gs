@@ -39,23 +39,29 @@ function serverCreatePengumuman(token, pengumumanData) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const id = generateId(SHEET_NAMES.PENGUMUMAN);
-  const now = new Date().toISOString().split('T')[0];
-  const tanggal = pengumumanData.tanggal || now;
-  const sheet = getSheetByName(SHEET_NAMES.PENGUMUMAN);
+  try {
+    return withScriptLock_(function () {
+      const id = generateId(SHEET_NAMES.PENGUMUMAN);
+      const now = new Date().toISOString().split('T')[0];
+      const tanggal = pengumumanData.tanggal || now;
+      const sheet = getSheetByName(SHEET_NAMES.PENGUMUMAN);
 
-  sheet.appendRow([
-    id,
-    pengumumanData.kelompok_id,
-    pengumumanData.judul.trim(),
-    pengumumanData.isi.trim(),
-    tanggal,
-    user.id,
-    now,
-  ]);
+      sheet.appendRow([
+        id,
+        pengumumanData.kelompok_id,
+        pengumumanData.judul.trim(),
+        pengumumanData.isi.trim(),
+        tanggal,
+        user.id,
+        now,
+      ]);
 
-  logAudit(SHEET_NAMES.PENGUMUMAN, id, 'create', user.id, `Pengumuman: ${pengumumanData.judul}`);
-  return { success: true, message: 'Pengumuman berhasil ditambahkan.', id };
+      logAudit(SHEET_NAMES.PENGUMUMAN, id, 'create', user.id, `Pengumuman: ${pengumumanData.judul}`);
+      return { success: true, message: 'Pengumuman berhasil ditambahkan.', id };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menyimpan: ' + e.message };
+  }
 }
 
 /**
@@ -72,14 +78,20 @@ function serverUpdatePengumuman(token, pengumumanId, updates) {
     return { success: false, error: 'Anda tidak memiliki akses ke pengumuman ini.' };
   }
 
-  updateRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumumanId }, {
-    judul: updates.judul !== undefined ? updates.judul.trim() : pengumuman.judul,
-    isi: updates.isi !== undefined ? updates.isi.trim() : pengumuman.isi,
-    tanggal: updates.tanggal !== undefined ? updates.tanggal : pengumuman.tanggal,
-  });
+  try {
+    return withScriptLock_(function () {
+      updateRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumuman.id }, {
+        judul: updates.judul !== undefined ? updates.judul.trim() : pengumuman.judul,
+        isi: updates.isi !== undefined ? updates.isi.trim() : pengumuman.isi,
+        tanggal: updates.tanggal !== undefined ? updates.tanggal : pengumuman.tanggal,
+      });
 
-  logAudit(SHEET_NAMES.PENGUMUMAN, pengumumanId, 'update', user.id, JSON.stringify(updates));
-  return { success: true, message: 'Pengumuman berhasil diperbarui.' };
+      logAudit(SHEET_NAMES.PENGUMUMAN, pengumumanId, 'update', user.id, JSON.stringify(updates));
+      return { success: true, message: 'Pengumuman berhasil diperbarui.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal memperbarui: ' + e.message };
+  }
 }
 
 /**
@@ -96,7 +108,13 @@ function serverDeletePengumuman(token, pengumumanId) {
     return { success: false, error: 'Anda tidak memiliki akses ke pengumuman ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumumanId });
-  logAudit(SHEET_NAMES.PENGUMUMAN, pengumumanId, 'delete', user.id, 'deleted');
-  return { success: true, message: 'Pengumuman berhasil dihapus.' };
+  try {
+    return withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumuman.id });
+      logAudit(SHEET_NAMES.PENGUMUMAN, pengumumanId, 'delete', user.id, 'deleted');
+      return { success: true, message: 'Pengumuman berhasil dihapus.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menghapus: ' + e.message };
+  }
 }
