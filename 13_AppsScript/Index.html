@@ -687,35 +687,6 @@
       gap: 14px;
     }
 
-    .table-limit-toggle {
-      display: inline-flex;
-      gap: 6px;
-      margin-bottom: 12px;
-    }
-
-    .table-limit-btn {
-      padding: 6px 14px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--panel-2);
-      color: var(--text-dim);
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      font-family: inherit;
-      transition: all 0.2s;
-    }
-
-    .table-limit-btn:hover {
-      color: var(--text);
-    }
-
-    .table-limit-btn.active {
-      background: var(--brass);
-      border-color: var(--brass);
-      color: white;
-    }
-
     #generusJenjangRow .guru-dash-kpi-card {
       padding: 18px 16px 16px;
     }
@@ -951,7 +922,8 @@
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.12);
     }
 
-    #guruTableToggleBtn.active-state {
+    #guruTableToggleBtn.active-state,
+    #santriTableToggleBtn.active-state {
       background: rgba(217, 119, 6, 0.1);
       border-color: var(--brass);
       color: var(--brass);
@@ -2531,7 +2503,7 @@
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGenerus()">
               <span>Ekspor</span>
             </button>
-            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleGenerusDashTable_()">
               <span id="santriTableToggleLabel">Daftar Generus</span>
             </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGenerusKelp()">+ Generus</button>
@@ -2566,15 +2538,22 @@
           </div>
         </div>
 
-        <div class="data-table-wrapper" id="santriDashTableWrapper" style="display: none;">
-          <div class="table-limit-toggle" id="santriTableLimitToggle">
-            <button type="button" class="table-limit-btn active" onclick="window.setSantriTableLimit_(10, this)">Beberapa</button>
-            <button type="button" class="table-limit-btn" onclick="window.setSantriTableLimit_('all', this)">Semua</button>
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="santriDashTableWrapper" style="display: none;">
+          <div class="guru-kelp-table-toolbar">
+            <select class="guru-kelp-filter-select" id="santriDashScopeSelect" onchange="window.filterSantriDashTable_(document.getElementById('santriDashSearchInput').value)">
+              <option value="all">Semua Generus</option>
+              <option value="AUD">PAUD-TK</option>
+              <option value="Cabe Rawit">Cabe Rawit</option>
+              <option value="Pra Remaja">Pra Remaja</option>
+              <option value="Remaja SMA">Remaja SMA</option>
+              <option value="Remaja">Remaja Pra Nikah</option>
+            </select>
+            <input type="text" class="search-input guru-kelp-search-input" id="santriDashSearchInput" placeholder="Cari nama generus..." oninput="window.filterSantriDashTable_(this.value)">
           </div>
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 50px;">#</th>
+                <th style="width: 50px;">No</th>
                 <th>Nama</th>
                 <th>NIS</th>
                 <th>Gender</th>
@@ -3920,15 +3899,28 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
-  window.toggleSantriTable = function () {
+  window.toggleGenerusDashTable_ = function () {
     const wrapper = document.getElementById('santriDashTableWrapper');
     const btn = document.getElementById('santriTableToggleBtn');
-    const label = document.getElementById('santriTableToggleLabel');
-    const isHidden = wrapper.style.display === 'none';
+    const isOpening = wrapper.style.display === 'none';
 
-    wrapper.style.display = isHidden ? 'block' : 'none';
-    btn.classList.toggle('open', isHidden);
-    label.textContent = isHidden ? 'Sembunyikan Daftar Generus' : 'Daftar Generus';
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
+
+    if (isOpening) {
+      document.getElementById('santriDashScopeSelect').value = 'all';
+      document.getElementById('santriDashSearchInput').value = '';
+      window.santriTableScope = 'all';
+      window.santriDashSearchQuery = '';
+      window.renderSantriDashTable_(window.lastSantriListData || [], 'all', '');
+    }
+  };
+
+  window.filterSantriDashTable_ = function (query) {
+    window.santriDashSearchQuery = query;
+    const scope = document.getElementById('santriDashScopeSelect').value;
+    window.santriTableScope = scope;
+    window.renderSantriDashTable_(window.lastSantriListData || [], scope, query);
   };
 
   window.openModalGenerusKelp = function () {
@@ -4510,7 +4502,9 @@
         document.getElementById('kdSantriLBar').style.width = lPct + '%';
         document.getElementById('kdSantriPBar').style.width = pPct + '%';
 
-        window.renderSantriDashTable_(santri, window.santriTableLimit || 10);
+        if (document.getElementById('santriDashTableWrapper').style.display !== 'none') {
+          window.renderSantriDashTable_(santri, window.santriTableScope || 'all', window.santriDashSearchQuery || '');
+        }
 
         // --- Data Kelas (breakdown per jenjang, with gender split) ---
         const kelasMap = {
@@ -4549,34 +4543,35 @@
       .serverGetSantriList(window.currentToken, kelompokId);
   };
 
-  window.renderSantriDashTable_ = function (santri, limit) {
+  window.renderSantriDashTable_ = function (santri, scope, search) {
     const tbody = document.getElementById('kdSantriTableBody');
     tbody.innerHTML = '';
 
-    if (santri.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada data santri untuk kelompok ini.</td></tr>';
+    let list = (scope && scope !== 'all')
+      ? santri.filter(s => s.jenjang_saat_ini === scope)
+      : santri;
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(s => String(s.nama || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data generus.</td></tr>';
       return;
     }
 
-    const list = limit === 'all' ? santri : santri.slice(0, limit);
     list.forEach((s, i) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${i + 1}</td>
-        <td>${s.nama}</td>
-        <td>${s.nis}</td>
-        <td>${s.gender}</td>
-        <td>${s.jenjang_saat_ini || '-'}</td>
+        <td>${window.escapeHtmlExport_(s.nama)}</td>
+        <td>${window.escapeHtmlExport_(s.nis)}</td>
+        <td>${window.escapeHtmlExport_(s.gender)}</td>
+        <td>${window.escapeHtmlExport_(s.jenjang_saat_ini || '-')}</td>
       `;
       tbody.appendChild(tr);
     });
-  };
-
-  window.setSantriTableLimit_ = function (limit, btnEl) {
-    window.santriTableLimit = limit;
-    document.querySelectorAll('#santriTableLimitToggle .table-limit-btn').forEach(btn => btn.classList.remove('active'));
-    if (btnEl) btnEl.classList.add('active');
-    window.renderSantriDashTable_(window.lastSantriListData || [], limit);
   };
 
   window.loadKelompokDashboardAbsen_ = function (kelompokId) {
