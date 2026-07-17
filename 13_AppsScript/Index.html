@@ -1101,6 +1101,83 @@
       color: var(--red);
     }
 
+    /* ═════ MODAL KONFIRMASI HAPUS GURU — DASHBOARD KELOMPOK (premium) ═════ */
+    .guru-kelp-delete-modal {
+      max-width: 380px;
+      text-align: center;
+      padding: 40px 32px 32px;
+      position: relative;
+      animation: guruKelpDeletePop 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes guruKelpDeletePop {
+      from { opacity: 0; transform: scale(0.96) translateY(6px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .guru-kelp-delete-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+    }
+
+    .guru-kelp-delete-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(220, 38, 38, 0.08);
+      color: var(--red);
+      margin: 0 auto 20px;
+    }
+
+    .guru-kelp-delete-icon svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    .guru-kelp-delete-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .guru-kelp-delete-message {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .guru-kelp-delete-message strong {
+      color: var(--text);
+    }
+
+    .guru-kelp-delete-footer {
+      justify-content: center;
+      margin-top: 28px;
+    }
+
+    .guru-kelp-btn-danger {
+      padding: 10px 16px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      background: var(--red);
+      color: white;
+      transition: opacity 0.2s ease, transform 0.15s ease;
+    }
+
+    .guru-kelp-btn-danger:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
     .guru-kelp-umur-badge {
       display: inline-flex;
       margin-top: 8px;
@@ -2341,6 +2418,27 @@
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalGuruKelp()">Batal</button>
               <button class="btn btn-primary" onclick="window.saveGuruKelp()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Konfirmasi Hapus Guru (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDeleteGuruKelp">
+          <div class="modal-content guru-kelp-delete-modal">
+            <button class="modal-close-btn guru-kelp-delete-close" onclick="window.closeModalDeleteGuruKelp()">×</button>
+
+            <div class="guru-kelp-delete-icon">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2m-9 0 1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </div>
+
+            <div class="guru-kelp-delete-title">Hapus Guru Ini?</div>
+            <div class="guru-kelp-delete-message">
+              Data <strong id="guruKelpDeleteNama">—</strong> akan dihapus permanen dan tidak bisa dikembalikan.
+            </div>
+
+            <div class="modal-footer guru-kelp-delete-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDeleteGuruKelp()">Batal</button>
+              <button class="guru-kelp-btn-danger" onclick="window.confirmDeleteGuruKelp()">Ya, Hapus</button>
             </div>
           </div>
         </div>
@@ -4301,12 +4399,28 @@
     document.getElementById('modalGuruKelp').classList.add('active');
   };
 
+  window.pendingDeleteGuruId_ = null;
+
   window.deleteGuruKelp = function (id) {
-    if (!confirm('Hapus guru ini?')) return;
+    const g = (window.lastGuruListData || []).find(x => String(x.id) === String(id));
+    window.pendingDeleteGuruId_ = id;
+    document.getElementById('guruKelpDeleteNama').textContent = g ? g.nama : 'guru ini';
+    document.getElementById('modalDeleteGuruKelp').classList.add('active');
+  };
+
+  window.closeModalDeleteGuruKelp = function () {
+    document.getElementById('modalDeleteGuruKelp').classList.remove('active');
+    window.pendingDeleteGuruId_ = null;
+  };
+
+  window.confirmDeleteGuruKelp = function () {
+    const id = window.pendingDeleteGuruId_;
+    if (!id) return;
 
     google.script.run
       .withSuccessHandler(function (result) {
         if (result.success) {
+          window.closeModalDeleteGuruKelp();
           window.loadKelompokDashboardGuru_(window.currentKelompokId);
         } else {
           alert(result.error);
