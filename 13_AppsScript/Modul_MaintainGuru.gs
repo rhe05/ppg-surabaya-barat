@@ -90,7 +90,7 @@ function serverUpdateGuru(token, guruId, guruData) {
     pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };
 
-  updateRowByQuery(SHEET_NAMES.GURU, { id: guruId }, updates);
+  updateRowByQuery(SHEET_NAMES.GURU, { id: guru.id }, updates);
   logAudit('guru', guruId, 'update', user.id, JSON.stringify(updates));
   return { success: true, message: 'Guru berhasil diperbarui.' };
 }
@@ -109,7 +109,7 @@ function serverDeleteGuru(token, guruId) {
     return { success: false, error: 'Anda tidak memiliki akses ke Guru ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.GURU, { id: guruId });
+  deleteRowByQuery(SHEET_NAMES.GURU, { id: guru.id });
   logAudit('guru', guruId, 'delete', user.id, 'deleted');
   return { success: true, message: 'Guru berhasil dihapus.' };
 }
