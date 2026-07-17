@@ -42,8 +42,12 @@
     }
 
     /* ═════ LOGIN SCREEN ═════ */
+    /* Disembunyikan secara default (bukan display:flex) supaya tidak sempat
+       "berkedip" muncul sebelum window.onload selesai cek DEV_MODE_SKIP_LOGIN.
+       Ditampilkan lagi lewat JS (lihat window.onload/verifySession) hanya kalau
+       mode dev nonaktif dan memang perlu login sungguhan. */
     #screenLogin {
-      display: flex;
+      display: none;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
@@ -4074,7 +4078,14 @@
           return;
         }
         const token = sessionStorage.getItem('ppg_token');
-        if (token) verifySession(token);
+        if (token) {
+          verifySession(token);
+        } else {
+          document.getElementById('screenLogin').style.display = 'flex';
+        }
+      })
+      .withFailureHandler(function () {
+        document.getElementById('screenLogin').style.display = 'flex';
       })
       .serverCheckDevMode();
   };
@@ -4125,7 +4136,11 @@
           renderApp(result.user);
         } else {
           sessionStorage.removeItem('ppg_token');
+          document.getElementById('screenLogin').style.display = 'flex';
         }
+      })
+      .withFailureHandler(function () {
+        document.getElementById('screenLogin').style.display = 'flex';
       })
       .serverGetSession(token);
   }
