@@ -1237,6 +1237,40 @@
       to { transform: rotate(360deg); }
     }
 
+    /* ═════ GLOBAL LOADING OVERLAY (spinner tengah layar, tema brass) ═════ */
+    #globalLoadingOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+      background: rgba(248, 250, 252, 0.72);
+      backdrop-filter: blur(2px);
+    }
+
+    #globalLoadingOverlay.active {
+      display: flex;
+    }
+
+    .global-loading-ring {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 3px solid rgba(217, 119, 6, 0.16);
+      border-top-color: var(--brass);
+      animation: guruKelpSpin 0.7s linear infinite;
+    }
+
+    .global-loading-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: 0.02em;
+    }
+
     /* ═════ MODAL DETAIL GURU/GENERUS — DASHBOARD KELOMPOK (premium, read-only) ═════ */
     .guru-kelp-detail-modal {
       max-width: 560px;
@@ -1882,6 +1916,13 @@
 <body>
 
 <!-- ═════ LOGIN SCREEN ═════ -->
+<!-- Spinner global tengah layar. Aktif sejak awal = loading screen saat boot;
+     dikontrol via window.showGlobalLoading_() / window.hideGlobalLoading_() -->
+<div id="globalLoadingOverlay" class="active">
+  <div class="global-loading-ring"></div>
+  <div class="global-loading-text" id="globalLoadingText">Memuat aplikasi...</div>
+</div>
+
 <div id="screenLogin">
   <div class="login-card">
     <div class="login-brand">
@@ -4080,6 +4121,17 @@
     }, 3000);
   }
 
+  /* Spinner global tengah layar (tema brass). Pakai untuk SEMUA momen tunggu:
+     boot aplikasi, simpan/hapus, ekspor. Jangan buat spinner lokal baru. */
+  window.showGlobalLoading_ = function (text) {
+    document.getElementById('globalLoadingText').textContent = text || 'Memuat...';
+    document.getElementById('globalLoadingOverlay').classList.add('active');
+  };
+
+  window.hideGlobalLoading_ = function () {
+    document.getElementById('globalLoadingOverlay').classList.remove('active');
+  };
+
   window.onload = function () {
     document.getElementById('absensiTanggal').valueAsDate = new Date();
 
@@ -4097,10 +4149,12 @@
         if (token) {
           verifySession(token);
         } else {
+          window.hideGlobalLoading_();
           document.getElementById('screenLogin').style.display = 'flex';
         }
       })
       .withFailureHandler(function () {
+        window.hideGlobalLoading_();
         document.getElementById('screenLogin').style.display = 'flex';
       })
       .serverCheckDevMode();
@@ -4152,16 +4206,19 @@
           renderApp(result.user);
         } else {
           sessionStorage.removeItem('ppg_token');
+          window.hideGlobalLoading_();
           document.getElementById('screenLogin').style.display = 'flex';
         }
       })
       .withFailureHandler(function () {
+        window.hideGlobalLoading_();
         document.getElementById('screenLogin').style.display = 'flex';
       })
       .serverGetSession(token);
   }
 
   function renderApp(user) {
+    window.hideGlobalLoading_();
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('appLayout').style.display = 'flex';
     document.getElementById('userNameSidebar').textContent = user.nama.split(' ')[0];
@@ -4328,6 +4385,7 @@
     }
 
     const onDone = function (result) {
+      window.hideGlobalLoading_();
       if (result.success) {
         window.closeModalGenerusKelp();
         window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
@@ -4336,9 +4394,11 @@
       }
     };
     const onFail = function (err) {
+      window.hideGlobalLoading_();
       alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
     };
 
+    window.showGlobalLoading_('Menyimpan data...');
     if (window.currentEditGenerusId) {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, window.currentEditGenerusId, data);
     } else {
@@ -4440,9 +4500,10 @@
   window.setGenerusDeleteLoading_ = function (isLoading) {
     const confirmBtn = document.getElementById('generusKelpDeleteConfirmBtn');
     const cancelBtn = document.getElementById('generusKelpDeleteCancelBtn');
-    confirmBtn.classList.toggle('is-loading', isLoading);
     confirmBtn.disabled = isLoading;
     cancelBtn.disabled = isLoading;
+    if (isLoading) window.showGlobalLoading_('Menghapus data...');
+    else window.hideGlobalLoading_();
   };
 
   window.confirmDeleteGenerusKelp = function () {
@@ -4558,14 +4619,20 @@
       return;
     }
 
+    window.showGlobalLoading_('Menyiapkan file Excel...');
     google.script.run
       .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
         if (result.success) {
           window.downloadXlsxFromBase64_(result.base64, result.filename);
           window.closeModalEksporGuru();
         } else {
           alert(result.error);
         }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal ekspor: ' + (err && err.message ? err.message : err));
       })
       .serverExportGuruKelpXlsx(window.currentToken, window.currentKelompokId, scope);
   };
@@ -4601,14 +4668,20 @@
       return;
     }
 
+    window.showGlobalLoading_('Menyiapkan file Excel...');
     google.script.run
       .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
         if (result.success) {
           window.downloadXlsxFromBase64_(result.base64, result.filename);
           window.closeModalEksporGenerus();
         } else {
           alert(result.error);
         }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal ekspor: ' + (err && err.message ? err.message : err));
       })
       .serverExportSantriKelpXlsx(window.currentToken, window.currentKelompokId, scope);
   };
@@ -4820,6 +4893,7 @@
     }
 
     const onDone = function (result) {
+      window.hideGlobalLoading_();
       if (result.success) {
         window.closeModalGuruKelp();
         window.loadKelompokDashboardGuru_(window.currentKelompokId);
@@ -4828,9 +4902,11 @@
       }
     };
     const onFail = function (err) {
+      window.hideGlobalLoading_();
       alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
     };
 
+    window.showGlobalLoading_('Menyimpan data...');
     if (window.currentEditGuruId) {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, window.currentEditGuruId, data);
     } else {
@@ -5003,9 +5079,10 @@
   window.setGuruDeleteLoading_ = function (isLoading) {
     const confirmBtn = document.getElementById('guruKelpDeleteConfirmBtn');
     const cancelBtn = document.getElementById('guruKelpDeleteCancelBtn');
-    confirmBtn.classList.toggle('is-loading', isLoading);
     confirmBtn.disabled = isLoading;
     cancelBtn.disabled = isLoading;
+    if (isLoading) window.showGlobalLoading_('Menghapus data...');
+    else window.hideGlobalLoading_();
   };
 
   window.confirmDeleteGuruKelp = function () {
