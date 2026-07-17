@@ -589,6 +589,20 @@
       transition: width 0.5s ease;
     }
 
+    .guru-dash-kpi-gendersplit {
+      display: flex;
+      gap: 14px;
+      margin-top: 12px;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+    }
+
+    .guru-dash-kpi-gendersplit b {
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
     .pengumuman-card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -2016,12 +2030,21 @@
           </div>
         </div>
 
-        <!-- ═══ DATA SANTRI ═══ -->
-        <div class="dash-section-title">Ringkasan Santri</div>
+        <!-- ═══ DATA GENERUS ═══ -->
+        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Data Generus</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
+              <span class="guru-dash-toggle-caret" id="santriTableToggleCaret">▸</span>
+              <span id="santriTableToggleLabel">Lihat Daftar Generus</span>
+            </button>
+            <button class="btn btn-primary" onclick="window.openModalGenerusKelp()">+ Generus</button>
+          </div>
+        </div>
 
         <div class="guru-dash-kpi-row">
           <div class="guru-dash-kpi-card accent-brass">
-            <div class="guru-dash-kpi-label">Total Santri</div>
+            <div class="guru-dash-kpi-label">Total Generus</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="kdTotalSantri">0</span>
               <span class="guru-dash-kpi-unit">santri</span>
@@ -2047,7 +2070,7 @@
           </div>
         </div>
 
-        <div class="data-table-wrapper">
+        <div class="data-table-wrapper" id="santriDashTableWrapper" style="display: none;">
           <table class="data-table">
             <thead>
               <tr>
@@ -2064,17 +2087,15 @@
           </table>
         </div>
 
-        <!-- ═══ DATA KELAS ═══ -->
-        <div class="dash-section-title">Data Kelas</div>
-
         <div class="guru-dash-kpi-row">
           <div class="guru-dash-kpi-card accent-brass">
-            <div class="guru-dash-kpi-label">PAUD</div>
+            <div class="guru-dash-kpi-label">PAUD-TK</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="kdKelasAUD">0</span>
               <span class="guru-dash-kpi-unit" id="kdKelasAUDPct">0%</span>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasAUDBar" style="width: 0%; background: var(--brass);"></div></div>
+            <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasAUD_L">0</b> &nbsp; P: <b id="kdKelasAUD_P">0</b></div>
           </div>
 
           <div class="guru-dash-kpi-card accent-sage">
@@ -2084,6 +2105,7 @@
               <span class="guru-dash-kpi-unit" id="kdKelasCabeRawitPct">0%</span>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasCabeRawitBar" style="width: 0%; background: var(--sage);"></div></div>
+            <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasCabeRawit_L">0</b> &nbsp; P: <b id="kdKelasCabeRawit_P">0</b></div>
           </div>
 
           <div class="guru-dash-kpi-card accent-volt">
@@ -2093,6 +2115,7 @@
               <span class="guru-dash-kpi-unit" id="kdKelasPraRemajaPct">0%</span>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasPraRemajaBar" style="width: 0%; background: var(--volt);"></div></div>
+            <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasPraRemaja_L">0</b> &nbsp; P: <b id="kdKelasPraRemaja_P">0</b></div>
           </div>
 
           <div class="guru-dash-kpi-card accent-brass">
@@ -2102,15 +2125,71 @@
               <span class="guru-dash-kpi-unit" id="kdKelasRemajaSMAPct">0%</span>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaSMABar" style="width: 0%; background: var(--brass);"></div></div>
+            <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasRemajaSMA_L">0</b> &nbsp; P: <b id="kdKelasRemajaSMA_P">0</b></div>
           </div>
 
           <div class="guru-dash-kpi-card accent-sage">
-            <div class="guru-dash-kpi-label">Remaja</div>
+            <div class="guru-dash-kpi-label">Remaja Pra Nikah</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="kdKelasRemaja">0</span>
               <span class="guru-dash-kpi-unit" id="kdKelasRemajaPct">0%</span>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaBar" style="width: 0%; background: var(--sage);"></div></div>
+            <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasRemaja_L">0</b> &nbsp; P: <b id="kdKelasRemaja_P">0</b></div>
+          </div>
+        </div>
+
+        <!-- Modal Tambah Generus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalGenerusKelp">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Tambah Generus</span>
+              <button class="modal-close-btn" onclick="window.closeModalGenerusKelp()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nama</label>
+              <input type="text" class="form-input" id="generusKelpNama" placeholder="Nama lengkap">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">NIS</label>
+              <input type="text" class="form-input" id="generusKelpNis" placeholder="NIS-0001">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Gender</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="generusKelpGender" value="L"> Laki-laki
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="generusKelpGender" value="P"> Perempuan
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tanggal Lahir</label>
+              <input type="date" class="form-input" id="generusKelpTglLahir">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Jenjang</label>
+              <select class="form-select" id="generusKelpJenjang">
+                <option value="">-- Pilih Jenjang --</option>
+                <option value="AUD">PAUD-TK</option>
+                <option value="Cabe Rawit">Cabe Rawit</option>
+                <option value="Pra Remaja">Pra Remaja</option>
+                <option value="Remaja SMA">Remaja SMA</option>
+                <option value="Remaja">Remaja Pra Nikah</option>
+              </select>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalGenerusKelp()">Batal</button>
+              <button class="btn btn-primary" onclick="window.saveGenerusKelp()">Simpan</button>
+            </div>
           </div>
         </div>
 
@@ -3290,6 +3369,51 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
+  window.toggleSantriTable = function () {
+    const wrapper = document.getElementById('santriDashTableWrapper');
+    const btn = document.getElementById('santriTableToggleBtn');
+    const label = document.getElementById('santriTableToggleLabel');
+    const isHidden = wrapper.style.display === 'none';
+
+    wrapper.style.display = isHidden ? 'block' : 'none';
+    btn.classList.toggle('open', isHidden);
+    label.textContent = isHidden ? 'Sembunyikan Daftar Generus' : 'Lihat Daftar Generus';
+  };
+
+  window.openModalGenerusKelp = function () {
+    document.getElementById('generusKelpNama').value = '';
+    document.getElementById('generusKelpNis').value = '';
+    document.getElementById('generusKelpTglLahir').value = '';
+    document.getElementById('generusKelpJenjang').value = '';
+    document.querySelectorAll('input[name="generusKelpGender"]').forEach(r => r.checked = false);
+    document.getElementById('modalGenerusKelp').classList.add('active');
+  };
+
+  window.closeModalGenerusKelp = function () {
+    document.getElementById('modalGenerusKelp').classList.remove('active');
+  };
+
+  window.saveGenerusKelp = function () {
+    const data = {
+      nama: document.getElementById('generusKelpNama').value,
+      nis: document.getElementById('generusKelpNis').value,
+      gender: document.querySelector('input[name="generusKelpGender"]:checked')?.value || '',
+      tanggal_lahir: document.getElementById('generusKelpTglLahir').value,
+      jenjang_saat_ini: document.getElementById('generusKelpJenjang').value,
+    };
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.closeModalGenerusKelp();
+          window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverAddSantri(window.currentToken, window.currentKelompokId, data);
+  };
+
   window.toggleGuruTable = function () {
     const wrapper = document.getElementById('guruDashTableWrapper');
     const btn = document.getElementById('guruTableToggleBtn');
@@ -3587,10 +3711,19 @@
           });
         }
 
-        // --- Data Kelas (breakdown per jenjang) ---
-        const kelasMap = { 'AUD': 0, 'Cabe Rawit': 0, 'Pra Remaja': 0, 'Remaja SMA': 0, 'Remaja': 0 };
+        // --- Data Kelas (breakdown per jenjang, with gender split) ---
+        const kelasMap = {
+          'AUD': { total: 0, L: 0, P: 0 },
+          'Cabe Rawit': { total: 0, L: 0, P: 0 },
+          'Pra Remaja': { total: 0, L: 0, P: 0 },
+          'Remaja SMA': { total: 0, L: 0, P: 0 },
+          'Remaja': { total: 0, L: 0, P: 0 },
+        };
         santri.forEach(s => {
-          if (kelasMap.hasOwnProperty(s.jenjang_saat_ini)) kelasMap[s.jenjang_saat_ini]++;
+          if (!kelasMap.hasOwnProperty(s.jenjang_saat_ini)) return;
+          kelasMap[s.jenjang_saat_ini].total++;
+          const g = String(s.gender).toUpperCase();
+          if (g === 'L' || g === 'P') kelasMap[s.jenjang_saat_ini][g]++;
         });
 
         const kelasIds = {
@@ -3602,12 +3735,14 @@
         };
 
         Object.keys(kelasMap).forEach(jenjang => {
-          const count = kelasMap[jenjang];
+          const { total: count, L, P } = kelasMap[jenjang];
           const pct = total > 0 ? Math.round((count / total) * 100) : 0;
           const baseId = kelasIds[jenjang];
           document.getElementById(baseId).textContent = count;
           document.getElementById(baseId + 'Pct').textContent = pct + '%';
           document.getElementById(baseId + 'Bar').style.width = pct + '%';
+          document.getElementById(baseId + '_L').textContent = L;
+          document.getElementById(baseId + '_P').textContent = P;
         });
       })
       .serverGetSantriList(window.currentToken, kelompokId);
