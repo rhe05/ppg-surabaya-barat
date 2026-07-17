@@ -26,7 +26,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'users', ['id', 'nama', 'username', 'password_hash', 'role', 'scope_type', 'scope_id', 'email', 'status', 'created_at', 'updated_at', 'created_by']);
 
   // 3. DATA SANTRI & GURU
-  createSheetIfNotExists(ss, 'santri', ['id', 'kelompok_id', 'nama', 'nis', 'gender', 'tanggal_lahir', 'jenjang_saat_ini']);
+  createSheetIfNotExists(ss, 'santri', ['id', 'kelompok_id', 'nama', 'nis', 'gender', 'tanggal_lahir', 'jenjang_saat_ini', 'nama_panggilan', 'tempat_lahir', 'pendidikan', 'kelas_sekolah', 'kelas_ngaji', 'alamat', 'nama_ayah', 'nama_ibu']);
   createSheetIfNotExists(ss, 'guru', ['id', 'kelompok_id', 'nama', 'kategori', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'mulai_mengajar', 'alamat', 'nomor_wa', 'pendidikan']);
   createSheetIfNotExists(ss, 'riwayat_jenjang', ['id', 'santri_id', 'jenjang_lama', 'jenjang_baru', 'tanggal', 'catatan', 'dicatat_oleh']);
 
@@ -60,8 +60,9 @@ function setupDatabaseStructure() {
 
   console.log('✅ Semua 16 sheet berhasil dibuat atau sudah ada.');
 
-  // Migrasi: tambah kolom baru ke sheet 'guru' yang sudah ada (aman dijalankan berulang)
+  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);
+  migrateSantriSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -91,6 +92,29 @@ function migrateGuruSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "guru" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'santri' yang SUDAH ADA: tambah kolom baru di akhir jika belum ada
+ * (nama_panggilan, tempat_lahir, pendidikan, kelas_sekolah, kelas_ngaji, alamat, nama_ayah, nama_ibu).
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migrateSantriSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('santri');
+  if (!sheet) return;
+
+  const newColumns = ['nama_panggilan', 'tempat_lahir', 'pendidikan', 'kelas_sekolah', 'kelas_ngaji', 'alamat', 'nama_ayah', 'nama_ibu'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "santri" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "santri" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**

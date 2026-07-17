@@ -57,6 +57,14 @@ function serverAddSantri(token, kelompokId, santriData) {
     santriData.gender,
     santriData.tanggal_lahir,
     santriData.jenjang_saat_ini,
+    santriData.nama_panggilan || '',
+    santriData.tempat_lahir || '',
+    santriData.pendidikan || '',
+    santriData.kelas_sekolah || '',
+    santriData.kelas_ngaji || '',
+    santriData.alamat || '',
+    santriData.nama_ayah || '',
+    santriData.nama_ibu || '',
   ]);
 
   logAudit('santri', id, 'create', user.id, JSON.stringify(santriData));
@@ -83,9 +91,17 @@ function serverUpdateSantri(token, santriId, santriData) {
     gender: santriData.gender || santri.gender,
     tanggal_lahir: santriData.tanggal_lahir || santri.tanggal_lahir,
     jenjang_saat_ini: santriData.jenjang_saat_ini || santri.jenjang_saat_ini,
+    nama_panggilan: santriData.nama_panggilan !== undefined ? santriData.nama_panggilan : santri.nama_panggilan,
+    tempat_lahir: santriData.tempat_lahir !== undefined ? santriData.tempat_lahir : santri.tempat_lahir,
+    pendidikan: santriData.pendidikan !== undefined ? santriData.pendidikan : santri.pendidikan,
+    kelas_sekolah: santriData.kelas_sekolah !== undefined ? santriData.kelas_sekolah : santri.kelas_sekolah,
+    kelas_ngaji: santriData.kelas_ngaji !== undefined ? santriData.kelas_ngaji : santri.kelas_ngaji,
+    alamat: santriData.alamat !== undefined ? santriData.alamat : santri.alamat,
+    nama_ayah: santriData.nama_ayah !== undefined ? santriData.nama_ayah : santri.nama_ayah,
+    nama_ibu: santriData.nama_ibu !== undefined ? santriData.nama_ibu : santri.nama_ibu,
   };
 
-  updateRowByQuery(SHEET_NAMES.SANTRI, { id: santriId }, updates);
+  updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);
   logAudit('santri', santriId, 'update', user.id, JSON.stringify(updates));
   return { success: true, message: 'Santri berhasil diperbarui.' };
 }
@@ -104,7 +120,7 @@ function serverDeleteSantri(token, santriId) {
     return { success: false, error: 'Anda tidak memiliki akses ke Santri ini.' };
   }
 
-  deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santriId });
+  deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id });
   logAudit('santri', santriId, 'delete', user.id, 'deleted');
   return { success: true, message: 'Santri berhasil dihapus.' };
 }
