@@ -11,6 +11,7 @@
       --volt: #FBBF24;
       --red: #DC2626;
       --indigo: #4F46E5;
+      --teal: #0D9488;
       --panel: #FFFFFF;
       --panel-2: #F9FAFB;
       --bg: #F8FAFC;
@@ -574,6 +575,7 @@
     .guru-dash-kpi-card.accent-sage .guru-dash-kpi-value { color: var(--sage); }
     .guru-dash-kpi-card.accent-volt .guru-dash-kpi-value { color: var(--volt); }
     .guru-dash-kpi-card.accent-indigo .guru-dash-kpi-value { color: var(--indigo); }
+    .guru-dash-kpi-card.accent-teal .guru-dash-kpi-value { color: var(--teal); }
 
     .guru-dash-kpi-bar {
       margin-top: 16px;
@@ -664,8 +666,19 @@
       margin-bottom: 14px;
     }
 
-    #dataGuruKpiRow {
+    #dataGuruKpiRow,
+    #dataGenerusKpiRow {
       margin-bottom: 14px;
+    }
+
+    .guru-dash-toggle-precise {
+      min-width: 152px;
+      justify-content: center;
+    }
+
+    .guru-dash-add-precise {
+      min-width: 112px;
+      text-align: center;
     }
 
     #generusJenjangRow {
@@ -1903,11 +1916,11 @@
         <div class="dash-section-title" id="dataGuruTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Guru</span>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
               <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
-              <span id="guruTableToggleLabel">Lihat Daftar Guru</span>
+              <span id="guruTableToggleLabel">Daftar Guru</span>
             </button>
-            <button class="btn btn-primary" onclick="window.openModalGuruKelp()">+ Tambah Guru</button>
+            <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGuruKelp()">+ Guru</button>
           </div>
         </div>
 
@@ -2052,15 +2065,15 @@
         <div class="dash-section-title" id="dataGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Generus</span>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
               <span class="guru-dash-toggle-caret" id="santriTableToggleCaret">▸</span>
-              <span id="santriTableToggleLabel">Lihat Daftar Generus</span>
+              <span id="santriTableToggleLabel">Daftar Generus</span>
             </button>
-            <button class="btn btn-primary" onclick="window.openModalGenerusKelp()">+ Generus</button>
+            <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGenerusKelp()">+ Generus</button>
           </div>
         </div>
 
-        <div class="guru-dash-kpi-row">
+        <div class="guru-dash-kpi-row" id="dataGenerusKpiRow">
           <div class="guru-dash-kpi-card accent-brass">
             <div class="guru-dash-kpi-label">Total Generus</div>
             <div class="guru-dash-kpi-value-row">
@@ -2136,23 +2149,23 @@
             <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasPraRemaja_L">0</b> &nbsp; P: <b id="kdKelasPraRemaja_P">0</b></div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-brass">
+          <div class="guru-dash-kpi-card accent-indigo">
             <div class="guru-dash-kpi-label">Remaja SMA</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="kdKelasRemajaSMA">0</span>
               <span class="guru-dash-kpi-unit" id="kdKelasRemajaSMAPct">0%</span>
             </div>
-            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaSMABar" style="width: 0%; background: var(--brass);"></div></div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaSMABar" style="width: 0%; background: var(--indigo);"></div></div>
             <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasRemajaSMA_L">0</b> &nbsp; P: <b id="kdKelasRemajaSMA_P">0</b></div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-sage">
+          <div class="guru-dash-kpi-card accent-teal">
             <div class="guru-dash-kpi-label">Remaja Pra Nikah</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="kdKelasRemaja">0</span>
               <span class="guru-dash-kpi-unit" id="kdKelasRemajaPct">0%</span>
             </div>
-            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaBar" style="width: 0%; background: var(--sage);"></div></div>
+            <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaBar" style="width: 0%; background: var(--teal);"></div></div>
             <div class="guru-dash-kpi-gendersplit">L: <b id="kdKelasRemaja_L">0</b> &nbsp; P: <b id="kdKelasRemaja_P">0</b></div>
           </div>
         </div>
@@ -3395,7 +3408,7 @@
 
     wrapper.style.display = isHidden ? 'block' : 'none';
     btn.classList.toggle('open', isHidden);
-    label.textContent = isHidden ? 'Sembunyikan Daftar Generus' : 'Lihat Daftar Generus';
+    label.textContent = isHidden ? 'Sembunyikan Daftar Generus' : 'Daftar Generus';
   };
 
   window.openModalGenerusKelp = function () {
@@ -3440,7 +3453,7 @@
 
     wrapper.style.display = isHidden ? 'block' : 'none';
     btn.classList.toggle('open', isHidden);
-    label.textContent = isHidden ? 'Sembunyikan Daftar Guru' : 'Lihat Daftar Guru';
+    label.textContent = isHidden ? 'Sembunyikan Daftar Guru' : 'Daftar Guru';
   };
 
   /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
