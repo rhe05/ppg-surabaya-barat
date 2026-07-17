@@ -946,32 +946,75 @@
     }
 
     /* ═════ TABEL DAFTAR GURU — DASHBOARD KELOMPOK (premium) ═════ */
+    .guru-kelp-table-wrapper {
+      border-radius: var(--radius-lg);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.12);
+    }
+
+    #guruTableToggleBtn.active-state {
+      background: rgba(217, 119, 6, 0.1);
+      border-color: var(--brass);
+      color: var(--brass);
+    }
+
     .guru-kelp-table-toolbar {
       display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 16px 16px 0;
+      gap: 12px;
+      padding: 18px 18px 16px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .guru-kelp-table-scope-label {
+    .guru-kelp-filter-select {
       flex-shrink: 0;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--brass);
-      background: rgba(217, 119, 6, 0.08);
-      padding: 6px 12px;
+      width: auto;
+      padding: 9px 32px 9px 14px;
+      border: 1px solid var(--border);
       border-radius: 999px;
-      white-space: nowrap;
+      background: var(--panel-2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .guru-kelp-filter-select:focus {
+      outline: none;
+      border-color: var(--brass);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.12);
     }
 
     .guru-kelp-search-input {
       margin-bottom: 0 !important;
+      border-radius: 999px !important;
+    }
+
+    .guru-kelp-search-input:focus {
+      outline: none;
+      border-color: var(--brass);
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.1);
     }
 
     .guru-kelp-table-wrapper .data-table {
-      margin-top: 14px;
+      margin-top: 0;
+    }
+
+    .guru-kelp-table-wrapper .data-table thead {
+      border-bottom: 2px solid var(--border);
+    }
+
+    .guru-kelp-table-wrapper .data-table th {
+      letter-spacing: 0.05em;
+    }
+
+    .guru-kelp-table-wrapper .data-table tbody tr {
+      transition: background 0.15s ease;
+    }
+
+    .guru-kelp-table-wrapper .data-table tbody tr:hover {
+      background: var(--panel-2);
     }
 
     .guru-kelp-name-cell {
@@ -983,23 +1026,33 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      width: 28px;
-      height: 28px;
+      width: 30px;
+      height: 30px;
       border-radius: 50%;
       background: var(--panel-2);
-      color: var(--brass);
+      border: 1.5px solid var(--border);
+      color: var(--text-dim);
       font-weight: 700;
       font-size: 12px;
-      margin-right: 10px;
+      margin-right: 12px;
       flex-shrink: 0;
+    }
+
+    .guru-kelp-avatar.avatar-tugasan { border-color: var(--sage); color: var(--sage); }
+    .guru-kelp-avatar.avatar-setempat { border-color: #d9a441; color: #92650a; }
+    .guru-kelp-avatar.avatar-bantu { border-color: var(--indigo); color: var(--indigo); }
+
+    .guru-kelp-name-text {
+      font-weight: 600;
     }
 
     .guru-kelp-badge {
       display: inline-block;
-      padding: 3px 10px;
+      padding: 4px 11px;
       border-radius: 999px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
+      letter-spacing: 0.02em;
       background: var(--panel-2);
       color: var(--text-dim);
     }
@@ -1017,6 +1070,23 @@
     .guru-kelp-badge.badge-bantu {
       background: rgba(79, 70, 229, 0.1);
       color: var(--indigo);
+    }
+
+    .guru-kelp-aksi-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .guru-kelp-aksi-group .btn-icon {
+      border-radius: 50%;
+      padding: 6px;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
     }
 
     .guru-kelp-umur-badge {
@@ -2084,7 +2154,7 @@
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGuru()">
               <span>Ekspor</span>
             </button>
-            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="guruTableToggleBtn" onclick="window.openModalDaftarGuru()" ondblclick="window.closeGuruDashTable_()">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="guruTableToggleBtn" onclick="window.toggleGuruDashTable_()">
               <span id="guruTableToggleLabel">Daftar Guru</span>
             </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGuruKelp()">+ Guru</button>
@@ -2130,7 +2200,13 @@
 
         <div class="data-table-wrapper guru-kelp-table-wrapper" id="guruDashTableWrapper" style="display: none;">
           <div class="guru-kelp-table-toolbar">
-            <span class="guru-kelp-table-scope-label" id="guruDashScopeLabel">Semua Guru</span>
+            <select class="guru-kelp-filter-select" id="guruDashScopeSelect" onchange="window.filterGuruDashTable_(document.getElementById('guruDashSearchInput').value)">
+              <option value="all">Semua Guru</option>
+              <option value="Guru Bantu">Guru Bantu</option>
+              <option value="Muballigh Tugasan">Muballigh Tugasan</option>
+              <option value="Muballigh Setempat">Muballigh Setempat</option>
+              <option value="TotalGuruKBM">Total Guru KBM</option>
+            </select>
             <input type="text" class="search-input guru-kelp-search-input" id="guruDashSearchInput" placeholder="Cari nama guru..." oninput="window.filterGuruDashTable_(this.value)">
           </div>
           <table class="data-table">
@@ -2250,41 +2326,6 @@
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalGuruKelp()">Batal</button>
               <button class="btn btn-primary" onclick="window.saveGuruKelp()">Simpan</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Modal Daftar Guru — pilih data yang mau ditampilkan (khusus Dashboard Kelompok) -->
-        <div class="modal-overlay" id="modalDaftarGuru">
-          <div class="modal-content" style="max-width: 420px;">
-            <div class="modal-header">
-              <span>Tampilkan Data</span>
-              <button class="modal-close-btn" onclick="window.closeModalDaftarGuru()">×</button>
-            </div>
-
-            <div class="form-group">
-              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="daftarGuruScope" value="Guru Bantu" checked> Guru Bantu
-                </label>
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="daftarGuruScope" value="Muballigh Tugasan"> Muballigh Tugasan
-                </label>
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="daftarGuruScope" value="Muballigh Setempat"> Muballigh Setempat
-                </label>
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="daftarGuruScope" value="TotalGuruKBM"> Total Guru KBM
-                </label>
-                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="daftarGuruScope" value="all"> Semua Guru
-                </label>
-              </div>
-            </div>
-
-            <div class="modal-footer">
-              <button class="btn btn-secondary" onclick="window.closeModalDaftarGuru()">Batal</button>
-              <button class="btn btn-primary" onclick="window.confirmDaftarGuru()">Tampilkan</button>
             </div>
           </div>
         </div>
@@ -3895,10 +3936,6 @@
       .serverExportSantriKelpXlsx(window.currentToken, window.currentKelompokId, scope);
   };
 
-  window.closeGuruDashTable_ = function () {
-    document.getElementById('guruDashTableWrapper').style.display = 'none';
-  };
-
   /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
   window.ppgDatePickerState = {};
 
@@ -4132,8 +4169,7 @@
         document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
         document.getElementById('gdBantuBar').style.width = bantuPct + '%';
 
-        // Tabel guru dirender saat modal "Daftar Guru" dikonfirmasi (lihat confirmDaftarGuru),
-        // tapi kalau wrapper-nya sedang terbuka (mis. setelah tambah/edit/hapus), refresh in-place.
+        // Tabel guru selalu di-refresh kalau wrapper-nya sedang terbuka (mis. setelah tambah/edit/hapus).
         if (document.getElementById('guruDashTableWrapper').style.display !== 'none') {
           window.renderGuruDashTable_(guru, window.guruTableScope || 'all', window.guruDashSearchQuery || '');
         }
@@ -4141,38 +4177,28 @@
       .serverGetGuruList(window.currentToken, kelompokId);
   };
 
-  window.guruDaftarScopeLabels_ = {
-    'Guru Bantu': 'Guru Bantu',
-    'Muballigh Tugasan': 'Muballigh Tugasan',
-    'Muballigh Setempat': 'Muballigh Setempat',
-    'TotalGuruKBM': 'Total Guru KBM',
-    'all': 'Semua Guru',
-  };
+  window.toggleGuruDashTable_ = function () {
+    const wrapper = document.getElementById('guruDashTableWrapper');
+    const btn = document.getElementById('guruTableToggleBtn');
+    const isOpening = wrapper.style.display === 'none';
 
-  window.openModalDaftarGuru = function () {
-    document.getElementById('modalDaftarGuru').classList.add('active');
-  };
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
 
-  window.closeModalDaftarGuru = function () {
-    document.getElementById('modalDaftarGuru').classList.remove('active');
-  };
-
-  window.confirmDaftarGuru = function () {
-    const scope = document.querySelector('input[name="daftarGuruScope"]:checked')?.value || 'all';
-    window.guruTableScope = scope;
-    window.guruDashSearchQuery = '';
-    window.closeModalDaftarGuru();
-
-    document.getElementById('guruDashScopeLabel').textContent = window.guruDaftarScopeLabels_[scope] || 'Semua Guru';
-    const searchInput = document.getElementById('guruDashSearchInput');
-    if (searchInput) searchInput.value = '';
-    document.getElementById('guruDashTableWrapper').style.display = 'block';
-    window.renderGuruDashTable_(window.lastGuruListData || [], scope, '');
+    if (isOpening) {
+      document.getElementById('guruDashScopeSelect').value = 'all';
+      document.getElementById('guruDashSearchInput').value = '';
+      window.guruTableScope = 'all';
+      window.guruDashSearchQuery = '';
+      window.renderGuruDashTable_(window.lastGuruListData || [], 'all', '');
+    }
   };
 
   window.filterGuruDashTable_ = function (query) {
     window.guruDashSearchQuery = query;
-    window.renderGuruDashTable_(window.lastGuruListData || [], window.guruTableScope || 'all', query);
+    const scope = document.getElementById('guruDashScopeSelect').value;
+    window.guruTableScope = scope;
+    window.renderGuruDashTable_(window.lastGuruListData || [], scope, query);
   };
 
   window.renderGuruDashTable_ = function (guru, scope, search) {
@@ -4198,18 +4224,26 @@
       'Muballigh Setempat': 'badge-setempat',
       'Guru Bantu': 'badge-bantu',
     };
+    const avatarClassMap = {
+      'Muballigh Tugasan': 'avatar-tugasan',
+      'Muballigh Setempat': 'avatar-setempat',
+      'Guru Bantu': 'avatar-bantu',
+    };
 
     list.forEach((g, i) => {
       const tr = document.createElement('tr');
       const initial = String(g.nama || '?').trim().charAt(0).toUpperCase();
       const badgeClass = badgeClassMap[g.kategori] || '';
+      const avatarClass = avatarClassMap[g.kategori] || '';
       tr.innerHTML = `
         <td>${i + 1}</td>
-        <td><div class="guru-kelp-name-cell"><span class="guru-kelp-avatar">${initial}</span>${window.escapeHtmlExport_(g.nama)}</div></td>
+        <td><div class="guru-kelp-name-cell"><span class="guru-kelp-avatar ${avatarClass}">${initial}</span><span class="guru-kelp-name-text">${window.escapeHtmlExport_(g.nama)}</span></div></td>
         <td><span class="guru-kelp-badge ${badgeClass}">${window.escapeHtmlExport_(g.kategori)}</span></td>
         <td style="text-align: center;">
-          <button class="btn-icon" onclick="window.editGuruKelp('${g.id}')" title="Edit">✎</button>
-          <button class="btn-icon danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">✕</button>
+          <span class="guru-kelp-aksi-group">
+            <button class="btn-icon" onclick="window.editGuruKelp('${g.id}')" title="Edit">✎</button>
+            <button class="btn-icon danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">✕</button>
+          </span>
         </td>
       `;
       tbody.appendChild(tr);
