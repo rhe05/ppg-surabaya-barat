@@ -112,14 +112,6 @@
     window.hideGlobalLoading_();
     document.getElementById('screenLogin').style.display = 'none';
     document.getElementById('appLayout').style.display = 'flex';
-    const roleLabel = {
-      admin_kelompok: 'Admin Kelompok',
-      admin_desa: 'Admin Desa',
-      admin_ppg: 'Admin PPG',
-    }[user.role] || user.role;
-    document.getElementById('dashHeaderAdminName').textContent = user.nama.split(' ')[0];
-    document.getElementById('dashHeaderAdminRole').textContent = roleLabel;
-    document.getElementById('dashHeaderAdminAvatar').textContent = user.nama[0].toUpperCase();
 
     // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
     document.getElementById('menuDesaToggle').style.display = (user.role === 'admin_ppg') ? 'flex' : 'none';
