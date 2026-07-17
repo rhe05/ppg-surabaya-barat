@@ -1920,6 +1920,9 @@
               <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
               <span id="guruTableToggleLabel">Daftar Guru</span>
             </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" onclick="window.openModalEksporGuru()">
+              <span>Ekspor</span>
+            </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGuruKelp()">+ Guru</button>
           </div>
         </div>
@@ -2061,6 +2064,45 @@
           </div>
         </div>
 
+        <!-- Modal Ekspor Guru (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalEksporGuru">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Ekspor Data Guru</span>
+              <button class="modal-close-btn" onclick="window.closeModalEksporGuru()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGuruFormat" value="excel" checked> Excel
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGuruFormat" value="pdf"> PDF
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data yang diambil</label>
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGuruScope" value="ms" checked> Data MS saja (Muballigh Setempat)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGuruScope" value="all"> Semua Guru
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalEksporGuru()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmEksporGuru()">Unduh</button>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ DATA GENERUS ═══ -->
         <div class="dash-section-title" id="dataGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Generus</span>
@@ -2068,6 +2110,9 @@
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
               <span class="guru-dash-toggle-caret" id="santriTableToggleCaret">▸</span>
               <span id="santriTableToggleLabel">Daftar Generus</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" onclick="window.openModalEksporGenerus()">
+              <span>Ekspor</span>
             </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGenerusKelp()">+ Generus</button>
           </div>
@@ -2220,6 +2265,45 @@
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalGenerusKelp()">Batal</button>
               <button class="btn btn-primary" onclick="window.saveGenerusKelp()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Ekspor Generus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalEksporGenerus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Ekspor Data Generus</span>
+              <button class="modal-close-btn" onclick="window.closeModalEksporGenerus()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGenerusFormat" value="excel" checked> Excel
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGenerusFormat" value="pdf"> PDF
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data yang diambil</label>
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGenerusScope" value="paudtk" checked> Data PAUD-TK saja
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporGenerusScope" value="all"> Semua Generus
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalEksporGenerus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmEksporGenerus()">Unduh</button>
             </div>
           </div>
         </div>
@@ -3445,6 +3529,123 @@
       .serverAddSantri(window.currentToken, window.currentKelompokId, data);
   };
 
+  window.escapeHtmlExport_ = function (str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  };
+
+  window.downloadXlsxFromBase64_ = function (base64, filename) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  window.printPdfList_ = function (title, headers, rows) {
+    const win = window.open('', '_blank');
+    const headHtml = headers.map(h => `<th>${window.escapeHtmlExport_(h)}</th>`).join('');
+    const rowsHtml = rows.map(r => '<tr>' + r.map(c => `<td>${window.escapeHtmlExport_(c)}</td>`).join('') + '</tr>').join('');
+    win.document.write(`
+      <html>
+        <head>
+          <title>${window.escapeHtmlExport_(title)}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; }
+            h1 { font-size: 18px; margin-bottom: 16px; }
+            table { width: 100%; border-collapse: collapse; }
+            th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 12px; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>${window.escapeHtmlExport_(title)}</h1>
+          <table><thead><tr>${headHtml}</tr></thead><tbody>${rowsHtml}</tbody></table>
+          <script>window.onload = function () { window.print(); };<\/script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
+  window.openModalEksporGuru = function () {
+    document.getElementById('modalEksporGuru').classList.add('active');
+  };
+
+  window.closeModalEksporGuru = function () {
+    document.getElementById('modalEksporGuru').classList.remove('active');
+  };
+
+  window.confirmEksporGuru = function () {
+    const format = document.querySelector('input[name="eksporGuruFormat"]:checked')?.value || 'excel';
+    const scope = document.querySelector('input[name="eksporGuruScope"]:checked')?.value || 'all';
+
+    if (format === 'pdf') {
+      const source = window.lastGuruListData || [];
+      const list = scope === 'ms' ? source.filter(g => g.kategori === 'Muballigh Setempat') : source;
+      const title = 'Data Guru — ' + (scope === 'ms' ? 'Muballigh Setempat' : 'Semua Guru');
+      const rows = list.map((g, i) => [i + 1, g.nama || '', g.kategori || '']);
+      window.printPdfList_(title, ['No', 'Nama', 'Kategori'], rows);
+      window.closeModalEksporGuru();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.downloadXlsxFromBase64_(result.base64, result.filename);
+          window.closeModalEksporGuru();
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverExportGuruKelpXlsx(window.currentToken, window.currentKelompokId, scope);
+  };
+
+  window.openModalEksporGenerus = function () {
+    document.getElementById('modalEksporGenerus').classList.add('active');
+  };
+
+  window.closeModalEksporGenerus = function () {
+    document.getElementById('modalEksporGenerus').classList.remove('active');
+  };
+
+  window.confirmEksporGenerus = function () {
+    const format = document.querySelector('input[name="eksporGenerusFormat"]:checked')?.value || 'excel';
+    const scope = document.querySelector('input[name="eksporGenerusScope"]:checked')?.value || 'all';
+
+    if (format === 'pdf') {
+      const source = window.lastSantriListData || [];
+      const list = scope === 'paudtk' ? source.filter(s => s.jenjang_saat_ini === 'AUD') : source;
+      const title = 'Data Generus — ' + (scope === 'paudtk' ? 'PAUD-TK' : 'Semua Generus');
+      const rows = list.map((s, i) => [i + 1, s.nama || '', s.nis || '', s.gender || '', s.jenjang_saat_ini || '']);
+      window.printPdfList_(title, ['No', 'Nama', 'NIS', 'Gender', 'Jenjang'], rows);
+      window.closeModalEksporGenerus();
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.downloadXlsxFromBase64_(result.base64, result.filename);
+          window.closeModalEksporGenerus();
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverExportSantriKelpXlsx(window.currentToken, window.currentKelompokId, scope);
+  };
+
   window.toggleGuruTable = function () {
     const wrapper = document.getElementById('guruDashTableWrapper');
     const btn = document.getElementById('guruTableToggleBtn');
@@ -3661,6 +3862,7 @@
         if (!result.success) return;
 
         const guru = result.data;
+        window.lastGuruListData = guru;
         const total = guru.length;
         const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
         const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
@@ -3707,6 +3909,7 @@
         if (!result.success) return;
 
         const santri = result.data;
+        window.lastSantriListData = santri;
         const total = santri.length;
 
         // --- Ringkasan Santri (gender) ---
