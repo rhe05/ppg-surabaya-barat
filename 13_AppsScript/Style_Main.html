@@ -396,7 +396,7 @@
     .dash-header {
       background: var(--panel);
       border-bottom: 1px solid var(--border);
-      padding: 0 20px;
+      padding: 0 200px 0 20px;
       height: var(--topbar-height);
       box-shadow: var(--shadow-subtle);
       display: flex;
@@ -407,11 +407,9 @@
       flex-shrink: 0;
     }
 
-    /* Card admin — khusus header Dashboard Kelompok (kanan atas) */
-    #screenGuruDashboard .dash-header {
-      justify-content: space-between;
-    }
-
+    /* Card admin — global, fixed kanan atas viewport, tampil di SEMUA screen
+       (bukan child dari .dash-header, jadi tidak ikut disembunyikan saat
+       .screen-wrapper lain yang aktif) */
     .dash-header-admin-card {
       display: flex;
       align-items: center;
@@ -420,7 +418,12 @@
       border-radius: 999px;
       background: var(--panel-2);
       border: 1px solid var(--border);
+      box-shadow: var(--shadow-subtle);
       flex-shrink: 0;
+      position: fixed;
+      top: 16px;
+      right: 20px;
+      z-index: 40;
     }
 
     .dash-header-admin-avatar {
@@ -1662,7 +1665,7 @@
 
       .dash-header {
         height: auto;
-        padding: 16px;
+        padding: 16px 56px 16px 16px;
         padding-top: 70px;
       }
 
