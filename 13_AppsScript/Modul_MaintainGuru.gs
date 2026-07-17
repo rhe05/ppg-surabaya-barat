@@ -81,6 +81,13 @@ function serverUpdateGuru(token, guruId, guruData) {
   const updates = {
     nama: guruData.nama?.trim() || guru.nama,
     kategori: guruData.kategori || guru.kategori,
+    jenis_kelamin: guruData.jenis_kelamin !== undefined ? guruData.jenis_kelamin : guru.jenis_kelamin,
+    tempat_lahir: guruData.tempat_lahir !== undefined ? guruData.tempat_lahir : guru.tempat_lahir,
+    tanggal_lahir: guruData.tanggal_lahir !== undefined ? guruData.tanggal_lahir : guru.tanggal_lahir,
+    mulai_mengajar: guruData.mulai_mengajar !== undefined ? guruData.mulai_mengajar : guru.mulai_mengajar,
+    alamat: guruData.alamat !== undefined ? guruData.alamat : guru.alamat,
+    nomor_wa: guruData.nomor_wa !== undefined ? guruData.nomor_wa : guru.nomor_wa,
+    pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };
 
   updateRowByQuery(SHEET_NAMES.GURU, { id: guruId }, updates);

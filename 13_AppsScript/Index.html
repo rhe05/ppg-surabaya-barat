@@ -945,6 +945,80 @@
       }
     }
 
+    /* ═════ TABEL DAFTAR GURU — DASHBOARD KELOMPOK (premium) ═════ */
+    .guru-kelp-table-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 16px 0;
+    }
+
+    .guru-kelp-table-scope-label {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--brass);
+      background: rgba(217, 119, 6, 0.08);
+      padding: 6px 12px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .guru-kelp-search-input {
+      margin-bottom: 0 !important;
+    }
+
+    .guru-kelp-table-wrapper .data-table {
+      margin-top: 14px;
+    }
+
+    .guru-kelp-name-cell {
+      display: flex;
+      align-items: center;
+    }
+
+    .guru-kelp-avatar {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--panel-2);
+      color: var(--brass);
+      font-weight: 700;
+      font-size: 12px;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+
+    .guru-kelp-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--panel-2);
+      color: var(--text-dim);
+    }
+
+    .guru-kelp-badge.badge-tugasan {
+      background: rgba(5, 150, 105, 0.1);
+      color: var(--sage);
+    }
+
+    .guru-kelp-badge.badge-setempat {
+      background: rgba(251, 191, 36, 0.18);
+      color: #92650a;
+    }
+
+    .guru-kelp-badge.badge-bantu {
+      background: rgba(79, 70, 229, 0.1);
+      color: var(--indigo);
+    }
+
     .guru-kelp-umur-badge {
       display: inline-flex;
       margin-top: 8px;
@@ -2007,15 +2081,12 @@
         <div class="dash-section-title" id="dataGuruTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Guru</span>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="guruTableToggleBtn" onclick="window.toggleGuruTable()">
-                <span class="guru-dash-toggle-caret" id="guruTableToggleCaret">▸</span>
-                <span id="guruTableToggleLabel">Daftar Guru</span>
-              </button>
-              <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGuru()">
-                <span>Ekspor</span>
-              </button>
-            </div>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGuru()">
+              <span>Ekspor</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="guruTableToggleBtn" onclick="window.openModalDaftarGuru()" ondblclick="window.closeGuruDashTable_()">
+              <span id="guruTableToggleLabel">Daftar Guru</span>
+            </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGuruKelp()">+ Guru</button>
           </div>
         </div>
@@ -2057,10 +2128,10 @@
           </div>
         </div>
 
-        <div class="data-table-wrapper" id="guruDashTableWrapper" style="display: none;">
-          <div class="table-limit-toggle" id="guruTableLimitToggle">
-            <button type="button" class="table-limit-btn active" onclick="window.setGuruTableLimit_(10, this)">Beberapa</button>
-            <button type="button" class="table-limit-btn" onclick="window.setGuruTableLimit_('all', this)">Semua</button>
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="guruDashTableWrapper" style="display: none;">
+          <div class="guru-kelp-table-toolbar">
+            <span class="guru-kelp-table-scope-label" id="guruDashScopeLabel">Semua Guru</span>
+            <input type="text" class="search-input guru-kelp-search-input" id="guruDashSearchInput" placeholder="Cari nama guru..." oninput="window.filterGuruDashTable_(this.value)">
           </div>
           <table class="data-table">
             <thead>
@@ -2068,10 +2139,11 @@
                 <th style="width: 50px;">#</th>
                 <th>Nama</th>
                 <th>Kategori</th>
+                <th style="width: 90px; text-align: center;">Aksi</th>
               </tr>
             </thead>
             <tbody id="guruDashTableBody">
-              <tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
             </tbody>
           </table>
         </div>
@@ -2081,7 +2153,7 @@
           <div class="modal-content">
             <div class="modal-header">
               <div>
-                <span>Tambah Guru</span>
+                <span id="modalGuruKelpTitle">Tambah Guru</span>
                 <div class="guru-kelp-modal-subtitle">Lengkapi biodata guru untuk kelompok ini</div>
               </div>
               <button class="modal-close-btn" onclick="window.closeModalGuruKelp()">×</button>
@@ -2182,6 +2254,41 @@
           </div>
         </div>
 
+        <!-- Modal Daftar Guru — pilih data yang mau ditampilkan (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDaftarGuru">
+          <div class="modal-content" style="max-width: 420px;">
+            <div class="modal-header">
+              <span>Tampilkan Data</span>
+              <button class="modal-close-btn" onclick="window.closeModalDaftarGuru()">×</button>
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 4px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="daftarGuruScope" value="Guru Bantu" checked> Guru Bantu
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="daftarGuruScope" value="Muballigh Tugasan"> Muballigh Tugasan
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="daftarGuruScope" value="Muballigh Setempat"> Muballigh Setempat
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="daftarGuruScope" value="TotalGuruKBM"> Total Guru KBM
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="daftarGuruScope" value="all"> Semua Guru
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDaftarGuru()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmDaftarGuru()">Tampilkan</button>
+            </div>
+          </div>
+        </div>
+
         <!-- Modal Ekspor Guru (khusus Dashboard Kelompok) -->
         <div class="modal-overlay" id="modalEksporGuru">
           <div class="modal-content">
@@ -2225,15 +2332,12 @@
         <div class="dash-section-title" id="dataGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Generus</span>
           <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
-                <span class="guru-dash-toggle-caret" id="santriTableToggleCaret">▸</span>
-                <span id="santriTableToggleLabel">Daftar Generus</span>
-              </button>
-              <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGenerus()">
-                <span>Ekspor</span>
-              </button>
-            </div>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporGenerus()">
+              <span>Ekspor</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="santriTableToggleBtn" onclick="window.toggleSantriTable()">
+              <span id="santriTableToggleLabel">Daftar Generus</span>
+            </button>
             <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalGenerusKelp()">+ Generus</button>
           </div>
         </div>
@@ -3791,15 +3895,8 @@
       .serverExportSantriKelpXlsx(window.currentToken, window.currentKelompokId, scope);
   };
 
-  window.toggleGuruTable = function () {
-    const wrapper = document.getElementById('guruDashTableWrapper');
-    const btn = document.getElementById('guruTableToggleBtn');
-    const label = document.getElementById('guruTableToggleLabel');
-    const isHidden = wrapper.style.display === 'none';
-
-    wrapper.style.display = isHidden ? 'block' : 'none';
-    btn.classList.toggle('open', isHidden);
-    label.textContent = isHidden ? 'Sembunyikan Daftar Guru' : 'Daftar Guru';
+  window.closeGuruDashTable_ = function () {
+    document.getElementById('guruDashTableWrapper').style.display = 'none';
   };
 
   /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
@@ -3950,7 +4047,11 @@
     badge.style.display = 'inline-flex';
   };
 
+  window.currentEditGuruId = null;
+
   window.openModalGuruKelp = function () {
+    window.currentEditGuruId = null;
+    document.getElementById('modalGuruKelpTitle').textContent = 'Tambah Guru';
     document.getElementById('guruKelpNama').value = '';
     document.getElementById('guruKelpKategori').value = '';
     document.getElementById('guruKelpGender').value = '';
@@ -3989,16 +4090,20 @@
       return;
     }
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        if (result.success) {
-          window.closeModalGuruKelp();
-          window.loadKelompokDashboardGuru_(window.currentKelompokId);
-        } else {
-          alert(result.error);
-        }
-      })
-      .serverAddGuru(window.currentToken, window.currentKelompokId, data);
+    const onDone = function (result) {
+      if (result.success) {
+        window.closeModalGuruKelp();
+        window.loadKelompokDashboardGuru_(window.currentKelompokId);
+      } else {
+        alert(result.error);
+      }
+    };
+
+    if (window.currentEditGuruId) {
+      google.script.run.withSuccessHandler(onDone).serverUpdateGuru(window.currentToken, window.currentEditGuruId, data);
+    } else {
+      google.script.run.withSuccessHandler(onDone).serverAddGuru(window.currentToken, window.currentKelompokId, data);
+    }
   };
 
   window.loadKelompokDashboardGuru_ = function (kelompokId) {
@@ -4027,37 +4132,130 @@
         document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
         document.getElementById('gdBantuBar').style.width = bantuPct + '%';
 
-        window.renderGuruDashTable_(guru, window.guruTableLimit || 10);
+        // Tabel guru dirender saat modal "Daftar Guru" dikonfirmasi (lihat confirmDaftarGuru),
+        // tapi kalau wrapper-nya sedang terbuka (mis. setelah tambah/edit/hapus), refresh in-place.
+        if (document.getElementById('guruDashTableWrapper').style.display !== 'none') {
+          window.renderGuruDashTable_(guru, window.guruTableScope || 'all', window.guruDashSearchQuery || '');
+        }
       })
       .serverGetGuruList(window.currentToken, kelompokId);
   };
 
-  window.renderGuruDashTable_ = function (guru, limit) {
+  window.guruDaftarScopeLabels_ = {
+    'Guru Bantu': 'Guru Bantu',
+    'Muballigh Tugasan': 'Muballigh Tugasan',
+    'Muballigh Setempat': 'Muballigh Setempat',
+    'TotalGuruKBM': 'Total Guru KBM',
+    'all': 'Semua Guru',
+  };
+
+  window.openModalDaftarGuru = function () {
+    document.getElementById('modalDaftarGuru').classList.add('active');
+  };
+
+  window.closeModalDaftarGuru = function () {
+    document.getElementById('modalDaftarGuru').classList.remove('active');
+  };
+
+  window.confirmDaftarGuru = function () {
+    const scope = document.querySelector('input[name="daftarGuruScope"]:checked')?.value || 'all';
+    window.guruTableScope = scope;
+    window.guruDashSearchQuery = '';
+    window.closeModalDaftarGuru();
+
+    document.getElementById('guruDashScopeLabel').textContent = window.guruDaftarScopeLabels_[scope] || 'Semua Guru';
+    const searchInput = document.getElementById('guruDashSearchInput');
+    if (searchInput) searchInput.value = '';
+    document.getElementById('guruDashTableWrapper').style.display = 'block';
+    window.renderGuruDashTable_(window.lastGuruListData || [], scope, '');
+  };
+
+  window.filterGuruDashTable_ = function (query) {
+    window.guruDashSearchQuery = query;
+    window.renderGuruDashTable_(window.lastGuruListData || [], window.guruTableScope || 'all', query);
+  };
+
+  window.renderGuruDashTable_ = function (guru, scope, search) {
     const tbody = document.getElementById('guruDashTableBody');
     tbody.innerHTML = '';
 
-    if (guru.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada data guru untuk kelompok ini.</td></tr>';
+    let list = (scope && scope !== 'all' && scope !== 'TotalGuruKBM')
+      ? guru.filter(g => g.kategori === scope)
+      : guru;
+
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter(g => String(g.nama || '').toLowerCase().includes(q));
+    }
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data guru.</td></tr>';
       return;
     }
 
-    const list = limit === 'all' ? guru : guru.slice(0, limit);
+    const badgeClassMap = {
+      'Muballigh Tugasan': 'badge-tugasan',
+      'Muballigh Setempat': 'badge-setempat',
+      'Guru Bantu': 'badge-bantu',
+    };
+
     list.forEach((g, i) => {
       const tr = document.createElement('tr');
+      const initial = String(g.nama || '?').trim().charAt(0).toUpperCase();
+      const badgeClass = badgeClassMap[g.kategori] || '';
       tr.innerHTML = `
         <td>${i + 1}</td>
-        <td>${g.nama}</td>
-        <td>${g.kategori}</td>
+        <td><div class="guru-kelp-name-cell"><span class="guru-kelp-avatar">${initial}</span>${window.escapeHtmlExport_(g.nama)}</div></td>
+        <td><span class="guru-kelp-badge ${badgeClass}">${window.escapeHtmlExport_(g.kategori)}</span></td>
+        <td style="text-align: center;">
+          <button class="btn-icon" onclick="window.editGuruKelp('${g.id}')" title="Edit">✎</button>
+          <button class="btn-icon danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">✕</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
   };
 
-  window.setGuruTableLimit_ = function (limit, btnEl) {
-    window.guruTableLimit = limit;
-    document.querySelectorAll('#guruTableLimitToggle .table-limit-btn').forEach(btn => btn.classList.remove('active'));
-    if (btnEl) btnEl.classList.add('active');
-    window.renderGuruDashTable_(window.lastGuruListData || [], limit);
+  window.formatTanggalDisplay_ = function (dateStr) {
+    if (!dateStr) return '';
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const d = new Date(dateStr + 'T00:00:00');
+    return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  window.editGuruKelp = function (id) {
+    const g = (window.lastGuruListData || []).find(x => String(x.id) === String(id));
+    if (!g) return;
+
+    window.currentEditGuruId = id;
+    document.getElementById('guruKelpNama').value = g.nama || '';
+    document.getElementById('guruKelpKategori').value = g.kategori || '';
+    document.getElementById('guruKelpGender').value = g.jenis_kelamin || '';
+    document.getElementById('guruKelpTempatLahir').value = g.tempat_lahir || '';
+    document.getElementById('guruKelpTglLahir').value = g.tanggal_lahir || '';
+    document.getElementById('guruKelpTglLahirDisplay').value = window.formatTanggalDisplay_(g.tanggal_lahir);
+    document.getElementById('guruKelpMulaiMengajar').value = g.mulai_mengajar || '';
+    document.getElementById('guruKelpMulaiMengajarDisplay').value = window.formatTanggalDisplay_(g.mulai_mengajar);
+    document.getElementById('guruKelpAlamat').value = g.alamat || '';
+    document.getElementById('guruKelpNomorWA').value = g.nomor_wa || '';
+    document.getElementById('guruKelpPendidikan').value = g.pendidikan || '';
+    document.getElementById('modalGuruKelpTitle').textContent = 'Edit Guru';
+    window.updateGuruKelpUmur();
+    document.getElementById('modalGuruKelp').classList.add('active');
+  };
+
+  window.deleteGuruKelp = function (id) {
+    if (!confirm('Hapus guru ini?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.loadKelompokDashboardGuru_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .serverDeleteGuru(window.currentToken, id);
   };
 
   window.loadKelompokDashboardSantriKelas_ = function (kelompokId) {
