@@ -6,10 +6,20 @@
 
 ## Struktur repo
 
+> ⚠️ **2026-07-18: Index.html DIPECAH** jadi 4 file via pola HtmlService
+> template `<?!= include('...'); ?>` (`doGet` sekarang pakai
+> `createTemplateFromFile('Index').evaluate()`, bukan `createHtmlOutputFromFile`
+> lagi). Server tetap menggabungkan semuanya jadi SATU output HTML — bug
+> `//` di ERROR_LOG.md #1 tetap berlaku, guardrail `tools/check_local.js`
+> sudah discan ke keempat file.
+
 | Path | Isi | Kapan disentuh |
 |---|---|---|
-| `13_AppsScript/Index.html` | SELURUH frontend (CSS + HTML + JS satu file, ±7300 baris) | Semua perubahan UI |
-| `13_AppsScript/Code.js` | Entry `doGet`, login (`serverLogin`), sesi, `DEV_MODE_SKIP_LOGIN` | Auth/akses |
+| `13_AppsScript/Index.html` | SHELL tipis: `<head>`/`<body>` + 3x `<?!= include(...) ?>`, ±35 baris. **Bukan tempat cari kode CSS/HTML/JS lagi.** | Jarang (hanya struktur shell) |
+| `13_AppsScript/Style_Main.html` | Seluruh CSS (isi `<style>...</style>`, ±1900 baris) | Perubahan tampilan/CSS |
+| `13_AppsScript/Markup_Screens.html` | Seluruh HTML screens & modal (±2190 baris) | Tambah/ubah screen atau modal |
+| `13_AppsScript/Script_Main.html` | Seluruh JS utama (isi `<script>...</script>`, ±3290 baris) | Tambah/ubah logika frontend |
+| `13_AppsScript/Code.js` | Entry `doGet` (`createTemplateFromFile`), `include(filename)` (helper penggabung), login (`serverLogin`), sesi, `DEV_MODE_SKIP_LOGIN` | Auth/akses/struktur shell |
 | `13_AppsScript/Modul_Utilities.gs` | `SHEET_NAMES`, `readSheetAsObjects`, `findRowByQuery` (compare via String — ERROR_LOG #2), `updateRowByQuery`, `deleteRowByQuery`, `getCurrentUser`, `validateUserAccess`, **`withScriptLock_` (wajib untuk semua mutasi — ERROR_LOG #5)**, **cache: `cacheGet_`/`cachePut_`/`cacheDrop_`** (kunci: `guru_k<id>`, `santri_k<id>`) | Helper DB/RBAC/lock/cache |
 | `13_AppsScript/Setup_Database.gs` | Skema semua sheet + `migrateGuruSchemaAddFields_` + `migrateSantriSchemaAddFields_` (⚠️ perlu run manual `setupDatabaseStructure()` di editor Apps Script tiap tambah kolom) | Perubahan skema |
 | `13_AppsScript/Modul_MaintainGuru.gs` | CRUD guru (`serverGetGuruList/Add/Update/Delete`) | Fitur guru |
@@ -21,9 +31,14 @@
 | `tools/verify_served.js` | Ambil & validasi output server SETELAH deploy | Tiap layar putih/anomali |
 | `ERROR_LOG.md` | Riwayat bug + penanganan — **baca duluan saat ada error** | Tiap ada bug baru |
 
-## Navigasi Index.html — cari string penanda ini (grep)
+## Navigasi frontend — cari string penanda ini (grep)
 
-### CSS (blok `<style>`, bagian atas file)
+> Sejak dipecah (lihat catatan di atas): CSS di `Style_Main.html`, HTML di
+> `Markup_Screens.html`, JS di `Script_Main.html`. Grep langsung ke file yang
+> sesuai kategori penanda, JANGAN grep/baca `Index.html` untuk ini (isinya
+> cuma shell).
+
+### CSS → `13_AppsScript/Style_Main.html` (blok `<style>`, bagian atas file)
 - `LOGIN SCREEN` · `APP LAYOUT` · `SIDEBAR: DESA/KELOMPOK TREE`
 - `GLOBAL LOADING OVERLAY` — spinner tengah layar tema brass (boot/simpan/hapus/ekspor)
 - `DASHBOARD GURU (per Kelompok` — KPI card premium Dashboard Kelompok
@@ -36,7 +51,7 @@
 - `MODAL DETAIL GURU/GENERUS` — modal detail read-only
 - `MOBILE OPTIMIZATION` — semua breakpoint responsive
 
-### HTML (screens & modals)
+### HTML → `13_AppsScript/Markup_Screens.html` (screens & modals)
 - `id="screenLogin"` · `id="appLayout"` · `id="screenGuruDashboard"` (Dashboard Kelompok)
 - `id="globalLoadingOverlay"` — spinner global, kontrol via JS di bawah
 - Sidebar: `id="userAvatar"` TIDAK ADA LAGI (kartu admin dipindah ke header Dashboard Kelompok, lihat `id="dashHeaderAdminName/Role/Avatar"`); footer sidebar cuma tombol Keluar
@@ -47,7 +62,7 @@
   `modalDetailGuruKelp` · `modalDetailGenerusKelp` · `modalEksporGuru` ·
   `modalEksporGenerus`
 
-### JavaScript (blok `<script>` kedua = script utama; cari `window.<nama>`)
+### JavaScript → `13_AppsScript/Script_Main.html` (blok `<script>` utama; cari `window.<nama>`)
 - Boot & auth: `window.onload` → `serverCheckDevMode` → `renderApp` · `handleLogin` · `verifySession`
 - Spinner global (WAJIB dipakai untuk semua momen tunggu baru, jangan buat spinner lokal): `showGlobalLoading_(text)` / `hideGlobalLoading_()`
 - Dashboard Kelompok load: `loadKelompokDashboardGuru_` · `loadKelompokDashboardSantriKelas_` · `loadKelompokDashboardAbsen_`

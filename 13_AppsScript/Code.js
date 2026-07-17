@@ -30,10 +30,19 @@ const DEV_MODE_SKIP_LOGIN = true;
  * Dipanggil otomatis saat Web App diakses via URL (GET).
  */
 function doGet(e) {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('PPG - Surabaya Barat')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Dipanggil dari Index.html via <?!= include('NamaFile'); ?> untuk
+ * menggabungkan Style_Main.html / Markup_Screens.html / Script_Main.html
+ * menjadi satu output HTML (pola resmi HtmlService template include).
+ */
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 /**
