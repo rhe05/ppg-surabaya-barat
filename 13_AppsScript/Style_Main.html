@@ -910,12 +910,6 @@
       align-items: start;
     }
 
-    .jadwal-kat-col {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
     .jadwal-kat-card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -987,33 +981,38 @@
       display: none;
     }
 
-    .jadwal-hari-card {
+    .jadwal-hari-row {
       width: 100%;
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 10px 14px;
-      border-radius: var(--radius-lg);
-      border: 1px dashed var(--border);
-      background: var(--panel-2);
+      padding: 9px 16px;
+      border: none;
+      border-bottom: 1px solid var(--border);
+      background: none;
       color: var(--text-dim);
       font-family: inherit;
       font-size: 12px;
       font-weight: 600;
+      text-align: left;
       cursor: pointer;
       transition: all 0.15s;
     }
 
-    .jadwal-hari-card:hover {
-      border-color: var(--brass);
+    .jadwal-hari-row:hover {
       color: var(--brass);
       background: rgba(217, 119, 6, 0.06);
     }
 
-    .jadwal-hari-card svg {
+    .jadwal-kat-card.collapsed .jadwal-hari-row {
+      border-bottom-color: transparent;
+    }
+
+    .jadwal-hari-row svg {
       flex-shrink: 0;
-      width: 15px;
-      height: 15px;
+      width: 14px;
+      height: 14px;
+      color: var(--brass);
     }
 
     .jha-hari-grid {
