@@ -783,8 +783,11 @@
   });
 
   // Tutup date/time picker jika modal (atau area manapun) di-scroll, supaya posisi
-  // popup (position:fixed) tidak meleset dari input pemicunya.
-  document.addEventListener('scroll', function () {
+  // popup (position:fixed) tidak meleset dari input pemicunya. Dikecualikan: scroll
+  // DI DALAM wheel jam/menit sendiri (bubble lewat capture phase ke sini juga) —
+  // kalau tidak dikecualikan, panel langsung menutup diri sendiri saat di-scroll.
+  document.addEventListener('scroll', function (e) {
+    if (e.target && e.target.closest && e.target.closest('.ppg-timepicker-wheel-col')) return;
     document.querySelectorAll('.ppg-datepicker.open, .ppg-timepicker.open').forEach(p => p.classList.remove('open'));
   }, true);
 
