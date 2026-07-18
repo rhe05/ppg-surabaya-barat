@@ -120,6 +120,34 @@ lock + id-dalam-lock + id hasil lookup + cacheDrop + try/catch terstruktur.
 
 ---
 
+## #6 — Layar putih saat klik tombol Refresh (2026-07-18)
+
+**Gejala**: Di Dashboard Kelompok, klik tombol Refresh → layar langsung putih
+total. Bukan bug `//` (bug #1): `tools/verify_served.js` LOLOS, semua blok
+script valid di server.
+
+**Akar masalah**: `window.hardRefresh_` memakai `location.reload()`.
+HtmlService menyajikan HTML kita di dalam **iframe bersarang** berdomain
+`*.googleusercontent.com/userCodeAppPanel`, bukan langsung di `/exec`. Jadi
+`location.reload()` me-reload URL INTERNAL iframe tersebut — URL itu tidak
+bisa disajikan ulang berdiri sendiri → frame kosong → layar putih.
+`window.top.location.reload()` juga bukan solusi: beda origin (script.google.com
+vs googleusercontent.com) → diblokir SecurityError.
+
+**Perbaikan**: refresh dilakukan IN-PLACE, tanpa meninggalkan halaman:
+1. `serverDropKelompokCache(token, kelompokId)` (Modul_Utilities.gs) membuang
+   cache `guru_k*`/`santri_k*` supaya data benar-benar dibaca ulang dari sheet.
+2. Panggil ulang loader layar yang sedang aktif (peta `window.SCREEN_LOADERS_`,
+   atau `loadKelompokDashboard` untuk Dashboard Kelompok).
+3. Spinner ditutup lewat callback `onDone` saat data guru+generus tiba, bukan
+   timer tebak-tebakan.
+
+**Aturan permanen**: **DILARANG memakai `location.reload()` / `window.top.
+location.*` di dalam app Apps Script ini.** Untuk "refresh", panggil ulang
+fungsi pemuat data layar yang aktif.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

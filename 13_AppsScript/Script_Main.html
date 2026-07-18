@@ -117,8 +117,6 @@
     document.getElementById('menuDesaToggle').style.display = (user.role === 'admin_ppg') ? 'flex' : 'none';
 
     window.loadDashboard();
-    // Kalau barusan klik tombol refresh, kembalikan ke layar sebelumnya.
-    window.restoreViewAfterRefresh_();
   }
 
   window.handleLogout = function () {
@@ -858,13 +856,17 @@
     }
   };
 
-  window.loadKelompokDashboardGuru_ = function (kelompokId) {
+  window.loadKelompokDashboardGuru_ = function (kelompokId, onDone) {
+    const finish = function () { if (typeof onDone === 'function') onDone(); };
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) return;
-        window.lastGuruListData = result.data;
-        window.renderGuruKpis_(result.data);
+        if (result.success) {
+          window.lastGuruListData = result.data;
+          window.renderGuruKpis_(result.data);
+        }
+        finish();
       })
+      .withFailureHandler(finish)
       .serverGetGuruList(window.currentToken, kelompokId);
   };
 
@@ -1095,10 +1097,9 @@
     window.fillDatalist_('dlKodePos', both.map(x => x.kode_pos));
   };
 
-  /* ═════ REFRESH — reload penuh, lalu kembali ke layar yang sama ═════
-     Layar aktif disimpan di sessionStorage sebelum location.reload(), lalu
-     dipulihkan setelah boot (lihat renderApp). Jadi refresh benar-benar
-     memuat ulang dari server tapi TIDAK melempar user ke dashboard utama. */
+  /* ═════ REFRESH — ambil ulang data layar yang sedang aktif ═════
+     Peta layar -> fungsi pemuat datanya, dipakai window.hardRefresh_ agar user
+     tetap berada di layar yang sama setelah refresh. */
   window.SCREEN_LOADERS_ = {
     screenDashboard: function () { window.loadDashboard(); },
     screenSantri: function () { window.loadSantriList(); },
@@ -1112,49 +1113,30 @@
     screenUserManagement: function () { window.loadUserManagement(); },
   };
 
-  window.setSidebarActive_ = function (screenId) {
-    document.querySelectorAll('.sidebar-menu-link').forEach(l => {
-      const oc = l.getAttribute('onclick') || '';
-      const m = oc.match(/switchScreen\('([^']+)'\)/);
-      const target = m ? 'screen' + m[1].charAt(0).toUpperCase() + m[1].slice(1) : '';
-      l.classList.toggle('active', target.toLowerCase() === String(screenId).toLowerCase());
-    });
-  };
-
+  /* ⚠️ JANGAN pakai location.reload() di sini (ERROR_LOG.md #6):
+     HtmlService menyajikan app di dalam iframe googleusercontent, sehingga
+     reload me-muat ulang URL internal iframe -> LAYAR PUTIH. Refresh dilakukan
+     in-place: buang cache server, ambil ulang data layar yang sedang aktif. */
   window.hardRefresh_ = function () {
     const active = document.querySelector('.screen-wrapper.active');
     const id = active ? active.id : 'screenDashboard';
-    const view = (id === 'screenGuruDashboard')
-      ? { screen: id, kelompokId: window.currentKelompokId, kelompokName: window.currentKelompokName || document.getElementById('guruDashKelompokBadge').textContent }
-      : { screen: id };
-    try { sessionStorage.setItem('ppg_view', JSON.stringify(view)); } catch (e) {}
-    window.showGlobalLoading_('Memuat ulang...');
-    location.reload();
-  };
+    window.showGlobalLoading_('Memuat ulang data...');
 
-  window.restoreViewAfterRefresh_ = function () {
-    let saved = null;
-    try { saved = JSON.parse(sessionStorage.getItem('ppg_view') || 'null'); } catch (e) {}
-    try { sessionStorage.removeItem('ppg_view'); } catch (e) {}
-    if (!saved || !saved.screen || saved.screen === 'screenDashboard') return;
-
-    const el = document.getElementById(saved.screen);
-    if (!el) return;
-
-    document.querySelectorAll('.screen-wrapper').forEach(w => w.classList.remove('active'));
-    el.classList.add('active');
-    document.querySelectorAll('.sidebar-menu-link').forEach(l => l.classList.remove('active'));
-
-    if (saved.screen === 'screenGuruDashboard') {
-      window.currentKelompokId = saved.kelompokId;
-      window.currentKelompokName = saved.kelompokName || '';
-      window.loadKelompokDashboard(saved.kelompokId, saved.kelompokName || '');
+    if (id === 'screenGuruDashboard' && window.currentKelompokId) {
+      const nama = window.currentKelompokName || document.getElementById('guruDashKelompokBadge').textContent;
+      const reload = function () {
+        window.loadKelompokDashboard(window.currentKelompokId, nama, window.hideGlobalLoading_);
+      };
+      google.script.run
+        .withSuccessHandler(reload)
+        .withFailureHandler(reload)
+        .serverDropKelompokCache(window.currentToken, window.currentKelompokId);
       return;
     }
 
-    window.setSidebarActive_(saved.screen);
-    const loader = window.SCREEN_LOADERS_[saved.screen];
+    const loader = window.SCREEN_LOADERS_[id];
     if (loader) loader();
+    setTimeout(window.hideGlobalLoading_, 700);
   };
 
   /* Parser tanggal fleksibel — menerima 3 bentuk yang bisa muncul:
@@ -1362,13 +1344,17 @@
     });
   };
 
-  window.loadKelompokDashboardSantriKelas_ = function (kelompokId) {
+  window.loadKelompokDashboardSantriKelas_ = function (kelompokId, onDone) {
+    const finish = function () { if (typeof onDone === 'function') onDone(); };
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) return;
-        window.lastSantriListData = result.data;
-        window.renderSantriKpis_(result.data);
+        if (result.success) {
+          window.lastSantriListData = result.data;
+          window.renderSantriKpis_(result.data);
+        }
+        finish();
       })
+      .withFailureHandler(finish)
       .serverGetSantriList(window.currentToken, kelompokId);
   };
 
@@ -1611,11 +1597,19 @@
       .serverDeletePengumuman(window.currentToken, id);
   };
 
-  window.loadKelompokDashboard = function (kelompokId, kelompokName) {
+  window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone) {
     document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
 
-    window.loadKelompokDashboardGuru_(kelompokId);
-    window.loadKelompokDashboardSantriKelas_(kelompokId);
+    // onDone dipanggil setelah 2 sumber data utama (guru & generus) selesai —
+    // dipakai tombol Refresh untuk menutup spinner tepat waktu.
+    let pending = 2;
+    const tick = function () {
+      pending -= 1;
+      if (pending <= 0 && typeof onDone === 'function') onDone();
+    };
+
+    window.loadKelompokDashboardGuru_(kelompokId, tick);
+    window.loadKelompokDashboardSantriKelas_(kelompokId, tick);
     window.loadKelompokDashboardAbsen_(kelompokId);
     window.loadKelompokDashboardJadwal_(kelompokId);
     window.loadKelompokDashboardPengumuman_(kelompokId);

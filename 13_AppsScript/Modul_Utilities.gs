@@ -281,6 +281,20 @@ function cacheDrop_(key) {
 }
 
 /**
+ * Buang cache daftar guru & generus milik satu kelompok.
+ * Dipakai tombol Refresh di Dashboard Kelompok supaya data benar-benar
+ * diambil ulang dari sheet, bukan dari cache 5 menit.
+ */
+function serverDropKelompokCache(token, kelompokId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  cacheDrop_('guru_k' + kelompokId);
+  cacheDrop_('santri_k' + kelompokId);
+  return { success: true };
+}
+
+/**
  * Convert object ke array values berdasarkan header sheet.
  * Digunakan untuk append row dengan struktur yang benar.
  */
