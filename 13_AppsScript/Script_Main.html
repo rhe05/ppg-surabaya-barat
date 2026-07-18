@@ -933,10 +933,11 @@
     { key: 'no', label: 'No', group: 'inti', sticky: 'left', val: (g, i) => String(i + 1) },
     { key: 'nama', label: 'Nama', group: 'inti', sticky: 'left', val: g => g.nama || '', html: g => `<span class="guru-kelp-name-text">${window.escapeHtmlExport_(g.nama)}</span>` },
     { key: 'jenis_kelamin', label: 'L/P', group: 'pribadi', center: true, val: g => g.jenis_kelamin || '' },
-    { key: 'usia', label: 'Usia', group: 'pribadi', val: g => g.tanggal_lahir ? window.calcUsiaThn_(g.tanggal_lahir) : '' },
     { key: 'tempat_lahir', label: 'Tempat Lahir', group: 'pribadi', val: g => g.tempat_lahir || '' },
     { key: 'tanggal_lahir', label: 'Tanggal Lahir', group: 'pribadi', val: g => g.tanggal_lahir ? window.formatTanggalDisplay_(g.tanggal_lahir) : '' },
+    { key: 'usia', label: 'Usia', group: 'pribadi', val: g => g.tanggal_lahir ? window.calcUsiaThn_(g.tanggal_lahir) : '' },
     { key: 'mulai_mengajar', label: 'Mulai Mengajar', group: 'pribadi', val: g => g.mulai_mengajar ? window.formatTanggalDisplay_(g.mulai_mengajar) : '' },
+    { key: 'lama_mengajar', label: 'Lama Mengajar', group: 'pribadi', val: g => g.mulai_mengajar ? window.calcUsiaThn_(g.mulai_mengajar) : '' },
     { key: 'pendidikan', label: 'Pendidikan', group: 'pribadi', val: g => g.pendidikan || '' },
     { key: 'kategori', label: 'Kategori', group: 'pribadi', val: g => g.kategori || '', html: g => window.guruBadgeHtml_(g.kategori) },
     { key: 'nomor_wa', label: 'Nomor WA', group: 'kontak', val: g => g.nomor_wa || '' },
@@ -1117,26 +1118,55 @@
      HtmlService menyajikan app di dalam iframe googleusercontent, sehingga
      reload me-muat ulang URL internal iframe -> LAYAR PUTIH. Refresh dilakukan
      in-place: buang cache server, ambil ulang data layar yang sedang aktif. */
+  window.showToast_ = function (msg) {
+    const t = document.getElementById('gkToast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(window.gkToastTimer_);
+    window.gkToastTimer_ = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  };
+
   window.hardRefresh_ = function () {
     const active = document.querySelector('.screen-wrapper.active');
     const id = active ? active.id : 'screenDashboard';
     window.showGlobalLoading_('Memuat ulang data...');
 
-    if (id === 'screenGuruDashboard' && window.currentKelompokId) {
-      const nama = window.currentKelompokName || document.getElementById('guruDashKelompokBadge').textContent;
-      const reload = function () {
-        window.loadKelompokDashboard(window.currentKelompokId, nama, window.hideGlobalLoading_);
-      };
-      google.script.run
-        .withSuccessHandler(reload)
-        .withFailureHandler(reload)
-        .serverDropKelompokCache(window.currentToken, window.currentKelompokId);
-      return;
-    }
+    // Spinner WAJIB tertutup walau ada loader yang tidak pernah memanggil
+    // callback (mis. server error) — supaya tidak pernah menggantung.
+    let closed = false;
+    const finish = function (ok) {
+      if (closed) return;
+      closed = true;
+      clearTimeout(safety);
+      window.hideGlobalLoading_();
+      if (ok !== false) window.showToast_('Data berhasil diperbarui');
+    };
+    const safety = setTimeout(function () { finish(true); }, 8000);
 
-    const loader = window.SCREEN_LOADERS_[id];
-    if (loader) loader();
-    setTimeout(window.hideGlobalLoading_, 700);
+    try {
+      if (id === 'screenGuruDashboard') {
+        const kelompokId = window.currentKelompokId;
+        if (!kelompokId) { finish(true); return; }
+        const nama = window.currentKelompokName
+          || document.getElementById('guruDashKelompokBadge').textContent || '';
+        const reload = function () {
+          window.loadKelompokDashboard(kelompokId, nama, function () { finish(true); });
+        };
+        google.script.run
+          .withSuccessHandler(reload)
+          .withFailureHandler(reload)
+          .serverDropKelompokCache(window.currentToken, kelompokId);
+        return;
+      }
+
+      const loader = window.SCREEN_LOADERS_[id];
+      if (loader) loader();
+      setTimeout(function () { finish(true); }, 700);
+    } catch (e) {
+      finish(false);
+      alert('Gagal memuat ulang: ' + (e && e.message ? e.message : e));
+    }
   };
 
   /* Parser tanggal fleksibel — menerima 3 bentuk yang bisa muncul:

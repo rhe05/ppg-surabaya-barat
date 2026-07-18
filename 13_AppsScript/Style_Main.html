@@ -474,6 +474,17 @@
       min-height: 0;
     }
 
+    /* .dash-container aslinya max-width:1200px + margin auto. Karena elemen ini
+       kini yang menggulir, batang scroll-nya ikut tepi kotak 1200px yang
+       ter-center — sehingga bergeser ke DALAM saat sidebar diciutkan (area
+       melebar >1200px). Solusi: kotaknya dibuat selebar penuh (scroll tetap di
+       pojok kanan) dan isinya yang di-center lewat padding. */
+    .screen-wrapper.active > .dash-header + .dash-container {
+      max-width: none;
+      padding-left: max(20px, calc((100% - 1200px) / 2));
+      padding-right: max(20px, calc((100% - 1200px) / 2));
+    }
+
     /* ═════ DASHBOARD SCREEN ═════ */
     .dash-header {
       background: var(--panel);
@@ -501,6 +512,31 @@
       display: flex;
       align-items: center;
       gap: 8px;
+    }
+
+    /* Toast konfirmasi singkat (muncul di bawah panel kanan atas) */
+    .gk-toast {
+      position: fixed;
+      top: 56px;
+      right: 20px;
+      z-index: 1300;
+      padding: 9px 16px;
+      border-radius: 999px;
+      background: var(--text);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      box-shadow: var(--shadow-card);
+      opacity: 0;
+      transform: translateY(-6px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .gk-toast.show {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .gk-refresh-btn {
