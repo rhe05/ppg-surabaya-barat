@@ -27,6 +27,7 @@ const SHEET_NAMES = {
   AUDIT_LOG: 'audit_log',
   JADWAL_KBM: 'jadwal_kbm',
   PENGUMUMAN: 'pengumuman',
+  JADWAL_KATEGORI_HARI: 'jadwal_kategori_hari',
 };
 
 /**

@@ -29,6 +29,7 @@ const EXPECTED = {
   guru: ['id', 'kelompok_id', 'nama', 'kecamatan', 'lama_mengajar'],
   santri: ['id', 'kelompok_id', 'nama', 'kecamatan'],
   jadwal_kbm: ['id', 'kelompok_id', 'tanggal', 'guru_id', 'kelas', 'jam_mulai', 'jam_selesai', 'ruangan', 'kategori'],
+  jadwal_kategori_hari: ['id', 'kelompok_id', 'kategori', 'hari_aktif'],
   pengumuman: ['id', 'kelompok_id'],
 };
 

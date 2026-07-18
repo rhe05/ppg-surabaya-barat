@@ -1280,6 +1280,36 @@
         </div>
       </div>
 
+      <!-- Modal Hari Aktif per Kategori Jadwal KBM -->
+      <div class="modal-overlay" id="modalJadwalHariAktif">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="modalJadwalHariAktifTitle">Hari Aktif</span>
+            <button class="modal-close-btn" onclick="window.closeModalJadwalHariAktif()">×</button>
+          </div>
+
+          <input type="hidden" id="jadwalHariAktifKategori">
+
+          <div class="form-group">
+            <label class="form-label">Pilih hari KBM berlangsung</label>
+            <div class="jha-hari-grid">
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Senin"><span>Senin</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Selasa"><span>Selasa</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Rabu"><span>Rabu</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Kamis"><span>Kamis</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Jumat"><span>Jumat</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Sabtu"><span>Sabtu</span></label>
+              <label class="jha-hari-chip"><input type="checkbox" id="jhaHari_Minggu"><span>Minggu</span></label>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalJadwalHariAktif()">Batal</button>
+            <button class="btn btn-primary" onclick="window.saveJadwalHariAktif()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal Pengumuman -->
       <div class="modal-overlay" id="modalPengumuman">
         <div class="modal-content">

@@ -910,6 +910,12 @@
       align-items: start;
     }
 
+    .jadwal-kat-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
     .jadwal-kat-card {
       background: var(--panel);
       border: 1px solid var(--border);
@@ -919,13 +925,27 @@
     }
 
     .jadwal-kat-header {
+      width: 100%;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
       padding: 12px 16px;
+      border: none;
       border-bottom: 1px solid var(--border);
       background: var(--panel-2);
+      font-family: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .jadwal-kat-header:hover {
+      background: var(--border);
+    }
+
+    .jadwal-kat-card.collapsed .jadwal-kat-header {
+      border-bottom-color: transparent;
     }
 
     .jadwal-kat-title {
@@ -933,6 +953,13 @@
       font-weight: 700;
       color: var(--text);
       letter-spacing: -0.01em;
+    }
+
+    .jadwal-kat-header-right {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .jadwal-kat-count {
@@ -943,6 +970,83 @@
       color: var(--brass);
       font-size: 11px;
       font-weight: 700;
+    }
+
+    .jadwal-kat-caret-icon {
+      width: 15px;
+      height: 15px;
+      color: var(--text-faint);
+      transition: transform 0.2s;
+    }
+
+    .jadwal-kat-card.collapsed .jadwal-kat-caret-icon {
+      transform: rotate(-90deg);
+    }
+
+    .jadwal-kat-card.collapsed .jadwal-kat-body {
+      display: none;
+    }
+
+    .jadwal-hari-card {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: var(--radius-lg);
+      border: 1px dashed var(--border);
+      background: var(--panel-2);
+      color: var(--text-dim);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .jadwal-hari-card:hover {
+      border-color: var(--brass);
+      color: var(--brass);
+      background: rgba(217, 119, 6, 0.06);
+    }
+
+    .jadwal-hari-card svg {
+      flex-shrink: 0;
+      width: 15px;
+      height: 15px;
+    }
+
+    .jha-hari-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .jha-hari-chip {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 6px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: var(--panel);
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .jha-hari-chip:has(input:checked) {
+      border-color: var(--brass);
+      background: rgba(217, 119, 6, 0.1);
+      color: var(--brass);
+    }
+
+    .jha-hari-chip input {
+      accent-color: var(--brass);
     }
 
     .jadwal-kat-empty {
