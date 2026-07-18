@@ -625,6 +625,7 @@
                   <input type="text" class="form-input" id="guruKelpMulaiMengajarDisplay" data-datepicker-trigger placeholder="Pilih tanggal mulai mengajar" readonly onclick="window.toggleDatePicker('guruKelpMulaiMengajar')">
                   <input type="hidden" id="guruKelpMulaiMengajar">
                   <div class="ppg-datepicker" id="guruKelpMulaiMengajarPicker"></div>
+                  <div class="guru-kelp-umur-badge" id="guruKelpLamaBadge" style="display: none;">Lama: <strong id="guruKelpLama">—</strong></div>
                 </div>
 
                 <div class="form-group">
@@ -863,40 +864,6 @@
           </div>
         </div>
 
-        <div class="data-table-wrapper guru-kelp-table-wrapper" id="santriDashTableWrapper" style="display: none;">
-          <div class="guru-kelp-table-toolbar">
-            <select class="guru-kelp-filter-select" id="santriDashScopeSelect" onchange="window.filterSantriDashTable_(document.getElementById('santriDashSearchInput').value)">
-              <option value="all">Semua Generus</option>
-              <option value="AUD">PAUD-TK</option>
-              <option value="Cabe Rawit">Cabe Rawit</option>
-              <option value="Pra Remaja">Pra Remaja</option>
-              <option value="Remaja SMA">Remaja SMA</option>
-              <option value="Remaja">Remaja Pra Nikah</option>
-            </select>
-            <input type="text" class="search-input guru-kelp-search-input" id="santriDashSearchInput" placeholder="Cari nama generus..." oninput="window.filterSantriDashTable_(this.value)">
-            <div class="gk-colpicker-wrap">
-              <button type="button" class="gk-colpicker-btn" onclick="window.toggleColPicker_(event, 'generus')" aria-label="Pilih kolom">
-                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
-                <span>Kolom</span>
-              </button>
-              <div class="gk-colpicker-panel" id="generusColPicker">
-                <div class="gk-colpicker-title">Tampilkan kolom</div>
-                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pribadi',this.checked)"> Data Pribadi</label>
-                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pendidikan',this.checked)"> Pendidikan</label>
-                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','alamat',this.checked)"> Alamat</label>
-                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','ortu',this.checked)"> Data Orang Tua</label>
-              </div>
-            </div>
-          </div>
-          <div class="gk-table-scroll">
-            <table class="data-table guru-kelp-premium-table">
-              <thead id="santriDashTableHead"></thead>
-              <tbody id="kdSantriTableBody">
-                <tr><td colspan="22" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
         <div class="guru-dash-kpi-row" id="generusJenjangRow">
           <div class="guru-dash-kpi-card accent-brass">
@@ -947,6 +914,41 @@
               <div class="gk-kpi-lp"><span>L <b id="kdKelasRemaja_L">0</b></span><span>P <b id="kdKelasRemaja_P">0</b></span></div>
             </div>
             <div class="guru-dash-kpi-bar"><div class="guru-dash-kpi-bar-fill" id="kdKelasRemajaBar" style="width: 0%; background: var(--teal);"></div></div>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="santriDashTableWrapper" style="display: none;">
+          <div class="guru-kelp-table-toolbar">
+            <select class="guru-kelp-filter-select" id="santriDashScopeSelect" onchange="window.filterSantriDashTable_(document.getElementById('santriDashSearchInput').value)">
+              <option value="all">Semua Generus</option>
+              <option value="AUD">PAUD-TK</option>
+              <option value="Cabe Rawit">Cabe Rawit</option>
+              <option value="Pra Remaja">Pra Remaja</option>
+              <option value="Remaja SMA">Remaja SMA</option>
+              <option value="Remaja">Remaja Pra Nikah</option>
+            </select>
+            <input type="text" class="search-input guru-kelp-search-input" id="santriDashSearchInput" placeholder="Cari nama generus..." oninput="window.filterSantriDashTable_(this.value)">
+            <div class="gk-colpicker-wrap">
+              <button type="button" class="gk-colpicker-btn" onclick="window.toggleColPicker_(event, 'generus')" aria-label="Pilih kolom">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+                <span>Kolom</span>
+              </button>
+              <div class="gk-colpicker-panel" id="generusColPicker">
+                <div class="gk-colpicker-title">Tampilkan kolom</div>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pribadi',this.checked)"> Data Pribadi</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pendidikan',this.checked)"> Pendidikan</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','alamat',this.checked)"> Alamat</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','ortu',this.checked)"> Data Orang Tua</label>
+              </div>
+            </div>
+          </div>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead id="santriDashTableHead"></thead>
+              <tbody id="kdSantriTableBody">
+                <tr><td colspan="22" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
 

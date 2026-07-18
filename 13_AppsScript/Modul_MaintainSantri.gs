@@ -9,7 +9,7 @@
  * GET santri per Kelompok (dengan search/filter).
  * Dipanggil saat load screen Data Santri.
  */
-function serverGetSantriList(token, kelompokId, searchQuery = '') {
+function serverGetSantriList(token, kelompokId, searchQuery = '', forceFresh = false) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
@@ -19,8 +19,9 @@ function serverGetSantriList(token, kelompokId, searchQuery = '') {
   }
 
   // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete/BulkImport)
+  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sheet.
   const cacheKey = 'santri_k' + kelompokId;
-  let santri = cacheGet_(cacheKey);
+  let santri = forceFresh ? null : cacheGet_(cacheKey);
   if (!santri) {
     santri = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
     cachePut_(cacheKey, santri, 300);

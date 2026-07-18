@@ -693,6 +693,9 @@
     if (inputId === 'guruKelpTglLahir') {
       window.updateGuruKelpUmur();
     }
+    if (inputId === 'guruKelpMulaiMengajar') {
+      window.updateGuruKelpLama();
+    }
     if (inputId === 'generusKelpTglLahir') {
       window.updateGenerusKelpUmur();
     }
@@ -711,6 +714,14 @@
   document.addEventListener('scroll', function () {
     document.querySelectorAll('.ppg-datepicker.open').forEach(p => p.classList.remove('open'));
   }, true);
+
+  window.updateGuruKelpLama = function () {
+    const badge = document.getElementById('guruKelpLamaBadge');
+    const teks = window.calcDurasiDetail_(document.getElementById('guruKelpMulaiMengajar').value);
+    if (!teks) { badge.style.display = 'none'; return; }
+    document.getElementById('guruKelpLama').textContent = teks;
+    badge.style.display = 'inline-flex';
+  };
 
   window.updateGuruKelpUmur = function () {
     const tglLahir = document.getElementById('guruKelpTglLahir').value;
@@ -757,6 +768,7 @@
     document.getElementById('guruKelpNomorWA').value = '';
     document.getElementById('guruKelpPendidikan').value = '';
     document.getElementById('guruKelpUmurBadge').style.display = 'none';
+    document.getElementById('guruKelpLamaBadge').style.display = 'none';
     window.populateAutocomplete_();
     document.getElementById('modalGuruKelp').classList.add('active');
   };
@@ -782,6 +794,7 @@
       kabupaten_kota: document.getElementById('guruKelpKabupaten').value.trim(),
       provinsi: document.getElementById('guruKelpProvinsi').value.trim(),
       kecamatan: document.getElementById('guruKelpKecamatan').value.trim(),
+      lama_mengajar: window.calcDurasiDetail_(document.getElementById('guruKelpMulaiMengajar').value),
       nomor_wa: document.getElementById('guruKelpNomorWA').value.trim(),
       pendidikan: document.getElementById('guruKelpPendidikan').value,
     };
@@ -856,7 +869,7 @@
     }
   };
 
-  window.loadKelompokDashboardGuru_ = function (kelompokId, onDone) {
+  window.loadKelompokDashboardGuru_ = function (kelompokId, onDone, forceFresh) {
     const finish = function () { if (typeof onDone === 'function') onDone(); };
     google.script.run
       .withSuccessHandler(function (result) {
@@ -867,7 +880,7 @@
         finish();
       })
       .withFailureHandler(finish)
-      .serverGetGuruList(window.currentToken, kelompokId);
+      .serverGetGuruList(window.currentToken, kelompokId, '', !!forceFresh);
   };
 
   // Update lokal instan (tanpa round-trip ke-2 ke server) setelah tambah/edit/hapus guru.
@@ -937,7 +950,7 @@
     { key: 'tanggal_lahir', label: 'Tanggal Lahir', group: 'pribadi', val: g => g.tanggal_lahir ? window.formatTanggalDisplay_(g.tanggal_lahir) : '' },
     { key: 'usia', label: 'Usia', group: 'pribadi', val: g => g.tanggal_lahir ? window.calcUsiaThn_(g.tanggal_lahir) : '' },
     { key: 'mulai_mengajar', label: 'Mulai Mengajar', group: 'pribadi', val: g => g.mulai_mengajar ? window.formatTanggalDisplay_(g.mulai_mengajar) : '' },
-    { key: 'lama_mengajar', label: 'Lama Mengajar', group: 'pribadi', val: g => g.mulai_mengajar ? window.calcUsiaThn_(g.mulai_mengajar) : '' },
+    { key: 'lama_mengajar', label: 'Lama Mengajar', group: 'pribadi', val: g => window.calcDurasiDetail_(g.mulai_mengajar) },
     { key: 'pendidikan', label: 'Pendidikan', group: 'pribadi', val: g => g.pendidikan || '' },
     { key: 'kategori', label: 'Kategori', group: 'pribadi', val: g => g.kategori || '', html: g => window.guruBadgeHtml_(g.kategori) },
     { key: 'nomor_wa', label: 'Nomor WA', group: 'kontak', val: g => g.nomor_wa || '' },
@@ -1150,13 +1163,9 @@
         if (!kelompokId) { finish(true); return; }
         const nama = window.currentKelompokName
           || document.getElementById('guruDashKelompokBadge').textContent || '';
-        const reload = function () {
-          window.loadKelompokDashboard(kelompokId, nama, function () { finish(true); });
-        };
-        google.script.run
-          .withSuccessHandler(reload)
-          .withFailureHandler(reload)
-          .serverDropKelompokCache(window.currentToken, kelompokId);
+        // Satu panggilan saja, menembus cache server (forceFresh) — sekali klik
+        // langsung dapat data terbaru dari sheet.
+        window.loadKelompokDashboard(kelompokId, nama, function () { finish(true); }, true);
         return;
       }
 
@@ -1183,6 +1192,32 @@
     if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s = s + 'T00:00:00';
     const d = new Date(s);
     return isNaN(d.getTime()) ? null : d;
+  };
+
+  /* Durasi rinci dari sebuah tanggal sampai HARI INI: "3 tahun 5 bulan 12 hari".
+     Dipakai untuk Lama Mengajar. Selalu dihitung ulang saat ditampilkan supaya
+     tidak pernah basi. */
+  window.calcDurasiDetail_ = function (dateStr) {
+    const start = window.parseDateFlexible_(dateStr);
+    if (!start) return '';
+    const now = new Date();
+    if (start > now) return '0 hari';
+
+    let y = now.getFullYear() - start.getFullYear();
+    let m = now.getMonth() - start.getMonth();
+    let d = now.getDate() - start.getDate();
+
+    if (d < 0) {
+      m -= 1;
+      d += new Date(now.getFullYear(), now.getMonth(), 0).getDate();
+    }
+    if (m < 0) { y -= 1; m += 12; }
+
+    const parts = [];
+    if (y > 0) parts.push(y + ' tahun');
+    if (m > 0) parts.push(m + ' bulan');
+    if (d > 0 || parts.length === 0) parts.push(d + ' hari');
+    return parts.join(' ');
   };
 
   window.calcUsiaThn_ = function (tanggalLahir) {
@@ -1227,6 +1262,7 @@
     document.getElementById('guruKelpPendidikan').value = g.pendidikan || '';
     document.getElementById('modalGuruKelpTitle').textContent = 'Edit Guru';
     window.updateGuruKelpUmur();
+    window.updateGuruKelpLama();
     window.populateAutocomplete_();
     document.getElementById('modalGuruKelp').classList.add('active');
   };
@@ -1300,6 +1336,7 @@
       window.buildDetailItemHtml_('Tempat Lahir', g.tempat_lahir),
       window.buildDetailItemHtml_('Tanggal Lahir', g.tanggal_lahir ? window.formatTanggalDisplay_(g.tanggal_lahir) + ' (' + window.calcUsiaThn_(g.tanggal_lahir) + ')' : ''),
       window.buildDetailItemHtml_('Mulai Mengajar', g.mulai_mengajar ? window.formatTanggalDisplay_(g.mulai_mengajar) : ''),
+      window.buildDetailItemHtml_('Lama Mengajar', window.calcDurasiDetail_(g.mulai_mengajar)),
       window.buildDetailItemHtml_('Pendidikan', g.pendidikan),
       window.buildDetailItemHtml_('Nomor WA', g.nomor_wa),
       window.buildDetailItemHtml_('Alamat Rumah', g.alamat, true),
@@ -1374,7 +1411,7 @@
     });
   };
 
-  window.loadKelompokDashboardSantriKelas_ = function (kelompokId, onDone) {
+  window.loadKelompokDashboardSantriKelas_ = function (kelompokId, onDone, forceFresh) {
     const finish = function () { if (typeof onDone === 'function') onDone(); };
     google.script.run
       .withSuccessHandler(function (result) {
@@ -1385,7 +1422,7 @@
         finish();
       })
       .withFailureHandler(finish)
-      .serverGetSantriList(window.currentToken, kelompokId);
+      .serverGetSantriList(window.currentToken, kelompokId, '', !!forceFresh);
   };
 
   window.applyGenerusMutationLocal_ = function (data, id, isDelete) {
@@ -1627,7 +1664,7 @@
       .serverDeletePengumuman(window.currentToken, id);
   };
 
-  window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone) {
+  window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone, forceFresh) {
     document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
 
     // onDone dipanggil setelah 2 sumber data utama (guru & generus) selesai —
@@ -1638,8 +1675,8 @@
       if (pending <= 0 && typeof onDone === 'function') onDone();
     };
 
-    window.loadKelompokDashboardGuru_(kelompokId, tick);
-    window.loadKelompokDashboardSantriKelas_(kelompokId, tick);
+    window.loadKelompokDashboardGuru_(kelompokId, tick, forceFresh);
+    window.loadKelompokDashboardSantriKelas_(kelompokId, tick, forceFresh);
     window.loadKelompokDashboardAbsen_(kelompokId);
     window.loadKelompokDashboardJadwal_(kelompokId);
     window.loadKelompokDashboardPengumuman_(kelompokId);

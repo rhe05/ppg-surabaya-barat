@@ -8,7 +8,7 @@
 /**
  * GET guru per Kelompok (dengan search).
  */
-function serverGetGuruList(token, kelompokId, searchQuery = '') {
+function serverGetGuruList(token, kelompokId, searchQuery = '', forceFresh = false) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
@@ -18,8 +18,9 @@ function serverGetGuruList(token, kelompokId, searchQuery = '') {
 
   // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete di bawah)
   // — baca dari cache ±50ms vs baca sheet 300-800ms.
+  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sheet.
   const cacheKey = 'guru_k' + kelompokId;
-  let guru = cacheGet_(cacheKey);
+  let guru = forceFresh ? null : cacheGet_(cacheKey);
   if (!guru) {
     guru = readSheetAsObjects(SHEET_NAMES.GURU).filter(g => g.kelompok_id == kelompokId);
     cachePut_(cacheKey, guru, 300);
@@ -73,6 +74,7 @@ function serverAddGuru(token, kelompokId, guruData) {
         guruData.kabupaten_kota || '',
         guruData.provinsi || '',
         guruData.kecamatan || '',
+        guruData.lama_mengajar || '',
       ]);
 
       cacheDrop_('guru_k' + kelompokId);
@@ -113,6 +115,7 @@ function serverUpdateGuru(token, guruId, guruData) {
     kabupaten_kota: guruData.kabupaten_kota !== undefined ? guruData.kabupaten_kota : guru.kabupaten_kota,
     provinsi: guruData.provinsi !== undefined ? guruData.provinsi : guru.provinsi,
     kecamatan: guruData.kecamatan !== undefined ? guruData.kecamatan : guru.kecamatan,
+    lama_mengajar: guruData.lama_mengajar !== undefined ? guruData.lama_mengajar : guru.lama_mengajar,
     nomor_wa: guruData.nomor_wa !== undefined ? guruData.nomor_wa : guru.nomor_wa,
     pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };
