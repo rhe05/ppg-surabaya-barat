@@ -30,6 +30,15 @@ const DEV_MODE_SKIP_LOGIN = true;
  * Dipanggil otomatis saat Web App diakses via URL (GET).
  */
 function doGet(e) {
+  // ?diag=schema → JSON daftar sheet + header, dipakai tools/check_schema.js
+  // untuk memverifikasi setupDatabaseStructure() sudah jalan. Aman: web app
+  // access = MYSELF, jadi hanya pemilik yang bisa memanggil.
+  if (e && e.parameter && e.parameter.diag === 'schema') {
+    return ContentService
+      .createTextOutput(JSON.stringify(diagSchema_()))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')

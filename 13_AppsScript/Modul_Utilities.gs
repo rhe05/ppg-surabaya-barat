@@ -292,3 +292,26 @@ function objectToRowArray(sheetName, obj) {
   const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   return headers.map(h => obj[h.toLowerCase()] || '');
 }
+
+/**
+ * Diagnostik skema: daftar semua sheet + baris header + jumlah baris data.
+ * Dipakai lewat doGet(?diag=schema) oleh tools/check_schema.js agar status
+ * setupDatabaseStructure() bisa diverifikasi tanpa membuka Sheet manual.
+ */
+function diagSchema_() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheets = ss.getSheets().map(function (sh) {
+      const lastCol = sh.getLastColumn();
+      const lastRow = sh.getLastRow();
+      return {
+        nama: sh.getName(),
+        header: lastCol > 0 ? sh.getRange(1, 1, 1, lastCol).getValues()[0] : [],
+        barisData: Math.max(0, lastRow - 1),
+      };
+    });
+    return { success: true, spreadsheet: ss.getName(), sheets: sheets };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
