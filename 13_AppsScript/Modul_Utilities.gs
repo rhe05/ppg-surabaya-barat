@@ -315,3 +315,40 @@ function diagSchema_() {
     return { success: false, error: e.message };
   }
 }
+
+/**
+ * Diagnostik isi baris: kembalikan nilai + TIPE tiap kolom untuk beberapa baris awal.
+ * Tipe penting karena Google Sheets diam-diam mengubah teks 'yyyy-MM-dd' / 'HH:mm'
+ * menjadi objek Date, yang bisa membuat data gagal dikirim ke klien.
+ * Dipakai lewat doGet(?diag=rows&sheet=...&limit=...).
+ */
+function diagRows_(sheetName, limit) {
+  try {
+    const n = Math.min(parseInt(limit, 10) || 5, 50);
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+    if (!sheet) return { success: false, error: 'Sheet "' + sheetName + '" tidak ditemukan.' };
+
+    const lastRow = sheet.getLastRow();
+    const lastCol = sheet.getLastColumn();
+    if (lastRow < 2) return { success: true, sheet: sheetName, header: [], rows: [] };
+
+    const header = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+    const values = sheet.getRange(2, 1, Math.min(n, lastRow - 1), lastCol).getValues();
+
+    const rows = values.map(function (row) {
+      const obj = {};
+      header.forEach(function (h, i) {
+        const v = row[i];
+        obj[h] = {
+          nilai: (v instanceof Date) ? v.toISOString() : v,
+          tipe: (v instanceof Date) ? 'Date' : typeof v,
+        };
+      });
+      return obj;
+    });
+
+    return { success: true, sheet: sheetName, header: header, rows: rows };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}

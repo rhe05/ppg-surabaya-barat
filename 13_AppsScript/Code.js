@@ -39,6 +39,15 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=rows&sheet=<nama>&limit=<n> → JSON isi baris + tipe tiap nilai.
+  // Dipakai untuk mendiagnosis data yang tampil aneh/tidak muncul di UI
+  // (mis. sel tanggal/jam yang jadi objek Date, bukan string).
+  if (e && e.parameter && e.parameter.diag === 'rows') {
+    return ContentService
+      .createTextOutput(JSON.stringify(diagRows_(e.parameter.sheet, e.parameter.limit)))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
