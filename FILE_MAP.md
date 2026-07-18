@@ -21,7 +21,7 @@
 | `13_AppsScript/Script_Main.html` | Seluruh JS utama (isi `<script>...</script>`, ±3290 baris) | Tambah/ubah logika frontend |
 | `13_AppsScript/Code.js` | Entry `doGet` (`createTemplateFromFile`), `include(filename)` (helper penggabung), login (`serverLogin`), sesi, `DEV_MODE_SKIP_LOGIN` | Auth/akses/struktur shell |
 | `13_AppsScript/Modul_Utilities.gs` | `SHEET_NAMES`, `readSheetAsObjects`, `findRowByQuery` (compare via String — ERROR_LOG #2), `updateRowByQuery`, `deleteRowByQuery`, `getCurrentUser`, `validateUserAccess`, **`withScriptLock_` (wajib untuk semua mutasi — ERROR_LOG #5)**, **cache: `cacheGet_`/`cachePut_`/`cacheDrop_`** (kunci: `guru_k<id>`, `santri_k<id>`) | Helper DB/RBAC/lock/cache |
-| `13_AppsScript/Setup_Database.gs` | Skema semua sheet + `migrateGuruSchemaAddFields_` + `migrateSantriSchemaAddFields_` (⚠️ perlu run manual `setupDatabaseStructure()` di editor Apps Script tiap tambah kolom) | Perubahan skema |
+| `13_AppsScript/Setup_Database.gs` | Skema semua sheet + `migrateGuruSchemaAddFields_` + `migrateSantriSchemaAddFields_` (⚠️ perlu run manual `setupDatabaseStructure()` di editor Apps Script tiap tambah kolom) — **BELUM DIJALANKAN untuk `kecamatan` (guru+santri) & `lama_mengajar` (guru), ditambahkan 2026-07-18** | Perubahan skema |
 | `13_AppsScript/Modul_MaintainGuru.gs` | CRUD guru (`serverGetGuruList/Add/Update/Delete`) | Fitur guru |
 | `13_AppsScript/Modul_MaintainSantri.gs` | CRUD santri/generus + `serverBulkImportSantri` | Fitur generus |
 | `13_AppsScript/Modul_Export.gs` | Ekspor xlsx asli via `Utilities.zip` (`serverExportGuruKelpXlsx`, `serverExportSantriKelpXlsx`, `buildXlsxBase64_`) | Fitur ekspor |
@@ -42,11 +42,17 @@
 - `LOGIN SCREEN` · `APP LAYOUT` · `SIDEBAR: DESA/KELOMPOK TREE`
 - `GLOBAL LOADING OVERLAY` — spinner tengah layar tema brass (boot/simpan/hapus/ekspor)
 - `DASHBOARD GURU (per Kelompok` — KPI card premium Dashboard Kelompok
-- `.dash-header-admin-card` — kartu admin kanan atas header Dashboard Kelompok (avatar+nama+role)
+- `.gk-topright` — panel fixed kanan atas: tombol refresh (`.gk-refresh-btn`) + `.dash-header-admin-card` (teks "Admin" saja)
+- `.gk-toast` — notifikasi singkat (dipakai setelah Refresh)
+- `.gk-kpi-lp` — mini-stat L/P di SEBELAH angka besar KPI (bukan di bawah)
+- `.sidebar-icon` — icon SVG line monochrome sidebar (⚠️ JANGAN pakai emoji, lihat memory design standard)
 - `.sidebar-footer` — freeze/sticky bottom untuk tombol Keluar
+- `.screen-wrapper.active > .dash-header + *` — ⚠️ blok konten inilah yang menggulir (header TIDAK ikut scroll) supaya scrollbar mulai di bawah header; `.dash-container` di-set full-width + padding auto agar scrollbar tetap di pojok saat sidebar diciutkan
 - `CUSTOM DATE PICKER` — datepicker tanpa library
 - `MODAL TAMBAH GURU / GENERUS` — layout form 2 kolom + section
 - `TABEL DAFTAR GURU` — toolbar filter/search, badge, tombol aksi
+- `.gk-table-scroll` — kontainer scroll tabel (max-height ≈5 baris) + `.gk-sticky-l1/l2/r` = freeze kolom No/Nama (kiri) & Aksi (kanan)
+- `.gk-colpicker-*` — dropdown "Kolom" (pilih grup kolom yang tampil)
 - `MODAL KONFIRMASI HAPUS` — modal hapus premium (spinner sekarang di `#globalLoadingOverlay`, bukan di tombol)
 - `MODAL DETAIL GURU/GENERUS` — modal detail read-only
 - `MOBILE OPTIMIZATION` — semua breakpoint responsive
@@ -54,9 +60,11 @@
 ### HTML → `13_AppsScript/Markup_Screens.html` (screens & modals)
 - `id="screenLogin"` · `id="appLayout"` · `id="screenGuruDashboard"` (Dashboard Kelompok)
 - `id="globalLoadingOverlay"` — spinner global, kontrol via JS di bawah
-- Sidebar: `id="userAvatar"` TIDAK ADA LAGI (kartu admin dipindah ke header Dashboard Kelompok, lihat `id="dashHeaderAdminName/Role/Avatar"`); footer sidebar cuma tombol Keluar
+- Panel kanan atas GLOBAL (di `.app-content`, tampil di semua screen): `class="gk-topright"` → tombol refresh + card "Admin". Tidak ada lagi avatar/nama/role.
+- `id="gkToast"` — elemen notifikasi singkat
+- `<datalist id="dlNama|dlNamaOrtu|dlTempatLahir|dlKelurahan|dlKecamatan|dlKabupaten|dlProvinsi|dlKodePos">` — sumber autocomplete, diisi `populateAutocomplete_()`
 - Header seksi: `id="dataGuruTitle"` · `id="dataGenerusTitle"`
-- Tabel: `id="guruDashTableWrapper"` · `id="santriDashTableWrapper"`
+- Tabel: `id="guruDashTableWrapper"` · `id="santriDashTableWrapper"` (⚠️ tabel generus letaknya SETELAH `id="generusJenjangRow"` = 5 kartu jenjang). `<thead>` KOSONG di markup (`id="guruDashTableHead"`/`santriDashTableHead`) — diisi JS dari model kolom.
 - Modal (semua `id="modal..."`): `modalGuruKelp` (tambah/edit guru) ·
   `modalGenerusKelp` · `modalDeleteGuruKelp` · `modalDeleteGenerusKelp` ·
   `modalDetailGuruKelp` · `modalDetailGenerusKelp` · `modalEksporGuru` ·
@@ -65,14 +73,21 @@
 ### JavaScript → `13_AppsScript/Script_Main.html` (blok `<script>` utama; cari `window.<nama>`)
 - Boot & auth: `window.onload` → `serverCheckDevMode` → `renderApp` · `handleLogin` · `verifySession`
 - Spinner global (WAJIB dipakai untuk semua momen tunggu baru, jangan buat spinner lokal): `showGlobalLoading_(text)` / `hideGlobalLoading_()`
-- Dashboard Kelompok load: `loadKelompokDashboardGuru_` · `loadKelompokDashboardSantriKelas_` · `loadKelompokDashboardAbsen_`
+- Dashboard Kelompok load: `loadKelompokDashboard(kelompokId, nama, onDone, forceFresh)` → `loadKelompokDashboardGuru_` · `loadKelompokDashboardSantriKelas_` (keduanya terima `(id, onDone, forceFresh)`) · `loadKelompokDashboardAbsen_`
+- KPI (dipakai loader server DAN update lokal instan): `renderGuruKpis_` · `renderSantriKpis_` · `applyGuruMutationLocal_` · `applyGenerusMutationLocal_`
+- **Model kolom tabel** (satu sumber untuk tampilan + ekspor): `GURU_COLS` · `SANTRI_COLS` (tiap kolom `{key,label,group,sticky,center,action,val,html}`), grup tampil: `guruVisibleGroups` · `generusVisibleGroups`
+- Render tabel generik: `renderDataTable_(cols, list, theadId, tbodyId, emptyText)` · `visibleCols_` · `colStickyClass_` · `filterListByScopeSearch_`
+- Column picker: `toggleColPicker_` · `setColGroup_`
 - Tabel guru: `toggleGuruDashTable_` · `filterGuruDashTable_` · `renderGuruDashTable_`
 - Tabel generus: `toggleGenerusDashTable_` · `filterSantriDashTable_` · `renderSantriDashTable_`
+- Autocomplete: `fillDatalist_` · `populateAutocomplete_` (dipanggil tiap modal guru/generus dibuka)
+- Refresh: `hardRefresh_` (⚠️ DILARANG `location.reload()` — ERROR_LOG #6; pakai `forceFresh` menembus cache) · `SCREEN_LOADERS_` · `showToast_`
 - CRUD guru (klien): `openModalGuruKelp` · `saveGuruKelp` (add/update via `currentEditGuruId`) · `editGuruKelp` · `viewGuruKelp` · `deleteGuruKelp` → `confirmDeleteGuruKelp`
 - CRUD generus (klien): pola sama, ganti `Guru`→`Generus` (`currentEditGenerusId`, dst)
-- Ekspor: `confirmEksporGuru` · `confirmEksporGenerus` · `downloadXlsxFromBase64_` · `printPdfList_`
-- Datepicker: `toggleDatePicker` · `renderDatePicker` · `pickDate` (ada hook umur di sini)
-- Util: `escapeHtmlExport_` · `digitsOnlyInput_` · `formatPhoneDashInput_` · `calcUsiaThn_` · `buildDetailItemHtml_` · ikon: `iconViewSvg_`/`iconEditSvg_`/`iconDeleteSvg_` (⚠️ dilarang ada `//` dalam string — ERROR_LOG #1)
+- Ekspor (mengikuti kolom yang dipilih di column picker): `confirmEksporGuru` · `confirmEksporGenerus` · `exportColsForData_` · `buildExportMatrix_` · `runXlsxExport_` → server `serverBuildXlsxFromData(token, sheetName, headers, rows)` · `downloadXlsxFromBase64_` · `printPdfList_`
+- Datepicker: `toggleDatePicker` · `renderDatePicker` · `pickDate` (hook umur & lama mengajar di sini → `updateGuruKelpUmur` / `updateGuruKelpLama`)
+- Util: `escapeHtmlExport_` · `digitsOnlyInput_` · `formatPhoneDashInput_` · `buildDetailItemHtml_` · ikon: `iconViewSvg_`/`iconEditSvg_`/`iconDeleteSvg_` (⚠️ dilarang ada `//` dalam string — ERROR_LOG #1)
+- **Tanggal — WAJIB lewat `parseDateFlexible_`**: tanggal dari Sheet bisa datang sbg objek Date → string ISO, jadi JANGAN pernah `dateStr + 'T00:00:00'` (dulu bikin "NaN undefined"). Turunannya: `calcUsiaThn_` (usia) · `formatTanggalDisplay_` · `calcDurasiDetail_` ("X tahun Y bulan Z hari", dipakai Lama Mengajar)
 
 ## Alur deploy & verifikasi (baku)
 
