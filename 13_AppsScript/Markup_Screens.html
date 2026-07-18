@@ -113,25 +113,8 @@
           <span class="sidebar-menu-text">Desa</span>
           <span class="sidebar-caret" id="desaCaret">▸</span>
         </a>
-        <ul class="sidebar-tree" id="desaSubmenu">
-          <li class="sidebar-tree-item">
-            <a class="sidebar-tree-link" onclick="window.toggleKelompokMenu(event)">
-              <span>Ds Petemon</span>
-              <span class="sidebar-caret" id="caretDesaPetemon">▸</span>
-            </a>
-            <ul class="sidebar-tree sidebar-tree-2" id="kelompokSubmenuPetemon">
-              <li><a class="sidebar-tree-link-2" onclick="window.selectKelompok(event, 1, 'Kelp Petemon')">Kelp Petemon</a></li>
-              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Simo</a></li>
-              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Asja</a></li>
-              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp Jl Sem</a></li>
-              <li><a class="sidebar-tree-link-2 disabled" title="Segera hadir">Kelp DST</a></li>
-            </ul>
-          </li>
-          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Purwodadi</span></a></li>
-          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Tanbar</span></a></li>
-          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Tantim</span></a></li>
-          <li class="sidebar-tree-item"><a class="sidebar-tree-link disabled" title="Segera hadir"><span>Ds Benowo</span></a></li>
-        </ul>
+        <!-- Diisi dinamis oleh window.renderSidebarTree_() dari sheet desa+kelompok -->
+        <ul class="sidebar-tree" id="desaSubmenu"></ul>
       </li>
       <li>
         <a class="sidebar-menu-link" onclick="window.switchScreen('usermanagement')" data-tip="User Management" id="menuUserManagement" style="display: none;">

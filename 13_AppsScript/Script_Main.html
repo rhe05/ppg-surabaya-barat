@@ -114,7 +114,9 @@
     document.getElementById('appLayout').style.display = 'flex';
 
     // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
-    document.getElementById('menuDesaToggle').style.display = (user.role === 'admin_ppg') ? 'flex' : 'none';
+    const isAdminPpg = (user.role === 'admin_ppg');
+    document.getElementById('menuDesaToggle').style.display = isAdminPpg ? 'flex' : 'none';
+    if (isAdminPpg) window.renderSidebarTree_();
 
     window.loadDashboard();
   }
@@ -140,13 +142,84 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
-  window.toggleKelompokMenu = function (event) {
+  window.toggleKelompokMenu = function (event, desaId) {
     event.preventDefault();
     event.stopPropagation();
-    const submenu = document.getElementById('kelompokSubmenuPetemon');
-    const caret = document.getElementById('caretDesaPetemon');
+    const submenu = document.getElementById('kelompokSubmenu' + desaId);
+    const caret = document.getElementById('caretDesa' + desaId);
+    if (!submenu || !caret) return;
     const isOpen = submenu.classList.toggle('open');
     caret.classList.toggle('rotated', isOpen);
+  };
+
+  /**
+   * Bangun tree Desa > Kelompok dari sheet (bukan hardcode).
+   * Kelompok non-aktif tetap ditampilkan tapi disabled ("Segera hadir").
+   */
+  window.renderSidebarTree_ = function () {
+    const root = document.getElementById('desaSubmenu');
+    if (!root) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.success || !res.data || !res.data.length) return;
+        root.innerHTML = '';
+
+        res.data.forEach(function (desa) {
+          const li = document.createElement('li');
+          li.className = 'sidebar-tree-item';
+
+          const link = document.createElement('a');
+          const label = document.createElement('span');
+          label.textContent = 'Ds ' + desa.nama;
+          link.appendChild(label);
+
+          if (!desa.adaAktif) {
+            link.className = 'sidebar-tree-link disabled';
+            link.title = 'Segera hadir';
+            li.appendChild(link);
+            root.appendChild(li);
+            return;
+          }
+
+          link.className = 'sidebar-tree-link';
+          const caret = document.createElement('span');
+          caret.className = 'sidebar-caret';
+          caret.id = 'caretDesa' + desa.id;
+          caret.textContent = '▸';
+          link.appendChild(caret);
+          link.addEventListener('click', function (ev) {
+            window.toggleKelompokMenu(ev, desa.id);
+          });
+          li.appendChild(link);
+
+          const sub = document.createElement('ul');
+          sub.className = 'sidebar-tree sidebar-tree-2';
+          sub.id = 'kelompokSubmenu' + desa.id;
+
+          desa.kelompok.forEach(function (kel) {
+            const kLi = document.createElement('li');
+            const kLink = document.createElement('a');
+            kLink.textContent = kel.nama;
+            if (kel.aktif) {
+              kLink.className = 'sidebar-tree-link-2';
+              kLink.addEventListener('click', function (ev) {
+                window.selectKelompok(ev, kel.id, kel.nama);
+              });
+            } else {
+              kLink.className = 'sidebar-tree-link-2 disabled';
+              kLink.title = 'Segera hadir';
+            }
+            kLi.appendChild(kLink);
+            sub.appendChild(kLi);
+          });
+
+          li.appendChild(sub);
+          root.appendChild(li);
+        });
+      })
+      .withFailureHandler(function () { /* gagal ambil tree — sidebar Desa tetap kosong, tidak fatal */ })
+      .serverGetSidebarTree();
   };
 
   window.toggleGenerusDashTable_ = function () {

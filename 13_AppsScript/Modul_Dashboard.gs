@@ -239,3 +239,39 @@ function serverGetDashboardSantriTeladan() {
     total: teladanOnly.length,
   };
 }
+
+/**
+ * GET struktur sidebar Desa > Kelompok langsung dari sheet (bukan hardcode).
+ * Kelompok berstatus 'aktif' → bisa diklik; selain itu → disabled ("Segera hadir").
+ * Desa tanpa kelompok aktif ikut tampil tapi tidak bisa dibuka.
+ * Return: {success, data: [{id, nama, adaAktif, kelompok: [{id, nama, aktif}]}]}
+ */
+function serverGetSidebarTree() {
+  try {
+    const cached = cacheGet_('sidebar_tree');
+    if (cached) return cached;
+
+    const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
+    const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
+
+    const data = desaData.map(function (desa) {
+      const anak = kelompokData
+        .filter(function (k) { return k.desa_id === desa.id; })
+        .map(function (k) {
+          return { id: k.id, nama: k.nama, aktif: k.status_aktif === 'aktif' };
+        });
+      return {
+        id: desa.id,
+        nama: desa.nama,
+        adaAktif: anak.some(function (k) { return k.aktif; }),
+        kelompok: anak,
+      };
+    });
+
+    const result = { success: true, data: data };
+    cachePut_('sidebar_tree', result, 300);
+    return result;
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
