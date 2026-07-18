@@ -818,7 +818,7 @@
       border-radius: var(--radius-lg);
       box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05), 0 20px 40px -12px rgba(15, 23, 42, 0.25);
       padding: 16px;
-      width: 236px;
+      width: 230px;
     }
 
     .ppg-timepicker.open {
@@ -832,58 +832,64 @@
       color: var(--text);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.02em;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
 
-    .ppg-timepicker-preview.is-empty {
-      color: var(--text-faint);
+    .ppg-timepicker-wheels {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 180px;
     }
 
-    .ppg-timepicker-label {
-      font-size: 10.5px;
-      font-weight: 700;
-      color: var(--text-faint);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-bottom: 6px;
-    }
-
-    .ppg-timepicker-section + .ppg-timepicker-section {
-      margin-top: 12px;
-    }
-
-    .ppg-timepicker-grid {
-      display: grid;
-      gap: 4px;
-    }
-
-    .ppg-timepicker-grid-hour {
-      grid-template-columns: repeat(6, 1fr);
-    }
-
-    .ppg-timepicker-grid-min {
-      grid-template-columns: repeat(4, 1fr);
-    }
-
-    .ppg-timepicker-cell {
-      text-align: center;
-      padding: 6px 0;
-      font-size: 12.5px;
-      font-variant-numeric: tabular-nums;
+    .ppg-timepicker-wheel-highlight {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 36px;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(217, 119, 6, 0.07);
       border-radius: 8px;
+      pointer-events: none;
+    }
+
+    .ppg-timepicker-wheel-col {
+      width: 68px;
+      height: 100%;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+
+    .ppg-timepicker-wheel-col::-webkit-scrollbar {
+      display: none;
+    }
+
+    .ppg-timepicker-wheel-spacer {
+      height: 72px;
+    }
+
+    .ppg-timepicker-wheel-item {
+      height: 36px;
+      line-height: 36px;
+      text-align: center;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-dim);
       cursor: pointer;
-      color: var(--text);
-      transition: all 0.15s;
+      scroll-snap-align: center;
     }
 
-    .ppg-timepicker-cell:hover {
-      background: var(--panel-2);
-    }
-
-    .ppg-timepicker-cell.selected {
-      background: var(--brass);
-      color: white;
+    .ppg-timepicker-wheel-colon {
+      font-size: 18px;
       font-weight: 700;
+      color: var(--text-faint);
     }
 
     .ppg-timepicker-footer {
@@ -892,11 +898,6 @@
 
     .ppg-timepicker-footer .btn {
       width: 100%;
-    }
-
-    .ppg-timepicker-footer .btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
     }
 
     .jadwal-kbm-card {

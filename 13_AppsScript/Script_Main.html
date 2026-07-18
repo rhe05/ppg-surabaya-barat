@@ -789,6 +789,7 @@
   }, true);
 
   window.ppgTimePickerState = {};
+  const PPG_TIME_ITEM_H_ = 36;
 
   window.toggleTimePicker = function (inputId) {
     const picker = document.getElementById(inputId + 'Picker');
@@ -799,72 +800,92 @@
     if (willOpen) {
       const trigger = document.getElementById(inputId + 'Display');
       const rect = trigger.getBoundingClientRect();
-      const pickerHeight = 300;
+      const pickerHeight = 330;
       const openBelow = rect.bottom + pickerHeight + 10 <= window.innerHeight;
 
       picker.style.top = openBelow ? (rect.bottom + 6) + 'px' : (rect.top - pickerHeight - 6) + 'px';
-      picker.style.left = Math.min(rect.left, window.innerWidth - 236 - 12) + 'px';
+      picker.style.left = Math.min(rect.left, window.innerWidth - 230 - 12) + 'px';
 
       const existing = document.getElementById(inputId).value;
-      const [h, m] = existing ? existing.split(':').map(Number) : [null, null];
-      window.ppgTimePickerState[inputId] = { hour: existing ? h : null, minute: existing ? m : null };
-      window.renderTimePicker(inputId);
+      const [h, m] = existing ? existing.split(':').map(Number) : [0, 0];
+      window.ppgTimePickerState[inputId] = { hour: h, minute: m };
+
+      window.buildTimePickerWheels_(inputId);
       picker.classList.add('open');
+
+      requestAnimationFrame(function () {
+        document.getElementById(inputId + 'HourWheel').scrollTop = h * PPG_TIME_ITEM_H_;
+        document.getElementById(inputId + 'MinuteWheel').scrollTop = m * PPG_TIME_ITEM_H_;
+        window.applyTimePickerSelection_(inputId);
+      });
     }
   };
 
-  window.renderTimePicker = function (inputId) {
-    const state = window.ppgTimePickerState[inputId];
+  /** Bangun dua kolom scroll (Jam 00-23, Menit 00-59) sekali per buka panel — tidak di-render ulang saat scroll. */
+  window.buildTimePickerWheels_ = function (inputId) {
     const picker = document.getElementById(inputId + 'Picker');
     const pad = n => String(n).padStart(2, '0');
 
-    const hasSelection = state.hour !== null && state.minute !== null;
-    const previewText = hasSelection ? `${pad(state.hour)}:${pad(state.minute)}` : '-- : --';
-
-    let hoursHtml = '';
+    let hourItems = '';
     for (let h = 0; h < 24; h++) {
-      hoursHtml += `<div class="ppg-timepicker-cell${h === state.hour ? ' selected' : ''}" onclick="window.pickTimeHour('${inputId}', ${h})">${pad(h)}</div>`;
+      hourItems += `<div class="ppg-timepicker-wheel-item" onclick="window.jumpTimeWheel_('${inputId}', 'hour', ${h})">${pad(h)}</div>`;
     }
 
-    let minutesHtml = '';
-    for (let m = 0; m < 60; m += 5) {
-      minutesHtml += `<div class="ppg-timepicker-cell${m === state.minute ? ' selected' : ''}" onclick="window.pickTimeMinute('${inputId}', ${m})">${pad(m)}</div>`;
+    let minuteItems = '';
+    for (let m = 0; m < 60; m++) {
+      minuteItems += `<div class="ppg-timepicker-wheel-item" onclick="window.jumpTimeWheel_('${inputId}', 'minute', ${m})">${pad(m)}</div>`;
     }
 
     picker.innerHTML = `
-      <div class="ppg-timepicker-preview${hasSelection ? '' : ' is-empty'}">${previewText}</div>
-      <div class="ppg-timepicker-section">
-        <div class="ppg-timepicker-label">Jam</div>
-        <div class="ppg-timepicker-grid ppg-timepicker-grid-hour">${hoursHtml}</div>
-      </div>
-      <div class="ppg-timepicker-section">
-        <div class="ppg-timepicker-label">Menit</div>
-        <div class="ppg-timepicker-grid ppg-timepicker-grid-min">${minutesHtml}</div>
+      <div class="ppg-timepicker-preview" id="${inputId}Preview">00:00</div>
+      <div class="ppg-timepicker-wheels">
+        <div class="ppg-timepicker-wheel-highlight"></div>
+        <div class="ppg-timepicker-wheel-col" id="${inputId}HourWheel">
+          <div class="ppg-timepicker-wheel-spacer"></div>${hourItems}<div class="ppg-timepicker-wheel-spacer"></div>
+        </div>
+        <div class="ppg-timepicker-wheel-colon">:</div>
+        <div class="ppg-timepicker-wheel-col" id="${inputId}MinuteWheel">
+          <div class="ppg-timepicker-wheel-spacer"></div>${minuteItems}<div class="ppg-timepicker-wheel-spacer"></div>
+        </div>
       </div>
       <div class="ppg-timepicker-footer">
-        <button type="button" class="btn btn-primary" ${hasSelection ? '' : 'disabled'} onclick="window.confirmTimePicker('${inputId}')">Pilih Jam Ini</button>
+        <button type="button" class="btn btn-primary" onclick="window.closeTimePicker_('${inputId}')">Selesai</button>
       </div>
     `;
+
+    [['HourWheel', 'hour'], ['MinuteWheel', 'minute']].forEach(function (pair) {
+      const col = document.getElementById(inputId + pair[0]);
+      const kind = pair[1];
+      let debounce = null;
+      col.addEventListener('scroll', function () {
+        clearTimeout(debounce);
+        debounce = setTimeout(function () {
+          const maxIdx = kind === 'hour' ? 23 : 59;
+          const idx = Math.max(0, Math.min(maxIdx, Math.round(col.scrollTop / PPG_TIME_ITEM_H_)));
+          if (col.scrollTop !== idx * PPG_TIME_ITEM_H_) col.scrollTo({ top: idx * PPG_TIME_ITEM_H_, behavior: 'smooth' });
+          window.ppgTimePickerState[inputId][kind] = idx;
+          window.applyTimePickerSelection_(inputId);
+        }, 120);
+      });
+    });
   };
 
-  window.pickTimeHour = function (inputId, hour) {
-    window.ppgTimePickerState[inputId].hour = hour;
-    window.renderTimePicker(inputId);
+  /** Klik langsung salah satu angka → scroll halus ke posisi itu (scroll listener yang menuntaskan pemilihan). */
+  window.jumpTimeWheel_ = function (inputId, kind, value) {
+    const col = document.getElementById(inputId + (kind === 'hour' ? 'HourWheel' : 'MinuteWheel'));
+    col.scrollTo({ top: value * PPG_TIME_ITEM_H_, behavior: 'smooth' });
   };
 
-  window.pickTimeMinute = function (inputId, minute) {
-    window.ppgTimePickerState[inputId].minute = minute;
-    window.renderTimePicker(inputId);
-  };
-
-  window.confirmTimePicker = function (inputId) {
+  window.applyTimePickerSelection_ = function (inputId) {
     const state = window.ppgTimePickerState[inputId];
-    if (state.hour === null || state.minute === null) return;
-
     const pad = n => String(n).padStart(2, '0');
     const value = `${pad(state.hour)}:${pad(state.minute)}`;
+    document.getElementById(inputId + 'Preview').textContent = value;
     document.getElementById(inputId).value = value;
     document.getElementById(inputId + 'Display').value = value;
+  };
+
+  window.closeTimePicker_ = function (inputId) {
     document.getElementById(inputId + 'Picker').classList.remove('open');
   };
 
