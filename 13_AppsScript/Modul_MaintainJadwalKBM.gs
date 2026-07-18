@@ -1,14 +1,24 @@
 /**
- * Modul_MaintainJadwalKBM.gs — CRUD Jadwal KBM (jadwal rutin mingguan per Kelompok)
+ * Modul_MaintainJadwalKBM.gs — CRUD Jadwal KBM (sesi mengajar per tanggal, per Kelompok).
  * Server-side functions dipanggil dari Index.html (bagian "Jadwal KBM" di Dashboard Kelompok).
+ *
+ * Model: satu baris = satu sesi (tanggal + guru + jam + ruangan + kelas), sesuai format
+ * pengumuman WA guru sehari-hari — bukan jadwal rutin mingguan. 'hari' dihitung otomatis
+ * dari 'tanggal' (bukan input user) supaya tetap konsisten & tidak bisa berbeda dengan tanggalnya.
  *
  * RBAC: Admin Kelompok/Desa hanya bisa akses Kelompok yang jadi scope mereka. Admin PPG akses semua.
  */
 
-const HARI_URUTAN = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+const HARI_NAMA_ = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/** 'yyyy-MM-dd' → nama hari Indonesia. Dipakai server saat create/update, bukan input user. */
+function hariDariTanggal_(tanggalStr) {
+  const d = new Date(tanggalStr + 'T00:00:00');
+  return isNaN(d.getTime()) ? '' : HARI_NAMA_[d.getDay()];
+}
 
 /**
- * GET jadwal KBM untuk satu Kelompok, terurut Senin → Minggu lalu jam_mulai.
+ * GET jadwal KBM untuk satu Kelompok, terurut tanggal → jam_mulai, dengan nama guru ikut disertakan.
  */
 function serverGetJadwalKBM(token, kelompokId) {
   const user = getCurrentUser(token);
@@ -21,9 +31,15 @@ function serverGetJadwalKBM(token, kelompokId) {
   let jadwal = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
   jadwal = jadwal.filter(j => j.kelompok_id == kelompokId);
 
+  const guruList = readSheetAsObjects(SHEET_NAMES.GURU);
+  jadwal = jadwal.map(j => {
+    const guru = guruList.find(g => g.id == j.guru_id);
+    return Object.assign({}, j, { guru_nama: guru ? guru.nama : '(guru tidak ditemukan)' });
+  });
+
   jadwal.sort((a, b) => {
-    const dayDiff = HARI_URUTAN.indexOf(a.hari) - HARI_URUTAN.indexOf(b.hari);
-    if (dayDiff !== 0) return dayDiff;
+    const tglDiff = String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
+    if (tglDiff !== 0) return tglDiff;
     return String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || ''));
   });
 
@@ -31,23 +47,25 @@ function serverGetJadwalKBM(token, kelompokId) {
 }
 
 /**
- * CREATE jadwal KBM baru.
- * Input: {kelompok_id, hari, jam_mulai, jam_selesai, keterangan}
+ * CREATE sesi jadwal KBM baru.
+ * Input: {kelompok_id, tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan?}
  */
 function serverCreateJadwalKBM(token, jadwalData) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  if (!jadwalData.kelompok_id || !jadwalData.hari || !jadwalData.jam_mulai || !jadwalData.jam_selesai) {
-    return { success: false, error: 'Hari, jam mulai, dan jam selesai wajib diisi.' };
-  }
-
-  if (!HARI_URUTAN.includes(jadwalData.hari)) {
-    return { success: false, error: 'Hari tidak valid.' };
+  if (!jadwalData.kelompok_id || !jadwalData.tanggal || !jadwalData.guru_id || !jadwalData.kelas
+    || !jadwalData.jam_mulai || !jadwalData.jam_selesai || !jadwalData.ruangan) {
+    return { success: false, error: 'Tanggal, guru, kelas, jam mulai, jam selesai, dan ruangan wajib diisi.' };
   }
 
   if (!validateUserAccess(token, 'kelompok', jadwalData.kelompok_id)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  const guruAda = readSheetAsObjects(SHEET_NAMES.GURU).some(g => g.id == jadwalData.guru_id && g.kelompok_id == jadwalData.kelompok_id);
+  if (!guruAda) {
+    return { success: false, error: 'Guru tidak ditemukan di Kelompok ini.' };
   }
 
   try {
@@ -59,15 +77,19 @@ function serverCreateJadwalKBM(token, jadwalData) {
       sheet.appendRow([
         id,
         jadwalData.kelompok_id,
-        jadwalData.hari,
+        hariDariTanggal_(jadwalData.tanggal),
         jadwalData.jam_mulai,
         jadwalData.jam_selesai,
         jadwalData.keterangan || '',
         user.id,
         now,
+        jadwalData.tanggal,
+        jadwalData.guru_id,
+        jadwalData.kelas.trim(),
+        jadwalData.ruangan.trim(),
       ]);
 
-      logAudit(SHEET_NAMES.JADWAL_KBM, id, 'create', user.id, `Jadwal: ${jadwalData.hari} ${jadwalData.jam_mulai}-${jadwalData.jam_selesai}`);
+      logAudit(SHEET_NAMES.JADWAL_KBM, id, 'create', user.id, `Sesi: ${jadwalData.tanggal} ${jadwalData.jam_mulai}-${jadwalData.jam_selesai} kls ${jadwalData.kelas}`);
       return { success: true, message: 'Jadwal KBM berhasil ditambahkan.', id };
     });
   } catch (e) {
@@ -76,7 +98,7 @@ function serverCreateJadwalKBM(token, jadwalData) {
 }
 
 /**
- * UPDATE jadwal KBM.
+ * UPDATE sesi jadwal KBM.
  */
 function serverUpdateJadwalKBM(token, jadwalId, updates) {
   const user = getCurrentUser(token);
@@ -89,16 +111,23 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
     return { success: false, error: 'Anda tidak memiliki akses ke jadwal ini.' };
   }
 
-  if (updates.hari && !HARI_URUTAN.includes(updates.hari)) {
-    return { success: false, error: 'Hari tidak valid.' };
+  if (updates.guru_id !== undefined) {
+    const guruAda = readSheetAsObjects(SHEET_NAMES.GURU).some(g => g.id == updates.guru_id && g.kelompok_id == jadwal.kelompok_id);
+    if (!guruAda) return { success: false, error: 'Guru tidak ditemukan di Kelompok ini.' };
   }
+
+  const tanggalBaru = updates.tanggal !== undefined ? updates.tanggal : jadwal.tanggal;
 
   try {
     return withScriptLock_(function () {
       updateRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwal.id }, {
-        hari: updates.hari !== undefined ? updates.hari : jadwal.hari,
+        tanggal: tanggalBaru,
+        hari: hariDariTanggal_(tanggalBaru),
+        guru_id: updates.guru_id !== undefined ? updates.guru_id : jadwal.guru_id,
+        kelas: updates.kelas !== undefined ? String(updates.kelas).trim() : jadwal.kelas,
         jam_mulai: updates.jam_mulai !== undefined ? updates.jam_mulai : jadwal.jam_mulai,
         jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jadwal.jam_selesai,
+        ruangan: updates.ruangan !== undefined ? String(updates.ruangan).trim() : jadwal.ruangan,
         keterangan: updates.keterangan !== undefined ? updates.keterangan : jadwal.keterangan,
       });
 
@@ -111,7 +140,7 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
 }
 
 /**
- * DELETE jadwal KBM.
+ * DELETE sesi jadwal KBM.
  */
 function serverDeleteJadwalKBM(token, jadwalId) {
   const user = getCurrentUser(token);

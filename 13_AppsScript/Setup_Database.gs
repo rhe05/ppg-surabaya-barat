@@ -60,9 +60,10 @@ function setupDatabaseStructure() {
 
   console.log('✅ Semua 16 sheet berhasil dibuat atau sudah ada.');
 
-  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri' yang sudah ada (aman dijalankan berulang)
+  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);
   migrateSantriSchemaAddFields_(ss);
+  migrateJadwalKbmSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -115,6 +116,32 @@ function migrateSantriSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "santri" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'jadwal_kbm' yang SUDAH ADA: tambah kolom baru di akhir jika belum ada.
+ * Model lama = jadwal rutin mingguan ('hari' berulang). Model baru = sesi per tanggal
+ * spesifik (sesuai pengumuman WA guru): tanggal, guru_id, kelas, ruangan.
+ * Kolom lama ('hari', 'keterangan') TETAP DIPERTAHANKAN (tidak dihapus) — 'hari'
+ * kini diisi otomatis dari 'tanggal' oleh server, 'keterangan' jadi field catatan opsional.
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migrateJadwalKbmSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('jadwal_kbm');
+  if (!sheet) return;
+
+  const newColumns = ['tanggal', 'guru_id', 'kelas', 'ruangan'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "jadwal_kbm" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "jadwal_kbm" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**

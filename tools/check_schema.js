@@ -28,7 +28,7 @@ const EXPECTED = {
   kelompok: ['id', 'desa_id', 'nama', 'status_aktif'],
   guru: ['id', 'kelompok_id', 'nama', 'kecamatan', 'lama_mengajar'],
   santri: ['id', 'kelompok_id', 'nama', 'kecamatan'],
-  jadwal_kbm: ['id', 'kelompok_id'],
+  jadwal_kbm: ['id', 'kelompok_id', 'tanggal', 'guru_id', 'kelas', 'jam_mulai', 'jam_selesai', 'ruangan'],
   pengumuman: ['id', 'kelompok_id'],
 };
 

@@ -809,6 +809,93 @@
       font-size: 12px;
     }
 
+    .jadwal-kbm-card {
+      display: flex;
+      align-items: stretch;
+      gap: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
+    }
+
+    .jadwal-kbm-card-time {
+      flex-shrink: 0;
+      width: 76px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      padding-right: 16px;
+    }
+
+    .jadwal-kbm-card-time-jam {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      line-height: 1.3;
+    }
+
+    .jadwal-kbm-card-time-hari {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      margin-top: 4px;
+    }
+
+    .jadwal-kbm-card-body {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .jadwal-kbm-card-kelas {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .jadwal-kbm-card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px 14px;
+      margin-top: 6px;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .jadwal-kbm-card-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .jadwal-kbm-card-note {
+      margin-top: 8px;
+      font-size: 12.5px;
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    .jadwal-kbm-card-actions {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .jadwal-kbm-card-actions .btn {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
     /* Dashboard Kelompok: judul seksi pertama dinaikkan supaya jaraknya dengan
        header "Dashboard Kelompok" di atasnya tidak terlalu jauh. */
     #screenGuruDashboard .dash-container {

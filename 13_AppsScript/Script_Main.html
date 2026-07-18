@@ -1542,47 +1542,77 @@
       .withSuccessHandler(function (result) {
         if (!result.success) return;
 
-        const tbody = document.getElementById('kdJadwalTableBody');
-        tbody.innerHTML = '';
+        const list = document.getElementById('kdJadwalList');
+        list.innerHTML = '';
 
         if (result.data.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</td></tr>';
+          list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</div>';
           return;
         }
 
+        const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
         result.data.forEach(j => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${j.hari}</td>
-            <td>${j.jam_mulai} - ${j.jam_selesai}</td>
-            <td>${j.keterangan || '-'}</td>
-            <td style="text-align: center;">
-              <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px;" onclick="window.editJadwalKBM('${j.id}', '${j.hari}', '${j.jam_mulai}', '${j.jam_selesai}', '${(j.keterangan || '').replace(/'/g, "\\'")}')">Edit</button>
-              <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; color: var(--red);" onclick="window.deleteJadwalKBM('${j.id}')">Hapus</button>
-            </td>
+          const [y, m, d] = String(j.tanggal || '').split('-').map(Number);
+          const tanggalLabel = (y && m && d) ? `${j.hari}, ${d} ${monthNames[m - 1]} ${y}` : (j.hari || j.tanggal || '-');
+
+          const card = document.createElement('div');
+          card.className = 'jadwal-kbm-card';
+          card.innerHTML = `
+            <div class="jadwal-kbm-card-time">
+              <div class="jadwal-kbm-card-time-jam">${j.jam_mulai}<br>${j.jam_selesai}</div>
+            </div>
+            <div class="jadwal-kbm-card-body">
+              <div class="jadwal-kbm-card-kelas">Kls ${j.kelas}</div>
+              <div class="jadwal-kbm-card-meta">
+                <span>📅 ${tanggalLabel}</span>
+                <span>👨‍🏫 ${j.guru_nama}</span>
+                <span>📍 ${j.ruangan}</span>
+              </div>
+              ${j.keterangan ? `<div class="jadwal-kbm-card-note">${j.keterangan}</div>` : ''}
+            </div>
+            <div class="jadwal-kbm-card-actions">
+              <button class="btn btn-secondary" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.tanggal)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")})'>Edit</button>
+              <button class="btn btn-secondary" style="color: var(--red);" onclick="window.deleteJadwalKBM('${j.id}')">Hapus</button>
+            </div>
           `;
-          tbody.appendChild(tr);
+          list.appendChild(card);
         });
       })
       .serverGetJadwalKBM(window.currentToken, kelompokId);
   };
 
+  /** Isi dropdown Guru di modal Jadwal KBM dari data guru Kelompok yang sedang aktif (sudah dimuat window.lastGuruListData). */
+  window.populateJadwalKBMGuruSelect_ = function (selectedGuruId) {
+    const select = document.getElementById('jadwalKBMGuru');
+    const guruList = window.lastGuruListData || [];
+    select.innerHTML = '<option value="">-- Pilih Guru --</option>' +
+      guruList.map(g => `<option value="${g.id}">${g.nama}</option>`).join('');
+    select.value = selectedGuruId || '';
+  };
+
   window.openModalJadwalKBM = function () {
     document.getElementById('modalJadwalKBMTitle').textContent = 'Tambah Jadwal KBM';
     document.getElementById('jadwalKBMId').value = '';
-    document.getElementById('jadwalKBMHari').value = '';
+    document.getElementById('jadwalKBMTanggal').value = '';
+    window.populateJadwalKBMGuruSelect_('');
+    document.getElementById('jadwalKBMKelas').value = '';
     document.getElementById('jadwalKBMJamMulai').value = '';
     document.getElementById('jadwalKBMJamSelesai').value = '';
+    document.getElementById('jadwalKBMRuangan').value = '';
     document.getElementById('jadwalKBMKeterangan').value = '';
     document.getElementById('modalJadwalKBM').classList.add('active');
   };
 
-  window.editJadwalKBM = function (id, hari, jamMulai, jamSelesai, keterangan) {
+  window.editJadwalKBM = function (id, tanggal, guruId, kelas, jamMulai, jamSelesai, ruangan, keterangan) {
     document.getElementById('modalJadwalKBMTitle').textContent = 'Edit Jadwal KBM';
     document.getElementById('jadwalKBMId').value = id;
-    document.getElementById('jadwalKBMHari').value = hari;
+    document.getElementById('jadwalKBMTanggal').value = tanggal;
+    window.populateJadwalKBMGuruSelect_(guruId);
+    document.getElementById('jadwalKBMKelas').value = kelas;
     document.getElementById('jadwalKBMJamMulai').value = jamMulai;
     document.getElementById('jadwalKBMJamSelesai').value = jamSelesai;
+    document.getElementById('jadwalKBMRuangan').value = ruangan;
     document.getElementById('jadwalKBMKeterangan').value = keterangan;
     document.getElementById('modalJadwalKBM').classList.add('active');
   };
@@ -1593,13 +1623,16 @@
 
   window.saveJadwalKBM = function () {
     const id = document.getElementById('jadwalKBMId').value;
-    const hari = document.getElementById('jadwalKBMHari').value;
-    const jamMulai = document.getElementById('jadwalKBMJamMulai').value;
-    const jamSelesai = document.getElementById('jadwalKBMJamSelesai').value;
-    const keterangan = document.getElementById('jadwalKBMKeterangan').value;
+    const tanggal = document.getElementById('jadwalKBMTanggal').value;
+    const guru_id = document.getElementById('jadwalKBMGuru').value;
+    const kelas = document.getElementById('jadwalKBMKelas').value.trim();
+    const jam_mulai = document.getElementById('jadwalKBMJamMulai').value;
+    const jam_selesai = document.getElementById('jadwalKBMJamSelesai').value;
+    const ruangan = document.getElementById('jadwalKBMRuangan').value.trim();
+    const keterangan = document.getElementById('jadwalKBMKeterangan').value.trim();
 
-    if (!hari || !jamMulai || !jamSelesai) {
-      alert('Hari, jam mulai, dan jam selesai wajib diisi.');
+    if (!tanggal || !guru_id || !kelas || !jam_mulai || !jam_selesai || !ruangan) {
+      alert('Tanggal, guru, kelas, jam mulai, jam selesai, dan ruangan wajib diisi.');
       return;
     }
 
@@ -1615,11 +1648,11 @@
     if (id) {
       google.script.run
         .withSuccessHandler(handler)
-        .serverUpdateJadwalKBM(window.currentToken, id, { hari, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan });
+        .serverUpdateJadwalKBM(window.currentToken, id, { tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan });
     } else {
       google.script.run
         .withSuccessHandler(handler)
-        .serverCreateJadwalKBM(window.currentToken, { kelompok_id: window.currentKelompokId, hari, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan });
+        .serverCreateJadwalKBM(window.currentToken, { kelompok_id: window.currentKelompokId, tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan });
     }
   };
 
