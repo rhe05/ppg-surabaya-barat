@@ -1645,45 +1645,76 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
-
-        const list = document.getElementById('kdJadwalList');
-        list.innerHTML = '';
-
-        if (result.data.length === 0) {
-          list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</div>';
-          return;
-        }
-
-        const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-
-        result.data.forEach(j => {
-          const [y, m, d] = String(j.tanggal || '').split('-').map(Number);
-          const tanggalLabel = (y && m && d) ? `${j.hari}, ${d} ${monthNames[m - 1]} ${y}` : (j.hari || j.tanggal || '-');
-
-          const card = document.createElement('div');
-          card.className = 'jadwal-kbm-card';
-          card.innerHTML = `
-            <div class="jadwal-kbm-card-time">
-              <div class="jadwal-kbm-card-time-jam">${j.jam_mulai}<br>${j.jam_selesai}</div>
-            </div>
-            <div class="jadwal-kbm-card-body">
-              <div class="jadwal-kbm-card-kelas">Kls ${j.kelas}</div>
-              <div class="jadwal-kbm-card-meta">
-                <span>📅 ${tanggalLabel}</span>
-                <span>👨‍🏫 ${j.guru_nama}</span>
-                <span>📍 ${j.ruangan}</span>
-              </div>
-              ${j.keterangan ? `<div class="jadwal-kbm-card-note">${j.keterangan}</div>` : ''}
-            </div>
-            <div class="jadwal-kbm-card-actions">
-              <button class="btn btn-secondary" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.tanggal)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")})'>Edit</button>
-              <button class="btn btn-secondary" style="color: var(--red);" onclick="window.deleteJadwalKBM('${j.id}')">Hapus</button>
-            </div>
-          `;
-          list.appendChild(card);
-        });
+        window.lastJadwalListData = result.data;
+        window.renderJadwalKBMList_(result.data);
       })
       .serverGetJadwalKBM(window.currentToken, kelompokId);
+  };
+
+  /** Render ulang daftar kartu Jadwal KBM dari array data (dipakai loader server & update lokal instan). */
+  window.renderJadwalKBMList_ = function (data) {
+    const list = document.getElementById('kdJadwalList');
+    list.innerHTML = '';
+
+    if (data.length === 0) {
+      list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</div>';
+      return;
+    }
+
+    const sorted = data.slice().sort((a, b) => {
+      const tglDiff = String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
+      if (tglDiff !== 0) return tglDiff;
+      return String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || ''));
+    });
+
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const hariNama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+    sorted.forEach(j => {
+      const [y, m, d] = String(j.tanggal || '').split('-').map(Number);
+      const hari = j.hari || (y && m && d ? hariNama[new Date(y, m - 1, d).getDay()] : '');
+      const tanggalLabel = (y && m && d) ? `${hari}, ${d} ${monthNames[m - 1]} ${y}` : (hari || j.tanggal || '-');
+
+      const card = document.createElement('div');
+      card.className = 'jadwal-kbm-card';
+      card.innerHTML = `
+        <div class="jadwal-kbm-card-time">
+          <div class="jadwal-kbm-card-time-jam">${j.jam_mulai}<br>${j.jam_selesai}</div>
+        </div>
+        <div class="jadwal-kbm-card-body">
+          <div class="jadwal-kbm-card-kelas">Kls ${j.kelas}</div>
+          <div class="jadwal-kbm-card-meta">
+            <span>📅 ${tanggalLabel}</span>
+            <span>👨‍🏫 ${j.guru_nama}</span>
+            <span>📍 ${j.ruangan}</span>
+          </div>
+          ${j.keterangan ? `<div class="jadwal-kbm-card-note">${j.keterangan}</div>` : ''}
+        </div>
+        <div class="jadwal-kbm-card-actions">
+          <button class="btn btn-secondary" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.tanggal)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")})'>Edit</button>
+          <button class="btn btn-secondary" style="color: var(--red);" onclick="window.deleteJadwalKBM('${j.id}')">Hapus</button>
+        </div>
+      `;
+      list.appendChild(card);
+    });
+  };
+
+  /** Tambah/ubah/hapus satu entri Jadwal KBM di cache lokal lalu render ulang — tanpa fetch ulang ke server (instan). */
+  window.applyJadwalKBMMutationLocal_ = function (data, id, isDelete) {
+    const list = window.lastJadwalListData || (window.lastJadwalListData = []);
+    const idx = list.findIndex(x => String(x.id) === String(id));
+    if (isDelete) {
+      if (idx >= 0) list.splice(idx, 1);
+    } else {
+      const guru = (window.lastGuruListData || []).find(g => String(g.id) === String(data.guru_id));
+      const rec = Object.assign({}, idx >= 0 ? list[idx] : {}, data, {
+        id: id,
+        kelompok_id: window.currentKelompokId,
+        guru_nama: guru ? guru.nama : '(guru tidak ditemukan)',
+      });
+      if (idx >= 0) list[idx] = rec; else list.push(rec);
+    }
+    window.renderJadwalKBMList_(list);
   };
 
   /** Isi dropdown Guru di modal Jadwal KBM dari data guru Kelompok yang sedang aktif (sudah dimuat window.lastGuruListData). */
@@ -1746,36 +1777,47 @@
       return;
     }
 
-    const handler = function (result) {
+    const data = { tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan };
+
+    const onDone = function (result) {
+      window.hideGlobalLoading_();
       if (result.success) {
         window.closeModalJadwalKBM();
-        window.loadKelompokDashboardJadwal_(window.currentKelompokId);
+        // Tampilkan instan (tanpa fetch ulang) — kartu langsung muncul/berubah di daftar.
+        window.applyJadwalKBMMutationLocal_(data, id || result.id, false);
       } else {
         alert(result.error);
       }
     };
+    const onFail = function (err) {
+      window.hideGlobalLoading_();
+      alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+    };
 
+    window.showGlobalLoading_('Menyimpan jadwal...');
     if (id) {
-      google.script.run
-        .withSuccessHandler(handler)
-        .serverUpdateJadwalKBM(window.currentToken, id, { tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan });
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateJadwalKBM(window.currentToken, id, data);
     } else {
-      google.script.run
-        .withSuccessHandler(handler)
-        .serverCreateJadwalKBM(window.currentToken, { kelompok_id: window.currentKelompokId, tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan });
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverCreateJadwalKBM(window.currentToken, Object.assign({ kelompok_id: window.currentKelompokId }, data));
     }
   };
 
   window.deleteJadwalKBM = function (id) {
     if (!confirm('Hapus jadwal ini?')) return;
 
+    window.showGlobalLoading_('Menghapus jadwal...');
     google.script.run
       .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
         if (result.success) {
-          window.loadKelompokDashboardJadwal_(window.currentKelompokId);
+          window.applyJadwalKBMMutationLocal_(null, id, true);
         } else {
           alert(result.error);
         }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
       })
       .serverDeleteJadwalKBM(window.currentToken, id);
   };
