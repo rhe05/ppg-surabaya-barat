@@ -200,7 +200,7 @@
     document.getElementById('generusKelpNomorWaAyah').value = '';
     document.getElementById('generusKelpNomorWaIbu').value = '';
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
-    document.querySelectorAll('input[name="generusKelpGender"]').forEach(r => r.checked = false);
+    document.getElementById('generusKelpGender').value = '';
     window.toggleGenerusKlsSekolah_();
     document.getElementById('modalGenerusKelp').classList.add('active');
   };
@@ -243,7 +243,7 @@
       nama: document.getElementById('generusKelpNama').value,
       nama_panggilan: document.getElementById('generusKelpNamaPanggilan').value.trim(),
       nis: document.getElementById('generusKelpNis').value,
-      gender: document.querySelector('input[name="generusKelpGender"]:checked')?.value || '',
+      gender: document.getElementById('generusKelpGender').value,
       tempat_lahir: document.getElementById('generusKelpTempatLahir').value.trim(),
       tanggal_lahir: document.getElementById('generusKelpTglLahir').value,
       jenjang_saat_ini: document.getElementById('generusKelpJenjang').value,
@@ -268,11 +268,12 @@
       return;
     }
 
+    const editId = window.currentEditGenerusId;
     const onDone = function (result) {
       window.hideGlobalLoading_();
       if (result.success) {
         window.closeModalGenerusKelp();
-        window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
+        window.applyGenerusMutationLocal_(data, editId || result.id, false);
       } else {
         alert(result.error);
       }
@@ -283,8 +284,8 @@
     };
 
     window.showGlobalLoading_('Menyimpan data...');
-    if (window.currentEditGenerusId) {
-      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, window.currentEditGenerusId, data);
+    if (editId) {
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, editId, data);
     } else {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddSantri(window.currentToken, window.currentKelompokId, data);
     }
@@ -341,7 +342,7 @@
     document.getElementById('generusKelpNama').value = s.nama || '';
     document.getElementById('generusKelpNamaPanggilan').value = s.nama_panggilan || '';
     document.getElementById('generusKelpNis').value = s.nis || '';
-    document.querySelectorAll('input[name="generusKelpGender"]').forEach(r => { r.checked = r.value === s.gender; });
+    document.getElementById('generusKelpGender').value = s.gender || '';
     document.getElementById('generusKelpTempatLahir').value = s.tempat_lahir || '';
     document.getElementById('generusKelpTglLahir').value = s.tanggal_lahir || '';
     document.getElementById('generusKelpTglLahirDisplay').value = window.formatTanggalDisplay_(s.tanggal_lahir);
@@ -401,7 +402,7 @@
         window.setGenerusDeleteLoading_(false);
         if (result.success) {
           window.closeModalDeleteGenerusKelp();
-          window.loadKelompokDashboardSantriKelas_(window.currentKelompokId);
+          window.applyGenerusMutationLocal_(null, id, true);
         } else {
           alert(result.error);
         }
@@ -464,10 +465,11 @@
         <head>
           <title>${window.escapeHtmlExport_(title)}</title>
           <style>
+            @page { size: A4 landscape; margin: 12mm; }
             body { font-family: Arial, sans-serif; padding: 24px; }
             h1 { font-size: 18px; margin-bottom: 16px; }
             table { width: 100%; border-collapse: collapse; }
-            th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 12px; text-align: left; }
+            th, td { border: 1px solid #ccc; padding: 6px 10px; font-size: 11px; text-align: left; white-space: nowrap; }
             th { background: #f3f4f6; }
           </style>
         </head>
@@ -489,27 +491,27 @@
     document.getElementById('modalEksporGuru').classList.remove('active');
   };
 
-  window.confirmEksporGuru = function () {
-    const format = document.querySelector('input[name="eksporGuruFormat"]:checked')?.value || 'excel';
-    const scope = document.querySelector('input[name="eksporGuruScope"]:checked')?.value || 'all';
+  /* Kolom untuk ekspor = kolom yang sedang tampil (mengikuti column picker),
+     minus kolom Aksi. Jadi PDF/Excel isinya sesuai yang dipilih user. */
+  window.exportColsForData_ = function (cols, visibleGroups) {
+    return window.visibleCols_(cols, visibleGroups).filter(c => !c.action);
+  };
 
-    if (format === 'pdf') {
-      const source = window.lastGuruListData || [];
-      const list = scope === 'ms' ? source.filter(g => g.kategori === 'Muballigh Setempat') : source;
-      const title = 'Data Guru — ' + (scope === 'ms' ? 'Muballigh Setempat' : 'Semua Guru');
-      const rows = list.map((g, i) => [i + 1, g.nama || '', g.kategori || '']);
-      window.printPdfList_(title, ['No', 'Nama', 'Kategori'], rows);
-      window.closeModalEksporGuru();
-      return;
-    }
+  window.buildExportMatrix_ = function (cols, list) {
+    return {
+      headers: cols.map(c => c.label),
+      rows: list.map((row, i) => cols.map(c => c.val(row, i))),
+    };
+  };
 
+  window.runXlsxExport_ = function (sheetName, headers, rows, closeFn) {
     window.showGlobalLoading_('Menyiapkan file Excel...');
     google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (result.success) {
           window.downloadXlsxFromBase64_(result.base64, result.filename);
-          window.closeModalEksporGuru();
+          closeFn();
         } else {
           alert(result.error);
         }
@@ -518,7 +520,25 @@
         window.hideGlobalLoading_();
         alert('Gagal ekspor: ' + (err && err.message ? err.message : err));
       })
-      .serverExportGuruKelpXlsx(window.currentToken, window.currentKelompokId, scope);
+      .serverBuildXlsxFromData(window.currentToken, sheetName, headers, rows);
+  };
+
+  window.confirmEksporGuru = function () {
+    const format = document.querySelector('input[name="eksporGuruFormat"]:checked')?.value || 'excel';
+    const scope = document.querySelector('input[name="eksporGuruScope"]:checked')?.value || 'all';
+
+    const source = window.lastGuruListData || [];
+    const list = scope === 'ms' ? source.filter(g => g.kategori === 'Muballigh Setempat') : source;
+    const cols = window.exportColsForData_(window.GURU_COLS, window.guruVisibleGroups);
+    const { headers, rows } = window.buildExportMatrix_(cols, list);
+    const scopeLabel = scope === 'ms' ? 'Muballigh Setempat' : 'Semua Guru';
+
+    if (format === 'pdf') {
+      window.printPdfList_('Data Guru — ' + scopeLabel, headers, rows);
+      window.closeModalEksporGuru();
+      return;
+    }
+    window.runXlsxExport_('Guru ' + (scope === 'ms' ? 'MS' : 'Semua'), headers, rows, window.closeModalEksporGuru);
   };
 
   window.openModalEksporGenerus = function () {
@@ -542,32 +562,18 @@
     const format = document.querySelector('input[name="eksporGenerusFormat"]:checked')?.value || 'excel';
     const scope = document.querySelector('input[name="eksporGenerusScope"]:checked')?.value || 'all';
 
+    const source = window.lastSantriListData || [];
+    const list = scope === 'all' ? source : source.filter(s => s.jenjang_saat_ini === scope);
+    const cols = window.exportColsForData_(window.SANTRI_COLS, window.generusVisibleGroups);
+    const { headers, rows } = window.buildExportMatrix_(cols, list);
+    const scopeLabel = window.generusScopeLabels_[scope] || 'Semua Generus';
+
     if (format === 'pdf') {
-      const source = window.lastSantriListData || [];
-      const list = scope === 'all' ? source : source.filter(s => s.jenjang_saat_ini === scope);
-      const title = 'Data Generus — ' + window.generusScopeLabels_[scope];
-      const rows = list.map((s, i) => [i + 1, s.nama || '', s.nis || '', s.gender || '', s.jenjang_saat_ini || '']);
-      window.printPdfList_(title, ['No', 'Nama', 'NIS', 'Gender', 'Jenjang'], rows);
+      window.printPdfList_('Data Generus — ' + scopeLabel, headers, rows);
       window.closeModalEksporGenerus();
       return;
     }
-
-    window.showGlobalLoading_('Menyiapkan file Excel...');
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (result.success) {
-          window.downloadXlsxFromBase64_(result.base64, result.filename);
-          window.closeModalEksporGenerus();
-        } else {
-          alert(result.error);
-        }
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        alert('Gagal ekspor: ' + (err && err.message ? err.message : err));
-      })
-      .serverExportSantriKelpXlsx(window.currentToken, window.currentKelompokId, scope);
+    window.runXlsxExport_('Generus ' + scopeLabel.replace(/\s+/g, ''), headers, rows, window.closeModalEksporGenerus);
   };
 
   /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
@@ -776,11 +782,13 @@
       return;
     }
 
+    const editId = window.currentEditGuruId;
     const onDone = function (result) {
       window.hideGlobalLoading_();
       if (result.success) {
         window.closeModalGuruKelp();
-        window.loadKelompokDashboardGuru_(window.currentKelompokId);
+        // Tampilkan instan (tanpa fetch ulang) — data langsung muncul di KPI + tabel.
+        window.applyGuruMutationLocal_(data, editId || result.id, false);
       } else {
         alert(result.error);
       }
@@ -791,10 +799,36 @@
     };
 
     window.showGlobalLoading_('Menyimpan data...');
-    if (window.currentEditGuruId) {
-      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, window.currentEditGuruId, data);
+    if (editId) {
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, editId, data);
     } else {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddGuru(window.currentToken, window.currentKelompokId, data);
+    }
+  };
+
+  // Hitung ulang KPI + tabel guru dari array data (dipakai loader server & update lokal instan).
+  window.renderGuruKpis_ = function (guru) {
+    const total = guru.length;
+    const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
+    const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
+    const bantu = guru.filter(g => g.kategori === 'Guru Bantu').length;
+    const tugasanPct = total > 0 ? Math.round((tugasan / total) * 100) : 0;
+    const setempatPct = total > 0 ? Math.round((setempat / total) * 100) : 0;
+    const bantuPct = total > 0 ? Math.round((bantu / total) * 100) : 0;
+
+    document.getElementById('gdTotalGuru').textContent = total;
+    document.getElementById('gdTugasan').textContent = tugasan;
+    document.getElementById('gdSetempat').textContent = setempat;
+    document.getElementById('gdBantu').textContent = bantu;
+    document.getElementById('gdTugasanPct').textContent = tugasanPct + '%';
+    document.getElementById('gdSetempatPct').textContent = setempatPct + '%';
+    document.getElementById('gdBantuPct').textContent = bantuPct + '%';
+    document.getElementById('gdTugasanBar').style.width = tugasanPct + '%';
+    document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
+    document.getElementById('gdBantuBar').style.width = bantuPct + '%';
+
+    if (document.getElementById('guruDashTableWrapper').style.display !== 'none') {
+      window.renderGuruDashTable_(guru, window.guruTableScope || 'all', window.guruDashSearchQuery || '');
     }
   };
 
@@ -802,34 +836,23 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
-
-        const guru = result.data;
-        window.lastGuruListData = guru;
-        const total = guru.length;
-        const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
-        const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
-        const bantu = guru.filter(g => g.kategori === 'Guru Bantu').length;
-        const tugasanPct = total > 0 ? Math.round((tugasan / total) * 100) : 0;
-        const setempatPct = total > 0 ? Math.round((setempat / total) * 100) : 0;
-        const bantuPct = total > 0 ? Math.round((bantu / total) * 100) : 0;
-
-        document.getElementById('gdTotalGuru').textContent = total;
-        document.getElementById('gdTugasan').textContent = tugasan;
-        document.getElementById('gdSetempat').textContent = setempat;
-        document.getElementById('gdBantu').textContent = bantu;
-        document.getElementById('gdTugasanPct').textContent = tugasanPct + '%';
-        document.getElementById('gdSetempatPct').textContent = setempatPct + '%';
-        document.getElementById('gdBantuPct').textContent = bantuPct + '%';
-        document.getElementById('gdTugasanBar').style.width = tugasanPct + '%';
-        document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
-        document.getElementById('gdBantuBar').style.width = bantuPct + '%';
-
-        // Tabel guru selalu di-refresh kalau wrapper-nya sedang terbuka (mis. setelah tambah/edit/hapus).
-        if (document.getElementById('guruDashTableWrapper').style.display !== 'none') {
-          window.renderGuruDashTable_(guru, window.guruTableScope || 'all', window.guruDashSearchQuery || '');
-        }
+        window.lastGuruListData = result.data;
+        window.renderGuruKpis_(result.data);
       })
       .serverGetGuruList(window.currentToken, kelompokId);
+  };
+
+  // Update lokal instan (tanpa round-trip ke-2 ke server) setelah tambah/edit/hapus guru.
+  window.applyGuruMutationLocal_ = function (data, id, isDelete) {
+    const list = window.lastGuruListData || (window.lastGuruListData = []);
+    const idx = list.findIndex(x => String(x.id) === String(id));
+    if (isDelete) {
+      if (idx >= 0) list.splice(idx, 1);
+    } else {
+      const rec = Object.assign({}, idx >= 0 ? list[idx] : {}, data, { id: id, kelompok_id: window.currentKelompokId });
+      if (idx >= 0) list[idx] = rec; else list.push(rec);
+    }
+    window.renderGuruKpis_(list);
   };
 
   window.toggleGuruDashTable_ = function () {
@@ -856,50 +879,157 @@
     window.renderGuruDashTable_(window.lastGuruListData || [], scope, query);
   };
 
-  window.renderGuruDashTable_ = function (guru, scope, search) {
-    const tbody = document.getElementById('guruDashTableBody');
-    tbody.innerHTML = '';
+  /* ═════ MESIN TABEL DATA (kolom lengkap + freeze kolom + column picker) ═════
+     Satu definisi kolom dipakai untuk: render tabel, dan ekspor (Excel/PDF).
+     Tiap kolom: {key, label, group, sticky, center, action, val(row,i), html(row,i)}.
+     Grup 'inti' (No/Nama/Aksi) selalu tampil; grup lain di-toggle via column picker. */
 
-    let list = (scope && scope !== 'all' && scope !== 'TotalGuruKBM')
-      ? guru.filter(g => g.kategori === scope)
-      : guru;
+  window.escCell_ = function (v) {
+    return window.escapeHtmlExport_(v === null || v === undefined || v === '' ? '-' : v);
+  };
 
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(g => String(g.nama || '').toLowerCase().includes(q));
-    }
+  window.guruBadgeHtml_ = function (kategori) {
+    const m = { 'Muballigh Tugasan': 'badge-tugasan', 'Muballigh Setempat': 'badge-setempat', 'Guru Bantu': 'badge-bantu' };
+    return `<span class="guru-kelp-badge ${m[kategori] || ''}">${window.escapeHtmlExport_(kategori || '-')}</span>`;
+  };
 
-    if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data guru.</td></tr>';
+  window.aksiBtnsHtml_ = function (view, edit, del, id) {
+    return `<span class="guru-kelp-aksi-group">`
+      + `<button class="guru-kelp-aksi-btn" onclick="window.${view}('${id}')" title="Lihat Detail">${window.iconViewSvg_}</button>`
+      + `<button class="guru-kelp-aksi-btn" onclick="window.${edit}('${id}')" title="Edit">${window.iconEditSvg_}</button>`
+      + `<button class="guru-kelp-aksi-btn danger" onclick="window.${del}('${id}')" title="Hapus">${window.iconDeleteSvg_}</button>`
+      + `</span>`;
+  };
+
+  window.GURU_COLS = [
+    { key: 'no', label: 'No', group: 'inti', sticky: 'left', val: (g, i) => String(i + 1) },
+    { key: 'nama', label: 'Nama', group: 'inti', sticky: 'left', val: g => g.nama || '', html: g => `<span class="guru-kelp-name-text">${window.escapeHtmlExport_(g.nama)}</span>` },
+    { key: 'jenis_kelamin', label: 'L/P', group: 'pribadi', center: true, val: g => g.jenis_kelamin || '' },
+    { key: 'usia', label: 'Usia', group: 'pribadi', val: g => g.tanggal_lahir ? window.calcUsiaThn_(g.tanggal_lahir) : '' },
+    { key: 'tempat_lahir', label: 'Tempat Lahir', group: 'pribadi', val: g => g.tempat_lahir || '' },
+    { key: 'tanggal_lahir', label: 'Tanggal Lahir', group: 'pribadi', val: g => g.tanggal_lahir ? window.formatTanggalDisplay_(g.tanggal_lahir) : '' },
+    { key: 'mulai_mengajar', label: 'Mulai Mengajar', group: 'pribadi', val: g => g.mulai_mengajar ? window.formatTanggalDisplay_(g.mulai_mengajar) : '' },
+    { key: 'pendidikan', label: 'Pendidikan', group: 'pribadi', val: g => g.pendidikan || '' },
+    { key: 'kategori', label: 'Kategori', group: 'pribadi', val: g => g.kategori || '', html: g => window.guruBadgeHtml_(g.kategori) },
+    { key: 'nomor_wa', label: 'Nomor WA', group: 'kontak', val: g => g.nomor_wa || '' },
+    { key: 'alamat', label: 'Alamat', group: 'alamat', val: g => g.alamat || '' },
+    { key: 'rtrw', label: 'RT/RW', group: 'alamat', val: g => (g.rt || g.rw) ? `${g.rt || '-'} / ${g.rw || '-'}` : '' },
+    { key: 'kode_pos', label: 'Kode Pos', group: 'alamat', val: g => g.kode_pos || '' },
+    { key: 'kelurahan', label: 'Ds/Kelurahan', group: 'alamat', val: g => g.kelurahan || '' },
+    { key: 'kabupaten_kota', label: 'Kabupaten/Kota', group: 'alamat', val: g => g.kabupaten_kota || '' },
+    { key: 'provinsi', label: 'Provinsi', group: 'alamat', val: g => g.provinsi || '' },
+    { key: 'aksi', label: 'Aksi', group: 'inti', sticky: 'right', action: true, html: g => window.aksiBtnsHtml_('viewGuruKelp', 'editGuruKelp', 'deleteGuruKelp', g.id) },
+  ];
+
+  window.SANTRI_COLS = [
+    { key: 'no', label: 'No', group: 'inti', sticky: 'left', val: (s, i) => String(i + 1) },
+    { key: 'nama', label: 'Nama', group: 'inti', sticky: 'left', val: s => s.nama || '', html: s => `<span class="guru-kelp-name-text">${window.escapeHtmlExport_(s.nama)}</span>` },
+    { key: 'nama_panggilan', label: 'Panggilan', group: 'pribadi', val: s => s.nama_panggilan || '' },
+    { key: 'nis', label: 'NIS', group: 'pribadi', val: s => s.nis || '' },
+    { key: 'gender', label: 'L/P', group: 'pribadi', center: true, val: s => s.gender || '' },
+    { key: 'tempat_lahir', label: 'Tempat Lahir', group: 'pribadi', val: s => s.tempat_lahir || '' },
+    { key: 'tanggal_lahir', label: 'Tanggal Lahir', group: 'pribadi', val: s => s.tanggal_lahir ? window.formatTanggalDisplay_(s.tanggal_lahir) : '' },
+    { key: 'usia', label: 'Usia', group: 'pribadi', val: s => s.tanggal_lahir ? window.calcUsiaThn_(s.tanggal_lahir) : '' },
+    { key: 'jenjang', label: 'Jenjang', group: 'pribadi', val: s => window.generusJenjangLabels_[s.jenjang_saat_ini] || s.jenjang_saat_ini || '' },
+    { key: 'pendidikan', label: 'Pendidikan', group: 'pendidikan', val: s => s.pendidikan || '' },
+    { key: 'kelas_sekolah', label: 'Kls Sekolah', group: 'pendidikan', val: s => s.kelas_sekolah || '' },
+    { key: 'kelas_ngaji', label: 'Kelas Ngaji', group: 'pendidikan', val: s => s.kelas_ngaji || '' },
+    { key: 'alamat', label: 'Alamat', group: 'alamat', val: s => s.alamat || '' },
+    { key: 'rtrw', label: 'RT/RW', group: 'alamat', val: s => (s.rt || s.rw) ? `${s.rt || '-'} / ${s.rw || '-'}` : '' },
+    { key: 'kode_pos', label: 'Kode Pos', group: 'alamat', val: s => s.kode_pos || '' },
+    { key: 'kelurahan', label: 'Ds/Kelurahan', group: 'alamat', val: s => s.kelurahan || '' },
+    { key: 'kabupaten_kota', label: 'Kabupaten/Kota', group: 'alamat', val: s => s.kabupaten_kota || '' },
+    { key: 'provinsi', label: 'Provinsi', group: 'alamat', val: s => s.provinsi || '' },
+    { key: 'nama_ayah', label: 'Nama Ayah', group: 'ortu', val: s => s.nama_ayah || '' },
+    { key: 'nama_ibu', label: 'Nama Ibu', group: 'ortu', val: s => s.nama_ibu || '' },
+    { key: 'wa_ayah', label: 'WA Ayah', group: 'ortu', val: s => s.nomor_wa_ayah || '' },
+    { key: 'wa_ibu', label: 'WA Ibu', group: 'ortu', val: s => s.nomor_wa_ibu || '' },
+    { key: 'aksi', label: 'Aksi', group: 'inti', sticky: 'right', action: true, html: s => window.aksiBtnsHtml_('viewGenerusKelp', 'editGenerusKelp', 'deleteGenerusKelp', s.id) },
+  ];
+
+  // Grup kolom yang tampil (default semua tampil, sesuai permintaan "munculkan semua").
+  window.guruVisibleGroups = { pribadi: true, kontak: true, alamat: true };
+  window.generusVisibleGroups = { pribadi: true, pendidikan: true, alamat: true, ortu: true };
+
+  window.colStickyClass_ = function (c) {
+    if (c.sticky === 'left') return c.key === 'no' ? 'gk-sticky gk-sticky-l1' : 'gk-sticky gk-sticky-l2';
+    if (c.sticky === 'right') return 'gk-sticky gk-sticky-r';
+    return '';
+  };
+
+  window.visibleCols_ = function (cols, visibleGroups) {
+    return cols.filter(c => c.group === 'inti' || visibleGroups[c.group]);
+  };
+
+  window.renderDataTable_ = function (cols, list, theadId, tbodyId, emptyText) {
+    const thead = document.getElementById(theadId);
+    const tbody = document.getElementById(tbodyId);
+
+    let head = '<tr>';
+    cols.forEach(c => {
+      head += `<th class="${window.colStickyClass_(c)}"${c.center ? ' style="text-align:center;"' : ''}>${c.label}</th>`;
+    });
+    head += '</tr>';
+    thead.innerHTML = head;
+
+    if (!list.length) {
+      tbody.innerHTML = `<tr><td colspan="${cols.length}" style="text-align:center;padding:40px;color:var(--text-faint);">${emptyText}</td></tr>`;
       return;
     }
 
-    const badgeClassMap = {
-      'Muballigh Tugasan': 'badge-tugasan',
-      'Muballigh Setempat': 'badge-setempat',
-      'Guru Bantu': 'badge-bantu',
-    };
-    list.forEach((g, i) => {
-      const tr = document.createElement('tr');
-      const badgeClass = badgeClassMap[g.kategori] || '';
-      tr.innerHTML = `
-        <td>${i + 1}</td>
-        <td><span class="guru-kelp-name-text">${window.escapeHtmlExport_(g.nama)}</span></td>
-        <td style="text-align: center;">${window.escapeHtmlExport_(g.jenis_kelamin || '-')}</td>
-        <td>${window.calcUsiaThn_(g.tanggal_lahir)}</td>
-        <td>${window.escapeHtmlExport_(g.pendidikan || '-')}</td>
-        <td><span class="guru-kelp-badge ${badgeClass}">${window.escapeHtmlExport_(g.kategori)}</span></td>
-        <td style="text-align: center;">
-          <span class="guru-kelp-aksi-group">
-            <button class="guru-kelp-aksi-btn" onclick="window.viewGuruKelp('${g.id}')" title="Lihat Detail">${window.iconViewSvg_}</button>
-            <button class="guru-kelp-aksi-btn" onclick="window.editGuruKelp('${g.id}')" title="Edit">${window.iconEditSvg_}</button>
-            <button class="guru-kelp-aksi-btn danger" onclick="window.deleteGuruKelp('${g.id}')" title="Hapus">${window.iconDeleteSvg_}</button>
-          </span>
-        </td>
-      `;
-      tbody.appendChild(tr);
+    let body = '';
+    list.forEach((row, i) => {
+      body += '<tr>';
+      cols.forEach(c => {
+        const content = c.html ? c.html(row, i) : window.escCell_(c.val(row, i));
+        body += `<td class="${window.colStickyClass_(c)}"${c.center ? ' style="text-align:center;"' : ''}>${content}</td>`;
+      });
+      body += '</tr>';
     });
+    tbody.innerHTML = body;
   };
+
+  window.filterListByScopeSearch_ = function (list, scope, search, scopeField, ignoreScopes) {
+    let out = (scope && scope !== 'all' && (!ignoreScopes || ignoreScopes.indexOf(scope) === -1))
+      ? list.filter(r => r[scopeField] === scope)
+      : list;
+    if (search && search.trim()) {
+      const q = search.trim().toLowerCase();
+      out = out.filter(r => String(r.nama || '').toLowerCase().includes(q));
+    }
+    return out;
+  };
+
+  window.renderGuruDashTable_ = function (guru, scope, search) {
+    const list = window.filterListByScopeSearch_(guru, scope, search, 'kategori', ['TotalGuruKBM']);
+    const cols = window.visibleCols_(window.GURU_COLS, window.guruVisibleGroups);
+    window.renderDataTable_(cols, list, 'guruDashTableHead', 'guruDashTableBody', 'Tidak ada data guru.');
+  };
+
+  /* ═════ COLUMN PICKER (tombol "Kolom" di toolbar tabel) ═════ */
+  window.toggleColPicker_ = function (event, which) {
+    event.stopPropagation();
+    const panel = document.getElementById(which + 'ColPicker');
+    const willOpen = !panel.classList.contains('open');
+    document.querySelectorAll('.gk-colpicker-panel').forEach(p => p.classList.remove('open'));
+    if (willOpen) panel.classList.add('open');
+  };
+
+  window.setColGroup_ = function (which, group, on) {
+    if (which === 'guru') {
+      window.guruVisibleGroups[group] = on;
+      window.renderGuruDashTable_(window.lastGuruListData || [], window.guruTableScope || 'all', window.guruDashSearchQuery || '');
+    } else {
+      window.generusVisibleGroups[group] = on;
+      window.renderSantriDashTable_(window.lastSantriListData || [], window.santriTableScope || 'all', window.santriDashSearchQuery || '');
+    }
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('.gk-colpicker-wrap')) {
+      document.querySelectorAll('.gk-colpicker-panel.open').forEach(p => p.classList.remove('open'));
+    }
+  });
 
   window.calcUsiaThn_ = function (tanggalLahir) {
     if (!tanggalLahir) return '-';
@@ -980,7 +1110,7 @@
         window.setGuruDeleteLoading_(false);
         if (result.success) {
           window.closeModalDeleteGuruKelp();
-          window.loadKelompokDashboardGuru_(window.currentKelompokId);
+          window.applyGuruMutationLocal_(null, id, true);
         } else {
           alert(result.error);
         }
@@ -1032,106 +1162,87 @@
     document.getElementById('modalDetailGuruKelp').classList.remove('active');
   };
 
+  // Hitung ulang KPI gender + breakdown jenjang + tabel generus dari array data.
+  window.renderSantriKpis_ = function (santri) {
+    const total = santri.length;
+
+    const lakiLaki = santri.filter(s => String(s.gender).toUpperCase() === 'L').length;
+    const perempuan = santri.filter(s => String(s.gender).toUpperCase() === 'P').length;
+    const lPct = total > 0 ? Math.round((lakiLaki / total) * 100) : 0;
+    const pPct = total > 0 ? Math.round((perempuan / total) * 100) : 0;
+
+    document.getElementById('kdTotalSantri').textContent = total;
+    document.getElementById('kdSantriL').textContent = lakiLaki;
+    document.getElementById('kdSantriP').textContent = perempuan;
+    document.getElementById('kdSantriLPct').textContent = lPct + '%';
+    document.getElementById('kdSantriPPct').textContent = pPct + '%';
+    document.getElementById('kdSantriLBar').style.width = lPct + '%';
+    document.getElementById('kdSantriPBar').style.width = pPct + '%';
+
+    if (document.getElementById('santriDashTableWrapper').style.display !== 'none') {
+      window.renderSantriDashTable_(santri, window.santriTableScope || 'all', window.santriDashSearchQuery || '');
+    }
+
+    const kelasMap = {
+      'AUD': { total: 0, L: 0, P: 0 },
+      'Cabe Rawit': { total: 0, L: 0, P: 0 },
+      'Pra Remaja': { total: 0, L: 0, P: 0 },
+      'Remaja SMA': { total: 0, L: 0, P: 0 },
+      'Remaja': { total: 0, L: 0, P: 0 },
+    };
+    santri.forEach(s => {
+      if (!kelasMap.hasOwnProperty(s.jenjang_saat_ini)) return;
+      kelasMap[s.jenjang_saat_ini].total++;
+      const g = String(s.gender).toUpperCase();
+      if (g === 'L' || g === 'P') kelasMap[s.jenjang_saat_ini][g]++;
+    });
+
+    const kelasIds = {
+      'AUD': 'kdKelasAUD',
+      'Cabe Rawit': 'kdKelasCabeRawit',
+      'Pra Remaja': 'kdKelasPraRemaja',
+      'Remaja SMA': 'kdKelasRemajaSMA',
+      'Remaja': 'kdKelasRemaja',
+    };
+
+    Object.keys(kelasMap).forEach(jenjang => {
+      const { total: count, L, P } = kelasMap[jenjang];
+      const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+      const baseId = kelasIds[jenjang];
+      document.getElementById(baseId).textContent = count;
+      document.getElementById(baseId + 'Pct').textContent = pct + '%';
+      document.getElementById(baseId + 'Bar').style.width = pct + '%';
+      document.getElementById(baseId + '_L').textContent = L;
+      document.getElementById(baseId + '_P').textContent = P;
+    });
+  };
+
   window.loadKelompokDashboardSantriKelas_ = function (kelompokId) {
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
-
-        const santri = result.data;
-        window.lastSantriListData = santri;
-        const total = santri.length;
-
-        // --- Ringkasan Santri (gender) ---
-        const lakiLaki = santri.filter(s => String(s.gender).toUpperCase() === 'L').length;
-        const perempuan = santri.filter(s => String(s.gender).toUpperCase() === 'P').length;
-        const lPct = total > 0 ? Math.round((lakiLaki / total) * 100) : 0;
-        const pPct = total > 0 ? Math.round((perempuan / total) * 100) : 0;
-
-        document.getElementById('kdTotalSantri').textContent = total;
-        document.getElementById('kdSantriL').textContent = lakiLaki;
-        document.getElementById('kdSantriP').textContent = perempuan;
-        document.getElementById('kdSantriLPct').textContent = lPct + '%';
-        document.getElementById('kdSantriPPct').textContent = pPct + '%';
-        document.getElementById('kdSantriLBar').style.width = lPct + '%';
-        document.getElementById('kdSantriPBar').style.width = pPct + '%';
-
-        if (document.getElementById('santriDashTableWrapper').style.display !== 'none') {
-          window.renderSantriDashTable_(santri, window.santriTableScope || 'all', window.santriDashSearchQuery || '');
-        }
-
-        // --- Data Kelas (breakdown per jenjang, with gender split) ---
-        const kelasMap = {
-          'AUD': { total: 0, L: 0, P: 0 },
-          'Cabe Rawit': { total: 0, L: 0, P: 0 },
-          'Pra Remaja': { total: 0, L: 0, P: 0 },
-          'Remaja SMA': { total: 0, L: 0, P: 0 },
-          'Remaja': { total: 0, L: 0, P: 0 },
-        };
-        santri.forEach(s => {
-          if (!kelasMap.hasOwnProperty(s.jenjang_saat_ini)) return;
-          kelasMap[s.jenjang_saat_ini].total++;
-          const g = String(s.gender).toUpperCase();
-          if (g === 'L' || g === 'P') kelasMap[s.jenjang_saat_ini][g]++;
-        });
-
-        const kelasIds = {
-          'AUD': 'kdKelasAUD',
-          'Cabe Rawit': 'kdKelasCabeRawit',
-          'Pra Remaja': 'kdKelasPraRemaja',
-          'Remaja SMA': 'kdKelasRemajaSMA',
-          'Remaja': 'kdKelasRemaja',
-        };
-
-        Object.keys(kelasMap).forEach(jenjang => {
-          const { total: count, L, P } = kelasMap[jenjang];
-          const pct = total > 0 ? Math.round((count / total) * 100) : 0;
-          const baseId = kelasIds[jenjang];
-          document.getElementById(baseId).textContent = count;
-          document.getElementById(baseId + 'Pct').textContent = pct + '%';
-          document.getElementById(baseId + 'Bar').style.width = pct + '%';
-          document.getElementById(baseId + '_L').textContent = L;
-          document.getElementById(baseId + '_P').textContent = P;
-        });
+        window.lastSantriListData = result.data;
+        window.renderSantriKpis_(result.data);
       })
       .serverGetSantriList(window.currentToken, kelompokId);
   };
 
+  window.applyGenerusMutationLocal_ = function (data, id, isDelete) {
+    const list = window.lastSantriListData || (window.lastSantriListData = []);
+    const idx = list.findIndex(x => String(x.id) === String(id));
+    if (isDelete) {
+      if (idx >= 0) list.splice(idx, 1);
+    } else {
+      const rec = Object.assign({}, idx >= 0 ? list[idx] : {}, data, { id: id, kelompok_id: window.currentKelompokId });
+      if (idx >= 0) list[idx] = rec; else list.push(rec);
+    }
+    window.renderSantriKpis_(list);
+  };
+
   window.renderSantriDashTable_ = function (santri, scope, search) {
-    const tbody = document.getElementById('kdSantriTableBody');
-    tbody.innerHTML = '';
-
-    let list = (scope && scope !== 'all')
-      ? santri.filter(s => s.jenjang_saat_ini === scope)
-      : santri;
-
-    if (search && search.trim()) {
-      const q = search.trim().toLowerCase();
-      list = list.filter(s => String(s.nama || '').toLowerCase().includes(q));
-    }
-
-    if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada data generus.</td></tr>';
-      return;
-    }
-
-    list.forEach((s, i) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${i + 1}</td>
-        <td><span class="guru-kelp-name-text">${window.escapeHtmlExport_(s.nama)}</span></td>
-        <td>${window.escapeHtmlExport_(s.nis)}</td>
-        <td style="text-align: center;">${window.escapeHtmlExport_(s.gender || '-')}</td>
-        <td>${window.escapeHtmlExport_(s.jenjang_saat_ini || '-')}</td>
-        <td style="text-align: center;">
-          <span class="guru-kelp-aksi-group">
-            <button class="guru-kelp-aksi-btn" onclick="window.viewGenerusKelp('${s.id}')" title="Lihat Detail">${window.iconViewSvg_}</button>
-            <button class="guru-kelp-aksi-btn" onclick="window.editGenerusKelp('${s.id}')" title="Edit">${window.iconEditSvg_}</button>
-            <button class="guru-kelp-aksi-btn danger" onclick="window.deleteGenerusKelp('${s.id}')" title="Hapus">${window.iconDeleteSvg_}</button>
-          </span>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
+    const list = window.filterListByScopeSearch_(santri, scope, search, 'jenjang_saat_ini', null);
+    const cols = window.visibleCols_(window.SANTRI_COLS, window.generusVisibleGroups);
+    window.renderDataTable_(cols, list, 'santriDashTableHead', 'kdSantriTableBody', 'Tidak ada data generus.');
   };
 
   window.loadKelompokDashboardAbsen_ = function (kelompokId) {

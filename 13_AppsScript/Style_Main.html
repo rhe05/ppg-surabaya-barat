@@ -1083,20 +1083,127 @@
       vertical-align: middle;
     }
 
-    .guru-kelp-premium-table th:nth-child(3),
-    .guru-kelp-premium-table td:nth-child(3) {
-      font-variant-numeric: tabular-nums;
+    .guru-kelp-premium-table th,
+    .guru-kelp-premium-table td {
+      white-space: nowrap;
     }
 
-    .guru-kelp-premium-table th:nth-child(4),
-    .guru-kelp-premium-table td:nth-child(4) {
-      font-variant-numeric: tabular-nums;
-      color: var(--text-dim);
+    /* ═════ SCROLL HORIZONTAL + FREEZE KOLOM (No/Nama kiri, Aksi kanan) ═════
+       Kolom beku pakai position:sticky relatif ke .gk-table-scroll. */
+    .gk-table-scroll {
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
     }
 
-    .guru-kelp-premium-table th:nth-child(5),
-    .guru-kelp-premium-table td:nth-child(5) {
-      color: var(--text-dim);
+    .guru-kelp-premium-table th.gk-sticky,
+    .guru-kelp-premium-table td.gk-sticky {
+      position: sticky;
+      z-index: 1;
+      background: var(--panel);
+    }
+
+    .guru-kelp-premium-table thead th.gk-sticky {
+      z-index: 3;
+      background: var(--panel-2);
+    }
+
+    .guru-kelp-premium-table tbody tr:hover td.gk-sticky {
+      background: var(--panel-2);
+    }
+
+    /* No: padding dikecilkan agar lebar kolom deterministik = 48px, sehingga
+       offset kolom Nama (left:48px) presisi tidak meleset/tumpang tindih. */
+    .gk-sticky-l1 {
+      left: 0;
+      width: 48px;
+      min-width: 48px;
+      padding-left: 12px;
+      padding-right: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+    .gk-sticky-l2 { left: 48px; min-width: 150px; box-shadow: 6px 0 8px -7px rgba(15, 23, 42, 0.25); }
+    .gk-sticky-r { right: 0; min-width: 112px; box-shadow: -6px 0 8px -7px rgba(15, 23, 42, 0.25); }
+
+    /* ═════ COLUMN PICKER ═════ */
+    .guru-kelp-table-toolbar .search-input {
+      flex: 1 1 120px;
+      min-width: 120px;
+    }
+
+    .gk-colpicker-wrap {
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .gk-colpicker-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.2s ease, color 0.2s ease;
+    }
+
+    .gk-colpicker-btn:hover {
+      border-color: var(--brass);
+      color: var(--brass);
+    }
+
+    .gk-colpicker-panel {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: calc(100% + 8px);
+      min-width: 210px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow-card);
+      padding: 8px;
+      z-index: 60;
+    }
+
+    .gk-colpicker-panel.open {
+      display: block;
+    }
+
+    .gk-colpicker-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      padding: 4px 8px 8px;
+    }
+
+    .gk-colpicker-panel label {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      padding: 8px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .gk-colpicker-panel label:hover {
+      background: var(--panel-2);
+    }
+
+    .gk-colpicker-panel input[type="checkbox"] {
+      width: 15px;
+      height: 15px;
+      accent-color: var(--brass);
+      cursor: pointer;
     }
 
     .guru-kelp-badge {

@@ -515,23 +515,27 @@
               <option value="TotalGuruKBM">Total Guru KBM</option>
             </select>
             <input type="text" class="search-input guru-kelp-search-input" id="guruDashSearchInput" placeholder="Cari nama guru..." oninput="window.filterGuruDashTable_(this.value)">
+            <div class="gk-colpicker-wrap">
+              <button type="button" class="gk-colpicker-btn" onclick="window.toggleColPicker_(event, 'guru')" aria-label="Pilih kolom">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+                <span>Kolom</span>
+              </button>
+              <div class="gk-colpicker-panel" id="guruColPicker">
+                <div class="gk-colpicker-title">Tampilkan kolom</div>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('guru','pribadi',this.checked)"> Data Pribadi</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('guru','kontak',this.checked)"> Kontak (WA)</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('guru','alamat',this.checked)"> Alamat</label>
+              </div>
+            </div>
           </div>
-          <table class="data-table guru-kelp-premium-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">No</th>
-                <th>Nama</th>
-                <th style="width: 56px; text-align: center;">L/P</th>
-                <th style="width: 80px;">Usia</th>
-                <th>Pendidikan</th>
-                <th>Kategori</th>
-                <th style="width: 96px; text-align: center;">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="guruDashTableBody">
-              <tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
-            </tbody>
-          </table>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead id="guruDashTableHead"></thead>
+              <tbody id="guruDashTableBody">
+                <tr><td colspan="17" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Modal Tambah Guru (khusus Dashboard Kelompok) -->
@@ -841,22 +845,28 @@
               <option value="Remaja">Remaja Pra Nikah</option>
             </select>
             <input type="text" class="search-input guru-kelp-search-input" id="santriDashSearchInput" placeholder="Cari nama generus..." oninput="window.filterSantriDashTable_(this.value)">
+            <div class="gk-colpicker-wrap">
+              <button type="button" class="gk-colpicker-btn" onclick="window.toggleColPicker_(event, 'generus')" aria-label="Pilih kolom">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></svg>
+                <span>Kolom</span>
+              </button>
+              <div class="gk-colpicker-panel" id="generusColPicker">
+                <div class="gk-colpicker-title">Tampilkan kolom</div>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pribadi',this.checked)"> Data Pribadi</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','pendidikan',this.checked)"> Pendidikan</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','alamat',this.checked)"> Alamat</label>
+                <label><input type="checkbox" checked onchange="window.setColGroup_('generus','ortu',this.checked)"> Data Orang Tua</label>
+              </div>
+            </div>
           </div>
-          <table class="data-table guru-kelp-premium-table">
-            <thead>
-              <tr>
-                <th style="width: 50px;">No</th>
-                <th>Nama</th>
-                <th>NIS</th>
-                <th style="width: 56px; text-align: center;">L/P</th>
-                <th>Jenjang</th>
-                <th style="width: 96px; text-align: center;">Aksi</th>
-              </tr>
-            </thead>
-            <tbody id="kdSantriTableBody">
-              <tr><td colspan="6" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
-            </tbody>
-          </table>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead id="santriDashTableHead"></thead>
+              <tbody id="kdSantriTableBody">
+                <tr><td colspan="22" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div class="guru-dash-kpi-row" id="generusJenjangRow">
@@ -944,15 +954,12 @@
 
               <div class="guru-kelp-row-2">
                 <div class="form-group">
-                  <label class="form-label">Gender</label>
-                  <div style="display: flex; gap: 20px; margin-top: 10px;">
-                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                      <input type="radio" name="generusKelpGender" value="L"> Laki-laki
-                    </label>
-                    <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                      <input type="radio" name="generusKelpGender" value="P"> Perempuan
-                    </label>
-                  </div>
+                  <label class="form-label">Jenis Kelamin</label>
+                  <select class="form-select" id="generusKelpGender">
+                    <option value="">-- Pilih Jenis Kelamin --</option>
+                    <option value="L">Laki-laki</option>
+                    <option value="P">Perempuan</option>
+                  </select>
                 </div>
 
                 <div class="form-group">

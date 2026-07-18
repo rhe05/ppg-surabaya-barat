@@ -3,68 +3,28 @@
  * tanpa membuat file di Google Drive) untuk Data Guru & Data Generus di Dashboard Kelompok.
  */
 
-function serverExportGuruKelpXlsx(token, kelompokId, scope) {
+/**
+ * Bangun file .xlsx dari headers + rows yang SUDAH disiapkan klien.
+ * Klien membangun matrix sesuai kolom yang dipilih (column picker), lalu server
+ * hanya menyusunnya jadi .xlsx asli. Data yang diekspor = data yang sudah sah
+ * dipegang klien (hasil serverGetGuruList/serverGetSantriList ber-RBAC), jadi
+ * di sini cukup validasi sesi.
+ */
+function serverBuildXlsxFromData(token, sheetName, headers, rows) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
-    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  if (!Array.isArray(headers) || !Array.isArray(rows)) {
+    return { success: false, error: 'Data ekspor tidak valid.' };
   }
 
-  const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
-  let guru = guruData.filter(g => g.kelompok_id == kelompokId);
-  if (scope === 'ms') {
-    guru = guru.filter(g => g.kategori === 'Muballigh Setempat');
-  }
-
-  const headers = ['No', 'Nama', 'Kategori', 'Jenis Kelamin', 'Tempat Lahir', 'Tanggal Lahir', 'Mulai Mengajar', 'Alamat', 'Nomor WA', 'Pendidikan'];
-  const rows = guru.map((g, i) => [
-    i + 1, g.nama || '', g.kategori || '', g.jenis_kelamin || '', g.tempat_lahir || '',
-    g.tanggal_lahir || '', g.mulai_mengajar || '', g.alamat || '', g.nomor_wa || '', g.pendidikan || '',
-  ]);
-
-  const sheetLabel = scope === 'ms' ? 'Guru MS' : 'Semua Guru';
-  const base64 = buildXlsxBase64_(sheetLabel, headers, rows);
+  const safeSheet = String(sheetName || 'Data').substring(0, 31);
+  const base64 = buildXlsxBase64_(safeSheet, headers, rows);
 
   return {
     success: true,
     base64: base64,
-    filename: `Guru_${scope === 'ms' ? 'MS' : 'Semua'}_${new Date().toISOString().split('T')[0]}.xlsx`,
-  };
-}
-
-function serverExportSantriKelpXlsx(token, kelompokId, scope) {
-  const user = getCurrentUser(token);
-  if (!user) return { success: false, error: 'Sesi tidak valid.' };
-
-  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
-    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
-  }
-
-  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  let santri = santriData.filter(s => s.kelompok_id == kelompokId);
-  if (scope !== 'all') {
-    santri = santri.filter(s => s.jenjang_saat_ini === scope);
-  }
-
-  const headers = ['No', 'Nama', 'NIS', 'Gender', 'Tanggal Lahir', 'Jenjang'];
-  const rows = santri.map((s, i) => [i + 1, s.nama || '', s.nis || '', s.gender || '', s.tanggal_lahir || '', s.jenjang_saat_ini || '']);
-
-  const scopeLabels = {
-    'AUD': 'PAUD-TK',
-    'Cabe Rawit': 'Cabe Rawit',
-    'Pra Remaja': 'Pra Remaja',
-    'Remaja SMA': 'Remaja SMA',
-    'Remaja': 'Remaja Pra Nikah',
-    'all': 'Semua Generus',
-  };
-  const sheetLabel = scopeLabels[scope] || 'Semua Generus';
-  const base64 = buildXlsxBase64_(sheetLabel, headers, rows);
-
-  return {
-    success: true,
-    base64: base64,
-    filename: `Generus_${sheetLabel.replace(/\s+/g, '')}_${new Date().toISOString().split('T')[0]}.xlsx`,
+    filename: `${String(sheetName || 'Data').replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`,
   };
 }
 
