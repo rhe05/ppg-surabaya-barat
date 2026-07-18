@@ -808,10 +808,15 @@
 
   // Hitung ulang KPI + tabel guru dari array data (dipakai loader server & update lokal instan).
   window.renderGuruKpis_ = function (guru) {
+    const cntG = (arr, gender) => arr.filter(g => String(g.jenis_kelamin).toUpperCase() === gender).length;
+    const arrTugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan');
+    const arrSetempat = guru.filter(g => g.kategori === 'Muballigh Setempat');
+    const arrBantu = guru.filter(g => g.kategori === 'Guru Bantu');
+
     const total = guru.length;
-    const tugasan = guru.filter(g => g.kategori === 'Muballigh Tugasan').length;
-    const setempat = guru.filter(g => g.kategori === 'Muballigh Setempat').length;
-    const bantu = guru.filter(g => g.kategori === 'Guru Bantu').length;
+    const tugasan = arrTugasan.length;
+    const setempat = arrSetempat.length;
+    const bantu = arrBantu.length;
     const tugasanPct = total > 0 ? Math.round((tugasan / total) * 100) : 0;
     const setempatPct = total > 0 ? Math.round((setempat / total) * 100) : 0;
     const bantuPct = total > 0 ? Math.round((bantu / total) * 100) : 0;
@@ -826,6 +831,16 @@
     document.getElementById('gdTugasanBar').style.width = tugasanPct + '%';
     document.getElementById('gdSetempatBar').style.width = setempatPct + '%';
     document.getElementById('gdBantuBar').style.width = bantuPct + '%';
+
+    // L/P per kartu (di sebelah angka besar)
+    document.getElementById('gdTotalGuru_L').textContent = cntG(guru, 'L');
+    document.getElementById('gdTotalGuru_P').textContent = cntG(guru, 'P');
+    document.getElementById('gdSetempat_L').textContent = cntG(arrSetempat, 'L');
+    document.getElementById('gdSetempat_P').textContent = cntG(arrSetempat, 'P');
+    document.getElementById('gdTugasan_L').textContent = cntG(arrTugasan, 'L');
+    document.getElementById('gdTugasan_P').textContent = cntG(arrTugasan, 'P');
+    document.getElementById('gdBantu_L').textContent = cntG(arrBantu, 'L');
+    document.getElementById('gdBantu_P').textContent = cntG(arrBantu, 'P');
 
     if (document.getElementById('guruDashTableWrapper').style.display !== 'none') {
       window.renderGuruDashTable_(guru, window.guruTableScope || 'all', window.guruDashSearchQuery || '');
@@ -1031,9 +1046,25 @@
     }
   });
 
+  /* Parser tanggal fleksibel — menerima 3 bentuk yang bisa muncul:
+     1. "YYYY-MM-DD" (string dari form)
+     2. ISO datetime "YYYY-MM-DDTHH:MM:SS(.sssZ)" (objek Date sheet yang di-
+        serialize google.script.run jadi string UTC)
+     3. objek Date langsung
+     Mengembalikan Date valid atau null. Ini akar bug "NaN / undefined". */
+  window.parseDateFlexible_ = function (v) {
+    if (!v) return null;
+    if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+    let s = String(v).trim();
+    if (!s) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) s = s + 'T00:00:00';
+    const d = new Date(s);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   window.calcUsiaThn_ = function (tanggalLahir) {
-    if (!tanggalLahir) return '-';
-    const birth = new Date(tanggalLahir + 'T00:00:00');
+    const birth = window.parseDateFlexible_(tanggalLahir);
+    if (!birth) return '-';
     const today = new Date();
     let age = today.getFullYear() - birth.getFullYear();
     const monthDiff = today.getMonth() - birth.getMonth();
@@ -1042,9 +1073,9 @@
   };
 
   window.formatTanggalDisplay_ = function (dateStr) {
-    if (!dateStr) return '';
+    const d = window.parseDateFlexible_(dateStr);
+    if (!d) return '';
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const d = new Date(dateStr + 'T00:00:00');
     return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 

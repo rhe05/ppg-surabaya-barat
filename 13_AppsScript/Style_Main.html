@@ -646,18 +646,34 @@
       transition: width 0.5s ease;
     }
 
-    .guru-dash-kpi-gendersplit {
+    /* L/P mini-stat di SEBELAH angka besar (bukan di bawah). Tumpuk vertikal,
+       rata kanan, sejajar tengah terhadap nilai. Standar micro-stat KPI. */
+    .gk-kpi-lp {
+      margin-left: auto;
+      align-self: center;
       display: flex;
-      gap: 14px;
-      margin-top: 12px;
-      font-size: 11.5px;
-      font-weight: 600;
-      color: var(--text-dim);
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 3px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-faint);
+      line-height: 1.1;
+      letter-spacing: 0.02em;
     }
 
-    .guru-dash-kpi-gendersplit b {
-      color: var(--text);
+    .gk-kpi-lp span {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+
+    .gk-kpi-lp b {
+      color: var(--text-dim);
+      font-weight: 800;
       font-variant-numeric: tabular-nums;
+      min-width: 12px;
+      text-align: right;
     }
 
     .pengumuman-card {
@@ -1090,10 +1106,19 @@
 
     /* ═════ SCROLL HORIZONTAL + FREEZE KOLOM (No/Nama kiri, Aksi kanan) ═════
        Kolom beku pakai position:sticky relatif ke .gk-table-scroll. */
+    /* Maksimal ~5 baris terlihat; sisanya scroll vertikal. Header tabel tetap
+       menempel di atas (sticky) saat digulir ke bawah. */
     .gk-table-scroll {
-      overflow-x: auto;
-      overflow-y: hidden;
+      overflow: auto;
+      max-height: 312px;
       -webkit-overflow-scrolling: touch;
+    }
+
+    .guru-kelp-premium-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--panel-2);
     }
 
     .guru-kelp-premium-table th.gk-sticky,
