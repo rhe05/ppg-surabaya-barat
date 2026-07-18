@@ -293,6 +293,20 @@
       transition: all 0.2s;
     }
 
+    /* Icon SVG monochrome (standar line-icon): mewarisi warna link via
+       currentColor — abu saat non-aktif, emas saat aktif/hover. */
+    .sidebar-icon {
+      width: 19px;
+      height: 19px;
+      flex-shrink: 0;
+      stroke: currentColor;
+      opacity: 0.9;
+    }
+
+    .sidebar-menu-link.active .sidebar-icon {
+      opacity: 1;
+    }
+
     .sidebar-menu-link:hover {
       color: var(--text);
       background: var(--panel-2);
