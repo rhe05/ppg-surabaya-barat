@@ -170,17 +170,69 @@
 
     .app-sidebar.collapsed {
       width: 68px;
+      /* Tooltip keterangan icon menjulur keluar sidebar — wajib visible.
+         Aman: saat collapsed semua submenu tree disembunyikan, konten pendek,
+         tidak butuh scroll. */
+      overflow: visible;
     }
 
     .app-sidebar.collapsed .sidebar-logo-text,
     .app-sidebar.collapsed .sidebar-menu span:last-child,
-    .app-sidebar.collapsed .sidebar-logout {
+    .app-sidebar.collapsed .sidebar-toggle-btn,
+    .app-sidebar.collapsed .sidebar-logout span:last-child {
       display: none;
     }
 
     .app-sidebar.collapsed .sidebar-menu-link {
       justify-content: center;
       padding: 12px;
+    }
+
+    .app-sidebar.collapsed .sidebar-logo {
+      justify-content: center;
+      padding: 0;
+    }
+
+    /* Saat collapsed: logo merangkap tombol pelebaran (toggle-btn disembunyikan).
+       Saat lebar: logo tidak bisa diklik (pointer-events none) agar tidak
+       tak sengaja menciutkan — pakai tombol chevron. */
+    .sidebar-logo-brand {
+      pointer-events: none;
+    }
+
+    .app-sidebar.collapsed .sidebar-logo-brand {
+      pointer-events: auto;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .app-sidebar.collapsed .sidebar-logout {
+      justify-content: center;
+      padding: 12px;
+    }
+
+    /* Tooltip keterangan saat collapsed — muncul instan di kanan icon */
+    .app-sidebar.collapsed [data-tip] {
+      position: relative;
+    }
+
+    .app-sidebar.collapsed [data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: calc(100% + 10px);
+      top: 50%;
+      transform: translateY(-50%);
+      background: var(--text);
+      color: #fff;
+      font-size: 11.5px;
+      font-weight: 600;
+      line-height: 1;
+      padding: 7px 11px;
+      border-radius: 6px;
+      white-space: nowrap;
+      z-index: 1200;
+      box-shadow: var(--shadow-card);
+      pointer-events: none;
     }
 
     .sidebar-logo {
@@ -1570,6 +1622,13 @@
         top: 16px;
         left: 16px;
         z-index: 1000;
+      }
+
+      /* Di mobile, tombol toggle WAJIB selalu tampil (satu-satunya jalan buka
+         sidebar) — kalahkan rule desktop .collapsed yang menyembunyikannya,
+         krn class collapsed bisa tertinggal saat resize dari desktop. */
+      .app-sidebar.collapsed .sidebar-toggle-btn {
+        display: flex;
       }
 
       .kpi-grid {
