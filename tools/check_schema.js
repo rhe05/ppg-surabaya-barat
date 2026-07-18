@@ -36,14 +36,24 @@ function readToken() {
   return JSON.parse(fs.readFileSync(CLASPRC, 'utf8')).tokens.default.access_token;
 }
 
-function fetchJson(token) {
+/** Apps Script selalu membalas 302 ke script.googleusercontent.com — ikuti. */
+function fetchFollow(url, token, sisaRedirect) {
   return new Promise((resolve, reject) => {
-    https.get(APP_URL + '?diag=schema', { headers: { Authorization: 'Bearer ' + token } }, (res) => {
+    https.get(url, { headers: { Authorization: 'Bearer ' + token } }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location && sisaRedirect > 0) {
+        res.resume();
+        resolve(fetchFollow(res.headers.location, token, sisaRedirect - 1));
+        return;
+      }
       let b = '';
       res.on('data', (d) => (b += d));
       res.on('end', () => resolve({ status: res.statusCode, body: b }));
     }).on('error', reject);
   });
+}
+
+function fetchJson(token) {
+  return fetchFollow(APP_URL + '?diag=schema', token, 5);
 }
 
 async function main() {
