@@ -1665,92 +1665,61 @@
   };
 
   /** Status buka/tutup tiap grup tanggal, dipertahankan lintas render ulang. */
-  window.jadwalDayOpen_ = window.jadwalDayOpen_ || {};
+  /** Urutan kategori tampil — samakan dengan KATEGORI_JADWAL_ di backend. */
+  window.KATEGORI_JADWAL_UI_ = ['Cabe Rawit', 'Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi'];
 
-  /** Render ulang daftar Jadwal KBM dari array data (dipakai loader server & update lokal instan). */
+  /** Render ulang daftar Jadwal KBM dari array data (dipakai loader server & update lokal instan).
+      Jadwal umum per kategori jenjang, tampil sebagai kolom berdampingan — tanpa tanggal. */
   window.renderJadwalKBMList_ = function (data) {
     const list = document.getElementById('kdJadwalList');
     list.innerHTML = '';
 
-    if (data.length === 0) {
-      list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada jadwal KBM untuk kelompok ini.</div>';
-      return;
-    }
-
-    const sorted = data.slice().sort((a, b) => {
-      const tglDiff = String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
-      if (tglDiff !== 0) return tglDiff;
-      return String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || ''));
-    });
-
-    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    const hariNama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-
-    // Kelompokkan per tanggal supaya banyak sesi dalam satu hari tidak memanjangkan halaman.
-    const groups = [];
-    sorted.forEach(j => {
-      const key = String(j.tanggal || '');
-      let g = groups.find(x => x.tanggal === key);
-      if (!g) {
-        g = { tanggal: key, sesi: [] };
-        groups.push(g);
-      }
-      g.sesi.push(j);
-    });
-
-    // Hari yang dibuka otomatis: tanggal terdekat dengan hari ini (mendatang lebih diutamakan).
-    const todayStr = new Date().toISOString().split('T')[0];
-    let defaultOpen = groups.find(g => g.tanggal >= todayStr);
-    if (!defaultOpen) defaultOpen = groups[groups.length - 1];
-
     const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
     const deleteIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
 
-    groups.forEach(g => {
-      const [y, m, d] = g.tanggal.split('-').map(Number);
-      const hari = g.sesi[0].hari || (y && m && d ? hariNama[new Date(y, m - 1, d).getDay()] : '');
-      const tanggalLabel = (y && m && d) ? `${hari}, ${d} ${monthNames[m - 1]} ${y}` : (hari || g.tanggal || '-');
+    // Kategori baku selalu tampil (walau kosong) supaya struktur jenjang terlihat.
+    // Entri lama tanpa kategori masuk bucket "Lainnya" agar tidak hilang diam-diam.
+    const kategoriList = window.KATEGORI_JADWAL_UI_.slice();
+    if (data.some(j => kategoriList.indexOf(j.kategori) === -1)) kategoriList.push('Lainnya');
 
-      if (window.jadwalDayOpen_[g.tanggal] === undefined) {
-        window.jadwalDayOpen_[g.tanggal] = (g === defaultOpen);
-      }
+    const grid = document.createElement('div');
+    grid.className = 'jadwal-kat-grid';
 
-      const rowsHtml = g.sesi.map(j => `
-        <div class="jadwal-row">
-          <div class="jadwal-row-time">${j.jam_mulai} – ${j.jam_selesai}</div>
-          <div>
-            <div class="jadwal-row-kelas">Kls ${j.kelas}</div>
-            ${j.keterangan ? `<div class="jadwal-row-note">${j.keterangan}</div>` : ''}
+    kategoriList.forEach(kat => {
+      const sesi = data
+        .filter(j => (kat === 'Lainnya' ? window.KATEGORI_JADWAL_UI_.indexOf(j.kategori) === -1 : j.kategori === kat))
+        .sort((a, b) => String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || '')));
+
+      const rowsHtml = sesi.length === 0
+        ? '<div class="jadwal-kat-empty">Belum ada jadwal</div>'
+        : sesi.map(j => `
+          <div class="jadwal-sesi">
+            <div class="jadwal-sesi-top">
+              <span class="jadwal-sesi-time">${j.jam_mulai} – ${j.jam_selesai}</span>
+              <div class="jadwal-row-actions">
+                <button class="jadwal-row-icon-btn" title="Edit" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")})'>${editIcon}</button>
+                <button class="jadwal-row-icon-btn danger" title="Hapus" onclick="window.deleteJadwalKBM('${j.id}')">${deleteIcon}</button>
+              </div>
+            </div>
+            <div class="jadwal-sesi-kelas">Kls ${j.kelas}</div>
+            <div class="jadwal-sesi-meta">${j.guru_nama} · ${j.ruangan}</div>
+            ${j.keterangan ? `<div class="jadwal-sesi-note">${j.keterangan}</div>` : ''}
           </div>
-          <div class="jadwal-row-guru">${j.guru_nama}</div>
-          <div class="jadwal-row-ruang">${j.ruangan}</div>
-          <div class="jadwal-row-actions">
-            <button class="jadwal-row-icon-btn" title="Edit" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.tanggal)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")})'>${editIcon}</button>
-            <button class="jadwal-row-icon-btn danger" title="Hapus" onclick="window.deleteJadwalKBM('${j.id}')">${deleteIcon}</button>
-          </div>
+        `).join('');
+
+      const card = document.createElement('div');
+      card.className = 'jadwal-kat-card';
+      card.innerHTML = `
+        <div class="jadwal-kat-header">
+          <span class="jadwal-kat-title">${kat}</span>
+          <span class="jadwal-kat-count">${sesi.length} kelas</span>
         </div>
-      `).join('');
-
-      const day = document.createElement('div');
-      day.className = 'jadwal-day' + (window.jadwalDayOpen_[g.tanggal] ? ' open' : '');
-      day.innerHTML = `
-        <button type="button" class="jadwal-day-header" onclick="window.toggleJadwalDay_('${g.tanggal}')">
-          <div class="jadwal-day-header-left">
-            <span class="jadwal-day-date">${tanggalLabel}</span>
-            <span class="jadwal-day-count">${g.sesi.length} sesi</span>
-          </div>
-          <span class="jadwal-day-caret">▶</span>
-        </button>
-        <div class="jadwal-day-body">${rowsHtml}</div>
+        <div class="jadwal-kat-body">${rowsHtml}</div>
       `;
-      list.appendChild(day);
+      grid.appendChild(card);
     });
-  };
 
-  /** Buka/tutup satu grup tanggal pada daftar Jadwal KBM. */
-  window.toggleJadwalDay_ = function (tanggal) {
-    window.jadwalDayOpen_[tanggal] = !window.jadwalDayOpen_[tanggal];
-    window.renderJadwalKBMList_(window.lastJadwalListData || []);
+    list.appendChild(grid);
   };
 
   /** Tambah/ubah/hapus satu entri Jadwal KBM di cache lokal lalu render ulang — tanpa fetch ulang ke server (instan). */
@@ -1783,8 +1752,7 @@
   window.openModalJadwalKBM = function () {
     document.getElementById('modalJadwalKBMTitle').textContent = 'Tambah Jadwal KBM';
     document.getElementById('jadwalKBMId').value = '';
-    document.getElementById('jadwalKBMTanggal').value = '';
-    document.getElementById('jadwalKBMTanggalDisplay').value = '';
+    document.getElementById('jadwalKBMKategori').value = '';
     window.populateJadwalKBMGuruSelect_('');
     document.getElementById('jadwalKBMKelas').value = '';
     document.getElementById('jadwalKBMJamMulai').value = '';
@@ -1796,11 +1764,10 @@
     document.getElementById('modalJadwalKBM').classList.add('active');
   };
 
-  window.editJadwalKBM = function (id, tanggal, guruId, kelas, jamMulai, jamSelesai, ruangan, keterangan) {
+  window.editJadwalKBM = function (id, kategori, guruId, kelas, jamMulai, jamSelesai, ruangan, keterangan) {
     document.getElementById('modalJadwalKBMTitle').textContent = 'Edit Jadwal KBM';
     document.getElementById('jadwalKBMId').value = id;
-    document.getElementById('jadwalKBMTanggal').value = tanggal;
-    document.getElementById('jadwalKBMTanggalDisplay').value = window.formatTanggalDisplay_(tanggal);
+    document.getElementById('jadwalKBMKategori').value = kategori;
     window.populateJadwalKBMGuruSelect_(guruId);
     document.getElementById('jadwalKBMKelas').value = kelas;
     document.getElementById('jadwalKBMJamMulai').value = jamMulai;
@@ -1818,7 +1785,7 @@
 
   window.saveJadwalKBM = function () {
     const id = document.getElementById('jadwalKBMId').value;
-    const tanggal = document.getElementById('jadwalKBMTanggal').value;
+    const kategori = document.getElementById('jadwalKBMKategori').value;
     const guru_id = document.getElementById('jadwalKBMGuru').value;
     const kelas = document.getElementById('jadwalKBMKelas').value.trim();
     const jam_mulai = document.getElementById('jadwalKBMJamMulai').value;
@@ -1826,12 +1793,12 @@
     const ruangan = document.getElementById('jadwalKBMRuangan').value.trim();
     const keterangan = document.getElementById('jadwalKBMKeterangan').value.trim();
 
-    if (!tanggal || !guru_id || !kelas || !jam_mulai || !jam_selesai || !ruangan) {
-      alert('Tanggal, guru, kelas, jam mulai, jam selesai, dan ruangan wajib diisi.');
+    if (!kategori || !guru_id || !kelas || !jam_mulai || !jam_selesai || !ruangan) {
+      alert('Kategori, guru, kelas, jam mulai, jam selesai, dan ruangan wajib diisi.');
       return;
     }
 
-    const data = { tanggal, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan };
+    const data = { kategori, guru_id, kelas, jam_mulai, jam_selesai, ruangan, keterangan };
 
     const onDone = function (result) {
       window.hideGlobalLoading_();

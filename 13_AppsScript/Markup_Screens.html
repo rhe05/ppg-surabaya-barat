@@ -1225,11 +1225,15 @@
 
           <input type="hidden" id="jadwalKBMId">
 
-          <div class="form-group" style="position: relative;">
-            <label class="form-label">Tanggal</label>
-            <input type="text" class="form-input" id="jadwalKBMTanggalDisplay" data-datepicker-trigger placeholder="Pilih tanggal" readonly onclick="window.toggleDatePicker('jadwalKBMTanggal')">
-            <input type="hidden" id="jadwalKBMTanggal">
-            <div class="ppg-datepicker" id="jadwalKBMTanggalPicker"></div>
+          <div class="form-group">
+            <label class="form-label">Kategori</label>
+            <select class="form-select" id="jadwalKBMKategori">
+              <option value="">-- Pilih Kategori --</option>
+              <option value="Cabe Rawit">Cabe Rawit</option>
+              <option value="Pra Remaja SMP">Pra Remaja SMP</option>
+              <option value="Remaja SMA">Remaja SMA</option>
+              <option value="Muda-Mudi">Muda-Mudi</option>
+            </select>
           </div>
 
           <div class="form-group">
