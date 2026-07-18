@@ -1178,7 +1178,12 @@
         <!-- ═══ PENGUMUMAN ═══ -->
         <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Pengumuman</span>
-          <button class="btn btn-primary" onclick="window.openModalPengumuman()">+ Tambah Pengumuman</button>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" onclick="window.openModalPengumumanKBM()">
+              <span>📢 Buat Pengumuman KBM</span>
+            </button>
+            <button class="btn btn-primary" onclick="window.openModalPengumuman()">+ Tambah Pengumuman</button>
+          </div>
         </div>
 
         <div id="kdPengumumanList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px;">
@@ -1338,6 +1343,43 @@
           <div class="modal-footer">
             <button class="btn btn-secondary" onclick="window.closeModalPengumuman()">Batal</button>
             <button class="btn btn-primary" onclick="window.savePengumuman()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Buat Pengumuman KBM (generator teks WA dari Jadwal KBM) -->
+      <div class="modal-overlay" id="modalPengumumanKBM">
+        <div class="modal-content pkbm-modal-content">
+          <div class="modal-header">
+            <span>Buat Pengumuman KBM</span>
+            <button class="modal-close-btn" onclick="window.closeModalPengumumanKBM()">×</button>
+          </div>
+
+          <div class="pkbm-layout">
+            <div class="pkbm-form-col">
+              <div class="form-group" style="position: relative;">
+                <label class="form-label">Tanggal KBM</label>
+                <input type="text" class="form-input" id="pengumumanKBMTanggalDisplay" data-datepicker-trigger placeholder="Pilih tanggal" readonly onclick="window.toggleDatePicker('pengumumanKBMTanggal')">
+                <input type="hidden" id="pengumumanKBMTanggal">
+                <div class="ppg-datepicker" id="pengumumanKBMTanggalPicker"></div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Catatan (satu baris satu poin)</label>
+                <textarea class="form-input" id="pengumumanKBMNote" rows="4" style="width: 100%; font-family: inherit;" oninput="window.renderPengumumanKBMPreview_()"></textarea>
+              </div>
+            </div>
+
+            <div class="pkbm-preview-col">
+              <label class="form-label">Pratinjau (format WhatsApp)</label>
+              <div class="pkbm-preview" id="pengumumanKBMPreview"></div>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalPengumumanKBM()">Batal</button>
+            <button class="btn btn-secondary" id="pkbmSimpanBtn" onclick="window.savePengumumanKBM_()">Simpan ke Pengumuman</button>
+            <button class="btn btn-primary" id="pkbmSalinBtn" onclick="window.copyPengumumanKBM_()">📋 Salin Teks</button>
           </div>
         </div>
       </div>

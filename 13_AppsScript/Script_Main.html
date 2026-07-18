@@ -772,6 +772,9 @@
     if (inputId === 'generusKelpTglLahir') {
       window.updateGenerusKelpUmur();
     }
+    if (inputId === 'pengumumanKBMTanggal') {
+      window.renderPengumumanKBMPreview_();
+    }
   };
 
   document.addEventListener('click', function (e) {
@@ -2026,6 +2029,192 @@
         }
       })
       .serverDeletePengumuman(window.currentToken, id);
+  };
+
+  /* ═════ GENERATOR PENGUMUMAN KBM (teks WhatsApp dari Jadwal KBM) ═════ */
+
+  window.PKBM_NOTE_DEFAULT_ = 'Datang tepat waktu, jangan terlambat\nMemakai seragam Muslim putih\nJangan lupa membawa uang untuk shodaqoh & kas';
+
+  window.openModalPengumumanKBM = function () {
+    document.getElementById('pengumumanKBMTanggal').value = '';
+    document.getElementById('pengumumanKBMTanggalDisplay').value = '';
+    document.getElementById('pengumumanKBMNote').value = window.PKBM_NOTE_DEFAULT_;
+    window.renderPengumumanKBMPreview_();
+    document.getElementById('modalPengumumanKBM').classList.add('active');
+  };
+
+  window.closeModalPengumumanKBM = function () {
+    document.getElementById('modalPengumumanKBM').classList.remove('active');
+  };
+
+  /** Emoji angka WA untuk penomoran blok (1️⃣..🔟, selebihnya angka biasa). */
+  window.pkbmAngka_ = function (n) {
+    const emoji = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    return n <= 10 ? emoji[n - 1] : n + '.';
+  };
+
+  /** '15:30' → '15.30' (gaya penulisan jam di pengumuman WA). */
+  window.pkbmJam_ = function (j) {
+    return String(j || '').replace(':', '.');
+  };
+
+  /**
+   * Rangkai teks pengumuman WA dari Jadwal KBM (window.lastJadwalListData):
+   * - Cabe Rawit: dikelompokkan per pengajar, tiap pengajar bernomor, sesinya "Sesi 1/2..."
+   * - Kategori lain (Pra Remaja SMP, Remaja SMA, Muda-Mudi): satu blok bernomor per sesi
+   * - Catatan dari textarea (satu baris = satu poin bernomor)
+   * - Footer tetap: Pengumuman via Aplikasi Ruang Ngaji
+   */
+  window.generatePengumumanKBMText_ = function () {
+    const tanggal = document.getElementById('pengumumanKBMTanggal').value;
+    const noteRaw = document.getElementById('pengumumanKBMNote').value;
+    const jadwal = window.lastJadwalListData || [];
+    const kelompokName = window.currentKelompokName || '';
+
+    const hariNama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+    let tanggalLabel = '(pilih tanggal)';
+    if (tanggal) {
+      const [y, m, d] = tanggal.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      tanggalLabel = `${hariNama[dt.getDay()]}, ${d} ${monthNames[m - 1]} ${y}`;
+    }
+
+    const baris = [];
+    baris.push('Assalamualaikum Wr. Wb. 🙏');
+    baris.push('');
+    baris.push(`*Pengumuman Jadwal KBM Generus ${kelompokName}*`);
+    baris.push('');
+    baris.push(`📌 *${tanggalLabel}*`);
+
+    let nomor = 0;
+
+    // Cabe Rawit: kelompokkan per pengajar (urutan kemunculan, sesi urut jam)
+    const cabeRawit = jadwal
+      .filter(j => j.kategori === 'Cabe Rawit')
+      .sort((a, b) => String(a.jam_mulai).localeCompare(String(b.jam_mulai)));
+    const perGuru = [];
+    cabeRawit.forEach(j => {
+      let g = perGuru.find(x => String(x.guruId) === String(j.guru_id));
+      if (!g) {
+        g = { guruId: j.guru_id, guruNama: j.guru_nama, sesi: [] };
+        perGuru.push(g);
+      }
+      g.sesi.push(j);
+    });
+
+    perGuru.forEach(g => {
+      nomor += 1;
+      baris.push('');
+      baris.push(`${window.pkbmAngka_(nomor)} *Pengajar ${g.guruNama}*`);
+      g.sesi.forEach((j, i) => {
+        if (i > 0) baris.push('');
+        baris.push(`📍 *Sesi ${i + 1} : Kls ${j.kelas}*`);
+        baris.push(`⏰ Jam : ${window.pkbmJam_(j.jam_mulai)} - ${window.pkbmJam_(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`);
+        baris.push(`🏠 *Tempat : ${j.ruangan}*`);
+      });
+    });
+
+    // Kategori lain: satu blok bernomor per sesi
+    ['Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi'].forEach(kat => {
+      const sesiKat = jadwal
+        .filter(j => j.kategori === kat)
+        .sort((a, b) => String(a.jam_mulai).localeCompare(String(b.jam_mulai)));
+      sesiKat.forEach(j => {
+        nomor += 1;
+        baris.push('');
+        baris.push(`${window.pkbmAngka_(nomor)} *Kelas ${kat}*`);
+        baris.push(`Pengajar : *${j.guru_nama}*`);
+        baris.push(`⏰ Jam : ${window.pkbmJam_(j.jam_mulai)} - ${window.pkbmJam_(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`);
+        baris.push(`🏠 *Tempat : ${j.ruangan}*`);
+      });
+    });
+
+    if (nomor === 0) {
+      baris.push('');
+      baris.push('_(Belum ada Jadwal KBM — isi dulu di bagian Jadwal KBM)_');
+    }
+
+    const notes = noteRaw.split('\n').map(s => s.trim()).filter(Boolean);
+    if (notes.length > 0) {
+      baris.push('');
+      baris.push('*Note :*');
+      notes.forEach((n, i) => baris.push(`*${i + 1}. ${n}*`));
+    }
+
+    baris.push('');
+    baris.push('Alhamdulillahi jaza kumullohu khoiro 🙏');
+    baris.push('');
+    baris.push('Wassalamualaikum Wr. Wb.');
+    baris.push('');
+    baris.push('_Pengumuman via Aplikasi Ruang Ngaji_');
+
+    return baris.join('\n');
+  };
+
+  window.renderPengumumanKBMPreview_ = function () {
+    document.getElementById('pengumumanKBMPreview').textContent = window.generatePengumumanKBMText_();
+  };
+
+  window.copyPengumumanKBM_ = function () {
+    const text = window.generatePengumumanKBMText_();
+    const btn = document.getElementById('pkbmSalinBtn');
+    const sukses = function () {
+      btn.textContent = '✅ Tersalin!';
+      setTimeout(function () { btn.textContent = '📋 Salin Teks'; }, 2000);
+    };
+
+    // Fallback textarea+execCommand untuk browser/iframe yang menolak clipboard API.
+    const fallback = function () {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        sukses();
+      } catch (e) {
+        alert('Gagal menyalin — salin manual dari kotak pratinjau.');
+      }
+      document.body.removeChild(ta);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(sukses, fallback);
+    } else {
+      fallback();
+    }
+  };
+
+  window.savePengumumanKBM_ = function () {
+    const tanggal = document.getElementById('pengumumanKBMTanggal').value;
+    if (!tanggal) {
+      alert('Pilih tanggal KBM dulu.');
+      return;
+    }
+
+    const isi = window.generatePengumumanKBMText_();
+    const judul = 'Jadwal KBM ' + document.getElementById('pengumumanKBMTanggalDisplay').value;
+
+    window.showGlobalLoading_('Menyimpan pengumuman...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (result.success) {
+          window.closeModalPengumumanKBM();
+          window.loadKelompokDashboardPengumuman_(window.currentKelompokId);
+        } else {
+          alert(result.error);
+        }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal });
   };
 
   window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone, forceFresh) {

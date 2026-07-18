@@ -1048,6 +1048,42 @@
       accent-color: var(--brass);
     }
 
+    /* Modal generator Pengumuman KBM: form kiri, pratinjau WA kanan */
+    .pkbm-modal-content {
+      max-width: 760px;
+    }
+
+    .pkbm-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+      gap: 20px;
+    }
+
+    .pkbm-preview {
+      margin-top: 8px;
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel-2);
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    @media (max-width: 767px) {
+      .pkbm-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .pkbm-preview {
+        max-height: 220px;
+      }
+    }
+
     .jadwal-kat-empty {
       padding: 22px 16px;
       text-align: center;
