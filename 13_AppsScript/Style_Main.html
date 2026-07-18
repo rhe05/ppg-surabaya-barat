@@ -452,16 +452,26 @@
       overflow: hidden;
     }
 
+    /* Header TIDAK ikut scroll: yang menggulir hanya blok konten di bawahnya,
+       supaya batang scroll mulai di bawah header (tidak menembus blok atas /
+       card admin). Tiap screen = .dash-header + tepat satu elemen konten
+       (+ .modal-overlay yang position:fixed, jadi tidak terpengaruh). */
     .screen-wrapper {
       display: none;
-      min-height: 100%;
-      overflow-y: auto;
+      overflow: hidden;
       flex: 1;
+      min-height: 0;
     }
 
     .screen-wrapper.active {
       display: flex;
       flex-direction: column;
+    }
+
+    .screen-wrapper.active > .dash-header + * {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
     }
 
     /* ═════ DASHBOARD SCREEN ═════ */
@@ -482,6 +492,47 @@
     /* Card admin — global, fixed kanan atas viewport, tampil di SEMUA screen
        (bukan child dari .dash-header, jadi tidak ikut disembunyikan saat
        .screen-wrapper lain yang aktif) */
+    /* Panel kanan atas global: tombol refresh + card admin, sejajar. */
+    .gk-topright {
+      position: fixed;
+      top: 12px;
+      right: 20px;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gk-refresh-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 50%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-subtle);
+      color: var(--text-dim);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: color 0.2s ease, border-color 0.2s ease;
+    }
+
+    .gk-refresh-btn:hover {
+      color: var(--brass);
+      border-color: var(--brass);
+    }
+
+    .gk-refresh-btn svg {
+      transition: transform 0.5s ease;
+    }
+
+    .gk-refresh-btn:hover svg {
+      transform: rotate(180deg);
+    }
+
     .dash-header-admin-card {
       display: flex;
       align-items: center;
@@ -491,10 +542,6 @@
       border: 1px solid var(--border);
       box-shadow: var(--shadow-subtle);
       flex-shrink: 0;
-      position: fixed;
-      top: 12px;
-      right: 20px;
-      z-index: 40;
       font-size: 11.5px;
       font-weight: 700;
       color: var(--text);
@@ -743,8 +790,14 @@
     }
 
     .guru-dash-toggle-precise {
-      min-width: 152px;
+      min-width: 122px;
       justify-content: center;
+    }
+
+    /* Tombol "Daftar Guru"/"Daftar Generus" dibuat lebih ringkas dari tombol lain. */
+    .guru-dash-toggle-table.guru-dash-header-btn.guru-dash-toggle-precise {
+      padding: 8px 12px;
+      font-size: 12px;
     }
 
     .guru-dash-add-precise {

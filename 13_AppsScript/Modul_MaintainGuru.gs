@@ -72,6 +72,7 @@ function serverAddGuru(token, kelompokId, guruData) {
         guruData.kode_pos || '',
         guruData.kabupaten_kota || '',
         guruData.provinsi || '',
+        guruData.kecamatan || '',
       ]);
 
       cacheDrop_('guru_k' + kelompokId);
@@ -111,6 +112,7 @@ function serverUpdateGuru(token, guruId, guruData) {
     kode_pos: guruData.kode_pos !== undefined ? guruData.kode_pos : guru.kode_pos,
     kabupaten_kota: guruData.kabupaten_kota !== undefined ? guruData.kabupaten_kota : guru.kabupaten_kota,
     provinsi: guruData.provinsi !== undefined ? guruData.provinsi : guru.provinsi,
+    kecamatan: guruData.kecamatan !== undefined ? guruData.kecamatan : guru.kecamatan,
     nomor_wa: guruData.nomor_wa !== undefined ? guruData.nomor_wa : guru.nomor_wa,
     pendidikan: guruData.pendidikan !== undefined ? guruData.pendidikan : guru.pendidikan,
   };

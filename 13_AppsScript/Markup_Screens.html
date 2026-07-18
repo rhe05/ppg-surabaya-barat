@@ -151,8 +151,23 @@
 
   <!-- Content Area -->
   <div class="app-content">
-    <!-- Card admin — global, tampil di kanan atas di SEMUA screen (bukan per-header) -->
-    <div class="dash-header-admin-card">Admin</div>
+    <!-- Panel kanan atas global (tampil di SEMUA screen): tombol refresh + card admin -->
+    <div class="gk-topright">
+      <button type="button" class="gk-refresh-btn" onclick="window.hardRefresh_()" title="Muat ulang halaman ini" aria-label="Muat ulang">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+      </button>
+      <div class="dash-header-admin-card">Admin</div>
+    </div>
+
+    <!-- Sumber saran autocomplete (diisi JS dari data yang sudah tersimpan) -->
+    <datalist id="dlNama"></datalist>
+    <datalist id="dlNamaOrtu"></datalist>
+    <datalist id="dlTempatLahir"></datalist>
+    <datalist id="dlKelurahan"></datalist>
+    <datalist id="dlKecamatan"></datalist>
+    <datalist id="dlKabupaten"></datalist>
+    <datalist id="dlProvinsi"></datalist>
+    <datalist id="dlKodePos"></datalist>
 
     <!-- DASHBOARD SCREEN -->
     <div class="screen-wrapper active" id="screenDashboard">
@@ -558,7 +573,7 @@
 
               <div class="form-group">
                 <label class="form-label">Nama</label>
-                <input type="text" class="form-input" id="guruKelpNama" placeholder="Nama lengkap">
+                <input type="text" class="form-input" id="guruKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap">
               </div>
 
               <div class="guru-kelp-row-2">
@@ -585,7 +600,7 @@
               <div class="guru-kelp-row-2">
                 <div class="form-group">
                   <label class="form-label">Tempat Lahir</label>
-                  <input type="text" class="form-input" id="guruKelpTempatLahir" placeholder="Misal: Surabaya">
+                  <input type="text" class="form-input" id="guruKelpTempatLahir" list="dlTempatLahir" autocomplete="off" placeholder="Misal: Surabaya">
                 </div>
 
                 <div class="form-group" style="position: relative;">
@@ -652,25 +667,32 @@
 
                 <div class="form-group">
                   <label class="form-label">Kode Pos</label>
-                  <input type="text" class="form-input" id="guruKelpKodePos" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
+                  <input type="text" class="form-input" id="guruKelpKodePos" list="dlKodePos" autocomplete="off" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
                 </div>
               </div>
 
               <div class="guru-kelp-row-2">
                 <div class="form-group">
                   <label class="form-label">Ds/Kelurahan</label>
-                  <input type="text" class="form-input" id="guruKelpKelurahan" placeholder="Nama desa/kelurahan">
+                  <input type="text" class="form-input" id="guruKelpKelurahan" list="dlKelurahan" autocomplete="off" placeholder="Nama desa/kelurahan">
                 </div>
 
                 <div class="form-group">
                   <label class="form-label">Kabupaten/Kota</label>
-                  <input type="text" class="form-input" id="guruKelpKabupaten" placeholder="Misal: Surabaya">
+                  <input type="text" class="form-input" id="guruKelpKabupaten" list="dlKabupaten" autocomplete="off" placeholder="Misal: Surabaya">
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Provinsi</label>
-                <input type="text" class="form-input" id="guruKelpProvinsi" placeholder="Misal: Jawa Timur">
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Kecamatan</label>
+                  <input type="text" class="form-input" id="guruKelpKecamatan" list="dlKecamatan" autocomplete="off" placeholder="Misal: Sawahan">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Provinsi</label>
+                  <input type="text" class="form-input" id="guruKelpProvinsi" list="dlProvinsi" autocomplete="off" placeholder="Misal: Jawa Timur">
+                </div>
               </div>
             </div>
 
@@ -941,7 +963,7 @@
 
               <div class="form-group">
                 <label class="form-label">Nama</label>
-                <input type="text" class="form-input" id="generusKelpNama" placeholder="Nama lengkap">
+                <input type="text" class="form-input" id="generusKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap">
               </div>
 
               <div class="guru-kelp-row-2">
@@ -968,7 +990,7 @@
 
                 <div class="form-group">
                   <label class="form-label">Tempat Lahir</label>
-                  <input type="text" class="form-input" id="generusKelpTempatLahir" placeholder="Misal: Surabaya">
+                  <input type="text" class="form-input" id="generusKelpTempatLahir" list="dlTempatLahir" autocomplete="off" placeholder="Misal: Surabaya">
                 </div>
               </div>
 
@@ -1044,36 +1066,43 @@
 
                 <div class="form-group">
                   <label class="form-label">Kode Pos</label>
-                  <input type="text" class="form-input" id="generusKelpKodePos" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
+                  <input type="text" class="form-input" id="generusKelpKodePos" list="dlKodePos" autocomplete="off" placeholder="60123" inputmode="numeric" maxlength="5" oninput="window.digitsOnlyInput_(this)">
                 </div>
               </div>
 
               <div class="guru-kelp-row-2">
                 <div class="form-group">
                   <label class="form-label">Ds/Kelurahan</label>
-                  <input type="text" class="form-input" id="generusKelpKelurahan" placeholder="Nama desa/kelurahan">
+                  <input type="text" class="form-input" id="generusKelpKelurahan" list="dlKelurahan" autocomplete="off" placeholder="Nama desa/kelurahan">
                 </div>
 
                 <div class="form-group">
                   <label class="form-label">Kabupaten/Kota</label>
-                  <input type="text" class="form-input" id="generusKelpKabupaten" placeholder="Misal: Surabaya">
+                  <input type="text" class="form-input" id="generusKelpKabupaten" list="dlKabupaten" autocomplete="off" placeholder="Misal: Surabaya">
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Provinsi</label>
-                <input type="text" class="form-input" id="generusKelpProvinsi" placeholder="Misal: Jawa Timur">
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Kecamatan</label>
+                  <input type="text" class="form-input" id="generusKelpKecamatan" list="dlKecamatan" autocomplete="off" placeholder="Misal: Sawahan">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Provinsi</label>
+                  <input type="text" class="form-input" id="generusKelpProvinsi" list="dlProvinsi" autocomplete="off" placeholder="Misal: Jawa Timur">
+                </div>
               </div>
 
               <div class="guru-kelp-row-2">
                 <div class="form-group">
                   <label class="form-label">Nama Ayah</label>
-                  <input type="text" class="form-input" id="generusKelpNamaAyah" placeholder="Nama ayah">
+                  <input type="text" class="form-input" id="generusKelpNamaAyah" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ayah">
                 </div>
 
                 <div class="form-group">
                   <label class="form-label">Nama Ibu</label>
-                  <input type="text" class="form-input" id="generusKelpNamaIbu" placeholder="Nama ibu">
+                  <input type="text" class="form-input" id="generusKelpNamaIbu" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ibu">
                 </div>
               </div>
 

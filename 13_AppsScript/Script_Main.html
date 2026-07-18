@@ -117,6 +117,8 @@
     document.getElementById('menuDesaToggle').style.display = (user.role === 'admin_ppg') ? 'flex' : 'none';
 
     window.loadDashboard();
+    // Kalau barusan klik tombol refresh, kembalikan ke layar sebelumnya.
+    window.restoreViewAfterRefresh_();
   }
 
   window.handleLogout = function () {
@@ -195,6 +197,7 @@
     document.getElementById('generusKelpKelurahan').value = '';
     document.getElementById('generusKelpKabupaten').value = '';
     document.getElementById('generusKelpProvinsi').value = '';
+    document.getElementById('generusKelpKecamatan').value = '';
     document.getElementById('generusKelpNamaAyah').value = '';
     document.getElementById('generusKelpNamaIbu').value = '';
     document.getElementById('generusKelpNomorWaAyah').value = '';
@@ -202,6 +205,7 @@
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
     document.getElementById('generusKelpGender').value = '';
     window.toggleGenerusKlsSekolah_();
+    window.populateAutocomplete_();
     document.getElementById('modalGenerusKelp').classList.add('active');
   };
 
@@ -257,6 +261,7 @@
       kelurahan: document.getElementById('generusKelpKelurahan').value.trim(),
       kabupaten_kota: document.getElementById('generusKelpKabupaten').value.trim(),
       provinsi: document.getElementById('generusKelpProvinsi').value.trim(),
+      kecamatan: document.getElementById('generusKelpKecamatan').value.trim(),
       nama_ayah: document.getElementById('generusKelpNamaAyah').value.trim(),
       nama_ibu: document.getElementById('generusKelpNamaIbu').value.trim(),
       nomor_wa_ayah: document.getElementById('generusKelpNomorWaAyah').value.trim(),
@@ -319,6 +324,7 @@
       window.buildDetailItemHtml_('Kode Pos', s.kode_pos),
       window.buildDetailItemHtml_('Ds/Kelurahan', s.kelurahan),
       window.buildDetailItemHtml_('Kabupaten/Kota', s.kabupaten_kota),
+      window.buildDetailItemHtml_('Kecamatan', s.kecamatan),
       window.buildDetailItemHtml_('Provinsi', s.provinsi),
       window.buildDetailItemHtml_('Nama Ayah', s.nama_ayah),
       window.buildDetailItemHtml_('Nama Ibu', s.nama_ibu),
@@ -358,12 +364,14 @@
     document.getElementById('generusKelpKelurahan').value = s.kelurahan || '';
     document.getElementById('generusKelpKabupaten').value = s.kabupaten_kota || '';
     document.getElementById('generusKelpProvinsi').value = s.provinsi || '';
+    document.getElementById('generusKelpKecamatan').value = s.kecamatan || '';
     document.getElementById('generusKelpNamaAyah').value = s.nama_ayah || '';
     document.getElementById('generusKelpNamaIbu').value = s.nama_ibu || '';
     document.getElementById('generusKelpNomorWaAyah').value = s.nomor_wa_ayah || '';
     document.getElementById('generusKelpNomorWaIbu').value = s.nomor_wa_ibu || '';
     document.getElementById('modalGenerusKelpTitle').textContent = 'Edit Generus';
     window.updateGenerusKelpUmur();
+    window.populateAutocomplete_();
     document.getElementById('modalGenerusKelp').classList.add('active');
   };
 
@@ -747,9 +755,11 @@
     document.getElementById('guruKelpKelurahan').value = '';
     document.getElementById('guruKelpKabupaten').value = '';
     document.getElementById('guruKelpProvinsi').value = '';
+    document.getElementById('guruKelpKecamatan').value = '';
     document.getElementById('guruKelpNomorWA').value = '';
     document.getElementById('guruKelpPendidikan').value = '';
     document.getElementById('guruKelpUmurBadge').style.display = 'none';
+    window.populateAutocomplete_();
     document.getElementById('modalGuruKelp').classList.add('active');
   };
 
@@ -773,6 +783,7 @@
       kelurahan: document.getElementById('guruKelpKelurahan').value.trim(),
       kabupaten_kota: document.getElementById('guruKelpKabupaten').value.trim(),
       provinsi: document.getElementById('guruKelpProvinsi').value.trim(),
+      kecamatan: document.getElementById('guruKelpKecamatan').value.trim(),
       nomor_wa: document.getElementById('guruKelpNomorWA').value.trim(),
       pendidikan: document.getElementById('guruKelpPendidikan').value,
     };
@@ -931,6 +942,7 @@
     { key: 'rtrw', label: 'RT/RW', group: 'alamat', val: g => (g.rt || g.rw) ? `${g.rt || '-'} / ${g.rw || '-'}` : '' },
     { key: 'kode_pos', label: 'Kode Pos', group: 'alamat', val: g => g.kode_pos || '' },
     { key: 'kelurahan', label: 'Ds/Kelurahan', group: 'alamat', val: g => g.kelurahan || '' },
+    { key: 'kecamatan', label: 'Kecamatan', group: 'alamat', val: g => g.kecamatan || '' },
     { key: 'kabupaten_kota', label: 'Kabupaten/Kota', group: 'alamat', val: g => g.kabupaten_kota || '' },
     { key: 'provinsi', label: 'Provinsi', group: 'alamat', val: g => g.provinsi || '' },
     { key: 'aksi', label: 'Aksi', group: 'inti', sticky: 'right', action: true, html: g => window.aksiBtnsHtml_('viewGuruKelp', 'editGuruKelp', 'deleteGuruKelp', g.id) },
@@ -953,6 +965,7 @@
     { key: 'rtrw', label: 'RT/RW', group: 'alamat', val: s => (s.rt || s.rw) ? `${s.rt || '-'} / ${s.rw || '-'}` : '' },
     { key: 'kode_pos', label: 'Kode Pos', group: 'alamat', val: s => s.kode_pos || '' },
     { key: 'kelurahan', label: 'Ds/Kelurahan', group: 'alamat', val: s => s.kelurahan || '' },
+    { key: 'kecamatan', label: 'Kecamatan', group: 'alamat', val: s => s.kecamatan || '' },
     { key: 'kabupaten_kota', label: 'Kabupaten/Kota', group: 'alamat', val: s => s.kabupaten_kota || '' },
     { key: 'provinsi', label: 'Provinsi', group: 'alamat', val: s => s.provinsi || '' },
     { key: 'nama_ayah', label: 'Nama Ayah', group: 'ortu', val: s => s.nama_ayah || '' },
@@ -1046,6 +1059,104 @@
     }
   });
 
+  /* ═════ AUTOCOMPLETE — saran instan dari data yang sudah pernah diinput ═════
+     Pakai <datalist> native: browser menyaring saran secara instan saat
+     mengetik & memunculkannya saat field diklik. Sumbernya gabungan data guru
+     + generus yang sudah dimuat, jadi admin tidak perlu mengetik ulang. */
+  window.fillDatalist_ = function (id, values) {
+    const dl = document.getElementById(id);
+    if (!dl) return;
+    const seen = {};
+    const uniq = [];
+    values.forEach(v => {
+      if (v === null || v === undefined) return;
+      const t = String(v).trim();
+      if (!t) return;
+      const k = t.toLowerCase();
+      if (seen[k]) return;
+      seen[k] = true;
+      uniq.push(t);
+    });
+    uniq.sort((a, b) => a.localeCompare(b, 'id'));
+    dl.innerHTML = uniq.map(v => `<option value="${window.escapeHtmlExport_(v)}"></option>`).join('');
+  };
+
+  window.populateAutocomplete_ = function () {
+    const g = window.lastGuruListData || [];
+    const s = window.lastSantriListData || [];
+    const both = g.concat(s);
+    window.fillDatalist_('dlNama', both.map(x => x.nama));
+    window.fillDatalist_('dlNamaOrtu', s.map(x => x.nama_ayah).concat(s.map(x => x.nama_ibu)));
+    window.fillDatalist_('dlTempatLahir', both.map(x => x.tempat_lahir));
+    window.fillDatalist_('dlKelurahan', both.map(x => x.kelurahan));
+    window.fillDatalist_('dlKecamatan', both.map(x => x.kecamatan));
+    window.fillDatalist_('dlKabupaten', both.map(x => x.kabupaten_kota));
+    window.fillDatalist_('dlProvinsi', both.map(x => x.provinsi));
+    window.fillDatalist_('dlKodePos', both.map(x => x.kode_pos));
+  };
+
+  /* ═════ REFRESH — reload penuh, lalu kembali ke layar yang sama ═════
+     Layar aktif disimpan di sessionStorage sebelum location.reload(), lalu
+     dipulihkan setelah boot (lihat renderApp). Jadi refresh benar-benar
+     memuat ulang dari server tapi TIDAK melempar user ke dashboard utama. */
+  window.SCREEN_LOADERS_ = {
+    screenDashboard: function () { window.loadDashboard(); },
+    screenSantri: function () { window.loadSantriList(); },
+    screenGuru: function () { window.loadGuruList(); },
+    screenMunaqosah: function () { window.loadMunaqosahScreen(); },
+    screenKonseling: function () { window.loadKonselingScreen(); },
+    screenKalender: function () { window.loadKalenderScreen(); },
+    screenPustakUnduhan: function () { window.loadPustakUnduhScreen(); },
+    screenLaporan: function () { window.initLaporanScreen(); },
+    screenStatistics: function () { window.initStatisticsScreen(); },
+    screenUserManagement: function () { window.loadUserManagement(); },
+  };
+
+  window.setSidebarActive_ = function (screenId) {
+    document.querySelectorAll('.sidebar-menu-link').forEach(l => {
+      const oc = l.getAttribute('onclick') || '';
+      const m = oc.match(/switchScreen\('([^']+)'\)/);
+      const target = m ? 'screen' + m[1].charAt(0).toUpperCase() + m[1].slice(1) : '';
+      l.classList.toggle('active', target.toLowerCase() === String(screenId).toLowerCase());
+    });
+  };
+
+  window.hardRefresh_ = function () {
+    const active = document.querySelector('.screen-wrapper.active');
+    const id = active ? active.id : 'screenDashboard';
+    const view = (id === 'screenGuruDashboard')
+      ? { screen: id, kelompokId: window.currentKelompokId, kelompokName: window.currentKelompokName || document.getElementById('guruDashKelompokBadge').textContent }
+      : { screen: id };
+    try { sessionStorage.setItem('ppg_view', JSON.stringify(view)); } catch (e) {}
+    window.showGlobalLoading_('Memuat ulang...');
+    location.reload();
+  };
+
+  window.restoreViewAfterRefresh_ = function () {
+    let saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem('ppg_view') || 'null'); } catch (e) {}
+    try { sessionStorage.removeItem('ppg_view'); } catch (e) {}
+    if (!saved || !saved.screen || saved.screen === 'screenDashboard') return;
+
+    const el = document.getElementById(saved.screen);
+    if (!el) return;
+
+    document.querySelectorAll('.screen-wrapper').forEach(w => w.classList.remove('active'));
+    el.classList.add('active');
+    document.querySelectorAll('.sidebar-menu-link').forEach(l => l.classList.remove('active'));
+
+    if (saved.screen === 'screenGuruDashboard') {
+      window.currentKelompokId = saved.kelompokId;
+      window.currentKelompokName = saved.kelompokName || '';
+      window.loadKelompokDashboard(saved.kelompokId, saved.kelompokName || '');
+      return;
+    }
+
+    window.setSidebarActive_(saved.screen);
+    const loader = window.SCREEN_LOADERS_[saved.screen];
+    if (loader) loader();
+  };
+
   /* Parser tanggal fleksibel — menerima 3 bentuk yang bisa muncul:
      1. "YYYY-MM-DD" (string dari form)
      2. ISO datetime "YYYY-MM-DDTHH:MM:SS(.sssZ)" (objek Date sheet yang di-
@@ -1099,10 +1210,12 @@
     document.getElementById('guruKelpKelurahan').value = g.kelurahan || '';
     document.getElementById('guruKelpKabupaten').value = g.kabupaten_kota || '';
     document.getElementById('guruKelpProvinsi').value = g.provinsi || '';
+    document.getElementById('guruKelpKecamatan').value = g.kecamatan || '';
     document.getElementById('guruKelpNomorWA').value = g.nomor_wa || '';
     document.getElementById('guruKelpPendidikan').value = g.pendidikan || '';
     document.getElementById('modalGuruKelpTitle').textContent = 'Edit Guru';
     window.updateGuruKelpUmur();
+    window.populateAutocomplete_();
     document.getElementById('modalGuruKelp').classList.add('active');
   };
 
@@ -1182,6 +1295,7 @@
       window.buildDetailItemHtml_('Kode Pos', g.kode_pos),
       window.buildDetailItemHtml_('Ds/Kelurahan', g.kelurahan),
       window.buildDetailItemHtml_('Kabupaten/Kota', g.kabupaten_kota),
+      window.buildDetailItemHtml_('Kecamatan', g.kecamatan),
       window.buildDetailItemHtml_('Provinsi', g.provinsi),
     ].join('');
 
@@ -1512,6 +1626,7 @@
     event.stopPropagation();
 
     window.currentKelompokId = kelompokId;
+    window.currentKelompokName = kelompokName;
 
     document.querySelectorAll('.sidebar-tree-link-2').forEach(link => link.classList.remove('active'));
     event.target.closest('.sidebar-tree-link-2').classList.add('active');
