@@ -809,6 +809,45 @@
       font-size: 12px;
     }
 
+    .ppg-time-field {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .ppg-time-field-icon {
+      position: absolute;
+      left: 12px;
+      width: 16px;
+      height: 16px;
+      color: var(--text-faint);
+      pointer-events: none;
+    }
+
+    .ppg-time-input {
+      padding-left: 36px !important;
+      cursor: pointer;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+
+    .ppg-time-input::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      filter: opacity(0.55);
+      transition: filter 0.15s, background 0.15s;
+    }
+
+    .ppg-time-input::-webkit-calendar-picker-indicator:hover {
+      filter: opacity(1);
+      background: rgba(217, 119, 6, 0.12);
+    }
+
+    .ppg-time-field:focus-within .ppg-time-field-icon {
+      color: var(--brass);
+    }
+
     .jadwal-kbm-card {
       display: flex;
       align-items: stretch;

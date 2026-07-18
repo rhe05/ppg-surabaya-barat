@@ -1595,6 +1595,7 @@
     document.getElementById('modalJadwalKBMTitle').textContent = 'Tambah Jadwal KBM';
     document.getElementById('jadwalKBMId').value = '';
     document.getElementById('jadwalKBMTanggal').value = '';
+    document.getElementById('jadwalKBMTanggalDisplay').value = '';
     window.populateJadwalKBMGuruSelect_('');
     document.getElementById('jadwalKBMKelas').value = '';
     document.getElementById('jadwalKBMJamMulai').value = '';
@@ -1608,6 +1609,7 @@
     document.getElementById('modalJadwalKBMTitle').textContent = 'Edit Jadwal KBM';
     document.getElementById('jadwalKBMId').value = id;
     document.getElementById('jadwalKBMTanggal').value = tanggal;
+    document.getElementById('jadwalKBMTanggalDisplay').value = window.formatTanggalDisplay_(tanggal);
     window.populateJadwalKBMGuruSelect_(guruId);
     document.getElementById('jadwalKBMKelas').value = kelas;
     document.getElementById('jadwalKBMJamMulai').value = jamMulai;

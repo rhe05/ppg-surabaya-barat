@@ -1225,9 +1225,11 @@
 
           <input type="hidden" id="jadwalKBMId">
 
-          <div class="form-group">
+          <div class="form-group" style="position: relative;">
             <label class="form-label">Tanggal</label>
-            <input type="date" class="form-input" id="jadwalKBMTanggal">
+            <input type="text" class="form-input" id="jadwalKBMTanggalDisplay" data-datepicker-trigger placeholder="Pilih tanggal" readonly onclick="window.toggleDatePicker('jadwalKBMTanggal')">
+            <input type="hidden" id="jadwalKBMTanggal">
+            <div class="ppg-datepicker" id="jadwalKBMTanggalPicker"></div>
           </div>
 
           <div class="form-group">
@@ -1245,11 +1247,17 @@
           <div style="display: flex; gap: 16px;">
             <div class="form-group" style="flex: 1;">
               <label class="form-label">Jam Mulai</label>
-              <input type="time" class="form-input" id="jadwalKBMJamMulai">
+              <div class="ppg-time-field">
+                <svg class="ppg-time-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                <input type="time" class="form-input ppg-time-input" id="jadwalKBMJamMulai">
+              </div>
             </div>
             <div class="form-group" style="flex: 1;">
               <label class="form-label">Jam Selesai</label>
-              <input type="time" class="form-input" id="jadwalKBMJamSelesai">
+              <div class="ppg-time-field">
+                <svg class="ppg-time-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+                <input type="time" class="form-input ppg-time-input" id="jadwalKBMJamSelesai">
+              </div>
             </div>
           </div>
 
