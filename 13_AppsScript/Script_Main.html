@@ -775,18 +775,98 @@
   };
 
   document.addEventListener('click', function (e) {
-    const isTrigger = e.target.hasAttribute('data-datepicker-trigger');
-    const isInsidePicker = e.target.closest('.ppg-datepicker');
+    const isTrigger = e.target.hasAttribute('data-datepicker-trigger') || e.target.hasAttribute('data-timepicker-trigger');
+    const isInsidePicker = e.target.closest('.ppg-datepicker') || e.target.closest('.ppg-timepicker');
     if (!isTrigger && !isInsidePicker) {
-      document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
+      document.querySelectorAll('.ppg-datepicker, .ppg-timepicker').forEach(p => p.classList.remove('open'));
     }
   });
 
-  // Tutup date picker jika modal (atau area manapun) di-scroll, supaya posisi
+  // Tutup date/time picker jika modal (atau area manapun) di-scroll, supaya posisi
   // popup (position:fixed) tidak meleset dari input pemicunya.
   document.addEventListener('scroll', function () {
-    document.querySelectorAll('.ppg-datepicker.open').forEach(p => p.classList.remove('open'));
+    document.querySelectorAll('.ppg-datepicker.open, .ppg-timepicker.open').forEach(p => p.classList.remove('open'));
   }, true);
+
+  window.ppgTimePickerState = {};
+
+  window.toggleTimePicker = function (inputId) {
+    const picker = document.getElementById(inputId + 'Picker');
+    const willOpen = !picker.classList.contains('open');
+
+    document.querySelectorAll('.ppg-datepicker, .ppg-timepicker').forEach(p => p.classList.remove('open'));
+
+    if (willOpen) {
+      const trigger = document.getElementById(inputId + 'Display');
+      const rect = trigger.getBoundingClientRect();
+      const pickerHeight = 300;
+      const openBelow = rect.bottom + pickerHeight + 10 <= window.innerHeight;
+
+      picker.style.top = openBelow ? (rect.bottom + 6) + 'px' : (rect.top - pickerHeight - 6) + 'px';
+      picker.style.left = Math.min(rect.left, window.innerWidth - 236 - 12) + 'px';
+
+      const existing = document.getElementById(inputId).value;
+      const [h, m] = existing ? existing.split(':').map(Number) : [null, null];
+      window.ppgTimePickerState[inputId] = { hour: existing ? h : null, minute: existing ? m : null };
+      window.renderTimePicker(inputId);
+      picker.classList.add('open');
+    }
+  };
+
+  window.renderTimePicker = function (inputId) {
+    const state = window.ppgTimePickerState[inputId];
+    const picker = document.getElementById(inputId + 'Picker');
+    const pad = n => String(n).padStart(2, '0');
+
+    const hasSelection = state.hour !== null && state.minute !== null;
+    const previewText = hasSelection ? `${pad(state.hour)}:${pad(state.minute)}` : '-- : --';
+
+    let hoursHtml = '';
+    for (let h = 0; h < 24; h++) {
+      hoursHtml += `<div class="ppg-timepicker-cell${h === state.hour ? ' selected' : ''}" onclick="window.pickTimeHour('${inputId}', ${h})">${pad(h)}</div>`;
+    }
+
+    let minutesHtml = '';
+    for (let m = 0; m < 60; m += 5) {
+      minutesHtml += `<div class="ppg-timepicker-cell${m === state.minute ? ' selected' : ''}" onclick="window.pickTimeMinute('${inputId}', ${m})">${pad(m)}</div>`;
+    }
+
+    picker.innerHTML = `
+      <div class="ppg-timepicker-preview${hasSelection ? '' : ' is-empty'}">${previewText}</div>
+      <div class="ppg-timepicker-section">
+        <div class="ppg-timepicker-label">Jam</div>
+        <div class="ppg-timepicker-grid ppg-timepicker-grid-hour">${hoursHtml}</div>
+      </div>
+      <div class="ppg-timepicker-section">
+        <div class="ppg-timepicker-label">Menit</div>
+        <div class="ppg-timepicker-grid ppg-timepicker-grid-min">${minutesHtml}</div>
+      </div>
+      <div class="ppg-timepicker-footer">
+        <button type="button" class="btn btn-primary" ${hasSelection ? '' : 'disabled'} onclick="window.confirmTimePicker('${inputId}')">Pilih Jam Ini</button>
+      </div>
+    `;
+  };
+
+  window.pickTimeHour = function (inputId, hour) {
+    window.ppgTimePickerState[inputId].hour = hour;
+    window.renderTimePicker(inputId);
+  };
+
+  window.pickTimeMinute = function (inputId, minute) {
+    window.ppgTimePickerState[inputId].minute = minute;
+    window.renderTimePicker(inputId);
+  };
+
+  window.confirmTimePicker = function (inputId) {
+    const state = window.ppgTimePickerState[inputId];
+    if (state.hour === null || state.minute === null) return;
+
+    const pad = n => String(n).padStart(2, '0');
+    const value = `${pad(state.hour)}:${pad(state.minute)}`;
+    document.getElementById(inputId).value = value;
+    document.getElementById(inputId + 'Display').value = value;
+    document.getElementById(inputId + 'Picker').classList.remove('open');
+  };
 
   window.updateGuruKelpLama = function () {
     const badge = document.getElementById('guruKelpLamaBadge');
@@ -1599,7 +1679,9 @@
     window.populateJadwalKBMGuruSelect_('');
     document.getElementById('jadwalKBMKelas').value = '';
     document.getElementById('jadwalKBMJamMulai').value = '';
+    document.getElementById('jadwalKBMJamMulaiDisplay').value = '';
     document.getElementById('jadwalKBMJamSelesai').value = '';
+    document.getElementById('jadwalKBMJamSelesaiDisplay').value = '';
     document.getElementById('jadwalKBMRuangan').value = '';
     document.getElementById('jadwalKBMKeterangan').value = '';
     document.getElementById('modalJadwalKBM').classList.add('active');
@@ -1613,7 +1695,9 @@
     window.populateJadwalKBMGuruSelect_(guruId);
     document.getElementById('jadwalKBMKelas').value = kelas;
     document.getElementById('jadwalKBMJamMulai').value = jamMulai;
+    document.getElementById('jadwalKBMJamMulaiDisplay').value = jamMulai;
     document.getElementById('jadwalKBMJamSelesai').value = jamSelesai;
+    document.getElementById('jadwalKBMJamSelesaiDisplay').value = jamSelesai;
     document.getElementById('jadwalKBMRuangan').value = ruangan;
     document.getElementById('jadwalKBMKeterangan').value = keterangan;
     document.getElementById('modalJadwalKBM').classList.add('active');

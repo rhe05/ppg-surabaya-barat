@@ -809,43 +809,94 @@
       font-size: 12px;
     }
 
-    .ppg-time-field {
-      position: relative;
-      display: flex;
-      align-items: center;
+    .ppg-timepicker {
+      display: none;
+      position: fixed;
+      z-index: 1100;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 4px 6px rgba(15, 23, 42, 0.05), 0 20px 40px -12px rgba(15, 23, 42, 0.25);
+      padding: 16px;
+      width: 236px;
     }
 
-    .ppg-time-field-icon {
-      position: absolute;
-      left: 12px;
-      width: 16px;
-      height: 16px;
-      color: var(--text-faint);
-      pointer-events: none;
+    .ppg-timepicker.open {
+      display: block;
     }
 
-    .ppg-time-input {
-      padding-left: 36px !important;
-      cursor: pointer;
+    .ppg-timepicker-preview {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--text);
       font-variant-numeric: tabular-nums;
       letter-spacing: 0.02em;
+      margin-bottom: 14px;
     }
 
-    .ppg-time-input::-webkit-calendar-picker-indicator {
+    .ppg-timepicker-preview.is-empty {
+      color: var(--text-faint);
+    }
+
+    .ppg-timepicker-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+    }
+
+    .ppg-timepicker-section + .ppg-timepicker-section {
+      margin-top: 12px;
+    }
+
+    .ppg-timepicker-grid {
+      display: grid;
+      gap: 4px;
+    }
+
+    .ppg-timepicker-grid-hour {
+      grid-template-columns: repeat(6, 1fr);
+    }
+
+    .ppg-timepicker-grid-min {
+      grid-template-columns: repeat(4, 1fr);
+    }
+
+    .ppg-timepicker-cell {
+      text-align: center;
+      padding: 6px 0;
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+      border-radius: 8px;
       cursor: pointer;
-      padding: 4px;
-      border-radius: 6px;
-      filter: opacity(0.55);
-      transition: filter 0.15s, background 0.15s;
+      color: var(--text);
+      transition: all 0.15s;
     }
 
-    .ppg-time-input::-webkit-calendar-picker-indicator:hover {
-      filter: opacity(1);
-      background: rgba(217, 119, 6, 0.12);
+    .ppg-timepicker-cell:hover {
+      background: var(--panel-2);
     }
 
-    .ppg-time-field:focus-within .ppg-time-field-icon {
-      color: var(--brass);
+    .ppg-timepicker-cell.selected {
+      background: var(--brass);
+      color: white;
+      font-weight: 700;
+    }
+
+    .ppg-timepicker-footer {
+      margin-top: 14px;
+    }
+
+    .ppg-timepicker-footer .btn {
+      width: 100%;
+    }
+
+    .ppg-timepicker-footer .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
     }
 
     .jadwal-kbm-card {

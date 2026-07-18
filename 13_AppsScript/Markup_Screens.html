@@ -1245,19 +1245,17 @@
           </div>
 
           <div style="display: flex; gap: 16px;">
-            <div class="form-group" style="flex: 1;">
+            <div class="form-group" style="flex: 1; position: relative;">
               <label class="form-label">Jam Mulai</label>
-              <div class="ppg-time-field">
-                <svg class="ppg-time-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                <input type="time" class="form-input ppg-time-input" id="jadwalKBMJamMulai">
-              </div>
+              <input type="text" class="form-input" id="jadwalKBMJamMulaiDisplay" data-timepicker-trigger placeholder="Pilih jam" readonly onclick="window.toggleTimePicker('jadwalKBMJamMulai')">
+              <input type="hidden" id="jadwalKBMJamMulai">
+              <div class="ppg-timepicker" id="jadwalKBMJamMulaiPicker"></div>
             </div>
-            <div class="form-group" style="flex: 1;">
+            <div class="form-group" style="flex: 1; position: relative;">
               <label class="form-label">Jam Selesai</label>
-              <div class="ppg-time-field">
-                <svg class="ppg-time-field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
-                <input type="time" class="form-input ppg-time-input" id="jadwalKBMJamSelesai">
-              </div>
+              <input type="text" class="form-input" id="jadwalKBMJamSelesaiDisplay" data-timepicker-trigger placeholder="Pilih jam" readonly onclick="window.toggleTimePicker('jadwalKBMJamSelesai')">
+              <input type="hidden" id="jadwalKBMJamSelesai">
+              <div class="ppg-timepicker" id="jadwalKBMJamSelesaiPicker"></div>
             </div>
           </div>
 
