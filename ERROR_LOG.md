@@ -148,6 +148,53 @@ fungsi pemuat data layar yang aktif.
 
 ---
 
+## #7 — Jadwal KBM berhenti di "Memuat..." — Sheets diam-diam mengubah teks jadi Date (2026-07-18)
+
+**Gejala**: Seksi Jadwal KBM di Dashboard Kelompok hanya menampilkan tulisan
+"Memuat..." selamanya. Data DIPASTIKAN ada di sheet (9 baris, dicek via
+`node tools/check_schema.js`). Tidak ada pesan error apa pun di UI.
+
+**Akar masalah — dua lapis:**
+
+1. **Google Sheets meng-autoconvert teks jadi objek `Date`.** Kita menulis
+   string `'2026-07-20'` (tanggal) dan `'15:45'` (jam) lewat `appendRow`, tapi
+   Sheets memparsingnya jadi nilai tanggal/waktu asli. Saat dibaca ulang,
+   `readSheetAsObjects` mengembalikan objek `Date`, bukan string:
+   - `tanggal` → `Date(2026-07-19T17:00:00Z)` (= 20 Juli 00:00 WIB)
+   - `jam_mulai` → `Date(1899-12-30T08:37:48Z)` (epoch serial waktu Sheets)
+
+   Objek `Date` ini ikut terkirim ke klien lewat `google.script.run` dan
+   membuat respons gagal sampai ke browser.
+
+2. **Kegagalan ditelan diam-diam.** Loader menulis
+   `if (!result.success) return;` TANPA `withFailureHandler`. Jadi ketika
+   respons gagal, tidak ada callback yang jalan sama sekali — placeholder
+   "Memuat..." tidak pernah diganti dan tidak ada error yang tampil. Inilah
+   yang membuat bug terlihat misterius.
+
+**Perbaikan**:
+1. `Modul_MaintainJadwalKBM.gs`: helper `tanggalKeString_()` / `jamKeString_()`
+   menormalkan `Date` → `'yyyy-MM-dd'` / `'HH:mm'` memakai
+   `getSpreadsheetTimeZone()` (me-reverse persis konversi Sheets).
+2. `serverGetJadwalKBM` membangun objek balikan SECARA EKSPLISIT field per
+   field — hanya string/angka, sehingga tidak ada `Date` nyasar
+   (termasuk `dibuat_pada`) yang ikut terkirim.
+3. `loadKelompokDashboardJadwal_` diberi `withFailureHandler` + menampilkan
+   pesan error di tempat daftar, bukan `return` kosong.
+
+**Aturan permanen**:
+- **JANGAN kembalikan objek hasil `readSheetAsObjects` apa adanya ke klien**
+  jika sheet punya kolom tanggal/jam. Normalkan ke string dulu, atau bangun
+  objek balikan eksplisit.
+- **SETIAP `google.script.run` WAJIB punya `withFailureHandler`.** Tanpa itu,
+  kegagalan tidak meninggalkan jejak apa pun di UI maupun console.
+
+**Cara verifikasi**: `node tools/check_schema.js` (data ada?) lalu endpoint
+diagnostik baru `?diag=rows&sheet=jadwal_kbm` — menampilkan NILAI + **TIPE**
+tiap kolom, sehingga sel yang diam-diam jadi `Date` langsung ketahuan.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

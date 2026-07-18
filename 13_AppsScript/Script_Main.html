@@ -1642,11 +1642,24 @@
   };
 
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {
+    // Kegagalan WAJIB terlihat: sebelumnya error ditelan diam-diam (return kosong)
+    // sehingga UI berhenti di "Memuat..." tanpa petunjuk apa pun.
+    const showJadwalError = function (pesan) {
+      document.getElementById('kdJadwalList').innerHTML =
+        '<div style="text-align: center; padding: 40px; color: var(--red);">Gagal memuat jadwal: ' + pesan + '</div>';
+    };
+
     google.script.run
       .withSuccessHandler(function (result) {
-        if (!result.success) return;
+        if (!result || !result.success) {
+          showJadwalError((result && result.error) || 'respons tidak valid.');
+          return;
+        }
         window.lastJadwalListData = result.data;
         window.renderJadwalKBMList_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        showJadwalError(err && err.message ? err.message : String(err));
       })
       .serverGetJadwalKBM(window.currentToken, kelompokId);
   };

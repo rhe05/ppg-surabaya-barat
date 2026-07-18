@@ -11,9 +11,31 @@
 
 const HARI_NAMA_ = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
+/**
+ * Google Sheets DIAM-DIAM mengubah teks '2026-07-20' dan '15:45' yang kita tulis
+ * menjadi objek Date di dalam sel. Saat dibaca kembali nilainya jadi Date, bukan
+ * string — bikin tampilan kacau dan objek Date gagal dikirim ke klien lewat
+ * google.script.run (respons tidak sampai sama sekali → UI berhenti di "Memuat...").
+ * Dua helper ini menormalkan balik ke string memakai zona waktu spreadsheet,
+ * sehingga konversi Sheets ter-reverse persis. Nilai yang sudah string dilewatkan apa adanya.
+ */
+function tanggalKeString_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  }
+  return v ? String(v) : '';
+}
+
+function jamKeString_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'HH:mm');
+  }
+  return v ? String(v) : '';
+}
+
 /** 'yyyy-MM-dd' → nama hari Indonesia. Dipakai server saat create/update, bukan input user. */
 function hariDariTanggal_(tanggalStr) {
-  const d = new Date(tanggalStr + 'T00:00:00');
+  const d = new Date(tanggalKeString_(tanggalStr) + 'T00:00:00');
   return isNaN(d.getTime()) ? '' : HARI_NAMA_[d.getDay()];
 }
 
@@ -32,15 +54,31 @@ function serverGetJadwalKBM(token, kelompokId) {
   jadwal = jadwal.filter(j => j.kelompok_id == kelompokId);
 
   const guruList = readSheetAsObjects(SHEET_NAMES.GURU);
+
+  // Bangun objek balikan secara eksplisit: hanya string/angka, supaya tidak ada
+  // objek Date (dari sel tanggal/jam/dibuat_pada) yang ikut terkirim ke klien.
   jadwal = jadwal.map(j => {
     const guru = guruList.find(g => g.id == j.guru_id);
-    return Object.assign({}, j, { guru_nama: guru ? guru.nama : '(guru tidak ditemukan)' });
+    const tanggal = tanggalKeString_(j.tanggal);
+    return {
+      id: j.id,
+      kelompok_id: j.kelompok_id,
+      tanggal: tanggal,
+      hari: j.hari ? String(j.hari) : hariDariTanggal_(tanggal),
+      jam_mulai: jamKeString_(j.jam_mulai),
+      jam_selesai: jamKeString_(j.jam_selesai),
+      kelas: j.kelas ? String(j.kelas) : '',
+      ruangan: j.ruangan ? String(j.ruangan) : '',
+      keterangan: j.keterangan ? String(j.keterangan) : '',
+      guru_id: j.guru_id,
+      guru_nama: guru ? guru.nama : '(guru tidak ditemukan)',
+    };
   });
 
   jadwal.sort((a, b) => {
-    const tglDiff = String(a.tanggal || '').localeCompare(String(b.tanggal || ''));
+    const tglDiff = a.tanggal.localeCompare(b.tanggal);
     if (tglDiff !== 0) return tglDiff;
-    return String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || ''));
+    return a.jam_mulai.localeCompare(b.jam_mulai);
   });
 
   return { success: true, data: jadwal };
@@ -116,7 +154,8 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
     if (!guruAda) return { success: false, error: 'Guru tidak ditemukan di Kelompok ini.' };
   }
 
-  const tanggalBaru = updates.tanggal !== undefined ? updates.tanggal : jadwal.tanggal;
+  // Nilai lama dinormalkan dulu — sel tanggal/jam bisa berupa objek Date bawaan Sheets.
+  const tanggalBaru = updates.tanggal !== undefined ? updates.tanggal : tanggalKeString_(jadwal.tanggal);
 
   try {
     return withScriptLock_(function () {
@@ -125,8 +164,8 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
         hari: hariDariTanggal_(tanggalBaru),
         guru_id: updates.guru_id !== undefined ? updates.guru_id : jadwal.guru_id,
         kelas: updates.kelas !== undefined ? String(updates.kelas).trim() : jadwal.kelas,
-        jam_mulai: updates.jam_mulai !== undefined ? updates.jam_mulai : jadwal.jam_mulai,
-        jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jadwal.jam_selesai,
+        jam_mulai: updates.jam_mulai !== undefined ? updates.jam_mulai : jamKeString_(jadwal.jam_mulai),
+        jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jamKeString_(jadwal.jam_selesai),
         ruangan: updates.ruangan !== undefined ? String(updates.ruangan).trim() : jadwal.ruangan,
         keterangan: updates.keterangan !== undefined ? updates.keterangan : jadwal.keterangan,
       });
