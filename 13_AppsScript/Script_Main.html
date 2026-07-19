@@ -2035,12 +2035,91 @@
 
   window.PKBM_NOTE_DEFAULT_ = 'Datang tepat waktu, jangan terlambat\nMemakai seragam Muslim putih\nJangan lupa membawa uang untuk shodaqoh & kas';
 
+  /**
+   * Override per sesi KHUSUS pengumuman yang sedang dibuat — jadwal umum (template)
+   * TIDAK diubah. Bentuk: { <sesiId>: { guruId: '<pengganti>', libur: true/false } }.
+   * Direset setiap modal dibuka.
+   */
+  window.pkbmOverrides_ = {};
+
   window.openModalPengumumanKBM = function () {
+    window.pkbmOverrides_ = {};
     document.getElementById('pengumumanKBMTanggal').value = '';
     document.getElementById('pengumumanKBMTanggalDisplay').value = '';
     document.getElementById('pengumumanKBMNote').value = window.PKBM_NOTE_DEFAULT_;
+    window.renderPkbmSesiList_();
     window.renderPengumumanKBMPreview_();
     document.getElementById('modalPengumumanKBM').classList.add('active');
+  };
+
+  /** Sesi jadwal terurut kategori (urutan baku) lalu jam — dipakai daftar sesi & generator. */
+  window.pkbmSortedSesi_ = function () {
+    const jadwal = (window.lastJadwalListData || []).slice();
+    return jadwal.sort((a, b) => {
+      const katDiff = window.KATEGORI_JADWAL_UI_.indexOf(a.kategori) - window.KATEGORI_JADWAL_UI_.indexOf(b.kategori);
+      if (katDiff !== 0) return katDiff;
+      return String(a.jam_mulai).localeCompare(String(b.jam_mulai));
+    });
+  };
+
+  /** Bangun daftar sesi di modal: dropdown pengajar (guru kelompok ini) + toggle Libur per sesi. */
+  window.renderPkbmSesiList_ = function () {
+    const wrap = document.getElementById('pkbmSesiList');
+    const sesi = window.pkbmSortedSesi_();
+    const guruList = window.lastGuruListData || [];
+
+    if (sesi.length === 0) {
+      wrap.innerHTML = '<div class="pkbm-sesi-kosong">Belum ada Jadwal KBM — isi dulu di bagian Jadwal KBM.</div>';
+      return;
+    }
+
+    wrap.innerHTML = '';
+    sesi.forEach(j => {
+      const ov = window.pkbmOverrides_[j.id] || {};
+      const guruTerpilih = ov.guruId !== undefined ? String(ov.guruId) : String(j.guru_id);
+
+      // Guru asli sesi tetap jadi opsi walau sudah tidak ada di daftar guru (mis. terhapus).
+      let options = guruList.map(g =>
+        `<option value="${g.id}" ${String(g.id) === guruTerpilih ? 'selected' : ''}>${g.nama}</option>`
+      ).join('');
+      if (!guruList.some(g => String(g.id) === String(j.guru_id))) {
+        options = `<option value="${j.guru_id}" ${guruTerpilih === String(j.guru_id) ? 'selected' : ''}>${j.guru_nama}</option>` + options;
+      }
+
+      const row = document.createElement('div');
+      row.className = 'pkbm-sesi-row' + (ov.libur ? ' libur' : '') + (ov.guruId !== undefined && String(ov.guruId) !== String(j.guru_id) ? ' diganti' : '');
+      row.id = 'pkbmSesiRow_' + j.id;
+      row.innerHTML = `
+        <div class="pkbm-sesi-info">
+          <span class="pkbm-sesi-kelas">Kls ${j.kelas}</span>
+          <span class="pkbm-sesi-jam">${j.jam_mulai}–${j.jam_selesai} · ${j.kategori}</span>
+        </div>
+        <select class="form-select pkbm-sesi-select" onchange="window.setPkbmGuru_('${j.id}', this.value)">${options}</select>
+        <label class="pkbm-sesi-libur" title="Sesi tidak dimasukkan ke pengumuman">
+          <input type="checkbox" ${ov.libur ? 'checked' : ''} onchange="window.setPkbmLibur_('${j.id}', this.checked)"><span>Libur</span>
+        </label>
+      `;
+      wrap.appendChild(row);
+    });
+  };
+
+  window.setPkbmGuru_ = function (sesiId, guruId) {
+    const asli = (window.lastJadwalListData || []).find(j => String(j.id) === String(sesiId));
+    const ov = window.pkbmOverrides_[sesiId] || (window.pkbmOverrides_[sesiId] = {});
+    ov.guruId = guruId;
+
+    const row = document.getElementById('pkbmSesiRow_' + sesiId);
+    if (row) row.classList.toggle('diganti', !asli || String(guruId) !== String(asli.guru_id));
+    window.renderPengumumanKBMPreview_();
+  };
+
+  window.setPkbmLibur_ = function (sesiId, libur) {
+    const ov = window.pkbmOverrides_[sesiId] || (window.pkbmOverrides_[sesiId] = {});
+    ov.libur = libur;
+
+    const row = document.getElementById('pkbmSesiRow_' + sesiId);
+    if (row) row.classList.toggle('libur', libur);
+    window.renderPengumumanKBMPreview_();
   };
 
   window.closeModalPengumumanKBM = function () {
@@ -2068,8 +2147,20 @@
   window.generatePengumumanKBMText_ = function () {
     const tanggal = document.getElementById('pengumumanKBMTanggal').value;
     const noteRaw = document.getElementById('pengumumanKBMNote').value;
-    const jadwal = window.lastJadwalListData || [];
     const kelompokName = window.currentKelompokName || '';
+    const guruList = window.lastGuruListData || [];
+
+    // Terapkan override per sesi: sesi Libur dibuang, guru pengganti menggantikan
+    // guru asli — hanya untuk teks pengumuman ini, jadwal umum tidak berubah.
+    const jadwal = (window.lastJadwalListData || []).map(j => {
+      const ov = window.pkbmOverrides_[j.id] || {};
+      if (ov.libur) return null;
+      if (ov.guruId !== undefined && String(ov.guruId) !== String(j.guru_id)) {
+        const g = guruList.find(x => String(x.id) === String(ov.guruId));
+        return Object.assign({}, j, { guru_id: ov.guruId, guru_nama: g ? g.nama : j.guru_nama });
+      }
+      return j;
+    }).filter(Boolean);
 
     const hariNama = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
