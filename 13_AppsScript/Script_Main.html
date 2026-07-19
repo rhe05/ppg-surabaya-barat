@@ -4255,4 +4255,486 @@
       }
     });
   });
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     KURIKULUM — Tab Switching & Loading
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.switchKurikulumTab_ = function (btn, tabName) {
+    document.querySelectorAll('.kurikulum-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.kurikulum-tab-content').forEach(c => c.classList.remove('active'));
+
+    btn.classList.add('active');
+    const tabEl = document.getElementById('kurikulumTab' + (tabName.charAt(0).toUpperCase() + tabName.slice(1)));
+    if (tabEl) tabEl.classList.add('active');
+
+    if (tabName === 'prota') {
+      const tahun = document.getElementById('kurikulumProtaTahun').value || 2026;
+      window.loadKurikulumProta_(window.currentKelompokId, tahun);
+    }
+  };
+
+  window.loadKurikulumProta_ = function (kelompokId, tahun, onDone) {
+    window.showGlobalLoading_('Memuat program tahunan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          document.getElementById('kurikulumProtaList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Gagal memuat: ' + result.error + '</div>';
+          return;
+        }
+        window.lastProtaData = result.data;
+        window.renderProtaList_(result.data);
+        if (onDone) onDone();
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        document.getElementById('kurikulumProtaList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetProta(window.currentToken, kelompokId, parseInt(tahun) || 2026);
+  };
+
+  window.renderProtaList_ = function (data) {
+    const list = document.getElementById('kurikulumProtaList');
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada program tahunan</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(prota => `
+      <div class="kurikulum-prota-card">
+        <div class="kurikulum-prota-card-header">
+          <span class="kurikulum-prota-title">${prota.kategori || 'N/A'}</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-sm btn-secondary" onclick="window.editProta('${prota.id}', '${prota.kategori}', '${prota.target}', '${(prota.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+            <button class="btn btn-sm btn-danger" onclick="window.deleteProta('${prota.id}')">Hapus</button>
+          </div>
+        </div>
+        <div class="kurikulum-prota-target">Target: ${prota.target || 'N/A'}</div>
+        ${prota.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">${prota.deskripsi}</div>` : ''}
+        <button class="btn btn-sm btn-primary" onclick="window.expandProtaPromes('${prota.id}', '${prota.kategori}')">Lihat Semester →</button>
+      </div>
+    `).join('');
+  };
+
+  window.expandProtaPromes = function (protaId, protaKategori) {
+    document.getElementById('kurikulumTabPromes').style.display = 'block';
+    document.querySelectorAll('.kurikulum-tab-btn')[1].classList.add('active');
+    document.querySelectorAll('.kurikulum-tab-btn').forEach((b, i) => {
+      if (i !== 1) b.classList.remove('active');
+    });
+    window.loadPromesByProta_(protaId, protaKategori);
+  };
+
+  window.loadPromesByProta_ = function (protaId, protaKategori) {
+    window.showGlobalLoading_('Memuat program semester...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          document.getElementById('kurikulumPromesList').innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
+          return;
+        }
+        window.renderPromesList_(result.data, protaKategori, protaId);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        document.getElementById('kurikulumPromesList').innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetPromes(window.currentToken, protaId);
+  };
+
+  window.renderPromesList_ = function (data, protaKategori, protaId) {
+    const list = document.getElementById('kurikulumPromesList');
+    if (!data || data.length === 0) {
+      list.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-faint);">
+        Belum ada semester untuk ${protaKategori}
+        <div style="margin-top: 12px;">
+          <button class="btn btn-sm btn-primary" onclick="window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
+        </div>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = `
+      <div style="margin-bottom: 12px;">
+        <button class="btn btn-sm btn-primary" onclick="window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
+      </div>
+    ` + data.map(promes => `
+      <div class="kurikulum-protes-row">
+        <div>
+          <div style="font-weight: 600;">Semester ${promes.semester}</div>
+          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
+          ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${promes.semester}', '${promes.target}', '${(promes.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}')">Hapus</button>
+        </div>
+      </div>
+    `).join('');
+  };
+
+  window.loadKurikulumProbul_ = function (kelompokId, bulan) {
+    if (!bulan) {
+      document.getElementById('kurikulumProbulList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
+      return;
+    }
+
+    const tahun = new Date().getFullYear();
+    window.showGlobalLoading_('Memuat program bulanan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          document.getElementById('kurikulumProbulList').innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
+          return;
+        }
+        window.lastProbulData = result.data;
+        window.renderProbulList_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        document.getElementById('kurikulumProbulList').innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetProbul(window.currentToken, kelompokId, tahun, parseInt(bulan));
+  };
+
+  window.renderProbulList_ = function (data) {
+    const list = document.getElementById('kurikulumProbulList');
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada program bulanan</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(probul => `
+      <div class="kurikulum-protes-row">
+        <div>
+          <div style="font-weight: 600;">${probul.kategori || 'N/A'}</div>
+          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${probul.target}</div>
+          ${probul.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${probul.deskripsi}</div>` : ''}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-secondary" onclick="window.editProbul('${probul.id}', '${probul.target}', '${(probul.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="window.deleteProbul('${probul.id}')">Hapus</button>
+          <button class="btn btn-sm btn-primary" onclick="window.loadPencapaianSantri_('${window.currentKelompokId}', '${probul.id}')">Lihat Progres →</button>
+        </div>
+      </div>
+    `).join('');
+  };
+
+  window.loadPencapaianSantri_ = function (kelompokId, probulId) {
+    if (!probulId) {
+      document.getElementById('kurikulumPencapaianList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih materi bulan terlebih dahulu</div>';
+      return;
+    }
+
+    document.getElementById('kurikulumTabPencapaian').style.display = 'block';
+    document.querySelectorAll('.kurikulum-tab-btn')[3].classList.add('active');
+    document.querySelectorAll('.kurikulum-tab-btn').forEach((b, i) => {
+      if (i !== 3) b.classList.remove('active');
+    });
+
+    window.showGlobalLoading_('Memuat pencapaian santri...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          document.getElementById('kurikulumPencapaianList').innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
+          return;
+        }
+        window.lastPencapaianData = result.data;
+        window.renderPencapaianTable_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        document.getElementById('kurikulumPencapaianList').innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetPencapaianSantri(window.currentToken, kelompokId, probulId);
+  };
+
+  window.renderPencapaianTable_ = function (data) {
+    const list = document.getElementById('kurikulumPencapaianList');
+    if (!data || data.length === 0) {
+      list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada data pencapaian</div>';
+      return;
+    }
+
+    const html = `
+      <table class="kurikulum-pencapaian-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Nama Santri</th>
+            <th>Status</th>
+            <th>Catatan</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.map((item, idx) => `
+            <tr>
+              <td>${idx + 1}</td>
+              <td>${item.santri_nama || 'N/A'}</td>
+              <td><span class="kurikulum-status-badge ${item.status}">${item.status === 'pending' ? 'Pending' : item.status === 'in_progress' ? 'Berlangsung' : 'Selesai'}</span></td>
+              <td style="font-size: 12px;">${item.catatan_guru || '-'}</td>
+              <td><button class="btn btn-sm btn-primary" onclick="window.openModalEditPencapaian('${item.id}', '${item.status}', '${(item.catatan_guru || '').replace(/'/g, '&#39;')}')">Edit</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    `;
+    list.innerHTML = html;
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     KURIKULUM — Modal Functions
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.openModalAddProta = function () {
+    document.getElementById('protaId').value = '';
+    document.getElementById('protaTahun').value = new Date().getFullYear();
+    document.getElementById('protaKategori').value = '';
+    document.getElementById('protaTarget').value = '';
+    document.getElementById('protaDeskripsi').value = '';
+    document.getElementById('modalAddProta').classList.add('active');
+  };
+
+  window.closeModalAddProta = function () {
+    document.getElementById('modalAddProta').classList.remove('active');
+  };
+
+  window.openModalAddPromes = function (protaId) {
+    document.getElementById('promesId').value = '';
+    document.getElementById('promesProtaId').value = protaId;
+    document.getElementById('promesSemester').value = '1';
+    document.getElementById('promesTarget').value = '';
+    document.getElementById('promesDeskripsi').value = '';
+    document.getElementById('modalAddPromes').classList.add('active');
+  };
+
+  window.closeModalAddPromes = function () {
+    document.getElementById('modalAddPromes').classList.remove('active');
+  };
+
+  window.openModalAddProbul = function () {
+    document.getElementById('probulId').value = '';
+    document.getElementById('probulPromesId').value = '';
+    document.getElementById('probulBulan').value = new Date().getMonth() + 1;
+    document.getElementById('probulKategori').value = '';
+    document.getElementById('probulTarget').value = '';
+    document.getElementById('probulDeskripsi').value = '';
+    document.getElementById('modalAddProbul').classList.add('active');
+  };
+
+  window.closeModalAddProbul = function () {
+    document.getElementById('modalAddProbul').classList.remove('active');
+  };
+
+  window.openModalEditPencapaian = function (pencapaianId, status, catatan) {
+    document.getElementById('pencapaianId').value = pencapaianId;
+    document.getElementById('pencapaianStatus').value = status;
+    document.getElementById('pencapaianCatatan').value = catatan;
+    document.getElementById('modalEditPencapaian').classList.add('active');
+  };
+
+  window.closeModalEditPencapaian = function () {
+    document.getElementById('modalEditPencapaian').classList.remove('active');
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     KURIKULUM — Save/Delete Functions
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.saveProta = function () {
+    const tahun = document.getElementById('protaTahun').value;
+    const kategori = document.getElementById('protaKategori').value.trim();
+    const target = document.getElementById('protaTarget').value.trim();
+    const deskripsi = document.getElementById('protaDeskripsi').value.trim();
+
+    if (!kategori || !target) {
+      alert('Kategori dan target harus diisi');
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalAddProta();
+        window.loadKurikulumProta_(window.currentKelompokId, tahun);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, target, deskripsi);
+  };
+
+  window.editProta = function (protaId, kategori, target, deskripsi) {
+    document.getElementById('protaId').value = protaId;
+    document.getElementById('protaKategori').value = kategori;
+    document.getElementById('protaTarget').value = target;
+    document.getElementById('protaDeskripsi').value = deskripsi;
+    document.getElementById('modalAddProta').classList.add('active');
+  };
+
+  window.deleteProta = function (protaId) {
+    if (!confirm('Hapus program tahunan ini?')) return;
+    window.showGlobalLoading_('Menghapus...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverDeleteProta(window.currentToken, protaId);
+  };
+
+  window.savePromes = function () {
+    const protaId = document.getElementById('promesProtaId').value;
+    const semester = document.getElementById('promesSemester').value;
+    const target = document.getElementById('promesTarget').value.trim();
+    const deskripsi = document.getElementById('promesDeskripsi').value.trim();
+
+    if (!target) {
+      alert('Target harus diisi');
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalAddPromes();
+        window.loadPromesByProta_(protaId, '');
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverAddPromes(window.currentToken, protaId, parseInt(semester), target, deskripsi);
+  };
+
+  window.editPromes = function (promesId, semester, target, deskripsi) {
+    document.getElementById('promesId').value = promesId;
+    document.getElementById('promesSemester').value = semester;
+    document.getElementById('promesTarget').value = target;
+    document.getElementById('promesDeskripsi').value = deskripsi;
+    document.getElementById('modalAddPromes').classList.add('active');
+  };
+
+  window.deletePromes = function (promesId) {
+    if (!confirm('Hapus program semester ini?')) return;
+    window.showGlobalLoading_('Menghapus...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalAddPromes();
+        alert('Semester berhasil dihapus');
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverDeletePromes(window.currentToken, promesId);
+  };
+
+  window.saveProbul = function () {
+    const promesId = document.getElementById('probulPromesId').value;
+    const bulan = document.getElementById('probulBulan').value;
+    const kategori = document.getElementById('probulKategori').value.trim();
+    const target = document.getElementById('probulTarget').value.trim();
+    const deskripsi = document.getElementById('probulDeskripsi').value.trim();
+
+    if (!kategori || !target) {
+      alert('Kategori dan target harus diisi');
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalAddProbul();
+        window.loadKurikulumProbul_(window.currentKelompokId, bulan);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverAddProbul(window.currentToken, promesId, parseInt(bulan), kategori, target, deskripsi);
+  };
+
+  window.editProbul = function (probulId, target, deskripsi) {
+    document.getElementById('probulId').value = probulId;
+    document.getElementById('probulTarget').value = target;
+    document.getElementById('probulDeskripsi').value = deskripsi;
+    document.getElementById('modalAddProbul').classList.add('active');
+  };
+
+  window.deleteProbul = function (probulId) {
+    if (!confirm('Hapus program bulanan ini?')) return;
+    window.showGlobalLoading_('Menghapus...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.loadKurikulumProbul_(window.currentKelompokId, document.getElementById('kurikulumProbulBulan').value);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverDeleteProbul(window.currentToken, probulId);
+  };
+
+  window.savePencapaian = function () {
+    const pencapaianId = document.getElementById('pencapaianId').value;
+    const status = document.getElementById('pencapaianStatus').value;
+    const catatan = document.getElementById('pencapaianCatatan').value.trim();
+
+    window.showGlobalLoading_('Menyimpan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalEditPencapaian();
+        alert('Pencapaian berhasil diupdate');
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverUpdatePencapaianSantri(window.currentToken, pencapaianId, status, catatan);
+  };
 </script>

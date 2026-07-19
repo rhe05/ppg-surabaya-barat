@@ -61,7 +61,13 @@ function setupDatabaseStructure() {
   // 13. JADWAL KATEGORI HARI (hari aktif per kategori KBM, mis. Cabe Rawit = Senin-Jumat)
   createSheetIfNotExists(ss, 'jadwal_kategori_hari', ['id', 'kelompok_id', 'kategori', 'hari_aktif', 'diubah_oleh', 'diubah_pada']);
 
-  console.log('✅ Semua 17 sheet berhasil dibuat atau sudah ada.');
+  // 14-17. KURIKULUM (Prota/Promes/Probul + Pencapaian Santri)
+  createSheetIfNotExists(ss, 'kurikulum_prota', ['id', 'kelompok_id', 'tahun', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
+  createSheetIfNotExists(ss, 'kurikulum_promes', ['id', 'kelompok_id', 'prota_id', 'semester', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
+  createSheetIfNotExists(ss, 'kurikulum_probul', ['id', 'kelompok_id', 'promes_id', 'tahun', 'bulan', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
+  createSheetIfNotExists(ss, 'kurikulum_pencapaian_santri', ['id', 'kelompok_id', 'santri_id', 'probul_id', 'status', 'tanggal_update', 'catatan_guru', 'updated_by']);
+
+  console.log('✅ Semua 21 sheet berhasil dibuat atau sudah ada.');
 
   // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);

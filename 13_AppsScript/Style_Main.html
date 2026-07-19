@@ -1354,6 +1354,122 @@
       color: var(--text);
     }
 
+    /* Kurikulum — Tab switching & Card styles */
+    .kurikulum-tab-btn {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      padding: 8px 16px;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .kurikulum-tab-btn:hover {
+      color: var(--brass);
+      border-bottom-color: var(--brass);
+    }
+
+    .kurikulum-tab-btn.active {
+      color: var(--brass);
+      border-bottom-color: var(--brass);
+    }
+
+    .kurikulum-tab-content {
+      display: none;
+    }
+
+    .kurikulum-tab-content.active {
+      display: block;
+    }
+
+    .kurikulum-prota-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
+    }
+
+    .kurikulum-prota-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .kurikulum-prota-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .kurikulum-prota-target {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+
+    .kurikulum-protes-row {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .kurikulum-pencapaian-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    .kurikulum-pencapaian-table thead {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+    }
+
+    .kurikulum-pencapaian-table th,
+    .kurikulum-pencapaian-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border: 1px solid var(--border);
+    }
+
+    .kurikulum-pencapaian-table tbody tr:hover {
+      background: var(--panel-2);
+    }
+
+    .kurikulum-status-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .kurikulum-status-badge.pending {
+      background: rgba(229, 193, 4, 0.1);
+      color: #e5c104;
+    }
+
+    .kurikulum-status-badge.in_progress {
+      background: rgba(33, 150, 243, 0.1);
+      color: #2196f3;
+    }
+
+    .kurikulum-status-badge.completed {
+      background: rgba(76, 175, 80, 0.1);
+      color: #4caf50;
+    }
+
     /* ═════ CUSTOM DATE PICKER (modern, tanpa dependency eksternal) ═════ */
     .ppg-datepicker {
       display: none;
