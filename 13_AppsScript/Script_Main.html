@@ -1671,7 +1671,9 @@
   window.KATEGORI_JADWAL_UI_ = ['Cabe Rawit', 'Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi'];
   window.HARI_URUTAN_UI_ = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
-  /** Status buka/tutup tiap kartu kategori (default terbuka), dipertahankan lintas render ulang. */
+  /** Status buka/tutup tiap kartu kategori (default TERTUTUP saat pertama masuk dashboard,
+      supaya tidak langsung panjang), dipertahankan lintas render ulang selama sesi.
+      Nilai eksplisit `false` = terbuka; undefined/true = tertutup. */
   window.jadwalKatCollapsed_ = window.jadwalKatCollapsed_ || {};
 
   /** Cache hari aktif per kategori: { '<kategori>': ['Senin', 'Selasa', ...] }. */
@@ -1740,7 +1742,7 @@
           </div>
         `).join('');
 
-      const isCollapsed = !!window.jadwalKatCollapsed_[kat];
+      const isCollapsed = window.jadwalKatCollapsed_[kat] !== false;
       const hariAktif = window.lastJadwalHariAktifData_[kat] || [];
 
       const card = document.createElement('div');
@@ -1768,7 +1770,8 @@
 
   /** Buka/tutup daftar sesi satu kartu kategori (biar tidak terlalu panjang). */
   window.toggleJadwalKatCollapse_ = function (kategori) {
-    window.jadwalKatCollapsed_[kategori] = !window.jadwalKatCollapsed_[kategori];
+    const isCollapsed = window.jadwalKatCollapsed_[kategori] !== false;
+    window.jadwalKatCollapsed_[kategori] = isCollapsed ? false : true;
     window.renderJadwalKBMList_(window.lastJadwalListData || []);
   };
 
