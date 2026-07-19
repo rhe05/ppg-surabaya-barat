@@ -2062,7 +2062,12 @@
     });
   };
 
-  /** Bangun daftar sesi di modal: dropdown pengajar (guru kelompok ini) + toggle Libur per sesi. */
+  /**
+   * Bangun daftar sesi di modal. Tiap sesi punya status:
+   * - Hadir (default): guru sesuai jadwal umum
+   * - Izin — Diganti: muncul dropdown "Digantikan oleh" berisi guru lain di kelompok ini
+   * - Libur: sesi tidak dimasukkan ke pengumuman
+   */
   window.renderPkbmSesiList_ = function () {
     const wrap = document.getElementById('pkbmSesiList');
     const sesi = window.pkbmSortedSesi_();
@@ -2076,49 +2081,49 @@
     wrap.innerHTML = '';
     sesi.forEach(j => {
       const ov = window.pkbmOverrides_[j.id] || {};
-      const guruTerpilih = ov.guruId !== undefined ? String(ov.guruId) : String(j.guru_id);
+      const status = ov.status || 'hadir';
 
-      // Guru asli sesi tetap jadi opsi walau sudah tidak ada di daftar guru (mis. terhapus).
-      let options = guruList.map(g =>
-        `<option value="${g.id}" ${String(g.id) === guruTerpilih ? 'selected' : ''}>${g.nama}</option>`
-      ).join('');
-      if (!guruList.some(g => String(g.id) === String(j.guru_id))) {
-        options = `<option value="${j.guru_id}" ${guruTerpilih === String(j.guru_id) ? 'selected' : ''}>${j.guru_nama}</option>` + options;
-      }
+      const penggantiOptions = '<option value="">-- Pilih Pengganti --</option>' +
+        guruList
+          .filter(g => String(g.id) !== String(j.guru_id))
+          .map(g => `<option value="${g.id}" ${String(ov.penggantiId) === String(g.id) ? 'selected' : ''}>${g.nama}</option>`)
+          .join('');
 
       const row = document.createElement('div');
-      row.className = 'pkbm-sesi-row' + (ov.libur ? ' libur' : '') + (ov.guruId !== undefined && String(ov.guruId) !== String(j.guru_id) ? ' diganti' : '');
-      row.id = 'pkbmSesiRow_' + j.id;
+      row.className = 'pkbm-sesi-row' + (status === 'libur' ? ' libur' : '') + (status === 'diganti' ? ' diganti' : '');
       row.innerHTML = `
-        <div class="pkbm-sesi-info">
-          <span class="pkbm-sesi-kelas">Kls ${j.kelas}</span>
-          <span class="pkbm-sesi-jam">${j.jam_mulai}–${j.jam_selesai} · ${j.kategori}</span>
+        <div class="pkbm-sesi-main">
+          <div class="pkbm-sesi-info">
+            <span class="pkbm-sesi-kelas">Kls ${j.kelas} — ${j.guru_nama}</span>
+            <span class="pkbm-sesi-jam">${j.jam_mulai}–${j.jam_selesai} · ${j.kategori}</span>
+          </div>
+          <select class="form-select pkbm-sesi-status" onchange="window.setPkbmStatus_('${j.id}', this.value)">
+            <option value="hadir" ${status === 'hadir' ? 'selected' : ''}>Hadir</option>
+            <option value="diganti" ${status === 'diganti' ? 'selected' : ''}>Izin — Diganti</option>
+            <option value="libur" ${status === 'libur' ? 'selected' : ''}>Libur</option>
+          </select>
         </div>
-        <select class="form-select pkbm-sesi-select" onchange="window.setPkbmGuru_('${j.id}', this.value)">${options}</select>
-        <label class="pkbm-sesi-libur" title="Sesi tidak dimasukkan ke pengumuman">
-          <input type="checkbox" ${ov.libur ? 'checked' : ''} onchange="window.setPkbmLibur_('${j.id}', this.checked)"><span>Libur</span>
-        </label>
+        ${status === 'diganti' ? `
+        <div class="pkbm-sesi-ganti">
+          <span>Digantikan oleh</span>
+          <select class="form-select pkbm-sesi-status" onchange="window.setPkbmPengganti_('${j.id}', this.value)">${penggantiOptions}</select>
+        </div>` : ''}
       `;
       wrap.appendChild(row);
     });
   };
 
-  window.setPkbmGuru_ = function (sesiId, guruId) {
-    const asli = (window.lastJadwalListData || []).find(j => String(j.id) === String(sesiId));
+  window.setPkbmStatus_ = function (sesiId, status) {
     const ov = window.pkbmOverrides_[sesiId] || (window.pkbmOverrides_[sesiId] = {});
-    ov.guruId = guruId;
-
-    const row = document.getElementById('pkbmSesiRow_' + sesiId);
-    if (row) row.classList.toggle('diganti', !asli || String(guruId) !== String(asli.guru_id));
+    ov.status = status;
+    if (status !== 'diganti') ov.penggantiId = undefined;
+    window.renderPkbmSesiList_();
     window.renderPengumumanKBMPreview_();
   };
 
-  window.setPkbmLibur_ = function (sesiId, libur) {
+  window.setPkbmPengganti_ = function (sesiId, guruId) {
     const ov = window.pkbmOverrides_[sesiId] || (window.pkbmOverrides_[sesiId] = {});
-    ov.libur = libur;
-
-    const row = document.getElementById('pkbmSesiRow_' + sesiId);
-    if (row) row.classList.toggle('libur', libur);
+    ov.penggantiId = guruId;
     window.renderPengumumanKBMPreview_();
   };
 
@@ -2150,14 +2155,17 @@
     const kelompokName = window.currentKelompokName || '';
     const guruList = window.lastGuruListData || [];
 
-    // Terapkan override per sesi: sesi Libur dibuang, guru pengganti menggantikan
-    // guru asli — hanya untuk teks pengumuman ini, jadwal umum tidak berubah.
+    // Terapkan override per sesi: Libur dibuang; Izin—Diganti memakai guru pengganti
+    // (dengan catatan siapa yang digantikan) — hanya untuk teks pengumuman ini,
+    // jadwal umum tidak berubah.
     const jadwal = (window.lastJadwalListData || []).map(j => {
       const ov = window.pkbmOverrides_[j.id] || {};
-      if (ov.libur) return null;
-      if (ov.guruId !== undefined && String(ov.guruId) !== String(j.guru_id)) {
-        const g = guruList.find(x => String(x.id) === String(ov.guruId));
-        return Object.assign({}, j, { guru_id: ov.guruId, guru_nama: g ? g.nama : j.guru_nama });
+      if (ov.status === 'libur') return null;
+      if (ov.status === 'diganti' && ov.penggantiId) {
+        const g = guruList.find(x => String(x.id) === String(ov.penggantiId));
+        if (g && String(g.id) !== String(j.guru_id)) {
+          return Object.assign({}, j, { guru_id: g.id, guru_nama: g.nama, pengganti_dari: j.guru_nama });
+        }
       }
       return j;
     }).filter(Boolean);
@@ -2201,7 +2209,7 @@
       baris.push(`${window.pkbmAngka_(nomor)} *Pengajar ${g.guruNama}*`);
       g.sesi.forEach((j, i) => {
         if (i > 0) baris.push('');
-        baris.push(`📍 *Sesi ${i + 1} : Kls ${j.kelas}*`);
+        baris.push(`📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.pengganti_dari ? ` _(menggantikan ${j.pengganti_dari})_` : ''}`);
         baris.push(`⏰ Jam : ${window.pkbmJam_(j.jam_mulai)} - ${window.pkbmJam_(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`);
         baris.push(`🏠 *Tempat : ${j.ruangan}*`);
       });
@@ -2216,7 +2224,7 @@
         nomor += 1;
         baris.push('');
         baris.push(`${window.pkbmAngka_(nomor)} *Kelas ${kat}*`);
-        baris.push(`Pengajar : *${j.guru_nama}*`);
+        baris.push(`Pengajar : *${j.guru_nama}*${j.pengganti_dari ? ` _(menggantikan ${j.pengganti_dari})_` : ''}`);
         baris.push(`⏰ Jam : ${window.pkbmJam_(j.jam_mulai)} - ${window.pkbmJam_(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`);
         baris.push(`🏠 *Tempat : ${j.ruangan}*`);
       });
