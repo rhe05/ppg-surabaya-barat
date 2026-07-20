@@ -377,3 +377,99 @@ function testSantriFirestorePilot_() {
     }
   }
 }
+
+/**
+ * Tes end-to-end PILOT untuk 'jadwal_kbm' — pola identik, dijalankan di
+ * kelompokId=1 (Kelp Petemon), pakai guru_id=21 (Baban Achmad Intiyas, sudah
+ * ada di Firestore Kelp Petemon). Asumsi '1' SUDAH dimasukkan ke
+ * FIRESTORE_KELOMPOK_TABLES_.jadwal_kbm sebelum tes ini dijalankan.
+ * ⚠️ serverUpdateJadwalKBM/serverDeleteJadwalKBM TIDAK butuh parameter
+ * kelompokId terpisah (beda dari pengumuman/santri/guru) — kelompok_id
+ * ditemukan otomatis lewat readSheetAsObjects() yg sudah gabung Sheets+Firestore.
+ */
+function testJadwalKBMFirestorePilot_() {
+  const dev = serverCheckDevMode();
+  if (!dev || !dev.token) throw new Error('Gagal ambil sesi dev-mode.');
+  const token = dev.token;
+  const kelompokId = '1'; // Kelp Petemon
+  const guruId = '21'; // Baban Achmad Intiyas — sudah ada di Firestore Kelp Petemon
+  const steps = [];
+  let testId = null;
+
+  function step(name, fn) {
+    const result = fn();
+    steps.push({ langkah: name, ok: true, detail: result });
+    return result;
+  }
+
+  try {
+    const before = step('baca daftar jadwal KBM (sebelum)', function () {
+      const r = serverGetJadwalKBM(token, kelompokId);
+      if (!r.success) throw new Error('serverGetJadwalKBM gagal: ' + r.error);
+      return { jumlah: r.data.length };
+    });
+
+    const testKelas = '__TEST_PILOT_' + new Date().getTime();
+
+    const created = step('buat sesi jadwal percobaan (lewat serverCreateJadwalKBM)', function () {
+      const r = serverCreateJadwalKBM(token, {
+        kelompok_id: kelompokId,
+        kategori: 'Cabe Rawit',
+        guru_id: guruId,
+        kelas: testKelas,
+        jam_mulai: '15:00',
+        jam_selesai: '16:00',
+        ruangan: 'Ruang Percobaan',
+      });
+      if (!r.success) throw new Error('serverCreateJadwalKBM gagal: ' + r.error);
+      return { id: r.id };
+    });
+    testId = created.id;
+
+    step('verifikasi sesi percobaan muncul & field lengkap', function () {
+      const r = serverGetJadwalKBM(token, kelompokId);
+      const found = r.data.find(function (j) { return String(j.id) === String(testId); });
+      if (!found) throw new Error('Sesi percobaan TIDAK ditemukan setelah create.');
+      if (found.kelas !== testKelas) throw new Error('Kelas tidak cocok setelah create.');
+      if (found.ruangan !== 'Ruang Percobaan') throw new Error('Ruangan tidak cocok setelah create.');
+      if (String(found.guru_id) !== String(guruId)) throw new Error('guru_id tidak cocok setelah create.');
+      return { kelas: found.kelas, ruangan: found.ruangan, guru_nama: found.guru_nama };
+    });
+
+    step('update SEBAGIAN (lewat serverUpdateJadwalKBM, cuma ruangan) — field lain WAJIB tidak hilang', function () {
+      const r = serverUpdateJadwalKBM(token, testId, { ruangan: 'Ruang Percobaan Updated' });
+      if (!r.success) throw new Error('serverUpdateJadwalKBM gagal: ' + r.error);
+
+      const check = serverGetJadwalKBM(token, kelompokId);
+      const found = check.data.find(function (j) { return String(j.id) === String(testId); });
+      if (!found) throw new Error('Sesi percobaan hilang setelah update.');
+      if (found.ruangan !== 'Ruang Percobaan Updated') throw new Error('Ruangan tidak berubah setelah update.');
+      if (found.kelas !== testKelas) throw new Error('GAGAL KRITIS: field "kelas" hilang padahal tidak diupdate — updateMask tidak berfungsi!');
+      if (String(found.guru_id) !== String(guruId)) throw new Error('GAGAL KRITIS: field "guru_id" hilang padahal tidak diupdate!');
+      return { kelas: found.kelas, ruangan: found.ruangan };
+    });
+
+    step('hapus sesi percobaan (lewat serverDeleteJadwalKBM, bersih-bersih)', function () {
+      const r = serverDeleteJadwalKBM(token, testId);
+      if (!r.success) throw new Error('serverDeleteJadwalKBM gagal: ' + r.error);
+      testId = null;
+      return { deleted: true };
+    });
+
+    step('verifikasi sesi percobaan sudah hilang & jumlah kembali seperti semula', function () {
+      const r = serverGetJadwalKBM(token, kelompokId);
+      if (r.data.length !== before.jumlah) {
+        throw new Error('Jumlah jadwal tidak kembali ke ' + before.jumlah + ' setelah bersih-bersih (sekarang: ' + r.data.length + ').');
+      }
+      return { jumlahSetelahHapus: r.data.length };
+    });
+
+    return { success: true, langkah: steps };
+  } catch (e) {
+    return { success: false, langkah: steps, error: e.message };
+  } finally {
+    if (testId) {
+      try { serverDeleteJadwalKBM(token, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
+    }
+  }
+}

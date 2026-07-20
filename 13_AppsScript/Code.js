@@ -76,6 +76,8 @@ function doGet(e) {
       pengumuman: { nested: true },
       santri: { nested: true, perKelompok: true },
       guru: { nested: true, perKelompok: true },
+      jadwal_kbm: { nested: true, perKelompok: true },
+      jadwal_kategori_hari: { nested: true, perKelompok: true },
     };
     const table = e.parameter.table;
     const kelompokId = e.parameter.kelompok;
@@ -111,6 +113,7 @@ function doGet(e) {
       pengumuman: testPengumumanFirestorePilot_,
       santri: testSantriFirestorePilot_,
       guru: testGuruFirestorePilot_,
+      jadwal_kbm: testJadwalKBMFirestorePilot_,
     };
     let result;
     if (!pilotFns[table]) {
