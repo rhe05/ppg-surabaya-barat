@@ -119,9 +119,8 @@ function serverCreateUser(token, userData) {
   const passwordHash = hashPassword(tempPassword);
 
   const id = generateId(SHEET_NAMES.USERS);
-  const usersSheet = getSheetByName(SHEET_NAMES.USERS);
 
-  usersSheet.appendRow([
+  appendRowToSheet(SHEET_NAMES.USERS, [
     id,
     userData.nama,
     userData.username,

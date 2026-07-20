@@ -53,9 +53,8 @@ function serverAddGuru(token, kelompokId, guruData) {
   try {
     return withScriptLock_(function () {
       const id = generateId(SHEET_NAMES.GURU);
-      const guruSheet = getSheetByName(SHEET_NAMES.GURU);
 
-      guruSheet.appendRow([
+      appendRowToSheet(SHEET_NAMES.GURU, [
         id,
         kelompokId,
         guruData.nama.trim(),

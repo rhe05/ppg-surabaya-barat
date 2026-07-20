@@ -101,9 +101,7 @@ function serverCreateCalendarEvent(token, eventData) {
   // Insert
   const id = generateId(SHEET_NAMES.CALENDAR_EVENTS);
   const now = new Date().toISOString().split('T')[0];
-  const eventSheet = getSheetByName(SHEET_NAMES.CALENDAR_EVENTS);
-
-  eventSheet.appendRow([
+  appendRowToSheet(SHEET_NAMES.CALENDAR_EVENTS, [
     id,
     eventData.kelompok_id,
     eventData.tanggal,

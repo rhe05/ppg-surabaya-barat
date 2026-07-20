@@ -54,9 +54,8 @@ function serverCreatePengumuman(token, pengumumanData) {
       const id = generateId(SHEET_NAMES.PENGUMUMAN);
       const now = new Date().toISOString().split('T')[0];
       const tanggal = pengumumanData.tanggal || now;
-      const sheet = getSheetByName(SHEET_NAMES.PENGUMUMAN);
 
-      sheet.appendRow([
+      appendRowToSheet(SHEET_NAMES.PENGUMUMAN, [
         id,
         pengumumanData.kelompok_id,
         pengumumanData.judul.trim(),

@@ -54,7 +54,6 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
 
-  const absensiSheet = getSheetByName(SHEET_NAMES.ABSENSI);
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
 
   // Delete existing absensi untuk tanggal ini (santri di kelompok ini)
@@ -73,7 +72,7 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
   absensiList.forEach(item => {
     if (santriIds.includes(Number(item.santri_id))) {
       const id = generateId(SHEET_NAMES.ABSENSI);
-      absensiSheet.appendRow([id, item.santri_id, tanggal, item.status, user.id]);
+      appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, user.id]);
       count++;
     }
   });
@@ -107,7 +106,6 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
     }
   });
 
-  const absensiSheet = getSheetByName(SHEET_NAMES.ABSENSI);
   let successCount = 0;
   let errorCount = 0;
   const errors = [];
@@ -132,7 +130,7 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
     }
 
     const id = generateId(SHEET_NAMES.ABSENSI);
-    absensiSheet.appendRow([id, santriId, row.tanggal, row.status, user.id]);
+    appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, row.tanggal, row.status, user.id]);
     successCount++;
   });
 

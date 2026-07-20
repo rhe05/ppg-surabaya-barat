@@ -55,9 +55,8 @@ function serverAddSantri(token, kelompokId, santriData) {
   try {
     return withScriptLock_(function () {
       const id = generateId(SHEET_NAMES.SANTRI);
-      const santriSheet = getSheetByName(SHEET_NAMES.SANTRI);
 
-      santriSheet.appendRow([
+      appendRowToSheet(SHEET_NAMES.SANTRI, [
         id,
         kelompokId,
         santriData.nama.trim(),
@@ -174,11 +173,10 @@ function serverDeleteSantri(token, santriId) {
  * Helper: log audit trail.
  */
 function logAudit(tableName, recordId, action, userId, detail) {
-  const auditSheet = getSheetByName(SHEET_NAMES.AUDIT_LOG);
   const id = generateId(SHEET_NAMES.AUDIT_LOG);
   const timestamp = new Date().toISOString();
 
-  auditSheet.appendRow([id, tableName, recordId, action, userId, timestamp, detail]);
+  appendRowToSheet(SHEET_NAMES.AUDIT_LOG, [id, tableName, recordId, action, userId, timestamp, detail]);
 }
 
 /**

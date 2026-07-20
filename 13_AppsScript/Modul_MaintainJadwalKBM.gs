@@ -108,11 +108,10 @@ function serverCreateJadwalKBM(token, jadwalData) {
     return withScriptLock_(function () {
       const id = generateId(SHEET_NAMES.JADWAL_KBM);
       const now = new Date().toISOString().split('T')[0];
-      const sheet = getSheetByName(SHEET_NAMES.JADWAL_KBM);
 
       // Kolom hari & tanggal sengaja kosong: jadwal ini umum, tanggal ditetapkan
       // nanti di fitur Pengumuman.
-      sheet.appendRow([
+      appendRowToSheet(SHEET_NAMES.JADWAL_KBM, [
         id,
         jadwalData.kelompok_id,
         '',
@@ -261,7 +260,7 @@ function serverSaveJadwalKategoriHari(token, kelompokId, kategori, hariAktif) {
         logAudit(SHEET_NAMES.JADWAL_KATEGORI_HARI, existing.id, 'update', user.id, `${kategori}: ${hariAktifStr}`);
       } else {
         const id = generateId(SHEET_NAMES.JADWAL_KATEGORI_HARI);
-        getSheetByName(SHEET_NAMES.JADWAL_KATEGORI_HARI).appendRow([id, kelompokId, kategori, hariAktifStr, user.id, now]);
+        appendRowToSheet(SHEET_NAMES.JADWAL_KATEGORI_HARI, [id, kelompokId, kategori, hariAktifStr, user.id, now]);
         logAudit(SHEET_NAMES.JADWAL_KATEGORI_HARI, id, 'create', user.id, `${kategori}: ${hariAktifStr}`);
       }
 

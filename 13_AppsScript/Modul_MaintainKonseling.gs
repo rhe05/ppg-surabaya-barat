@@ -167,9 +167,7 @@ function serverCreateKonseling(token, konselingData) {
   // Insert
   const id = generateId(SHEET_NAMES.KONSELING);
   const now = new Date().toISOString().split('T')[0];
-  const konselingSheet = getSheetByName(SHEET_NAMES.KONSELING);
-
-  konselingSheet.appendRow([
+  appendRowToSheet(SHEET_NAMES.KONSELING, [
     id,
     konselingData.santri_id,
     santri.kelompok_id,
@@ -381,7 +379,6 @@ function serverBulkImportKonseling(token, kelompokId, konselingRows) {
     }
   });
 
-  const konselingSheet = getSheetByName(SHEET_NAMES.KONSELING);
   let successCount = 0;
   let errorCount = 0;
   const errors = [];
@@ -415,7 +412,7 @@ function serverBulkImportKonseling(token, kelompokId, konselingRows) {
 
     // Insert
     const id = generateId(SHEET_NAMES.KONSELING);
-    konselingSheet.appendRow([
+    appendRowToSheet(SHEET_NAMES.KONSELING, [
       id,
       santriId,
       kelompokId,

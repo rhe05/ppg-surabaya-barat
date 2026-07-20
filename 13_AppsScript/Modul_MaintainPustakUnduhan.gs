@@ -116,9 +116,7 @@ function serverCreateFile(token, fileData) {
   // Insert
   const id = generateId(SHEET_NAMES.FILES);
   const now = new Date().toISOString().split('T')[0];
-  const fileSheet = getSheetByName(SHEET_NAMES.FILES);
-
-  fileSheet.appendRow([
+  appendRowToSheet(SHEET_NAMES.FILES, [
     id,
     fileData.kategori,
     fileData.nama_file,

@@ -174,9 +174,7 @@ function serverCreateMunaqosah(token, munaqosahData) {
   // Insert
   const id = generateId(SHEET_NAMES.MUNAQOSAH);
   const now = new Date().toISOString().split('T')[0];
-  const munaqosahSheet = getSheetByName(SHEET_NAMES.MUNAQOSAH);
-
-  munaqosahSheet.appendRow([
+  appendRowToSheet(SHEET_NAMES.MUNAQOSAH, [
     id,
     munaqosahData.santri_id,
     munaqosahData.periode_id,
