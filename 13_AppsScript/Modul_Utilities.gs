@@ -41,7 +41,7 @@ const SHEET_NAMES = {
  * berbentuk {id: ...} — cukup untuk semua tabel KECUALI 'absensi' (lihat
  * rencana migrasi Fase 5).
  */
-const FIRESTORE_TABLES_ = [];
+const FIRESTORE_TABLES_ = ['pengumuman'];
 
 /**
  * Ambil sheet dari nama. Return object sheet atau null jika tidak ditemukan.
