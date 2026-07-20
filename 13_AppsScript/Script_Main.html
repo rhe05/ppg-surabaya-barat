@@ -1255,19 +1255,6 @@
     }
   });
 
-  /* ═════ MENU DROPDOWN "+ Buat Pengumuman" (pilih kategori) ═════ */
-  window.togglePengumumanMenu_ = function (event) {
-    event.stopPropagation();
-    const panel = document.getElementById('pengumumanMenuPanel');
-    const willOpen = !panel.classList.contains('open');
-    document.querySelectorAll('.gk-colpicker-panel').forEach(p => p.classList.remove('open'));
-    if (willOpen) panel.classList.add('open');
-  };
-
-  window.closePengumumanMenu_ = function () {
-    document.getElementById('pengumumanMenuPanel').classList.remove('open');
-  };
-
   /* ═════ AUTOCOMPLETE — saran instan dari data yang sudah pernah diinput ═════
      Pakai <datalist> native: browser menyaring saran secara instan saat
      mengetik & memunculkannya saat field diklik. Sumbernya gabungan data guru
@@ -1951,19 +1938,46 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
+        window.lastPengumumanListData_ = result.data;
+        window.renderPengumumanList_(result.data);
+      })
+      .serverGetPengumuman(window.currentToken, kelompokId);
+  };
 
-        const list = document.getElementById('kdPengumumanList');
-        list.innerHTML = '';
+  /** Grup & sub-kategori kartu Pengumuman — tambah entri baru di sini kalau ada kategori baru ke depan.
+      Samakan daftar sub-kategori dengan KATEGORI_PENGUMUMAN_ di Modul_MaintainPengumuman.gs. */
+  window.PENGUMUMAN_KATEGORI_GROUPS_ = [
+    { title: 'Pengumuman KBM', items: ['Caberawit', 'Pra Remaja & Remaja SMA', 'Muda Mudi'] },
+    { title: 'Musyawarah', items: ['Pra 5 Unsur', '5 Unsur', 'Khusus'] },
+  ];
 
-        if (result.data.length === 0) {
-          list.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada pengumuman untuk kelompok ini.</div>';
-          return;
-        }
+  /** Status buka/tutup tiap kartu sub-kategori pengumuman (default TERTUTUP), lintas render ulang selama sesi. */
+  window.pengumumanKatCollapsed_ = window.pengumumanKatCollapsed_ || {};
 
-        result.data.forEach(p => {
-          const card = document.createElement('div');
-          card.className = 'pengumuman-card';
-          card.innerHTML = `
+  /** Render ulang daftar Pengumuman dari array data — dikelompokkan jadi kartu per sub-kategori,
+      mengikuti pola visual Jadwal KBM (kartu bisa dibuka/tutup, tombol "+ Buat" ada di dalam kartu). */
+  window.renderPengumumanList_ = function (data) {
+    const container = document.getElementById('kdPengumumanList');
+    container.innerHTML = '';
+
+    const caretIcon = '<svg class="jadwal-kat-caret-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+    const knownItems = window.PENGUMUMAN_KATEGORI_GROUPS_.reduce((acc, g) => acc.concat(g.items), []);
+    const groups = window.PENGUMUMAN_KATEGORI_GROUPS_.slice();
+    if (data.some(p => knownItems.indexOf(p.kategori) === -1)) {
+      groups.push({ title: 'Lainnya', items: ['__lainnya__'] });
+    }
+
+    const buildCard = (kat) => {
+      const items = (kat === '__lainnya__'
+        ? data.filter(p => knownItems.indexOf(p.kategori) === -1)
+        : data.filter(p => p.kategori === kat)
+      ).sort((a, b) => String(b.tanggal || '').localeCompare(String(a.tanggal || '')));
+
+      const bodyList = items.length === 0
+        ? '<div class="jadwal-kat-empty">Belum ada pengumuman</div>'
+        : items.map(p => `
+          <div class="pengumuman-card">
             <div class="pengumuman-card-header">
               <div class="pengumuman-card-title">${p.judul}</div>
               <div class="pengumuman-card-date">${p.tanggal}</div>
@@ -1973,16 +1987,59 @@
               <button class="btn btn-secondary" onclick='window.editPengumuman(${JSON.stringify(String(p.id))}, ${JSON.stringify(p.judul)}, ${JSON.stringify(p.isi)}, ${JSON.stringify(p.tanggal)})'>Edit</button>
               <button class="btn btn-secondary" style="color: var(--red);" onclick="window.deletePengumuman('${p.id}')">Hapus</button>
             </div>
-          `;
-          list.appendChild(card);
-        });
-      })
-      .serverGetPengumuman(window.currentToken, kelompokId);
+          </div>
+        `).join('');
+
+      const isCollapsed = window.pengumumanKatCollapsed_[kat] !== false;
+      const title = kat === '__lainnya__' ? 'Lainnya' : kat;
+
+      const card = document.createElement('div');
+      card.className = 'jadwal-kat-card' + (isCollapsed ? ' collapsed' : '');
+      card.innerHTML = `
+        <button type="button" class="jadwal-kat-header" onclick="window.togglePengumumanKatCollapse_('${kat}')">
+          <span class="jadwal-kat-title">${title}</span>
+          <span class="jadwal-kat-header-right">
+            <span class="jadwal-kat-count">${items.length}</span>
+            ${caretIcon}
+          </span>
+        </button>
+        <div class="jadwal-kat-body">
+          <div class="pengumuman-kat-add-row">
+            <button type="button" class="btn btn-primary" onclick="window.openModalPengumuman(${JSON.stringify(kat === '__lainnya__' ? '' : kat)})">+ Buat Pengumuman</button>
+          </div>
+          <div class="pengumuman-kat-list">${bodyList}</div>
+        </div>
+      `;
+      return card;
+    };
+
+    groups.forEach((g, gi) => {
+      const titleRow = document.createElement('div');
+      titleRow.className = 'dash-section-title';
+      titleRow.style.cssText = 'display: flex; align-items: center; justify-content: space-between;' + (gi > 0 ? ' margin-top: 20px;' : '');
+      titleRow.innerHTML = g.title === 'Pengumuman KBM'
+        ? '<span>Pengumuman KBM</span><button type="button" class="guru-dash-toggle-table guru-dash-header-btn" onclick="window.openModalPengumumanKBM()"><span>📢 Buat dari Jadwal KBM</span></button>'
+        : `<span>${g.title}</span>`;
+      container.appendChild(titleRow);
+
+      const grid = document.createElement('div');
+      grid.className = 'jadwal-kat-grid';
+      g.items.forEach(kat => grid.appendChild(buildCard(kat)));
+      container.appendChild(grid);
+    });
   };
 
-  window.openModalPengumuman = function () {
-    document.getElementById('modalPengumumanTitle').textContent = 'Tambah Pengumuman';
+  /** Buka/tutup satu kartu sub-kategori pengumuman (biar tidak terlalu panjang). */
+  window.togglePengumumanKatCollapse_ = function (kategori) {
+    const isCollapsed = window.pengumumanKatCollapsed_[kategori] !== false;
+    window.pengumumanKatCollapsed_[kategori] = isCollapsed ? false : true;
+    window.renderPengumumanList_(window.lastPengumumanListData_ || []);
+  };
+
+  window.openModalPengumuman = function (kategori) {
+    document.getElementById('modalPengumumanTitle').textContent = kategori ? ('Tambah Pengumuman — ' + kategori) : 'Tambah Pengumuman';
     document.getElementById('pengumumanId').value = '';
+    document.getElementById('pengumumanKategori').value = kategori || '';
     document.getElementById('pengumumanJudul').value = '';
     document.getElementById('pengumumanTanggal').valueAsDate = new Date();
     document.getElementById('pengumumanIsi').value = '';
@@ -1992,6 +2049,7 @@
   window.editPengumuman = function (id, judul, isi, tanggal) {
     document.getElementById('modalPengumumanTitle').textContent = 'Edit Pengumuman';
     document.getElementById('pengumumanId').value = id;
+    document.getElementById('pengumumanKategori').value = '';
     document.getElementById('pengumumanJudul').value = judul;
     document.getElementById('pengumumanTanggal').value = tanggal;
     document.getElementById('pengumumanIsi').value = isi;
@@ -2004,6 +2062,7 @@
 
   window.savePengumuman = function () {
     const id = document.getElementById('pengumumanId').value;
+    const kategori = document.getElementById('pengumumanKategori').value;
     const judul = document.getElementById('pengumumanJudul').value.trim();
     const tanggal = document.getElementById('pengumumanTanggal').value;
     const isi = document.getElementById('pengumumanIsi').value.trim();
@@ -2029,7 +2088,7 @@
     } else {
       google.script.run
         .withSuccessHandler(handler)
-        .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal });
+        .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal, kategori });
     }
   };
 

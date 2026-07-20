@@ -56,7 +56,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'jadwal_kbm', ['id', 'kelompok_id', 'hari', 'jam_mulai', 'jam_selesai', 'keterangan', 'dibuat_oleh', 'dibuat_pada', 'tanggal', 'guru_id', 'kelas', 'ruangan', 'kategori']);
 
   // 12. PENGUMUMAN (per Kelompok)
-  createSheetIfNotExists(ss, 'pengumuman', ['id', 'kelompok_id', 'judul', 'isi', 'tanggal', 'dibuat_oleh', 'dibuat_pada']);
+  createSheetIfNotExists(ss, 'pengumuman', ['id', 'kelompok_id', 'judul', 'isi', 'tanggal', 'dibuat_oleh', 'dibuat_pada', 'kategori']);
 
   // 13. JADWAL KATEGORI HARI (hari aktif per kategori KBM, mis. Cabe Rawit = Senin-Jumat)
   createSheetIfNotExists(ss, 'jadwal_kategori_hari', ['id', 'kelompok_id', 'kategori', 'hari_aktif', 'diubah_oleh', 'diubah_pada']);
@@ -69,10 +69,11 @@ function setupDatabaseStructure() {
 
   console.log('✅ Semua 21 sheet berhasil dibuat atau sudah ada.');
 
-  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm' yang sudah ada (aman dijalankan berulang)
+  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);
   migrateSantriSchemaAddFields_(ss);
   migrateJadwalKbmSchemaAddFields_(ss);
+  migratePengumumanSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -151,6 +152,30 @@ function migrateJadwalKbmSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "jadwal_kbm" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'pengumuman' yang SUDAH ADA: tambah kolom 'kategori' di akhir jika belum ada.
+ * Dipakai mengelompokkan pengumuman jadi kartu per sub-kategori (Pengumuman KBM / Musyawarah)
+ * di Dashboard Kelompok. Entri lama tanpa kategori tetap tampil di bucket "Lainnya" (frontend).
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migratePengumumanSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('pengumuman');
+  if (!sheet) return;
+
+  const newColumns = ['kategori'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "pengumuman" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "pengumuman" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**

@@ -1175,24 +1175,8 @@
           <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
         </div>
 
-        <!-- ═══ PENGUMUMAN ═══ -->
-        <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
-          <span>Pengumuman</span>
-          <div class="gk-colpicker-wrap">
-            <button type="button" class="btn btn-primary" onclick="window.togglePengumumanMenu_(event)">+ Buat Pengumuman</button>
-            <div class="gk-colpicker-panel" id="pengumumanMenuPanel">
-              <div class="gk-colpicker-title">Pilih Kategori</div>
-              <button type="button" class="gk-menu-item" onclick="window.closePengumumanMenu_(); window.openModalPengumumanKBM()">
-                <span>📢</span> Pengumuman KBM
-              </button>
-              <button type="button" class="gk-menu-item" onclick="window.closePengumumanMenu_(); window.openModalPengumuman()">
-                <span>📝</span> Pengumuman Umum
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div id="kdPengumumanList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 48px;">
+        <!-- ═══ PENGUMUMAN (Pengumuman KBM + Musyawarah, dikelompokkan per sub-kategori kartu) ═══ -->
+        <div id="kdPengumumanList" style="margin-bottom: 20px;">
           <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
         </div>
 
@@ -1401,6 +1385,7 @@
           </div>
 
           <input type="hidden" id="pengumumanId">
+          <input type="hidden" id="pengumumanKategori">
 
           <div class="form-group">
             <label class="form-label">Judul</label>

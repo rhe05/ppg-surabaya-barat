@@ -5,6 +5,11 @@
  * RBAC: Admin Kelompok/Desa hanya bisa akses Kelompok yang jadi scope mereka. Admin PPG akses semua.
  */
 
+/** Sub-kategori baku untuk kartu Pengumuman KBM & Musyawarah — samakan dengan window.PENGUMUMAN_KATEGORI_GROUPS_ di frontend.
+    Kosong ('') tetap diterima (mis. dari generator "Buat Pengumuman KBM" yang bisa mencakup beberapa jenjang sekaligus) —
+    entri begini masuk bucket "Lainnya" di frontend, bukan ditolak. */
+const KATEGORI_PENGUMUMAN_ = ['Caberawit', 'Pra Remaja & Remaja SMA', 'Muda Mudi', 'Pra 5 Unsur', '5 Unsur', 'Khusus'];
+
 /**
  * GET daftar pengumuman untuk satu Kelompok, terbaru dulu.
  */
@@ -35,6 +40,11 @@ function serverCreatePengumuman(token, pengumumanData) {
     return { success: false, error: 'Judul dan isi pengumuman wajib diisi.' };
   }
 
+  const kategori = pengumumanData.kategori || '';
+  if (kategori && KATEGORI_PENGUMUMAN_.indexOf(kategori) === -1) {
+    return { success: false, error: 'Kategori tidak valid.' };
+  }
+
   if (!validateUserAccess(token, 'kelompok', pengumumanData.kelompok_id)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
@@ -54,6 +64,7 @@ function serverCreatePengumuman(token, pengumumanData) {
         tanggal,
         user.id,
         now,
+        kategori,
       ]);
 
       logAudit(SHEET_NAMES.PENGUMUMAN, id, 'create', user.id, `Pengumuman: ${pengumumanData.judul}`);
