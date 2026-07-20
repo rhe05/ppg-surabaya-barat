@@ -48,6 +48,23 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=firestoretest → jalankan testFirestoreBridge_() (Modul_FirestoreBridge.gs)
+  // lewat Web App, alternatif kalau dropdown "select function" di editor Apps
+  // Script gagal ke-load untuk file baru. TIDAK menyentuh data aplikasi asli —
+  // cuma baca/tulis 1 dokumen percobaan di koleksi Firestore "_bridge_test".
+  if (e && e.parameter && e.parameter.diag === 'firestoretest') {
+    let result;
+    try {
+      testFirestoreBridge_();
+      result = { success: true, message: 'Semua tes jembatan Firestore lolos.' };
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
