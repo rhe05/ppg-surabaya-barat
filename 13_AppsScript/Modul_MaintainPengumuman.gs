@@ -3,12 +3,25 @@
  * Server-side functions dipanggil dari Index.html (bagian "Pengumuman" di Dashboard Kelompok).
  *
  * RBAC: Admin Kelompok/Desa hanya bisa akses Kelompok yang jadi scope mereka. Admin PPG akses semua.
+ *
+ * ⚠️ ARSITEKTUR FIRESTORE (bukan Sheets lagi): modul ini TIDAK pakai
+ * readSheetAsObjects/appendRowToSheet/updateRowByQuery/deleteRowByQuery
+ * generik (yg dirancang untuk model flat/mirror-Sheets). Pengumuman disimpan
+ * di path bersarang Firestore /kelompok/{kelompokId}/pengumuman/{id} —
+ * dipanggil LANGSUNG lewat Modul_FirestoreBridge.gs, karena kelompokId
+ * SELALU diketahui di setiap titik panggil (bukan tabel PPG-wide lintas
+ * kelompok yang butuh collectionGroup query).
  */
 
 /** Sub-kategori baku untuk kartu Pengumuman KBM & Musyawarah — samakan dengan window.PENGUMUMAN_KATEGORI_GROUPS_ di frontend.
     Kosong ('') tetap diterima (mis. dari generator "Buat Pengumuman KBM" yang bisa mencakup beberapa jenjang sekaligus) —
     entri begini masuk bucket "Lainnya" di frontend, bukan ditolak. */
 const KATEGORI_PENGUMUMAN_ = ['Caberawit', 'Pra Remaja & Remaja SMA', 'Muda Mudi', 'Pra 5 Unsur', '5 Unsur', 'Khusus'];
+
+/** Path Firestore koleksi Pengumuman 1 Kelompok. */
+function pengumumanPath_(kelompokId) {
+  return 'kelompok/' + kelompokId + '/pengumuman';
+}
 
 /**
  * GET daftar pengumuman untuk satu Kelompok, terbaru dulu.
@@ -21,8 +34,7 @@ function serverGetPengumuman(token, kelompokId) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  let pengumuman = readSheetAsObjects(SHEET_NAMES.PENGUMUMAN);
-  pengumuman = pengumuman.filter(p => p.kelompok_id == kelompokId);
+  const pengumuman = firestoreListCollection_(pengumumanPath_(kelompokId));
   pengumuman.sort((a, b) => String(b.tanggal || '').localeCompare(String(a.tanggal || '')));
 
   return { success: true, data: pengumuman };
@@ -51,20 +63,22 @@ function serverCreatePengumuman(token, pengumumanData) {
 
   try {
     return withScriptLock_(function () {
-      const id = generateId(SHEET_NAMES.PENGUMUMAN);
+      const path = pengumumanPath_(pengumumanData.kelompok_id);
+      const id = firestoreGenerateIdInPath_(path);
       const now = new Date().toISOString().split('T')[0];
       const tanggal = pengumumanData.tanggal || now;
 
-      appendRowToSheet(SHEET_NAMES.PENGUMUMAN, [
-        id,
-        pengumumanData.kelompok_id,
-        pengumumanData.judul.trim(),
-        pengumumanData.isi.trim(),
-        tanggal,
-        user.id,
-        now,
-        kategori,
-      ]);
+      const fields = {
+        id: id,
+        kelompok_id: pengumumanData.kelompok_id,
+        judul: pengumumanData.judul.trim(),
+        isi: pengumumanData.isi.trim(),
+        tanggal: tanggal,
+        dibuat_oleh: user.id,
+        dibuat_pada: now,
+        kategori: kategori,
+      };
+      firestoreCreateDoc_(path, String(id), fields);
 
       logAudit(SHEET_NAMES.PENGUMUMAN, id, 'create', user.id, `Pengumuman: ${pengumumanData.judul}`);
       return { success: true, message: 'Pengumuman berhasil ditambahkan.', id };
@@ -76,21 +90,24 @@ function serverCreatePengumuman(token, pengumumanData) {
 
 /**
  * UPDATE pengumuman.
+ * ⚠️ kelompokId WAJIB dikirim (beda dari pola Sheets lama) — path Firestore
+ * butuh tahu subcollection kelompok mana sebelum bisa mencari dokumennya.
  */
-function serverUpdatePengumuman(token, pengumumanId, updates) {
+function serverUpdatePengumuman(token, kelompokId, pengumumanId, updates) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const pengumuman = readSheetAsObjects(SHEET_NAMES.PENGUMUMAN).find(p => p.id == pengumumanId);
-  if (!pengumuman) return { success: false, error: 'Pengumuman tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', pengumuman.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke pengumuman ini.' };
   }
 
+  const path = pengumumanPath_(kelompokId);
+  const pengumuman = firestoreGetDoc_(path, String(pengumumanId));
+  if (!pengumuman) return { success: false, error: 'Pengumuman tidak ditemukan.' };
+
   try {
     return withScriptLock_(function () {
-      updateRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumuman.id }, {
+      firestoreUpdateDoc_(path, String(pengumumanId), {
         judul: updates.judul !== undefined ? updates.judul.trim() : pengumuman.judul,
         isi: updates.isi !== undefined ? updates.isi.trim() : pengumuman.isi,
         tanggal: updates.tanggal !== undefined ? updates.tanggal : pengumuman.tanggal,
@@ -106,21 +123,23 @@ function serverUpdatePengumuman(token, pengumumanId, updates) {
 
 /**
  * DELETE pengumuman.
+ * ⚠️ kelompokId WAJIB dikirim, sama alasannya dengan serverUpdatePengumuman.
  */
-function serverDeletePengumuman(token, pengumumanId) {
+function serverDeletePengumuman(token, kelompokId, pengumumanId) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const pengumuman = readSheetAsObjects(SHEET_NAMES.PENGUMUMAN).find(p => p.id == pengumumanId);
-  if (!pengumuman) return { success: false, error: 'Pengumuman tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', pengumuman.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke pengumuman ini.' };
   }
 
+  const path = pengumumanPath_(kelompokId);
+  const pengumuman = firestoreGetDoc_(path, String(pengumumanId));
+  if (!pengumuman) return { success: false, error: 'Pengumuman tidak ditemukan.' };
+
   try {
     return withScriptLock_(function () {
-      deleteRowByQuery(SHEET_NAMES.PENGUMUMAN, { id: pengumuman.id });
+      firestoreDeleteDoc_(path, String(pengumumanId));
       logAudit(SHEET_NAMES.PENGUMUMAN, pengumumanId, 'delete', user.id, 'deleted');
       return { success: true, message: 'Pengumuman berhasil dihapus.' };
     });

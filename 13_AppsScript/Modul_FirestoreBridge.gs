@@ -185,7 +185,11 @@ function firestoreGetDoc_(collectionName, docId) {
 
 /** Baca SEMUA dokumen dalam 1 koleksi, loop tiap halaman sampai habis.
     WAJIB loop sampai nextPageToken habis — kalau tidak, generateId() di
-    Modul_Utilities.gs bisa hasilkan id kembar untuk tabel yang datanya banyak. */
+    Modul_Utilities.gs bisa hasilkan id kembar untuk tabel yang datanya banyak.
+    `collectionName` boleh berupa path bersarang (mis. 'kelompok/5/pengumuman')
+    — REST API Firestore tidak membedakan top-level vs nested di level URL,
+    jadi seluruh fungsi *Doc_/*Collection_ di file ini otomatis mendukung
+    struktur /kelompok/{kelompokId}/{tabel}/{id} tanpa perlu diubah. */
 function firestoreListCollection_(collectionName) {
   const results = [];
   let pageToken = null;
@@ -264,6 +268,21 @@ function firestoreFieldsFromRowArray_(sheetName, values) {
   const obj = {};
   headers.forEach(function (h, i) { obj[h] = values[i] !== undefined ? values[i] : ''; });
   return obj;
+}
+
+/**
+ * Generate ID baru (integer) di-scope KE 1 PATH SAJA — mis. hanya di antara
+ * dokumen di 'kelompok/5/pengumuman', bukan lintas semua kelompok. Ini
+ * disengaja: untuk struktur /kelompok/{kelompokId}/{tabel}/{id}, ID cuma
+ * perlu unik DI DALAM subcollection kelompok itu (beda kelompok boleh sama-sama
+ * punya dokumen ber-ID "1" — bukan konflik, karena path induknya beda).
+ * WAJIB dipanggil di dalam withScriptLock_() sama seperti generateId() versi Sheets.
+ */
+function firestoreGenerateIdInPath_(path) {
+  const existing = firestoreListCollection_(path);
+  if (existing.length === 0) return 1;
+  const maxId = Math.max.apply(null, existing.map(function (o) { return parseInt(o.id, 10) || 0; }));
+  return maxId + 1;
 }
 
 /**

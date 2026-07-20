@@ -31,17 +31,25 @@ const SHEET_NAMES = {
 };
 
 /**
- * Saklar migrasi Sheets→Firestore (per tabel). Nama sheet yang ADA di daftar
- * ini otomatis dibaca/ditulis lewat Firestore (Modul_FirestoreBridge.gs) oleh
- * readSheetAsObjects/appendRowToSheet/updateRowByQuery/deleteRowByQuery di
- * bawah — sheet aslinya TIDAK dihapus, jadi tetap ada sebagai "foto terakhir"
- * kalau perlu dibandingkan/rollback. Selama daftar ini KOSONG, tidak ada
- * satupun tabel yang berubah perilakunya — 100% masih baca/tulis Sheets.
- * updateRowByQuery/deleteRowByQuery lewat Firestore baru mendukung query
- * berbentuk {id: ...} — cukup untuk semua tabel KECUALI 'absensi' (lihat
- * rencana migrasi Fase 5).
+ * Saklar migrasi Sheets→Firestore (per tabel), UNTUK MODEL FLAT/MIRROR SAJA.
+ * Nama sheet yang ADA di daftar ini otomatis dibaca/ditulis lewat Firestore
+ * collection top-level (Modul_FirestoreBridge.gs) oleh readSheetAsObjects/
+ * appendRowToSheet/updateRowByQuery/deleteRowByQuery di bawah — sheet aslinya
+ * TIDAK dihapus, tetap ada sbg "foto terakhir" kalau perlu dibandingkan/rollback.
+ *
+ * ⚠️ Cocok HANYA untuk tabel yang memang PPG-wide/tidak terikat 1 kelompok
+ * (mis. ppg/desa/kelompok/users/audit_log/files/periode_munaqosah — lihat
+ * rencana migrasi bagian arsitektur Firestore). Tabel yang terikat 1 kelompok
+ * (santri, guru, absensi, pengumuman, dst.) PAKAI STRUKTUR BERSARANG
+ * /kelompok/{kelompokId}/{tabel}/{id} — modulnya masing-masing manggil
+ * Modul_FirestoreBridge.gs LANGSUNG dgn path lengkap (lihat contoh di
+ * Modul_MaintainPengumuman.gs), BUKAN lewat saklar generik ini.
+ *
+ * Selama daftar ini KOSONG, tidak ada tabel yang berubah perilakunya lewat
+ * mekanisme ini — 100% masih baca/tulis Sheets utk tabel yg belum eksplisit
+ * ditulis ulang modulnya (spt pengumuman).
  */
-const FIRESTORE_TABLES_ = ['pengumuman'];
+const FIRESTORE_TABLES_ = [];
 
 /**
  * Ambil sheet dari nama. Return object sheet atau null jika tidak ditemukan.

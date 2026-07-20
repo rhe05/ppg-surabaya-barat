@@ -2084,7 +2084,7 @@
     if (id) {
       google.script.run
         .withSuccessHandler(handler)
-        .serverUpdatePengumuman(window.currentToken, id, { judul, isi, tanggal });
+        .serverUpdatePengumuman(window.currentToken, window.currentKelompokId, id, { judul, isi, tanggal });
     } else {
       google.script.run
         .withSuccessHandler(handler)
@@ -2103,7 +2103,7 @@
           alert(result.error);
         }
       })
-      .serverDeletePengumuman(window.currentToken, id);
+      .serverDeletePengumuman(window.currentToken, window.currentKelompokId, id);
   };
 
   /* ═════ GENERATOR PENGUMUMAN KBM (teks WhatsApp dari Jadwal KBM) ═════ */

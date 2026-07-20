@@ -69,16 +69,20 @@ function doGet(e) {
   // → salin data 1 tabel dari Sheet ke Firestore (Modul_FirestoreMigration.gs),
   // dipakai sekali per tabel saat migrasi Fase 3+. Whitelist demi jaga-jaga
   // supaya tidak ada nama sheet salah ketik ikut ter-trigger dari URL.
+  // 'nested: true' → tabel terikat 1 kelompok, disalin ke /kelompok/{id}/{tabel}/...
   if (e && e.parameter && e.parameter.diag === 'migrate') {
-    const allowedTables = ['pengumuman'];
+    const allowedTables = { pengumuman: { nested: true } };
     const table = e.parameter.table;
     let result;
-    if (allowedTables.indexOf(table) === -1) {
+    if (!allowedTables[table]) {
       result = { success: false, error: 'Tabel "' + table + '" belum diizinkan untuk migrasi diagnostik ini.' };
     } else {
       const dryRun = e.parameter.mode !== 'copy';
       try {
-        result = { success: true, dryRun: dryRun, report: migrateTableToFirestore_(table, dryRun) };
+        const report = allowedTables[table].nested
+          ? migrateNestedTableToFirestore_(table, dryRun)
+          : migrateTableToFirestore_(table, dryRun);
+        result = { success: true, dryRun: dryRun, report: report };
       } catch (err) {
         result = { success: false, error: err.message };
       }

@@ -7,9 +7,11 @@
  */
 
 /**
- * Salin semua baris dari Sheet ke Firestore, pakai `id` yang sudah ada sbg
- * ID dokumen. AMAN DIJALANKAN BERULANG — baris yang sudah ada di Firestore
- * tidak ditimpa (firestoreCreateDoc_ deteksi 409, bukan overwrite).
+ * Salin semua baris dari Sheet ke Firestore collection TOP-LEVEL (flat/mirror),
+ * pakai `id` yang sudah ada sbg ID dokumen. AMAN DIJALANKAN BERULANG — baris
+ * yang sudah ada di Firestore tidak ditimpa (firestoreCreateDoc_ deteksi 409).
+ * Cocok HANYA utk tabel PPG-wide (ppg/desa/kelompok/users/audit_log/files/
+ * periode_munaqosah) — lihat FIRESTORE_TABLES_ di Modul_Utilities.gs.
  * @param {string} sheetName
  * @param {boolean} dryRun - true = cuma HITUNG apa yang AKAN disalin, tidak menulis apapun.
  */
@@ -26,6 +28,41 @@ function migrateTableToFirestore_(sheetName, dryRun) {
     }
     try {
       const result = firestoreCreateDoc_(sheetName, docId, row);
+      if (result.created) report.dibuatBaru++; else report.sudahAda++;
+    } catch (e) {
+      report.error.push({ id: docId, pesan: e.message });
+    }
+  });
+
+  return report;
+}
+
+/**
+ * Salin semua baris dari Sheet ke Firestore struktur BERSARANG
+ * /kelompok/{kelompokId}/{sheetName}/{id} — dikelompokkan otomatis pakai
+ * field kelompok_id tiap baris. AMAN DIJALANKAN BERULANG (sama spt di atas).
+ * @param {string} sheetName
+ * @param {boolean} dryRun
+ */
+function migrateNestedTableToFirestore_(sheetName, dryRun) {
+  const rows = readSheetAsObjects(sheetName);
+  const report = { sheetName: sheetName, totalDiSheet: rows.length, dibuatBaru: 0, sudahAda: 0, error: [] };
+
+  rows.forEach(function (row) {
+    const kelompokId = row.kelompok_id;
+    if (!kelompokId) {
+      report.error.push({ id: String(row.id), pesan: 'Baris tidak punya kelompok_id, dilewati.' });
+      return;
+    }
+    const path = 'kelompok/' + kelompokId + '/' + sheetName;
+    const docId = String(row.id);
+    if (dryRun) {
+      const existing = firestoreGetDoc_(path, docId);
+      if (existing) report.sudahAda++; else report.dibuatBaru++;
+      return;
+    }
+    try {
+      const result = firestoreCreateDoc_(path, docId, row);
       if (result.created) report.dibuatBaru++; else report.sudahAda++;
     } catch (e) {
       report.error.push({ id: docId, pesan: e.message });
@@ -93,7 +130,7 @@ function testPengumumanFirestorePilot_() {
     });
 
     step('update SEBAGIAN (lewat serverUpdatePengumuman, cuma judul) — field lain WAJIB tidak hilang', function () {
-      const r = serverUpdatePengumuman(token, testId, { judul: testJudul + '_UPDATED' });
+      const r = serverUpdatePengumuman(token, kelompokId, testId, { judul: testJudul + '_UPDATED' });
       if (!r.success) throw new Error('serverUpdatePengumuman gagal: ' + r.error);
 
       const check = serverGetPengumuman(token, kelompokId);
@@ -107,7 +144,7 @@ function testPengumumanFirestorePilot_() {
     });
 
     step('hapus pengumuman percobaan (lewat serverDeletePengumuman, bersih-bersih)', function () {
-      const r = serverDeletePengumuman(token, testId);
+      const r = serverDeletePengumuman(token, kelompokId, testId);
       if (!r.success) throw new Error('serverDeletePengumuman gagal: ' + r.error);
       testId = null; // sudah terhapus normal — finally tidak perlu cleanup ganda
       return { deleted: true };
@@ -128,7 +165,7 @@ function testPengumumanFirestorePilot_() {
     // Jaring pengaman: kalau ada step GAGAL sebelum sempat hapus normal,
     // tetap coba bersihkan data percobaan supaya tidak tertinggal di aplikasi.
     if (testId) {
-      try { serverDeletePengumuman(token, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
+      try { serverDeletePengumuman(token, kelompokId, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
     }
   }
 }
