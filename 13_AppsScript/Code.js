@@ -127,6 +127,28 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=listkelompok&table=santri|guru&kelompok=<id> → lihat isi mentah
+  // 1 subcollection Firestore (mis. buat pastikan tidak ada duplikasi setelah
+  // sentralisasi readSheetAsObjects). TIDAK mengubah apapun, cuma baca.
+  if (e && e.parameter && e.parameter.diag === 'listkelompok') {
+    const table = e.parameter.table;
+    const kelompokId = e.parameter.kelompok;
+    let result;
+    if (['santri', 'guru'].indexOf(table) === -1 || !kelompokId) {
+      result = { success: false, error: 'Butuh &table=santri|guru&kelompok=<id>.' };
+    } else {
+      try {
+        const data = firestoreListCollection_('kelompok/' + kelompokId + '/' + table);
+        result = { success: true, jumlah: data.length, data: data };
+      } catch (err) {
+        result = { success: false, error: err.message };
+      }
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // ?diag=dashboardbundle → panggil serverGetDashboardBundle() langsung & lihat
   // hasil JSON-nya, dipakai memverifikasi struktur (kpi/desaBreakdown/
   // santriTeladan) setelah refactor tanpa perlu login browser (web app
