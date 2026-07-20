@@ -1255,6 +1255,19 @@
     }
   });
 
+  /* ═════ MENU DROPDOWN "+ Buat Pengumuman" (pilih kategori) ═════ */
+  window.togglePengumumanMenu_ = function (event) {
+    event.stopPropagation();
+    const panel = document.getElementById('pengumumanMenuPanel');
+    const willOpen = !panel.classList.contains('open');
+    document.querySelectorAll('.gk-colpicker-panel').forEach(p => p.classList.remove('open'));
+    if (willOpen) panel.classList.add('open');
+  };
+
+  window.closePengumumanMenu_ = function () {
+    document.getElementById('pengumumanMenuPanel').classList.remove('open');
+  };
+
   /* ═════ AUTOCOMPLETE — saran instan dari data yang sudah pernah diinput ═════
      Pakai <datalist> native: browser menyaring saran secara instan saat
      mengetik & memunculkannya saat field diklik. Sumbernya gabungan data guru

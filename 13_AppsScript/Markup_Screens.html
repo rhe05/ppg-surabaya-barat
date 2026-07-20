@@ -1178,11 +1178,17 @@
         <!-- ═══ PENGUMUMAN ═══ -->
         <div class="dash-section-title" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Pengumuman</span>
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" onclick="window.openModalPengumumanKBM()">
-              <span>📢 Buat Pengumuman KBM</span>
-            </button>
-            <button class="btn btn-primary" onclick="window.openModalPengumuman()">+ Tambah Pengumuman</button>
+          <div class="gk-colpicker-wrap">
+            <button type="button" class="btn btn-primary" onclick="window.togglePengumumanMenu_(event)">+ Buat Pengumuman</button>
+            <div class="gk-colpicker-panel" id="pengumumanMenuPanel">
+              <div class="gk-colpicker-title">Pilih Kategori</div>
+              <button type="button" class="gk-menu-item" onclick="window.closePengumumanMenu_(); window.openModalPengumumanKBM()">
+                <span>📢</span> Pengumuman KBM
+              </button>
+              <button type="button" class="gk-menu-item" onclick="window.closePengumumanMenu_(); window.openModalPengumuman()">
+                <span>📝</span> Pengumuman Umum
+              </button>
+            </div>
           </div>
         </div>
 
