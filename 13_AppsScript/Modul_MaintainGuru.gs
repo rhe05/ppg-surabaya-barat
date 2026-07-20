@@ -11,11 +11,10 @@
  * di 1 kelompok dulu (Kelp Petemon) sebelum semua kelompok lain ikut pindah.
  */
 
-/** Kelompok yang tabel 'guru'-nya SUDAH dipindah ke Firestore. KOSONG dulu —
-    diisi ['1'] (Kelp Petemon) SETELAH data lama disalin ke Firestore lewat
-    ?diag=migrate&table=guru&kelompok=1&mode=copy (jangan urutan terbalik,
-    nanti data kelompok itu tampak hilang di antara deploy). */
-const FIRESTORE_KELOMPOK_GURU_ = [];
+/** Kelompok yang tabel 'guru'-nya SUDAH dipindah ke Firestore.
+    Data lama sudah disalin lewat ?diag=migrate&table=guru&kelompok=1&mode=copy
+    (5 guru, 0 error) sebelum saklar ini diaktifkan. */
+const FIRESTORE_KELOMPOK_GURU_ = ['1']; // Kelp Petemon
 
 function guruPath_(kelompokId) {
   return 'kelompok/' + kelompokId + '/guru';

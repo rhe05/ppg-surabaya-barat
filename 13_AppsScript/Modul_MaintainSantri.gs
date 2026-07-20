@@ -11,11 +11,10 @@
  * praktik di 1 kelompok dulu (Kelp Petemon) sebelum kelompok lain ikut pindah.
  */
 
-/** Kelompok yang tabel 'santri'-nya SUDAH dipindah ke Firestore. KOSONG dulu —
-    diisi ['1'] (Kelp Petemon) SETELAH data lama disalin ke Firestore lewat
-    ?diag=migrate&table=santri&kelompok=1&mode=copy (jangan urutan terbalik,
-    nanti data kelompok itu tampak hilang di antara deploy). */
-const FIRESTORE_KELOMPOK_SANTRI_ = [];
+/** Kelompok yang tabel 'santri'-nya SUDAH dipindah ke Firestore.
+    Data lama sudah disalin lewat ?diag=migrate&table=santri&kelompok=1&mode=copy
+    (3 santri, 0 error) sebelum saklar ini diaktifkan. */
+const FIRESTORE_KELOMPOK_SANTRI_ = ['1']; // Kelp Petemon
 
 function santriPath_(kelompokId) {
   return 'kelompok/' + kelompokId + '/santri';
