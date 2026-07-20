@@ -125,6 +125,14 @@ function firestoreRequest_(method, path, payload, queryParams) {
 
 function firestoreEncodeValue_(v) {
   if (v === null || v === undefined) return { nullValue: null };
+  if (v instanceof Date) {
+    // Jaring pengaman: Sheets kadang diam-diam mengubah sel teks tanggal jadi
+    // objek Date (gotcha yang sama dgn diagRows_ / ERROR_LOG.md #1). Semua
+    // kolom tanggal di aplikasi ini pakai format yyyy-MM-dd — normalkan ke
+    // situ SEBELUM masuk Firestore. (Kalau suatu saat ada tabel bermigrasi
+    // yang punya kolom jam-saja HH:mm bertipe Date, ini perlu ditinjau ulang.)
+    return { stringValue: Utilities.formatDate(v, 'GMT+7', 'yyyy-MM-dd') };
+  }
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') {
     return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };

@@ -65,6 +65,45 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=migrate&table=<nama>&mode=copy (default: dryrun kalau mode selain 'copy')
+  // → salin data 1 tabel dari Sheet ke Firestore (Modul_FirestoreMigration.gs),
+  // dipakai sekali per tabel saat migrasi Fase 3+. Whitelist demi jaga-jaga
+  // supaya tidak ada nama sheet salah ketik ikut ter-trigger dari URL.
+  if (e && e.parameter && e.parameter.diag === 'migrate') {
+    const allowedTables = ['pengumuman'];
+    const table = e.parameter.table;
+    let result;
+    if (allowedTables.indexOf(table) === -1) {
+      result = { success: false, error: 'Tabel "' + table + '" belum diizinkan untuk migrasi diagnostik ini.' };
+    } else {
+      const dryRun = e.parameter.mode !== 'copy';
+      try {
+        result = { success: true, dryRun: dryRun, report: migrateTableToFirestore_(table, dryRun) };
+      } catch (err) {
+        result = { success: false, error: err.message };
+      }
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ?diag=pilottest&table=pengumuman → jalankan tes CRUD end-to-end lewat
+  // fungsi aplikasi SESUNGGUHNYA (bukan cuma jembatan level-rendah), dipakai
+  // SETELAH tabel dimasukkan ke FIRESTORE_TABLES_ (Fase 3). Membuat & hapus
+  // 1 data percobaan, tidak meninggalkan sampah walau tesnya gagal di tengah.
+  if (e && e.parameter && e.parameter.diag === 'pilottest' && e.parameter.table === 'pengumuman') {
+    let result;
+    try {
+      result = testPengumumanFirestorePilot_();
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
