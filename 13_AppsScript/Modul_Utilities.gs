@@ -66,8 +66,8 @@ const FIRESTORE_TABLES_ = [];
 const FIRESTORE_KELOMPOK_TABLES_ = {
   santri: ['1'], // Kelp Petemon
   guru: ['1'], // Kelp Petemon
-  jadwal_kbm: [], // diisi ['1'] SETELAH data lama disalin (?diag=migrate&table=jadwal_kbm&kelompok=1&mode=copy)
-  jadwal_kategori_hari: [], // sama, diisi setelah data disalin
+  jadwal_kbm: ['1'], // Kelp Petemon — data lama sudah disalin (7 sesi, 0 error)
+  jadwal_kategori_hari: ['1'], // Kelp Petemon — data lama sudah disalin (4 baris, 0 error)
 };
 
 function isKelompokTableOnFirestore_(tableName, kelompokId) {
