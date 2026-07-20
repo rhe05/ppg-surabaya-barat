@@ -2458,46 +2458,35 @@
   };
 
   window.loadDashboard = function () {
+    // 1 panggilan gabungan (KPI + breakdown Desa + Santri Teladan) — sebelumnya
+    // 3 panggilan terpisah yang masing-masing baca ulang tabel yang sama.
     google.script.run
       .withSuccessHandler(function (result) {
-        if (result.success) {
-          document.getElementById('kpiSantri').textContent = result.data.totalSantri;
-          document.getElementById('kpiGuru').textContent = result.data.totalGuru;
-          document.getElementById('kpiKehadiran').textContent = result.data.kehadiranPersenMingguan + '%';
-          document.getElementById('kpiKelompok').textContent = result.data.kelompokAktif;
-        }
-      })
-      .serverGetDashboardKPIs();
+        if (!result.success) return;
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        if (result.success) {
-          const tbody = document.getElementById('desaTableBody');
-          tbody.innerHTML = '';
-          result.data.forEach(row => {
-            const tr = document.createElement('tr');
-            const status = row.kelompok_aktif > 0 ? `${row.kelompok_aktif}/${row.kelompok_total}` : 'Belum';
-            tr.innerHTML = `
-              <td><strong>${row.desa_nama}</strong></td>
-              <td style="text-align: center;"><span style="background: ${row.kelompok_aktif > 0 ? 'rgba(5, 150, 105, 0.1)' : 'rgba(148, 163, 184, 0.1)'}; color: ${row.kelompok_aktif > 0 ? 'var(--sage)' : 'var(--text-dim)'}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">${status}</span></td>
-              <td style="text-align: right;">${row.total_santri || '—'}</td>
-              <td style="text-align: right;">${row.total_guru || '—'}</td>
-              <td style="text-align: right; color: var(--sage); font-weight: 600;">${row.kehadiran_persen}%</td>
-            `;
-            tbody.appendChild(tr);
-          });
-        }
-      })
-      .serverGetDashboardDesaBreakdown();
+        document.getElementById('kpiSantri').textContent = result.kpi.totalSantri;
+        document.getElementById('kpiGuru').textContent = result.kpi.totalGuru;
+        document.getElementById('kpiKehadiran').textContent = result.kpi.kehadiranPersenMingguan + '%';
+        document.getElementById('kpiKelompok').textContent = result.kpi.kelompokAktif;
 
-    // Load Santri Teladan dengan full criteria
-    google.script.run
-      .withSuccessHandler(function (result) {
-        if (result.success) {
-          window.renderSantriTeladanTable(result.data);
-        }
+        const tbody = document.getElementById('desaTableBody');
+        tbody.innerHTML = '';
+        result.desaBreakdown.forEach(row => {
+          const tr = document.createElement('tr');
+          const status = row.kelompok_aktif > 0 ? `${row.kelompok_aktif}/${row.kelompok_total}` : 'Belum';
+          tr.innerHTML = `
+            <td><strong>${row.desa_nama}</strong></td>
+            <td style="text-align: center;"><span style="background: ${row.kelompok_aktif > 0 ? 'rgba(5, 150, 105, 0.1)' : 'rgba(148, 163, 184, 0.1)'}; color: ${row.kelompok_aktif > 0 ? 'var(--sage)' : 'var(--text-dim)'}; padding: 4px 10px; border-radius: 4px; font-size: 11px; font-weight: 600;">${status}</span></td>
+            <td style="text-align: right;">${row.total_santri || '—'}</td>
+            <td style="text-align: right;">${row.total_guru || '—'}</td>
+            <td style="text-align: right; color: var(--sage); font-weight: 600;">${row.kehadiran_persen}%</td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        window.renderSantriTeladanTable(result.santriTeladan);
       })
-      .serverGetDashboardSantriTeladan();
+      .serverGetDashboardBundle();
   };
 
   window.loadSantriList = function () {

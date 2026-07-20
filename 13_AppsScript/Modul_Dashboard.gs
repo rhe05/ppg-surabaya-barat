@@ -6,43 +6,46 @@
  */
 
 /**
- * GET KPI utama dashboard (4 card):
- * - totalSantri (sum semua santri di kelompok aktif)
- * - totalGuru (sum semua guru di kelompok aktif)
- * - kelompokAktif (count kelompok dengan status=aktif)
- * - kehadiranMingguan (% kehadiran minggu ini per desa, average)
+ * GET seluruh data Dashboard PPG dalam 1 panggilan (KPI + breakdown per Desa +
+ * Santri Teladan) — GABUNGAN dari 3 fungsi terpisah sebelumnya
+ * (serverGetDashboardKPIs/serverGetDashboardDesaBreakdown/
+ * serverGetDashboardSantriTeladan), yang tiap-tiap manggil readSheetAsObjects
+ * SENDIRI-SENDIRI utk tabel yang sama (mis. absensi dibaca penuh 3×).
+ * Digabung supaya tiap tabel sumber cuma dibaca 1× per load Dashboard —
+ * turun dari 14 pemanggilan readSheetAsObjects jadi 7, dan dari 3 network
+ * round-trip (google.script.run) jadi 1.
+ *
+ * ⚠️ Sekalian membenahi bug lama: 2 fungsi asal (KPIs, DesaBreakdown) TIDAK
+ * PERNAH mengembalikan field `success` (satu return objek polos, satu return
+ * array polos), padahal frontend cek `if (result.success)` — akibatnya KPI
+ * card & tabel Ringkasan Per Desa di Dashboard utama selalu kosong. Baru
+ * ketahuan saat menggabung fungsi ini (bukan disengaja dicari).
  */
-function serverGetDashboardKPIs() {
+function serverGetDashboardBundle() {
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
+  const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH);
+  const akhlaqData = readSheetAsObjects(SHEET_NAMES.KURIKULUM_AKHLAQ);
 
-  // Filter kelompok aktif saja
   const kelompokAktif = kelompokData.filter(k => k.status_aktif === 'aktif');
   const kelompokAktifIds = kelompokAktif.map(k => k.id);
 
-  // Total santri di kelompok aktif
-  const totalSantri = santriData.filter(s => kelompokAktifIds.includes(s.kelompok_id)).length;
-
-  // Total guru di kelompok aktif
-  const totalGuru = guruData.filter(g => kelompokAktifIds.includes(g.kelompok_id)).length;
-
-  // Count kelompok aktif
-  const countKelompokAktif = kelompokAktif.length;
-
-  // Kehadiran minggu ini (last 7 days): hitung % santri aktif yang hadir
   const today = new Date();
   const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
-
   const absensiMingguan = absensiData.filter(a => {
     const tanggal = new Date(a.tanggal);
     return tanggal >= sevenDaysAgo && tanggal <= today;
   });
 
+  // ═══ KPI utama (4 card) ═══
+  const totalSantri = santriData.filter(s => kelompokAktifIds.includes(s.kelompok_id)).length;
+  const totalGuru = guruData.filter(g => kelompokAktifIds.includes(g.kelompok_id)).length;
+
   let totalAbsensiRecord = 0;
   let totalHadir = 0;
-
   absensiMingguan.forEach(a => {
     const santri = santriData.find(s => s.id === a.santri_id);
     if (santri && kelompokAktifIds.includes(santri.kelompok_id)) {
@@ -50,73 +53,75 @@ function serverGetDashboardKPIs() {
       if (a.status === 'hadir') totalHadir++;
     }
   });
-
   const kehadiranPersen = totalAbsensiRecord > 0 ? Math.round((totalHadir / totalAbsensiRecord) * 100) : 0;
 
-  return {
-    totalSantri: totalSantri,
-    totalGuru: totalGuru,
-    kelompokAktif: countKelompokAktif,
-    kehadiranPersenMingguan: kehadiranPersen,
-  };
-}
-
-/**
- * GET breakdown per Desa (5 baris):
- * [{desa_nama, kelompokAktif, totalSantri, totalGuru, kehadiranPersen}, ...]
- * Sorted: aktif dulu, kemudian status.
- */
-function serverGetDashboardDesaBreakdown() {
-  const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
-  const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
-  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
-
-  const today = new Date();
-  const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
-
-  const absensiMingguan = absensiData.filter(a => {
-    const tanggal = new Date(a.tanggal);
-    return tanggal >= sevenDaysAgo && tanggal <= today;
-  });
-
-  const breakdown = desaData.map(desa => {
-    // Kelompok di Desa ini
+  // ═══ Breakdown per Desa (5 baris) ═══
+  const desaBreakdown = desaData.map(desa => {
     const kelompokDesa = kelompokData.filter(k => k.desa_id === desa.id);
-    const kelompokAktifCount = kelompokDesa.filter(k => k.status_aktif === 'aktif').length;
-    const kelompokAktifIds = kelompokDesa.filter(k => k.status_aktif === 'aktif').map(k => k.id);
+    const kelompokAktifDesaIds = kelompokDesa.filter(k => k.status_aktif === 'aktif').map(k => k.id);
 
-    // Total santri & guru di kelompok aktif
-    const totalSantriDesa = santriData.filter(s => kelompokAktifIds.includes(s.kelompok_id)).length;
-    const totalGuruDesa = guruData.filter(g => kelompokAktifIds.includes(g.kelompok_id)).length;
+    const totalSantriDesa = santriData.filter(s => kelompokAktifDesaIds.includes(s.kelompok_id)).length;
+    const totalGuruDesa = guruData.filter(g => kelompokAktifDesaIds.includes(g.kelompok_id)).length;
 
-    // Kehadiran minggu ini di Desa ini
     let totalAbsensiDesa = 0;
     let totalHadirDesa = 0;
-
     absensiMingguan.forEach(a => {
       const santri = santriData.find(s => s.id === a.santri_id);
-      if (santri && kelompokAktifIds.includes(santri.kelompok_id)) {
+      if (santri && kelompokAktifDesaIds.includes(santri.kelompok_id)) {
         totalAbsensiDesa++;
         if (a.status === 'hadir') totalHadirDesa++;
       }
     });
-
     const kehadiranDesa = totalAbsensiDesa > 0 ? Math.round((totalHadirDesa / totalAbsensiDesa) * 100) : 0;
 
     return {
       desa_nama: desa.nama,
-      kelompok_aktif: kelompokAktifCount,
+      kelompok_aktif: kelompokAktifDesaIds.length,
       kelompok_total: kelompokDesa.length,
       total_santri: totalSantriDesa,
       total_guru: totalGuruDesa,
       kehadiran_persen: kehadiranDesa,
     };
-  });
+  }).sort((a, b) => b.kelompok_aktif - a.kelompok_aktif);
 
-  // Sort: kelompok aktif dulu (descending), lalu nama Desa
-  return breakdown.sort((a, b) => b.kelompok_aktif - a.kelompok_aktif);
+  // ═══ Santri Teladan (Nilai >= 90 AND Akhlaq >= 90 AND Kehadiran >= 95%) ═══
+  const santriAktif = santriData.filter(s => kelompokAktifIds.includes(s.kelompok_id));
+  const santriTeladan = santriAktif.map(santri => {
+    const nilaiRecords = munaqosahData.filter(m => m.santri_id == santri.id && m.status === 'dinilai');
+    const nilai = nilaiRecords.length > 0 ? Math.max(...nilaiRecords.map(n => Number(n.nilai))) : 0;
+
+    const akhlaqRecords = akhlaqData.filter(a => a.santri_id == santri.id);
+    const akhlaq = akhlaqRecords.length > 0 ? Math.max(...akhlaqRecords.map(a => Number(a.nilai_akhlaq || 0))) : 0;
+
+    const absensiSantri = absensiData.filter(a => a.santri_id == santri.id);
+    const hadirCount = absensiSantri.filter(a => a.status === 'hadir').length;
+    const kehadiranPersenSantri = absensiSantri.length > 0 ? Math.round((hadirCount / absensiSantri.length) * 100) : 0;
+
+    const kelompok = kelompokData.find(k => k.id == santri.kelompok_id);
+
+    return {
+      santri_id: santri.id,
+      nama: santri.nama,
+      kelas: santri.jenjang_saat_ini,
+      nilai: nilai,
+      akhlaq: akhlaq,
+      kehadiran_persen: kehadiranPersenSantri,
+      kelompok_nama: kelompok ? kelompok.nama : 'Unknown',
+      status: nilai >= 90 && akhlaq >= 90 && kehadiranPersenSantri >= 95 ? 'teladan' : 'not_qualified',
+    };
+  }).filter(r => r.status === 'teladan').sort((a, b) => b.nilai - a.nilai);
+
+  return {
+    success: true,
+    kpi: {
+      totalSantri: totalSantri,
+      totalGuru: totalGuru,
+      kelompokAktif: kelompokAktif.length,
+      kehadiranPersenMingguan: kehadiranPersen,
+    },
+    desaBreakdown: desaBreakdown,
+    santriTeladan: santriTeladan,
+  };
 }
 
 /**
@@ -124,6 +129,8 @@ function serverGetDashboardDesaBreakdown() {
  * Return { labels: ['Mon', 'Tue', ...], datasets: [{desa_nama, data: [%,%,...]}, ...] }
  *
  * Simplified: hanya Desa yang ada kelompok aktif (Petemon, Purwodadi) untuk clarity visual.
+ * ⚠️ Tidak dipanggil dari frontend manapun saat ini (dead code) — dibiarkan
+ * apa adanya, di luar cakupan penggabungan Dashboard di atas.
  */
 function serverGetKehadiranChart7Hari() {
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
