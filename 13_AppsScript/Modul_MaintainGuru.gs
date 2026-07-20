@@ -3,7 +3,27 @@
  * Server-side functions dipanggil dari Index.html (screen Data Guru).
  *
  * RBAC: Admin Kelompok hanya bisa akses Kelompok mereka sendiri.
+ *
+ * ⚠️ ROLLOUT FIRESTORE PER-KELOMPOK (bukan per-tabel spt FIRESTORE_TABLES_):
+ * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_GURU_ yang baca/tulis
+ * lewat Firestore (/kelompok/{id}/guru/{id}) — kelompok lain TETAP di Sheets,
+ * tidak berubah sama sekali. Ini sengaja supaya migrasi bisa diuji praktik
+ * di 1 kelompok dulu (Kelp Petemon) sebelum semua kelompok lain ikut pindah.
  */
+
+/** Kelompok yang tabel 'guru'-nya SUDAH dipindah ke Firestore. KOSONG dulu —
+    diisi ['1'] (Kelp Petemon) SETELAH data lama disalin ke Firestore lewat
+    ?diag=migrate&table=guru&kelompok=1&mode=copy (jangan urutan terbalik,
+    nanti data kelompok itu tampak hilang di antara deploy). */
+const FIRESTORE_KELOMPOK_GURU_ = [];
+
+function guruPath_(kelompokId) {
+  return 'kelompok/' + kelompokId + '/guru';
+}
+
+function isGuruOnFirestore_(kelompokId) {
+  return FIRESTORE_KELOMPOK_GURU_.indexOf(String(kelompokId)) !== -1;
+}
 
 /**
  * GET guru per Kelompok (dengan search).
@@ -17,12 +37,14 @@ function serverGetGuruList(token, kelompokId, searchQuery = '', forceFresh = fal
   }
 
   // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete di bawah)
-  // — baca dari cache ±50ms vs baca sheet 300-800ms.
-  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sheet.
+  // — baca dari cache ±50ms vs baca sheet/Firestore 300-800ms.
+  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sumber.
   const cacheKey = 'guru_k' + kelompokId;
   let guru = forceFresh ? null : cacheGet_(cacheKey);
   if (!guru) {
-    guru = readSheetAsObjects(SHEET_NAMES.GURU).filter(g => g.kelompok_id == kelompokId);
+    guru = isGuruOnFirestore_(kelompokId)
+      ? firestoreListCollection_(guruPath_(kelompokId))
+      : readSheetAsObjects(SHEET_NAMES.GURU).filter(g => g.kelompok_id == kelompokId);
     cachePut_(cacheKey, guru, 300);
   }
 
@@ -52,29 +74,57 @@ function serverAddGuru(token, kelompokId, guruData) {
 
   try {
     return withScriptLock_(function () {
-      const id = generateId(SHEET_NAMES.GURU);
+      const fields = {
+        kelompok_id: kelompokId,
+        nama: guruData.nama.trim(),
+        kategori: guruData.kategori,
+        tempat_lahir: guruData.tempat_lahir || '',
+        tanggal_lahir: guruData.tanggal_lahir || '',
+        jenis_kelamin: guruData.jenis_kelamin || '',
+        mulai_mengajar: guruData.mulai_mengajar || '',
+        alamat: guruData.alamat || '',
+        nomor_wa: guruData.nomor_wa || '',
+        pendidikan: guruData.pendidikan || '',
+        rt: guruData.rt || '',
+        rw: guruData.rw || '',
+        kelurahan: guruData.kelurahan || '',
+        kode_pos: guruData.kode_pos || '',
+        kabupaten_kota: guruData.kabupaten_kota || '',
+        provinsi: guruData.provinsi || '',
+        kecamatan: guruData.kecamatan || '',
+        lama_mengajar: guruData.lama_mengajar || '',
+      };
 
-      appendRowToSheet(SHEET_NAMES.GURU, [
-        id,
-        kelompokId,
-        guruData.nama.trim(),
-        guruData.kategori,
-        guruData.tempat_lahir || '',
-        guruData.tanggal_lahir || '',
-        guruData.jenis_kelamin || '',
-        guruData.mulai_mengajar || '',
-        guruData.alamat || '',
-        guruData.nomor_wa || '',
-        guruData.pendidikan || '',
-        guruData.rt || '',
-        guruData.rw || '',
-        guruData.kelurahan || '',
-        guruData.kode_pos || '',
-        guruData.kabupaten_kota || '',
-        guruData.provinsi || '',
-        guruData.kecamatan || '',
-        guruData.lama_mengajar || '',
-      ]);
+      let id;
+      if (isGuruOnFirestore_(kelompokId)) {
+        const path = guruPath_(kelompokId);
+        id = firestoreGenerateIdInPath_(path);
+        fields.id = id;
+        firestoreCreateDoc_(path, String(id), fields);
+      } else {
+        id = generateId(SHEET_NAMES.GURU);
+        appendRowToSheet(SHEET_NAMES.GURU, [
+          id,
+          kelompokId,
+          fields.nama,
+          fields.kategori,
+          fields.tempat_lahir,
+          fields.tanggal_lahir,
+          fields.jenis_kelamin,
+          fields.mulai_mengajar,
+          fields.alamat,
+          fields.nomor_wa,
+          fields.pendidikan,
+          fields.rt,
+          fields.rw,
+          fields.kelurahan,
+          fields.kode_pos,
+          fields.kabupaten_kota,
+          fields.provinsi,
+          fields.kecamatan,
+          fields.lama_mengajar,
+        ]);
+      }
 
       cacheDrop_('guru_k' + kelompokId);
       logAudit('guru', id, 'create', user.id, JSON.stringify(guruData));
@@ -87,17 +137,22 @@ function serverAddGuru(token, kelompokId, guruData) {
 
 /**
  * UPDATE guru.
+ * ⚠️ kelompokId WAJIB dikirim (dibutuhkan utk tahu apakah kelompok ini sudah
+ * di Firestore atau masih Sheets, dan path Firestore-nya kalau sudah pindah).
  */
-function serverUpdateGuru(token, guruId, guruData) {
+function serverUpdateGuru(token, kelompokId, guruId, guruData) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const guru = readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == guruId);
-  if (!guru) return { success: false, error: 'Guru tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', guru.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Guru ini.' };
   }
+
+  const onFirestore = isGuruOnFirestore_(kelompokId);
+  const guru = onFirestore
+    ? firestoreGetDoc_(guruPath_(kelompokId), String(guruId))
+    : readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == guruId);
+  if (!guru) return { success: false, error: 'Guru tidak ditemukan.' };
 
   const updates = {
     nama: guruData.nama?.trim() || guru.nama,
@@ -121,8 +176,12 @@ function serverUpdateGuru(token, guruId, guruData) {
 
   try {
     return withScriptLock_(function () {
-      updateRowByQuery(SHEET_NAMES.GURU, { id: guru.id }, updates);
-      cacheDrop_('guru_k' + guru.kelompok_id);
+      if (onFirestore) {
+        firestoreUpdateDoc_(guruPath_(kelompokId), String(guruId), updates);
+      } else {
+        updateRowByQuery(SHEET_NAMES.GURU, { id: guru.id }, updates);
+      }
+      cacheDrop_('guru_k' + kelompokId);
       logAudit('guru', guruId, 'update', user.id, JSON.stringify(updates));
       return { success: true, message: 'Guru berhasil diperbarui.' };
     });
@@ -133,22 +192,30 @@ function serverUpdateGuru(token, guruId, guruData) {
 
 /**
  * DELETE guru.
+ * ⚠️ kelompokId WAJIB dikirim, sama alasannya dengan serverUpdateGuru.
  */
-function serverDeleteGuru(token, guruId) {
+function serverDeleteGuru(token, kelompokId, guruId) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const guru = readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == guruId);
-  if (!guru) return { success: false, error: 'Guru tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', guru.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Guru ini.' };
   }
 
+  const onFirestore = isGuruOnFirestore_(kelompokId);
+  const guru = onFirestore
+    ? firestoreGetDoc_(guruPath_(kelompokId), String(guruId))
+    : readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == guruId);
+  if (!guru) return { success: false, error: 'Guru tidak ditemukan.' };
+
   try {
     return withScriptLock_(function () {
-      deleteRowByQuery(SHEET_NAMES.GURU, { id: guru.id });
-      cacheDrop_('guru_k' + guru.kelompok_id);
+      if (onFirestore) {
+        firestoreDeleteDoc_(guruPath_(kelompokId), String(guruId));
+      } else {
+        deleteRowByQuery(SHEET_NAMES.GURU, { id: guru.id });
+      }
+      cacheDrop_('guru_k' + kelompokId);
       logAudit('guru', guruId, 'delete', user.id, 'deleted');
       return { success: true, message: 'Guru berhasil dihapus.' };
     });
@@ -160,6 +227,8 @@ function serverDeleteGuru(token, guruId) {
 /**
  * GET guru summary by kategori (Muballigh Tugasan vs Muballigh Setempat).
  * Return: {total_guru, tugasan_count, setempat_count}
+ * ⚠️ TIDAK diubah — sudah PPG-wide (baca semua guru lintas kelompok) sejak
+ * awal, di luar cakupan migrasi per-kelompok ini.
  */
 function serverGetGuruSummary(token) {
   const user = getCurrentUser(token);

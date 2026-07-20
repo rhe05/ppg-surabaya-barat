@@ -65,23 +65,31 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // ?diag=migrate&table=<nama>&mode=copy (default: dryrun kalau mode selain 'copy')
-  // → salin data 1 tabel dari Sheet ke Firestore (Modul_FirestoreMigration.gs),
-  // dipakai sekali per tabel saat migrasi Fase 3+. Whitelist demi jaga-jaga
-  // supaya tidak ada nama sheet salah ketik ikut ter-trigger dari URL.
-  // 'nested: true' → tabel terikat 1 kelompok, disalin ke /kelompok/{id}/{tabel}/...
+  // ?diag=migrate&table=<nama>&mode=copy&kelompok=<id> (default: dryrun kalau
+  // mode selain 'copy') → salin data 1 tabel ke Firestore (Modul_FirestoreMigration.gs).
+  // Whitelist demi jaga-jaga supaya tidak ada nama sheet salah ketik ke-trigger dari URL.
+  // 'nested: true' → tabel terikat kelompok. 'kelompok' param HANYA WAJIB kalau
+  // 'perKelompok: true' (rollout 1 kelompok dulu, spt santri/guru) — kalau tidak
+  // diisi utk tabel yg perKelompok, semua kelompok ikut disalin sekaligus.
   if (e && e.parameter && e.parameter.diag === 'migrate') {
-    const allowedTables = { pengumuman: { nested: true } };
+    const allowedTables = {
+      pengumuman: { nested: true },
+      santri: { nested: true, perKelompok: true },
+      guru: { nested: true, perKelompok: true },
+    };
     const table = e.parameter.table;
+    const kelompokId = e.parameter.kelompok;
     let result;
     if (!allowedTables[table]) {
       result = { success: false, error: 'Tabel "' + table + '" belum diizinkan untuk migrasi diagnostik ini.' };
+    } else if (allowedTables[table].perKelompok && !kelompokId) {
+      result = { success: false, error: 'Tabel "' + table + '" butuh parameter &kelompok=<id> (rollout per kelompok, bukan sekaligus semua).' };
     } else {
       const dryRun = e.parameter.mode !== 'copy';
       try {
-        const report = allowedTables[table].nested
-          ? migrateNestedTableToFirestore_(table, dryRun)
-          : migrateTableToFirestore_(table, dryRun);
+        const report = kelompokId
+          ? migrateKelompokTableToFirestore_(table, kelompokId, dryRun)
+          : migrateNestedTableToFirestore_(table, dryRun);
         result = { success: true, dryRun: dryRun, report: report };
       } catch (err) {
         result = { success: false, error: err.message };
@@ -92,16 +100,27 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // ?diag=pilottest&table=pengumuman → jalankan tes CRUD end-to-end lewat
-  // fungsi aplikasi SESUNGGUHNYA (bukan cuma jembatan level-rendah), dipakai
-  // SETELAH tabel dimasukkan ke FIRESTORE_TABLES_ (Fase 3). Membuat & hapus
-  // 1 data percobaan, tidak meninggalkan sampah walau tesnya gagal di tengah.
-  if (e && e.parameter && e.parameter.diag === 'pilottest' && e.parameter.table === 'pengumuman') {
+  // ?diag=pilottest&table=<pengumuman|santri|guru> → jalankan tes CRUD
+  // end-to-end lewat fungsi aplikasi SESUNGGUHNYA (bukan cuma jembatan
+  // level-rendah), dipakai SETELAH tabel/kelompok diaktifkan di saklar
+  // Firestore-nya. Membuat & hapus data percobaan, tidak meninggalkan sampah
+  // walau tesnya gagal di tengah.
+  if (e && e.parameter && e.parameter.diag === 'pilottest') {
+    const table = e.parameter.table;
+    const pilotFns = {
+      pengumuman: testPengumumanFirestorePilot_,
+      santri: testSantriFirestorePilot_,
+      guru: testGuruFirestorePilot_,
+    };
     let result;
-    try {
-      result = testPengumumanFirestorePilot_();
-    } catch (err) {
-      result = { success: false, error: err.message };
+    if (!pilotFns[table]) {
+      result = { success: false, error: 'Tabel "' + table + '" belum punya tes pilot.' };
+    } else {
+      try {
+        result = pilotFns[table]();
+      } catch (err) {
+        result = { success: false, error: err.message };
+      }
     }
     return ContentService
       .createTextOutput(JSON.stringify(result))

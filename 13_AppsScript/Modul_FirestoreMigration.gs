@@ -38,6 +38,38 @@ function migrateTableToFirestore_(sheetName, dryRun) {
 }
 
 /**
+ * Salin baris dari Sheet ke Firestore struktur BERSARANG, TAPI CUMA UNTUK 1
+ * KELOMPOK (bukan semua kelompok sekaligus spt migrateNestedTableToFirestore_)
+ * — dipakai utk rollout per-kelompok (mis. Kelp Petemon dulu, kelompok lain
+ * menyusul). AMAN DIJALANKAN BERULANG.
+ * @param {string} sheetName
+ * @param {string} kelompokId
+ * @param {boolean} dryRun
+ */
+function migrateKelompokTableToFirestore_(sheetName, kelompokId, dryRun) {
+  const rows = readSheetAsObjects(sheetName).filter(function (r) { return String(r.kelompok_id) === String(kelompokId); });
+  const path = 'kelompok/' + kelompokId + '/' + sheetName;
+  const report = { sheetName: sheetName, kelompokId: kelompokId, totalDiSheet: rows.length, dibuatBaru: 0, sudahAda: 0, error: [] };
+
+  rows.forEach(function (row) {
+    const docId = String(row.id);
+    if (dryRun) {
+      const existing = firestoreGetDoc_(path, docId);
+      if (existing) report.sudahAda++; else report.dibuatBaru++;
+      return;
+    }
+    try {
+      const result = firestoreCreateDoc_(path, docId, row);
+      if (result.created) report.dibuatBaru++; else report.sudahAda++;
+    } catch (e) {
+      report.error.push({ id: docId, pesan: e.message });
+    }
+  });
+
+  return report;
+}
+
+/**
  * Salin semua baris dari Sheet ke Firestore struktur BERSARANG
  * /kelompok/{kelompokId}/{sheetName}/{id} — dikelompokkan otomatis pakai
  * field kelompok_id tiap baris. AMAN DIJALANKAN BERULANG (sama spt di atas).
@@ -166,6 +198,182 @@ function testPengumumanFirestorePilot_() {
     // tetap coba bersihkan data percobaan supaya tidak tertinggal di aplikasi.
     if (testId) {
       try { serverDeletePengumuman(token, kelompokId, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
+    }
+  }
+}
+
+/**
+ * Tes end-to-end PILOT untuk 'guru' — pola identik dgn testPengumumanFirestorePilot_,
+ * dijalankan di kelompokId=1 (Kelp Petemon). Asumsi '1' SUDAH dimasukkan ke
+ * FIRESTORE_KELOMPOK_GURU_ (Modul_MaintainGuru.gs) sebelum tes ini dijalankan.
+ */
+function testGuruFirestorePilot_() {
+  const dev = serverCheckDevMode();
+  if (!dev || !dev.token) throw new Error('Gagal ambil sesi dev-mode.');
+  const token = dev.token;
+  const kelompokId = '1'; // Kelp Petemon
+  const steps = [];
+  let testId = null;
+
+  function step(name, fn) {
+    const result = fn();
+    steps.push({ langkah: name, ok: true, detail: result });
+    return result;
+  }
+
+  try {
+    const before = step('baca daftar guru (sebelum)', function () {
+      const r = serverGetGuruList(token, kelompokId, '', true);
+      if (!r.success) throw new Error('serverGetGuruList gagal: ' + r.error);
+      return { jumlah: r.data.length };
+    });
+
+    const testNama = '__TEST_PILOT_FIRESTORE_' + new Date().getTime();
+
+    const created = step('buat guru percobaan (lewat serverAddGuru)', function () {
+      const r = serverAddGuru(token, kelompokId, {
+        nama: testNama,
+        kategori: 'Guru Bantu',
+        jenis_kelamin: 'L',
+        nomor_wa: '081200000000',
+      });
+      if (!r.success) throw new Error('serverAddGuru gagal: ' + r.error);
+      return { id: r.id };
+    });
+    testId = created.id;
+
+    step('verifikasi guru percobaan muncul & field lengkap', function () {
+      const r = serverGetGuruList(token, kelompokId, '', true);
+      const found = r.data.find(function (g) { return String(g.id) === String(testId); });
+      if (!found) throw new Error('Guru percobaan TIDAK ditemukan setelah create.');
+      if (found.nama !== testNama) throw new Error('Nama tidak cocok setelah create.');
+      if (found.kategori !== 'Guru Bantu') throw new Error('Kategori tidak cocok setelah create.');
+      if (found.nomor_wa !== '081200000000') throw new Error('Nomor WA tidak cocok setelah create.');
+      return { nama: found.nama, kategori: found.kategori };
+    });
+
+    step('update SEBAGIAN (lewat serverUpdateGuru, cuma nama) — field lain WAJIB tidak hilang', function () {
+      const r = serverUpdateGuru(token, kelompokId, testId, { nama: testNama + '_UPDATED' });
+      if (!r.success) throw new Error('serverUpdateGuru gagal: ' + r.error);
+
+      const check = serverGetGuruList(token, kelompokId, '', true);
+      const found = check.data.find(function (g) { return String(g.id) === String(testId); });
+      if (!found) throw new Error('Guru percobaan hilang setelah update.');
+      if (found.nama !== testNama + '_UPDATED') throw new Error('Nama tidak berubah setelah update.');
+      if (found.kategori !== 'Guru Bantu') throw new Error('GAGAL KRITIS: field "kategori" hilang padahal tidak diupdate — updateMask tidak berfungsi!');
+      if (found.nomor_wa !== '081200000000') throw new Error('GAGAL KRITIS: field "nomor_wa" hilang padahal tidak diupdate!');
+      return { nama: found.nama, kategori: found.kategori, nomor_wa: found.nomor_wa };
+    });
+
+    step('hapus guru percobaan (lewat serverDeleteGuru, bersih-bersih)', function () {
+      const r = serverDeleteGuru(token, kelompokId, testId);
+      if (!r.success) throw new Error('serverDeleteGuru gagal: ' + r.error);
+      testId = null;
+      return { deleted: true };
+    });
+
+    step('verifikasi guru percobaan sudah hilang & jumlah kembali seperti semula', function () {
+      const r = serverGetGuruList(token, kelompokId, '', true);
+      if (r.data.length !== before.jumlah) {
+        throw new Error('Jumlah guru tidak kembali ke ' + before.jumlah + ' setelah bersih-bersih (sekarang: ' + r.data.length + ').');
+      }
+      return { jumlahSetelahHapus: r.data.length };
+    });
+
+    return { success: true, langkah: steps };
+  } catch (e) {
+    return { success: false, langkah: steps, error: e.message };
+  } finally {
+    if (testId) {
+      try { serverDeleteGuru(token, kelompokId, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
+    }
+  }
+}
+
+/**
+ * Tes end-to-end PILOT untuk 'santri' — pola identik, dijalankan di
+ * kelompokId=1 (Kelp Petemon). Asumsi '1' SUDAH dimasukkan ke
+ * FIRESTORE_KELOMPOK_SANTRI_ (Modul_MaintainSantri.gs) sebelum tes ini dijalankan.
+ */
+function testSantriFirestorePilot_() {
+  const dev = serverCheckDevMode();
+  if (!dev || !dev.token) throw new Error('Gagal ambil sesi dev-mode.');
+  const token = dev.token;
+  const kelompokId = '1'; // Kelp Petemon
+  const steps = [];
+  let testId = null;
+
+  function step(name, fn) {
+    const result = fn();
+    steps.push({ langkah: name, ok: true, detail: result });
+    return result;
+  }
+
+  try {
+    const before = step('baca daftar santri (sebelum)', function () {
+      const r = serverGetSantriList(token, kelompokId, '', true);
+      if (!r.success) throw new Error('serverGetSantriList gagal: ' + r.error);
+      return { jumlah: r.data.length };
+    });
+
+    const testNis = '__TEST_' + new Date().getTime();
+
+    const created = step('buat santri percobaan (lewat serverAddSantri)', function () {
+      const r = serverAddSantri(token, kelompokId, {
+        nama: '__TEST_PILOT_FIRESTORE__',
+        nis: testNis,
+        gender: 'L',
+        tanggal_lahir: '2015-01-01',
+        jenjang_saat_ini: 'Cabe Rawit',
+      });
+      if (!r.success) throw new Error('serverAddSantri gagal: ' + r.error);
+      return { id: r.id };
+    });
+    testId = created.id;
+
+    step('verifikasi santri percobaan muncul & field lengkap', function () {
+      const r = serverGetSantriList(token, kelompokId, '', true);
+      const found = r.data.find(function (s) { return String(s.id) === String(testId); });
+      if (!found) throw new Error('Santri percobaan TIDAK ditemukan setelah create.');
+      if (found.nis !== testNis) throw new Error('NIS tidak cocok setelah create.');
+      if (found.jenjang_saat_ini !== 'Cabe Rawit') throw new Error('Jenjang tidak cocok setelah create.');
+      return { nama: found.nama, jenjang_saat_ini: found.jenjang_saat_ini };
+    });
+
+    step('update SEBAGIAN (lewat serverUpdateSantri, cuma nama) — field lain WAJIB tidak hilang', function () {
+      const r = serverUpdateSantri(token, kelompokId, testId, { nama: '__TEST_PILOT_FIRESTORE__UPDATED' });
+      if (!r.success) throw new Error('serverUpdateSantri gagal: ' + r.error);
+
+      const check = serverGetSantriList(token, kelompokId, '', true);
+      const found = check.data.find(function (s) { return String(s.id) === String(testId); });
+      if (!found) throw new Error('Santri percobaan hilang setelah update.');
+      if (found.nama !== '__TEST_PILOT_FIRESTORE__UPDATED') throw new Error('Nama tidak berubah setelah update.');
+      if (found.nis !== testNis) throw new Error('GAGAL KRITIS: field "nis" hilang padahal tidak diupdate — updateMask tidak berfungsi!');
+      if (found.jenjang_saat_ini !== 'Cabe Rawit') throw new Error('GAGAL KRITIS: field "jenjang_saat_ini" hilang padahal tidak diupdate!');
+      return { nama: found.nama, nis: found.nis, jenjang_saat_ini: found.jenjang_saat_ini };
+    });
+
+    step('hapus santri percobaan (lewat serverDeleteSantri, bersih-bersih)', function () {
+      const r = serverDeleteSantri(token, kelompokId, testId);
+      if (!r.success) throw new Error('serverDeleteSantri gagal: ' + r.error);
+      testId = null;
+      return { deleted: true };
+    });
+
+    step('verifikasi santri percobaan sudah hilang & jumlah kembali seperti semula', function () {
+      const r = serverGetSantriList(token, kelompokId, '', true);
+      if (r.data.length !== before.jumlah) {
+        throw new Error('Jumlah santri tidak kembali ke ' + before.jumlah + ' setelah bersih-bersih (sekarang: ' + r.data.length + ').');
+      }
+      return { jumlahSetelahHapus: r.data.length };
+    });
+
+    return { success: true, langkah: steps };
+  } catch (e) {
+    return { success: false, langkah: steps, error: e.message };
+  } finally {
+    if (testId) {
+      try { serverDeleteSantri(token, kelompokId, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
     }
   }
 }

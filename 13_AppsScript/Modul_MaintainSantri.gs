@@ -3,7 +3,27 @@
  * Server-side functions dipanggil dari Index.html (screen Data Santri).
  *
  * RBAC: Admin Kelompok hanya bisa akses Kelompok mereka sendiri.
+ *
+ * ⚠️ ROLLOUT FIRESTORE PER-KELOMPOK (bukan per-tabel spt FIRESTORE_TABLES_):
+ * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_SANTRI_ yang baca/tulis
+ * lewat Firestore (/kelompok/{id}/santri/{id}) — kelompok lain TETAP di
+ * Sheets, tidak berubah sama sekali. Sengaja supaya migrasi bisa diuji
+ * praktik di 1 kelompok dulu (Kelp Petemon) sebelum kelompok lain ikut pindah.
  */
+
+/** Kelompok yang tabel 'santri'-nya SUDAH dipindah ke Firestore. KOSONG dulu —
+    diisi ['1'] (Kelp Petemon) SETELAH data lama disalin ke Firestore lewat
+    ?diag=migrate&table=santri&kelompok=1&mode=copy (jangan urutan terbalik,
+    nanti data kelompok itu tampak hilang di antara deploy). */
+const FIRESTORE_KELOMPOK_SANTRI_ = [];
+
+function santriPath_(kelompokId) {
+  return 'kelompok/' + kelompokId + '/santri';
+}
+
+function isSantriOnFirestore_(kelompokId) {
+  return FIRESTORE_KELOMPOK_SANTRI_.indexOf(String(kelompokId)) !== -1;
+}
 
 /**
  * GET santri per Kelompok (dengan search/filter).
@@ -19,11 +39,13 @@ function serverGetSantriList(token, kelompokId, searchQuery = '', forceFresh = f
   }
 
   // Cache per-kelompok (di-invalidate oleh setiap Add/Update/Delete/BulkImport)
-  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sheet.
+  // forceFresh = true (tombol Refresh) menembus cache: baca langsung dari sumber.
   const cacheKey = 'santri_k' + kelompokId;
   let santri = forceFresh ? null : cacheGet_(cacheKey);
   if (!santri) {
-    santri = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
+    santri = isSantriOnFirestore_(kelompokId)
+      ? firestoreListCollection_(santriPath_(kelompokId))
+      : readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
     cachePut_(cacheKey, santri, 300);
   }
 
@@ -54,34 +76,67 @@ function serverAddSantri(token, kelompokId, santriData) {
 
   try {
     return withScriptLock_(function () {
-      const id = generateId(SHEET_NAMES.SANTRI);
+      const fields = {
+        kelompok_id: kelompokId,
+        nama: santriData.nama.trim(),
+        nis: santriData.nis.trim(),
+        gender: santriData.gender,
+        tanggal_lahir: santriData.tanggal_lahir,
+        jenjang_saat_ini: santriData.jenjang_saat_ini,
+        nama_panggilan: santriData.nama_panggilan || '',
+        tempat_lahir: santriData.tempat_lahir || '',
+        pendidikan: santriData.pendidikan || '',
+        kelas_sekolah: santriData.kelas_sekolah || '',
+        kelas_ngaji: santriData.kelas_ngaji || '',
+        alamat: santriData.alamat || '',
+        nama_ayah: santriData.nama_ayah || '',
+        nama_ibu: santriData.nama_ibu || '',
+        rt: santriData.rt || '',
+        rw: santriData.rw || '',
+        kelurahan: santriData.kelurahan || '',
+        kode_pos: santriData.kode_pos || '',
+        kabupaten_kota: santriData.kabupaten_kota || '',
+        provinsi: santriData.provinsi || '',
+        nomor_wa_ayah: santriData.nomor_wa_ayah || '',
+        nomor_wa_ibu: santriData.nomor_wa_ibu || '',
+        kecamatan: santriData.kecamatan || '',
+      };
 
-      appendRowToSheet(SHEET_NAMES.SANTRI, [
-        id,
-        kelompokId,
-        santriData.nama.trim(),
-        santriData.nis.trim(),
-        santriData.gender,
-        santriData.tanggal_lahir,
-        santriData.jenjang_saat_ini,
-        santriData.nama_panggilan || '',
-        santriData.tempat_lahir || '',
-        santriData.pendidikan || '',
-        santriData.kelas_sekolah || '',
-        santriData.kelas_ngaji || '',
-        santriData.alamat || '',
-        santriData.nama_ayah || '',
-        santriData.nama_ibu || '',
-        santriData.rt || '',
-        santriData.rw || '',
-        santriData.kelurahan || '',
-        santriData.kode_pos || '',
-        santriData.kabupaten_kota || '',
-        santriData.provinsi || '',
-        santriData.nomor_wa_ayah || '',
-        santriData.nomor_wa_ibu || '',
-        santriData.kecamatan || '',
-      ]);
+      let id;
+      if (isSantriOnFirestore_(kelompokId)) {
+        const path = santriPath_(kelompokId);
+        id = firestoreGenerateIdInPath_(path);
+        fields.id = id;
+        firestoreCreateDoc_(path, String(id), fields);
+      } else {
+        id = generateId(SHEET_NAMES.SANTRI);
+        appendRowToSheet(SHEET_NAMES.SANTRI, [
+          id,
+          kelompokId,
+          fields.nama,
+          fields.nis,
+          fields.gender,
+          fields.tanggal_lahir,
+          fields.jenjang_saat_ini,
+          fields.nama_panggilan,
+          fields.tempat_lahir,
+          fields.pendidikan,
+          fields.kelas_sekolah,
+          fields.kelas_ngaji,
+          fields.alamat,
+          fields.nama_ayah,
+          fields.nama_ibu,
+          fields.rt,
+          fields.rw,
+          fields.kelurahan,
+          fields.kode_pos,
+          fields.kabupaten_kota,
+          fields.provinsi,
+          fields.nomor_wa_ayah,
+          fields.nomor_wa_ibu,
+          fields.kecamatan,
+        ]);
+      }
 
       cacheDrop_('santri_k' + kelompokId);
       logAudit('santri', id, 'create', user.id, JSON.stringify(santriData));
@@ -94,17 +149,22 @@ function serverAddSantri(token, kelompokId, santriData) {
 
 /**
  * UPDATE santri.
+ * ⚠️ kelompokId WAJIB dikirim (dibutuhkan utk tahu apakah kelompok ini sudah
+ * di Firestore atau masih Sheets, dan path Firestore-nya kalau sudah pindah).
  */
-function serverUpdateSantri(token, santriId, santriData) {
+function serverUpdateSantri(token, kelompokId, santriId, santriData) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const santri = readSheetAsObjects(SHEET_NAMES.SANTRI).find(s => s.id == santriId);
-  if (!santri) return { success: false, error: 'Santri tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', santri.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Santri ini.' };
   }
+
+  const onFirestore = isSantriOnFirestore_(kelompokId);
+  const santri = onFirestore
+    ? firestoreGetDoc_(santriPath_(kelompokId), String(santriId))
+    : readSheetAsObjects(SHEET_NAMES.SANTRI).find(s => s.id == santriId);
+  if (!santri) return { success: false, error: 'Santri tidak ditemukan.' };
 
   const updates = {
     nama: santriData.nama?.trim() || santri.nama,
@@ -133,8 +193,12 @@ function serverUpdateSantri(token, santriId, santriData) {
 
   try {
     return withScriptLock_(function () {
-      updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);
-      cacheDrop_('santri_k' + santri.kelompok_id);
+      if (onFirestore) {
+        firestoreUpdateDoc_(santriPath_(kelompokId), String(santriId), updates);
+      } else {
+        updateRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id }, updates);
+      }
+      cacheDrop_('santri_k' + kelompokId);
       logAudit('santri', santriId, 'update', user.id, JSON.stringify(updates));
       return { success: true, message: 'Santri berhasil diperbarui.' };
     });
@@ -145,22 +209,30 @@ function serverUpdateSantri(token, santriId, santriData) {
 
 /**
  * DELETE santri.
+ * ⚠️ kelompokId WAJIB dikirim, sama alasannya dengan serverUpdateSantri.
  */
-function serverDeleteSantri(token, santriId) {
+function serverDeleteSantri(token, kelompokId, santriId) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
-  const santri = readSheetAsObjects(SHEET_NAMES.SANTRI).find(s => s.id == santriId);
-  if (!santri) return { success: false, error: 'Santri tidak ditemukan.' };
-
-  if (!validateUserAccess(token, 'kelompok', santri.kelompok_id)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Santri ini.' };
   }
 
+  const onFirestore = isSantriOnFirestore_(kelompokId);
+  const santri = onFirestore
+    ? firestoreGetDoc_(santriPath_(kelompokId), String(santriId))
+    : readSheetAsObjects(SHEET_NAMES.SANTRI).find(s => s.id == santriId);
+  if (!santri) return { success: false, error: 'Santri tidak ditemukan.' };
+
   try {
     return withScriptLock_(function () {
-      deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id });
-      cacheDrop_('santri_k' + santri.kelompok_id);
+      if (onFirestore) {
+        firestoreDeleteDoc_(santriPath_(kelompokId), String(santriId));
+      } else {
+        deleteRowByQuery(SHEET_NAMES.SANTRI, { id: santri.id });
+      }
+      cacheDrop_('santri_k' + kelompokId);
       logAudit('santri', santriId, 'delete', user.id, 'deleted');
       return { success: true, message: 'Santri berhasil dihapus.' };
     });
@@ -205,11 +277,19 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
     return { success: false, error: 'Maksimal 200 santri per import. Bagi menjadi beberapa file.' };
   }
 
-  // Load existing santri to check duplicates
-  const existingSantri = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const existingNis = new Set(existingSantri.map(s => String(s.nis).trim().toUpperCase()));
+  const onFirestore = isSantriOnFirestore_(kelompokId);
 
-  const santriSheet = getSheetByName(SHEET_NAMES.SANTRI);
+  // Load existing santri (seluruh PPG) to check duplikat NIS — TETAP dari Sheet
+  // (mayoritas kelompok belum pindah) + ditambah kelompok Firestore yg relevan
+  // supaya deteksi NIS ganda tetap benar walau kelompok ini sudah di Firestore.
+  const existingNis = new Set(
+    readSheetAsObjects(SHEET_NAMES.SANTRI).map(s => String(s.nis).trim().toUpperCase())
+  );
+  if (onFirestore) {
+    firestoreListCollection_(santriPath_(kelompokId)).forEach(s => existingNis.add(String(s.nis).trim().toUpperCase()));
+  }
+
+  const santriSheet = onFirestore ? null : getSheetByName(SHEET_NAMES.SANTRI);
   const errors = [];
   const validRows = [];
   let successCount = 0;
@@ -265,22 +345,31 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
     }
   }
 
-  // Batch insert valid rows — id digenerate DI DALAM lock supaya berurutan
-  // dan tidak bentrok dengan penyimpanan pengguna lain yang berjalan bersamaan.
+  // Insert valid rows — id digenerate DI DALAM lock supaya berurutan dan
+  // tidak bentrok dengan penyimpanan pengguna lain yang berjalan bersamaan.
   if (validRows.length > 0) {
     try {
       withScriptLock_(function () {
-        let nextId = generateId(SHEET_NAMES.SANTRI);
-        const dataToInsert = validRows.map(s => [
-          nextId++,
-          s.kelompok_id,
-          s.nama,
-          s.nis,
-          s.gender,
-          s.tanggal_lahir,
-          s.jenjang_saat_ini,
-        ]);
-        santriSheet.getRange(santriSheet.getLastRow() + 1, 1, dataToInsert.length, 7).setValues(dataToInsert);
+        if (onFirestore) {
+          const path = santriPath_(kelompokId);
+          let nextId = firestoreGenerateIdInPath_(path);
+          validRows.forEach(s => {
+            firestoreCreateDoc_(path, String(nextId), Object.assign({ id: nextId }, s));
+            nextId++;
+          });
+        } else {
+          let nextId = generateId(SHEET_NAMES.SANTRI);
+          const dataToInsert = validRows.map(s => [
+            nextId++,
+            s.kelompok_id,
+            s.nama,
+            s.nis,
+            s.gender,
+            s.tanggal_lahir,
+            s.jenjang_saat_ini,
+          ]);
+          santriSheet.getRange(santriSheet.getLastRow() + 1, 1, dataToInsert.length, 7).setValues(dataToInsert);
+        }
         cacheDrop_('santri_k' + kelompokId);
       });
 

@@ -361,7 +361,7 @@
 
     window.showGlobalLoading_('Menyimpan data...');
     if (editId) {
-      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, editId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSantri(window.currentToken, window.currentKelompokId, editId, data);
     } else {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddSantri(window.currentToken, window.currentKelompokId, data);
     }
@@ -490,7 +490,7 @@
         window.setGenerusDeleteLoading_(false);
         alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
       })
-      .serverDeleteSantri(window.currentToken, id);
+      .serverDeleteSantri(window.currentToken, window.currentKelompokId, id);
   };
 
   window.digitsOnlyInput_ = function (el) {
@@ -1002,7 +1002,7 @@
 
     window.showGlobalLoading_('Menyimpan data...');
     if (editId) {
-      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, editId, data);
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateGuru(window.currentToken, window.currentKelompokId, editId, data);
     } else {
       google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverAddGuru(window.currentToken, window.currentKelompokId, data);
     }
@@ -1491,7 +1491,7 @@
         window.setGuruDeleteLoading_(false);
         alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
       })
-      .serverDeleteGuru(window.currentToken, id);
+      .serverDeleteGuru(window.currentToken, window.currentKelompokId, id);
   };
 
   window.buildDetailItemHtml_ = function (label, value, full) {
@@ -2561,7 +2561,7 @@
             window.loadSantriList();
           }
         })
-        .serverDeleteSantri(window.currentToken, santriId);
+        .serverDeleteSantri(window.currentToken, window.currentKelompokId, santriId);
     }
   };
 
@@ -2776,7 +2776,7 @@
             window.loadGuruList();
           }
         })
-        .serverDeleteGuru(window.currentToken, guruId);
+        .serverDeleteGuru(window.currentToken, window.currentKelompokId, guruId);
     }
   };
 
