@@ -31,6 +31,19 @@ const SHEET_NAMES = {
 };
 
 /**
+ * Saklar migrasi Sheets→Firestore (per tabel). Nama sheet yang ADA di daftar
+ * ini otomatis dibaca/ditulis lewat Firestore (Modul_FirestoreBridge.gs) oleh
+ * readSheetAsObjects/appendRowToSheet/updateRowByQuery/deleteRowByQuery di
+ * bawah — sheet aslinya TIDAK dihapus, jadi tetap ada sebagai "foto terakhir"
+ * kalau perlu dibandingkan/rollback. Selama daftar ini KOSONG, tidak ada
+ * satupun tabel yang berubah perilakunya — 100% masih baca/tulis Sheets.
+ * updateRowByQuery/deleteRowByQuery lewat Firestore baru mendukung query
+ * berbentuk {id: ...} — cukup untuk semua tabel KECUALI 'absensi' (lihat
+ * rencana migrasi Fase 5).
+ */
+const FIRESTORE_TABLES_ = [];
+
+/**
  * Ambil sheet dari nama. Return object sheet atau null jika tidak ditemukan.
  */
 function getSheetByName(sheetName) {
@@ -43,6 +56,10 @@ function getSheetByName(sheetName) {
  * Contoh: readSheetAsObjects('desa') → [{id: 1, ppg_id: 1, nama: 'Petemon'}, ...]
  */
 function readSheetAsObjects(sheetName) {
+  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
+    return firestoreListCollection_(sheetName);
+  }
+
   const sheet = getSheetByName(sheetName);
   if (!sheet) {
     throw new Error(`Sheet "${sheetName}" tidak ditemukan.`);
@@ -104,6 +121,12 @@ function writeSheetFromObjects(sheetName, objects) {
  * Tambah satu row ke sheet. Kembalikan row number yang ditambahkan.
  */
 function appendRowToSheet(sheetName, values) {
+  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
+    const fields = firestoreFieldsFromRowArray_(sheetName, values);
+    firestoreCreateDoc_(sheetName, String(fields.id), fields);
+    return null; // tidak ada pemanggil di codebase ini yang memakai return value-nya
+  }
+
   const sheet = getSheetByName(sheetName);
   if (!sheet) {
     throw new Error(`Sheet "${sheetName}" tidak ditemukan.`);
@@ -147,6 +170,15 @@ function findRowByQuery(sheetName, query) {
  * ⚠️ Update hanya baris pertama yang match. Jika ada multiple matches, gunakan perulangan manual.
  */
 function updateRowByQuery(sheetName, query, updates) {
+  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
+    const keys = Object.keys(query);
+    if (keys.length !== 1 || keys[0] !== 'id') {
+      throw new Error(`updateRowByQuery via Firestore hanya mendukung query {id: ...} saat ini (sheet: "${sheetName}").`);
+    }
+    firestoreUpdateDoc_(sheetName, String(query.id), updates);
+    return;
+  }
+
   const rowNum = findRowByQuery(sheetName, query);
   if (rowNum === -1) {
     throw new Error(`Row tidak ditemukan di sheet "${sheetName}" dengan query: ${JSON.stringify(query)}`);
@@ -170,6 +202,15 @@ function updateRowByQuery(sheetName, query, updates) {
  * ⚠️ Hanya untuk delete single row. Jika perlu bulk delete, gunakan loop + rewrite.
  */
 function deleteRowByQuery(sheetName, query) {
+  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
+    const keys = Object.keys(query);
+    if (keys.length !== 1 || keys[0] !== 'id') {
+      throw new Error(`deleteRowByQuery via Firestore hanya mendukung query {id: ...} saat ini (sheet: "${sheetName}").`);
+    }
+    firestoreDeleteDoc_(sheetName, String(query.id));
+    return;
+  }
+
   const rowNum = findRowByQuery(sheetName, query);
   if (rowNum === -1) {
     console.warn(`Row tidak ditemukan. Tidak ada yang dihapus.`);
