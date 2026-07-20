@@ -52,6 +52,28 @@ const SHEET_NAMES = {
 const FIRESTORE_TABLES_ = [];
 
 /**
+ * Saklar migrasi Sheets→Firestore PER-KELOMPOK (rollout bertahap, mis. Kelp
+ * Petemon dulu sebelum kelompok lain ikut) — SUMBER KEBENARAN TUNGGAL, dipakai
+ * baik oleh readSheetAsObjects() di sini (baca gabungan) MAUPUN oleh
+ * Modul_MaintainSantri.gs/Modul_MaintainGuru.gs (tulis) lewat
+ * isKelompokTableOnFirestore_() di bawah — supaya tidak ada 2 daftar terpisah
+ * yang bisa tidak sinkron.
+ *
+ * Key: nama tabel (SHEET_NAMES value). Value: array kelompok_id (string) yang
+ * SUDAH pindah ke /kelompok/{id}/{tabel}. Kelompok yang TIDAK ada di daftar
+ * tetap 100% dibaca/ditulis dari Sheets.
+ */
+const FIRESTORE_KELOMPOK_TABLES_ = {
+  santri: ['1'], // Kelp Petemon
+  guru: ['1'], // Kelp Petemon
+};
+
+function isKelompokTableOnFirestore_(tableName, kelompokId) {
+  const list = FIRESTORE_KELOMPOK_TABLES_[tableName];
+  return !!list && list.indexOf(String(kelompokId)) !== -1;
+}
+
+/**
  * Ambil sheet dari nama. Return object sheet atau null jika tidak ditemukan.
  */
 function getSheetByName(sheetName) {
@@ -59,15 +81,11 @@ function getSheetByName(sheetName) {
   return sheet || null;
 }
 
-/**
- * Baca sheet dan kembalikan sebagai array of objects (row 1 = headers).
- * Contoh: readSheetAsObjects('desa') → [{id: 1, ppg_id: 1, nama: 'Petemon'}, ...]
- */
-function readSheetAsObjects(sheetName) {
-  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
-    return firestoreListCollection_(sheetName);
-  }
-
+/** Baca sheet APA ADANYA (tanpa cek saklar Firestore apapun) — dipakai
+    readSheetAsObjects() di bawah, dipisah supaya bisa dipanggil ulang saat
+    perlu "cuma baris Sheet" tanpa menyebabkan pemanggilan berulang tak
+    berujung saat digabung dengan data Firestore. */
+function readSheetRowsRaw_(sheetName) {
   const sheet = getSheetByName(sheetName);
   if (!sheet) {
     throw new Error(`Sheet "${sheetName}" tidak ditemukan.`);
@@ -88,6 +106,35 @@ function readSheetAsObjects(sheetName) {
       });
       return obj;
     });
+}
+
+/**
+ * Baca sheet dan kembalikan sebagai array of objects (row 1 = headers).
+ * Contoh: readSheetAsObjects('desa') → [{id: 1, ppg_id: 1, nama: 'Petemon'}, ...]
+ *
+ * Kalau `sheetName` ada di FIRESTORE_KELOMPOK_TABLES_ (mis. 'santri'/'guru'),
+ * hasilnya OTOMATIS gabungan: baris Sheet utk kelompok yang BELUM pindah +
+ * baris Firestore utk kelompok yang SUDAH pindah — supaya SEMUA pemanggil
+ * yang sudah ada (Laporan, Statistik, Dashboard, Absensi, dst — 40+ titik)
+ * tetap dapat data lengkap & benar TANPA perlu diubah satu-satu.
+ */
+function readSheetAsObjects(sheetName) {
+  if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
+    return firestoreListCollection_(sheetName);
+  }
+
+  const kelompokFirestoreList = FIRESTORE_KELOMPOK_TABLES_[sheetName];
+  if (kelompokFirestoreList && kelompokFirestoreList.length > 0) {
+    const sheetRows = readSheetRowsRaw_(sheetName)
+      .filter(row => kelompokFirestoreList.indexOf(String(row.kelompok_id)) === -1);
+    let firestoreRows = [];
+    kelompokFirestoreList.forEach(function (kelompokId) {
+      firestoreRows = firestoreRows.concat(firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName));
+    });
+    return sheetRows.concat(firestoreRows);
+  }
+
+  return readSheetRowsRaw_(sheetName);
 }
 
 /**

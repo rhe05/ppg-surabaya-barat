@@ -5,23 +5,21 @@
  * RBAC: Admin Kelompok hanya bisa akses Kelompok mereka sendiri.
  *
  * ⚠️ ROLLOUT FIRESTORE PER-KELOMPOK (bukan per-tabel spt FIRESTORE_TABLES_):
- * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_GURU_ yang baca/tulis
- * lewat Firestore (/kelompok/{id}/guru/{id}) — kelompok lain TETAP di Sheets,
- * tidak berubah sama sekali. Ini sengaja supaya migrasi bisa diuji praktik
+ * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_TABLES_.guru
+ * (Modul_Utilities.gs — SUMBER KEBENARAN TUNGGAL, dipakai juga oleh
+ * readSheetAsObjects() supaya fungsi lain yang baca guru PPG-wide — mis.
+ * serverGetGuruSummary di bawah — otomatis dapat data gabungan yang benar
+ * tanpa perlu diubah) yang baca/tulis lewat Firestore (/kelompok/{id}/guru/{id})
+ * — kelompok lain TETAP di Sheets. Sengaja supaya migrasi bisa diuji praktik
  * di 1 kelompok dulu (Kelp Petemon) sebelum semua kelompok lain ikut pindah.
  */
-
-/** Kelompok yang tabel 'guru'-nya SUDAH dipindah ke Firestore.
-    Data lama sudah disalin lewat ?diag=migrate&table=guru&kelompok=1&mode=copy
-    (5 guru, 0 error) sebelum saklar ini diaktifkan. */
-const FIRESTORE_KELOMPOK_GURU_ = ['1']; // Kelp Petemon
 
 function guruPath_(kelompokId) {
   return 'kelompok/' + kelompokId + '/guru';
 }
 
 function isGuruOnFirestore_(kelompokId) {
-  return FIRESTORE_KELOMPOK_GURU_.indexOf(String(kelompokId)) !== -1;
+  return isKelompokTableOnFirestore_('guru', kelompokId);
 }
 
 /**
@@ -226,8 +224,10 @@ function serverDeleteGuru(token, kelompokId, guruId) {
 /**
  * GET guru summary by kategori (Muballigh Tugasan vs Muballigh Setempat).
  * Return: {total_guru, tugasan_count, setempat_count}
- * ⚠️ TIDAK diubah — sudah PPG-wide (baca semua guru lintas kelompok) sejak
- * awal, di luar cakupan migrasi per-kelompok ini.
+ * PPG-wide (baca semua guru lintas kelompok) — tidak perlu ubah kode di sini
+ * sama sekali: readSheetAsObjects() di Modul_Utilities.gs sudah otomatis
+ * menggabung data Sheets (kelompok yg belum pindah) + Firestore (Kelp Petemon
+ * yg sudah pindah), jadi angka di sini ikut benar begitu Petemon migrasi.
  */
 function serverGetGuruSummary(token) {
   const user = getCurrentUser(token);

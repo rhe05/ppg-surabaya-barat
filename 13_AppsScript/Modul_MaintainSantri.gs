@@ -5,23 +5,22 @@
  * RBAC: Admin Kelompok hanya bisa akses Kelompok mereka sendiri.
  *
  * ⚠️ ROLLOUT FIRESTORE PER-KELOMPOK (bukan per-tabel spt FIRESTORE_TABLES_):
- * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_SANTRI_ yang baca/tulis
- * lewat Firestore (/kelompok/{id}/santri/{id}) — kelompok lain TETAP di
- * Sheets, tidak berubah sama sekali. Sengaja supaya migrasi bisa diuji
- * praktik di 1 kelompok dulu (Kelp Petemon) sebelum kelompok lain ikut pindah.
+ * hanya kelompok yang ID-nya ada di FIRESTORE_KELOMPOK_TABLES_.santri
+ * (Modul_Utilities.gs — SUMBER KEBENARAN TUNGGAL, dipakai juga oleh
+ * readSheetAsObjects() supaya 40+ fungsi lain yang baca santri PPG-wide
+ * — Laporan/Statistik/Dashboard/Absensi/dst — otomatis dapat data gabungan
+ * yang benar tanpa perlu diubah) yang baca/tulis lewat Firestore
+ * (/kelompok/{id}/santri/{id}) — kelompok lain TETAP di Sheets. Sengaja
+ * supaya migrasi bisa diuji praktik di 1 kelompok dulu (Kelp Petemon)
+ * sebelum kelompok lain ikut pindah.
  */
-
-/** Kelompok yang tabel 'santri'-nya SUDAH dipindah ke Firestore.
-    Data lama sudah disalin lewat ?diag=migrate&table=santri&kelompok=1&mode=copy
-    (3 santri, 0 error) sebelum saklar ini diaktifkan. */
-const FIRESTORE_KELOMPOK_SANTRI_ = ['1']; // Kelp Petemon
 
 function santriPath_(kelompokId) {
   return 'kelompok/' + kelompokId + '/santri';
 }
 
 function isSantriOnFirestore_(kelompokId) {
-  return FIRESTORE_KELOMPOK_SANTRI_.indexOf(String(kelompokId)) !== -1;
+  return isKelompokTableOnFirestore_('santri', kelompokId);
 }
 
 /**
@@ -278,15 +277,12 @@ function serverBulkImportSantri(token, kelompokId, santriRows) {
 
   const onFirestore = isSantriOnFirestore_(kelompokId);
 
-  // Load existing santri (seluruh PPG) to check duplikat NIS — TETAP dari Sheet
-  // (mayoritas kelompok belum pindah) + ditambah kelompok Firestore yg relevan
-  // supaya deteksi NIS ganda tetap benar walau kelompok ini sudah di Firestore.
+  // Load existing santri (seluruh PPG) to check duplikat NIS — readSheetAsObjects
+  // otomatis gabung Sheets+Firestore (lihat Modul_Utilities.gs), jadi ini sudah
+  // benar utk semua kelompok termasuk yg sudah pindah ke Firestore.
   const existingNis = new Set(
     readSheetAsObjects(SHEET_NAMES.SANTRI).map(s => String(s.nis).trim().toUpperCase())
   );
-  if (onFirestore) {
-    firestoreListCollection_(santriPath_(kelompokId)).forEach(s => existingNis.add(String(s.nis).trim().toUpperCase()));
-  }
 
   const santriSheet = onFirestore ? null : getSheetByName(SHEET_NAMES.SANTRI);
   const errors = [];
