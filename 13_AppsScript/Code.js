@@ -108,6 +108,22 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=dashboardbundle → panggil serverGetDashboardBundle() langsung & lihat
+  // hasil JSON-nya, dipakai memverifikasi struktur (kpi/desaBreakdown/
+  // santriTeladan) setelah refactor tanpa perlu login browser (web app
+  // access = MYSELF, sulit dites otomatis lewat browser biasa).
+  if (e && e.parameter && e.parameter.diag === 'dashboardbundle') {
+    let result;
+    try {
+      result = serverGetDashboardBundle();
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
