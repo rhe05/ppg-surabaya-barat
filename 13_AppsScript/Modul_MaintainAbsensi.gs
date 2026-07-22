@@ -11,8 +11,14 @@
  * per-baris). Dokumen Firestore-nya DENORMALISASI: field kelompok_id disimpan
  * juga di tiap dokumen supaya readSheetAsObjects() (Modul_Utilities.gs) bisa
  * exclude baris Sheet lewat peta santri_id→kelompok_id tanpa baca ulang.
- * serverGetAbsensiForm/serverGetAbsensiSummary/serverGetSantriBerisiko TIDAK
- * PERLU diubah — semua sudah otomatis gabung Sheets+Firestore.
+ *
+ * ⚠️ BUG TERPISAH ditemukan saat verifikasi rollout di atas (ERROR_LOG.md #8,
+ * akar masalah sama dgn #7): kolom `tanggal` diam-diam jadi objek `Date` saat
+ * ditulis appendRow, jadi SEMUA perbandingan `a.tanggal === tanggal` di bawah
+ * (dan deleteRowByQuery yg query-nya menyertakan `tanggal`) selalu gagal
+ * match. Dirapikan pakai tanggalKeString_() (Modul_Utilities.gs) di semua
+ * titik baca, dan delete-by-id langsung (bukan query tanggal) di
+ * serverSaveAbsensiDaily.
  */
 
 /**
@@ -31,7 +37,7 @@ function serverGetAbsensiForm(token, kelompokId, tanggal) {
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
 
   // Ambil absensi existing untuk tanggal ini
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => a.tanggal === tanggal);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => tanggalKeString_(a.tanggal) === tanggal);
   const absensiMap = {};
   absensiData.forEach(a => {
     absensiMap[a.santri_id] = a.status;
@@ -77,11 +83,14 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
   let count = 0;
   withScriptLock_(function () {
     absensiData.forEach(a => {
-      if (a.tanggal === tanggal && santriIds.includes(Number(a.santri_id))) {
+      if (tanggalKeString_(a.tanggal) === tanggal && santriIds.includes(Number(a.santri_id))) {
         if (onFirestore) {
           firestoreDeleteDoc_(path, String(a.id));
         } else {
-          deleteRowByQuery(SHEET_NAMES.ABSENSI, { santri_id: a.santri_id, tanggal: tanggal });
+          // Hapus by id langsung (bukan query {tanggal}) — deleteRowByQuery mencocokkan
+          // via String(cell), dan cell tanggal di sheet adalah objek Date, bukan string
+          // 'yyyy-MM-dd', jadi query {tanggal} TIDAK PERNAH match (ERROR_LOG.md #8).
+          deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
         }
       }
     });
@@ -155,7 +164,7 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
 
       // Check duplicate (unique constraint santri_id + tanggal)
       const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI).find(
-        a => a.santri_id == santriId && a.tanggal === row.tanggal
+        a => a.santri_id == santriId && tanggalKeString_(a.tanggal) === row.tanggal
       );
       if (existing) {
         // Skip atau update? Saat ini skip (comment out untuk update)
@@ -204,7 +213,7 @@ function serverGetAbsensiSummary(token, kelompokId, tanggal) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => a.tanggal === tanggal);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => tanggalKeString_(a.tanggal) === tanggal);
   const santriIds = readSheetAsObjects(SHEET_NAMES.SANTRI)
     .filter(s => s.kelompok_id == kelompokId)
     .map(s => s.id);
@@ -253,7 +262,8 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
   const monthEnd = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
 
   const monthAbsensi = allAbsensi.filter(a => {
-    return a.tanggal >= monthStart && a.tanggal <= monthEnd && santriMap[a.santri_id];
+    const tgl = tanggalKeString_(a.tanggal);
+    return tgl >= monthStart && tgl <= monthEnd && santriMap[a.santri_id];
   });
 
   // Calculate stats per santri

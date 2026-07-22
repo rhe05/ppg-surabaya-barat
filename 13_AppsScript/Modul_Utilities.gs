@@ -350,6 +350,20 @@ function generateId(sheetName) {
 }
 
 /**
+ * Normalkan kolom tanggal 'yyyy-MM-dd' yang diam-diam diubah Sheets jadi
+ * objek `Date` saat ditulis lewat appendRow (ERROR_LOG.md #7). WAJIB dipakai
+ * sebelum membandingkan tanggal dari readSheetAsObjects() dgn string
+ * (`===`, sort, dsb) — kalau tidak, perbandingan SELALU false walau
+ * nilainya sama secara kalender.
+ */
+function tanggalKeString_(v) {
+  if (v instanceof Date) {
+    return Utilities.formatDate(v, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  }
+  return v ? String(v) : '';
+}
+
+/**
  * Jalankan fungsi mutasi di dalam ScriptLock (antri maks 10 detik).
  * WAJIB membungkus SEMUA operasi tulis (add/update/delete) supaya aman
  * dipakai banyak pengguna bersamaan. Mencegah: (a) id ganda dari generateId,

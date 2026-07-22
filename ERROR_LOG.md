@@ -195,6 +195,58 @@ tiap kolom, sehingga sel yang diam-diam jadi `Date` langsung ketahuan.
 
 ---
 
+## #8 — Absensi: simpan ulang di hari sama numpuk baris, form/summary selalu kosong (2026-07-22)
+
+**Gejala**: ditemukan lewat `testAbsensiFirestorePilot_()` (pilot test rollout
+Firestore Absensi Kelp Petemon) — `serverSaveAbsensiDaily` melapor sukses,
+tapi `serverGetAbsensiForm` sesudahnya SELALU balas status default `'hadir'`
+utk semua santri (data yg baru disimpan seakan tidak ada). Belum pernah
+dilaporkan pengguna secara eksplisit, kemungkinan karena mirip "biasanya
+default hadir" jadi tidak mencolok — tapi berarti fitur Absensi (form harian,
+summary, badge santri berisiko) berpotensi TIDAK PERNAH benar-benar
+menampilkan data tersimpan sejak modul ini ada.
+
+**Akar masalah**: akar sama persis dengan bug #7 (Sheets diam-diam mengubah
+teks `'yyyy-MM-dd'` jadi objek `Date` lewat `appendRow`), tapi perbaikannya
+dulu hanya diterapkan ke Jadwal KBM — Modul_MaintainAbsensi.gs (dan sebagian
+Modul_Laporan.gs/Modul_Dashboard.gs) tidak pernah disentuh. Semua titik yang
+membandingkan `a.tanggal` (dari `readSheetAsObjects`) dengan string `===`
+SELALU false karena `Date !== string`:
+- `serverGetAbsensiForm`, `serverGetAbsensiSummary`: filter tanggal kosong.
+- `serverSaveAbsensiDaily`: loop hapus lama tidak pernah cocok →
+  `deleteRowByQuery(..., {tanggal})` juga tidak pernah match (query itu
+  sendiri dibandingkan via `String(cell)` di `findRowByQuery`, dan
+  `String(objekDate)` tidak akan pernah sama dgn `'yyyy-MM-dd'`) → simpan
+  ulang tanggal yang sama MENUMPUK baris baru, bukan menimpa.
+- `serverBulkImportAbsensi`: cek duplikat santri_id+tanggal tidak pernah
+  kena, jadi bisa dobel-import tanpa terdeteksi.
+- `serverGetSantriBerisiko`: filter rentang bulan (`>=`/`<=` dgn string)
+  ikut gagal (Date dibandingkan ke string via ToPrimitive → NaN).
+- `Modul_Laporan.gs` (laporan absensi bulanan) & `Modul_Dashboard.gs`
+  (`serverGetKehadiranChart7Hari`, dead code/tidak dipanggil frontend):
+  pola sama di pencarian record per hari.
+
+**Perbaikan**:
+1. `Modul_Utilities.gs`: helper `tanggalKeString_()` (versi umum, dipindah
+   dari pola `jamKeString_` di Modul_MaintainJadwalKBM.gs) — dipakai semua
+   modul yang butuh normalisasi tanggal jadi `'yyyy-MM-dd'`.
+2. `Modul_MaintainAbsensi.gs`: semua perbandingan `a.tanggal === ...` diganti
+   `tanggalKeString_(a.tanggal) === ...`. `serverSaveAbsensiDaily` juga
+   diubah hapus-baris-lama dari query `{tanggal}` (tidak pernah match) jadi
+   `{id: a.id}` langsung (id sudah didapat dari baris yang match di JS,
+   bukan dari sheet).
+3. `Modul_Laporan.gs` (laporan absensi bulanan) & `Modul_Dashboard.gs`
+   (`serverGetKehadiranChart7Hari`) dapat perbaikan sama di titik yang setara.
+
+**Aturan permanen tambahan**: kalau nanti nemu bug serupa di modul LAIN yang
+punya kolom tanggal/jam (munaqosah, konseling, kalender_events, dst) —
+JANGAN anggap bug #7 "sudah beres di seluruh app", cek per-modul, karena
+perbaikannya tidak otomatis menjalar (bukan fix terpusat di
+`readSheetAsObjects`, sengaja, biar tidak berisiko ke sheet lain yang
+memang butuh objek `Date` asli).
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

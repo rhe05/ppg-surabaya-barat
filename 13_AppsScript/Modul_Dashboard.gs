@@ -164,7 +164,7 @@ function serverGetKehadiranChart7Hari() {
 
     const data = dates.map(date => {
       const dateStr = date.toISOString().split('T')[0];
-      const absensiHari = absensiData.filter(a => a.tanggal === dateStr);
+      const absensiHari = absensiData.filter(a => tanggalKeString_(a.tanggal) === dateStr);
 
       let totalAhari = 0;
       let totalHadirHari = 0;

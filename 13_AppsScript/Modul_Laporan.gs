@@ -98,7 +98,7 @@ function serverExportAbsensiMonthly(token, kelompokId, year, month) {
 
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = new Date(year, month - 1, day).toISOString().split('T')[0];
-      const absenRecord = absensiMonth.find(a => a.santri_id == s.id && a.tanggal === dateStr);
+      const absenRecord = absensiMonth.find(a => a.santri_id == s.id && tanggalKeString_(a.tanggal) === dateStr);
       const status = absenRecord ? (absenRecord.status === 'hadir' ? '✓' : 'X') : '-';
       if (absenRecord && absenRecord.status === 'hadir') totalHadir++;
       row += `,${status}`;
