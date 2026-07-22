@@ -3,6 +3,16 @@
  * Server-side functions untuk entry absensi harian per Kelompok.
  *
  * RBAC: Admin Kelompok hanya bisa entry absensi Kelompok mereka.
+ *
+ * ⚠️ ROLLOUT FIRESTORE PER-KELOMPOK: absensi TIDAK punya kolom kelompok_id
+ * sendiri (beda dari santri/guru/jadwal_kbm) — kelompok ditentukan lewat join
+ * ke santri_id. Karena kelompokId SUDAH jadi parameter di setiap fungsi tulis
+ * di bawah, cabang Firestore dites langsung dari parameter itu (bukan lookup
+ * per-baris). Dokumen Firestore-nya DENORMALISASI: field kelompok_id disimpan
+ * juga di tiap dokumen supaya readSheetAsObjects() (Modul_Utilities.gs) bisa
+ * exclude baris Sheet lewat peta santri_id→kelompok_id tanpa baca ulang.
+ * serverGetAbsensiForm/serverGetAbsensiSummary/serverGetSantriBerisiko TIDAK
+ * PERLU diubah — semua sudah otomatis gabung Sheets+Firestore.
  */
 
 /**
@@ -54,6 +64,9 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
 
+  const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
+  const path = 'kelompok/' + kelompokId + '/absensi';
+
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
 
   // Delete existing absensi untuk tanggal ini (santri di kelompok ini)
@@ -61,20 +74,38 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
     .filter(s => s.kelompok_id == kelompokId)
     .map(s => s.id);
 
-  absensiData.forEach(a => {
-    if (a.tanggal === tanggal && santriIds.includes(Number(a.santri_id))) {
-      deleteRowByQuery(SHEET_NAMES.ABSENSI, { santri_id: a.santri_id, tanggal: tanggal });
-    }
-  });
-
-  // Insert baru
   let count = 0;
-  absensiList.forEach(item => {
-    if (santriIds.includes(Number(item.santri_id))) {
-      const id = generateId(SHEET_NAMES.ABSENSI);
-      appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, user.id]);
-      count++;
-    }
+  withScriptLock_(function () {
+    absensiData.forEach(a => {
+      if (a.tanggal === tanggal && santriIds.includes(Number(a.santri_id))) {
+        if (onFirestore) {
+          firestoreDeleteDoc_(path, String(a.id));
+        } else {
+          deleteRowByQuery(SHEET_NAMES.ABSENSI, { santri_id: a.santri_id, tanggal: tanggal });
+        }
+      }
+    });
+
+    // Insert baru
+    absensiList.forEach(item => {
+      if (santriIds.includes(Number(item.santri_id))) {
+        if (onFirestore) {
+          const id = firestoreGenerateIdInPath_(path);
+          firestoreCreateDoc_(path, String(id), {
+            id: id,
+            santri_id: item.santri_id,
+            tanggal: tanggal,
+            status: item.status,
+            dicatat_oleh: user.id,
+            kelompok_id: String(kelompokId),
+          });
+        } else {
+          const id = generateId(SHEET_NAMES.ABSENSI);
+          appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, user.id]);
+        }
+        count++;
+      }
+    });
   });
 
   logAudit('absensi', 'batch_' + tanggal, 'create', user.id, `Daily entry: ${count} records`);
@@ -106,32 +137,49 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
     }
   });
 
+  const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
+  const path = 'kelompok/' + kelompokId + '/absensi';
+
   let successCount = 0;
   let errorCount = 0;
   const errors = [];
 
-  absensiRows.forEach((row, idx) => {
-    const santriId = santriByName[String(row.nama_santri).toLowerCase()];
-    if (!santriId) {
-      errorCount++;
-      errors.push(`Baris ${idx + 1}: Santri "${row.nama_santri}" tidak ditemukan.`);
-      return;
-    }
+  withScriptLock_(function () {
+    absensiRows.forEach((row, idx) => {
+      const santriId = santriByName[String(row.nama_santri).toLowerCase()];
+      if (!santriId) {
+        errorCount++;
+        errors.push(`Baris ${idx + 1}: Santri "${row.nama_santri}" tidak ditemukan.`);
+        return;
+      }
 
-    // Check duplicate (unique constraint santri_id + tanggal)
-    const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI).find(
-      a => a.santri_id == santriId && a.tanggal === row.tanggal
-    );
-    if (existing) {
-      // Skip atau update? Saat ini skip (comment out untuk update)
-      errorCount++;
-      errors.push(`Baris ${idx + 1}: Absensi ${row.nama_santri} pada ${row.tanggal} sudah ada.`);
-      return;
-    }
+      // Check duplicate (unique constraint santri_id + tanggal)
+      const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI).find(
+        a => a.santri_id == santriId && a.tanggal === row.tanggal
+      );
+      if (existing) {
+        // Skip atau update? Saat ini skip (comment out untuk update)
+        errorCount++;
+        errors.push(`Baris ${idx + 1}: Absensi ${row.nama_santri} pada ${row.tanggal} sudah ada.`);
+        return;
+      }
 
-    const id = generateId(SHEET_NAMES.ABSENSI);
-    appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, row.tanggal, row.status, user.id]);
-    successCount++;
+      if (onFirestore) {
+        const id = firestoreGenerateIdInPath_(path);
+        firestoreCreateDoc_(path, String(id), {
+          id: id,
+          santri_id: santriId,
+          tanggal: row.tanggal,
+          status: row.status,
+          dicatat_oleh: user.id,
+          kelompok_id: String(kelompokId),
+        });
+      } else {
+        const id = generateId(SHEET_NAMES.ABSENSI);
+        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, row.tanggal, row.status, user.id]);
+      }
+      successCount++;
+    });
   });
 
   logAudit('absensi', 'bulk_import', 'create', user.id, `Bulk: ${successCount} success, ${errorCount} errors`);

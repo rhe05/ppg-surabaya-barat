@@ -78,6 +78,10 @@ function doGet(e) {
       guru: { nested: true, perKelompok: true },
       jadwal_kbm: { nested: true, perKelompok: true },
       jadwal_kategori_hari: { nested: true, perKelompok: true },
+      // absensi: tidak punya kolom kelompok_id sendiri (join ke santri_id),
+      // jadi WAJIB selalu perKelompok — dipakai migrateAbsensiKelompokToFirestore_
+      // (fungsi terpisah, bukan migrateKelompokTableToFirestore_ generik).
+      absensi: { nested: true, perKelompok: true, customMigrateFn: true },
     };
     const table = e.parameter.table;
     const kelompokId = e.parameter.kelompok;
@@ -89,9 +93,14 @@ function doGet(e) {
     } else {
       const dryRun = e.parameter.mode !== 'copy';
       try {
-        const report = kelompokId
-          ? migrateKelompokTableToFirestore_(table, kelompokId, dryRun)
-          : migrateNestedTableToFirestore_(table, dryRun);
+        let report;
+        if (allowedTables[table].customMigrateFn) {
+          report = migrateAbsensiKelompokToFirestore_(kelompokId, dryRun);
+        } else {
+          report = kelompokId
+            ? migrateKelompokTableToFirestore_(table, kelompokId, dryRun)
+            : migrateNestedTableToFirestore_(table, dryRun);
+        }
         result = { success: true, dryRun: dryRun, report: report };
       } catch (err) {
         result = { success: false, error: err.message };
@@ -114,6 +123,7 @@ function doGet(e) {
       santri: testSantriFirestorePilot_,
       guru: testGuruFirestorePilot_,
       jadwal_kbm: testJadwalKBMFirestorePilot_,
+      absensi: testAbsensiFirestorePilot_,
     };
     let result;
     if (!pilotFns[table]) {

@@ -68,6 +68,7 @@ const FIRESTORE_KELOMPOK_TABLES_ = {
   guru: ['1'], // Kelp Petemon
   jadwal_kbm: ['1'], // Kelp Petemon — data lama sudah disalin (7 sesi, 0 error)
   jadwal_kategori_hari: ['1'], // Kelp Petemon — data lama sudah disalin (4 baris, 0 error)
+  absensi: [], // Kelp Petemon — MASIH KOSONG, tunggu data disalin (lihat migrateAbsensiKelompokToFirestore_)
 };
 
 function isKelompokTableOnFirestore_(tableName, kelompokId) {
@@ -127,8 +128,19 @@ function readSheetAsObjects(sheetName) {
 
   const kelompokFirestoreList = FIRESTORE_KELOMPOK_TABLES_[sheetName];
   if (kelompokFirestoreList && kelompokFirestoreList.length > 0) {
-    const sheetRows = readSheetRowsRaw_(sheetName)
-      .filter(row => kelompokFirestoreList.indexOf(String(row.kelompok_id)) === -1);
+    let sheetRows = readSheetRowsRaw_(sheetName);
+    if (sheetName === SHEET_NAMES.ABSENSI) {
+      // absensi TIDAK punya kolom kelompok_id sendiri — kelompok ditentukan
+      // lewat join ke santri_id, jadi filter exclude-nya harus lewat peta ini,
+      // bukan row.kelompok_id langsung (selalu undefined utk tabel ini).
+      const santriKelompokMap_ = {};
+      readSheetAsObjects(SHEET_NAMES.SANTRI).forEach(function (s) {
+        santriKelompokMap_[s.id] = String(s.kelompok_id);
+      });
+      sheetRows = sheetRows.filter(row => kelompokFirestoreList.indexOf(santriKelompokMap_[row.santri_id]) === -1);
+    } else {
+      sheetRows = sheetRows.filter(row => kelompokFirestoreList.indexOf(String(row.kelompok_id)) === -1);
+    }
     let firestoreRows = [];
     kelompokFirestoreList.forEach(function (kelompokId) {
       firestoreRows = firestoreRows.concat(firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName));

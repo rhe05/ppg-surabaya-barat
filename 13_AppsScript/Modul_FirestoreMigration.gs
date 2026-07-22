@@ -70,6 +70,45 @@ function migrateKelompokTableToFirestore_(sheetName, kelompokId, dryRun) {
 }
 
 /**
+ * Salin baris ABSENSI 1 kelompok ke Firestore /kelompok/{kelompokId}/absensi.
+ * Fungsi TERPISAH dari migrateKelompokTableToFirestore_() di atas karena
+ * absensi TIDAK punya kolom kelompok_id sendiri — kelompok ditentukan lewat
+ * join ke santri_id (lihat komentar FIRESTORE_KELOMPOK_TABLES_ di
+ * Modul_Utilities.gs). Dokumen hasil salin DIDENORMALISASI: field kelompok_id
+ * ditambahkan supaya readSheetAsObjects() bisa exclude baris Sheet yg sudah
+ * pindah tanpa perlu join ulang tiap baca. AMAN DIJALANKAN BERULANG.
+ * @param {string} kelompokId
+ * @param {boolean} dryRun
+ */
+function migrateAbsensiKelompokToFirestore_(kelompokId, dryRun) {
+  const santriIds = readSheetAsObjects(SHEET_NAMES.SANTRI)
+    .filter(function (s) { return String(s.kelompok_id) === String(kelompokId); })
+    .map(function (s) { return String(s.id); });
+  const rows = readSheetAsObjects(SHEET_NAMES.ABSENSI)
+    .filter(function (r) { return santriIds.indexOf(String(r.santri_id)) !== -1; });
+  const path = 'kelompok/' + kelompokId + '/absensi';
+  const report = { sheetName: 'absensi', kelompokId: kelompokId, totalDiSheet: rows.length, dibuatBaru: 0, sudahAda: 0, error: [] };
+
+  rows.forEach(function (row) {
+    const docId = String(row.id);
+    if (dryRun) {
+      const existing = firestoreGetDoc_(path, docId);
+      if (existing) report.sudahAda++; else report.dibuatBaru++;
+      return;
+    }
+    try {
+      const fields = Object.assign({}, row, { kelompok_id: String(kelompokId) });
+      const result = firestoreCreateDoc_(path, docId, fields);
+      if (result.created) report.dibuatBaru++; else report.sudahAda++;
+    } catch (e) {
+      report.error.push({ id: docId, pesan: e.message });
+    }
+  });
+
+  return report;
+}
+
+/**
  * Salin semua baris dari Sheet ke Firestore struktur BERSARANG
  * /kelompok/{kelompokId}/{sheetName}/{id} — dikelompokkan otomatis pakai
  * field kelompok_id tiap baris. AMAN DIJALANKAN BERULANG (sama spt di atas).
@@ -471,5 +510,85 @@ function testJadwalKBMFirestorePilot_() {
     if (testId) {
       try { serverDeleteJadwalKBM(token, testId); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
     }
+  }
+}
+
+/**
+ * Tes end-to-end pilot ABSENSI — lewat serverSaveAbsensiDaily (bukan
+ * create/update/delete terpisah, karena absensi memang didesain "hapus lalu
+ * tulis ulang" per tanggal). Pakai tanggal jauh di masa depan (tidak mungkin
+ * ada data asli) supaya aman dijalankan tanpa risiko menimpa absensi
+ * sungguhan punya kelompok lain/hari lain.
+ */
+function testAbsensiFirestorePilot_() {
+  const dev = serverCheckDevMode();
+  if (!dev || !dev.token) throw new Error('Gagal ambil sesi dev-mode.');
+  const token = dev.token;
+  const kelompokId = '1'; // Kelp Petemon
+  const testTanggal = '2099-12-31'; // tanggal percobaan, tidak mungkin ada data asli
+  const steps = [];
+
+  function step(name, fn) {
+    const result = fn();
+    steps.push({ langkah: name, ok: true, detail: result });
+    return result;
+  }
+
+  try {
+    const santriId = step('cari 1 santri Kelp Petemon utk percobaan', function () {
+      const list = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return String(s.kelompok_id) === kelompokId; });
+      if (list.length === 0) throw new Error('Tidak ada santri di Kelp Petemon utk dites.');
+      return list[0].id;
+    });
+
+    step('pastikan tanggal percobaan masih kosong (summary sebelum)', function () {
+      const r = serverGetAbsensiSummary(token, kelompokId, testTanggal);
+      if (!r.success) throw new Error('serverGetAbsensiSummary gagal: ' + r.error);
+      if (r.data.alpa !== 0 || r.data.hadir !== 0 || r.data.izin !== 0) {
+        throw new Error('Tanggal percobaan ' + testTanggal + ' TIDAK kosong (ada data lama): ' + JSON.stringify(r.data));
+      }
+      return r.data;
+    });
+
+    step('simpan absensi percobaan (lewat serverSaveAbsensiDaily, status alpa)', function () {
+      const r = serverSaveAbsensiDaily(token, kelompokId, testTanggal, [{ santri_id: santriId, status: 'alpa' }]);
+      if (!r.success) throw new Error('serverSaveAbsensiDaily gagal: ' + r.error);
+      return r;
+    });
+
+    step('verifikasi status tersimpan benar (lewat serverGetAbsensiForm)', function () {
+      const r = serverGetAbsensiForm(token, kelompokId, testTanggal);
+      const found = r.data.find(function (s) { return String(s.santri_id) === String(santriId); });
+      if (!found) throw new Error('Santri percobaan tidak ditemukan di form setelah simpan.');
+      if (found.status !== 'alpa') throw new Error('Status tidak cocok setelah simpan (dapat: ' + found.status + ').');
+      return { status: found.status };
+    });
+
+    step('verifikasi summary ikut menghitung (alpa=1)', function () {
+      const r = serverGetAbsensiSummary(token, kelompokId, testTanggal);
+      if (!r.success) throw new Error('serverGetAbsensiSummary gagal: ' + r.error);
+      if (r.data.alpa !== 1) throw new Error('Summary alpa tidak sesuai (dapat: ' + r.data.alpa + ', harus 1).');
+      return r.data;
+    });
+
+    step('bersih-bersih (simpan ulang tanggal percobaan dgn list kosong)', function () {
+      const r = serverSaveAbsensiDaily(token, kelompokId, testTanggal, []);
+      if (!r.success) throw new Error('Gagal bersih-bersih: ' + r.error);
+      return { cleaned: true };
+    });
+
+    step('verifikasi bersih total (tidak ada sisa entri utk tanggal percobaan)', function () {
+      const r = serverGetAbsensiSummary(token, kelompokId, testTanggal);
+      if (r.data.alpa !== 0 || r.data.hadir !== 0 || r.data.izin !== 0) {
+        throw new Error('Masih ada sisa entri setelah bersih-bersih: ' + JSON.stringify(r.data));
+      }
+      return { bersih: true };
+    });
+
+    return { success: true, langkah: steps };
+  } catch (e) {
+    // Bersih-bersih darurat kalau gagal di tengah — pastikan tidak ada sampah tersisa.
+    try { serverSaveAbsensiDaily(token, kelompokId, testTanggal, []); } catch (cleanupErr) { /* sudah dilaporkan lewat error di atas */ }
+    return { success: false, langkah: steps, error: e.message };
   }
 }
