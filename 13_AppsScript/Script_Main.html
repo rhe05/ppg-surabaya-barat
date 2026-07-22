@@ -2391,6 +2391,24 @@
       .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal });
   };
 
+  // Submenu section Dashboard Kelompok (Kelp Petemon dkk): Dashboard/Data Master/
+  // Operasional/Kurikulum/Monitoring/Laporan. Menutup modal aktif dulu supaya
+  // tidak ada modal "hilang" secara diam-diam kalau panel pemiliknya disembunyikan.
+  window.switchKelpSectionTab_ = function (btn, sectionName) {
+    document.querySelectorAll('.modal-overlay.active').forEach(function (m) {
+      m.classList.remove('active');
+    });
+    document.querySelectorAll('.kelp-section-tab').forEach(function (b) {
+      b.classList.remove('active');
+    });
+    btn.classList.add('active');
+    document.querySelectorAll('.kelp-section-panel').forEach(function (p) {
+      p.classList.remove('active');
+    });
+    const panel = document.getElementById('kelpPanel' + sectionName);
+    if (panel) panel.classList.add('active');
+  };
+
   window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone, forceFresh) {
     document.getElementById('guruDashKelompokBadge').textContent = kelompokName;
 
@@ -2428,6 +2446,9 @@
       if (screen) screen.classList.remove('active');
     });
     document.getElementById('screenGuruDashboard').classList.add('active');
+
+    const firstTab = document.querySelector('#kelpSectionTabs .kelp-section-tab');
+    if (firstTab) window.switchKelpSectionTab_(firstTab, 'Dashboard');
 
     window.loadKelompokDashboard(kelompokId, kelompokName);
   };

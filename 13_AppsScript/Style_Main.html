@@ -1405,6 +1405,52 @@
       display: block;
     }
 
+    /* Submenu section Dashboard Kelompok (Kelp Petemon dkk): Dashboard/Data
+       Master/Operasional/Kurikulum/Monitoring/Laporan — dipakai window.switchKelpSectionTab_ */
+    .kelp-section-tabs-strip {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      gap: 8px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .kelp-section-tab {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--panel-2);
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .kelp-section-tab:hover {
+      background: var(--border);
+      color: var(--text);
+    }
+
+    .kelp-section-tab.active {
+      background: rgba(217, 119, 6, 0.12);
+      border-color: var(--brass);
+      color: var(--brass);
+    }
+
+    .kelp-section-panel {
+      display: none;
+    }
+
+    .kelp-section-panel.active {
+      display: block;
+    }
+
     .kurikulum-prota-card {
       background: var(--panel);
       border: 1px solid var(--border);
