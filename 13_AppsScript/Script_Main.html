@@ -278,6 +278,32 @@
       .serverGetSidebarTree();
   };
 
+  // Fokus tampilan Data Master (Kelp Petemon): 'guru' menyembunyikan section
+  // Generus (card+tombol) supaya tabel Guru bisa tampil penuh 1 layar,
+  // 'generus' sebaliknya, null = tampil semua seperti semula (default).
+  window.setDataMasterFocus_ = function (focus) {
+    ['dataGuruTitle', 'dataGuruKpiRow'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = (focus === 'generus') ? 'none' : '';
+    });
+    ['dataGenerusTitle', 'dataGenerusKpiRow', 'generusJenjangRow'].forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = (focus === 'guru') ? 'none' : '';
+    });
+
+    if (focus === 'guru') {
+      const santriWrap = document.getElementById('santriDashTableWrapper');
+      const santriBtn = document.getElementById('santriTableToggleBtn');
+      if (santriWrap) santriWrap.style.display = 'none';
+      if (santriBtn) santriBtn.classList.remove('active-state');
+    } else if (focus === 'generus') {
+      const guruWrap = document.getElementById('guruDashTableWrapper');
+      const guruBtn = document.getElementById('guruTableToggleBtn');
+      if (guruWrap) guruWrap.style.display = 'none';
+      if (guruBtn) guruBtn.classList.remove('active-state');
+    }
+  };
+
   window.toggleGenerusDashTable_ = function () {
     const wrapper = document.getElementById('santriDashTableWrapper');
     const btn = document.getElementById('santriTableToggleBtn');
@@ -285,6 +311,7 @@
 
     wrapper.style.display = isOpening ? 'block' : 'none';
     btn.classList.toggle('active-state', isOpening);
+    window.setDataMasterFocus_(isOpening ? 'generus' : null);
 
     if (isOpening) {
       document.getElementById('santriDashScopeSelect').value = 'all';
@@ -1139,6 +1166,7 @@
 
     wrapper.style.display = isOpening ? 'block' : 'none';
     btn.classList.toggle('active-state', isOpening);
+    window.setDataMasterFocus_(isOpening ? 'guru' : null);
 
     if (isOpening) {
       document.getElementById('guruDashScopeSelect').value = 'all';
