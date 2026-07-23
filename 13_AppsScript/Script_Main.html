@@ -1291,6 +1291,57 @@
     window.fillDatalist_('dlKodePos', both.map(x => x.kode_pos));
   };
 
+  /* Isi otomatis field2 form Guru/Generus kalau nama yang diketik/dipilih dari
+     datalist "dlNama" PERSIS sama dengan orang yang sudah ada di sisi LAIN
+     (mis. guru yang juga perlu didata sbg generus, atau sebaliknya) — supaya
+     admin tidak perlu ketik ulang data yang sudah ada. Cuma jalan di mode
+     TAMBAH (bukan edit), supaya tidak menimpa data yang sedang diedit. */
+  window.autofillNamaMatch_ = function (namaValue, formType) {
+    const nama = String(namaValue || '').trim().toLowerCase();
+    if (!nama) return;
+
+    if (formType === 'generus') {
+      if (window.currentEditGenerusId) return;
+      const g = (window.lastGuruListData || []).find(x => String(x.nama || '').trim().toLowerCase() === nama);
+      if (!g) return;
+      document.getElementById('generusKelpTempatLahir').value = g.tempat_lahir || '';
+      document.getElementById('generusKelpTglLahir').value = g.tanggal_lahir || '';
+      document.getElementById('generusKelpTglLahirDisplay').value = window.formatTanggalDisplay_(g.tanggal_lahir);
+      document.getElementById('generusKelpGender').value = g.jenis_kelamin || '';
+      document.getElementById('generusKelpPendidikan').value = g.pendidikan || '';
+      window.toggleGenerusKlsSekolah_();
+      document.getElementById('generusKelpAlamat').value = g.alamat || '';
+      document.getElementById('generusKelpRt').value = g.rt || '';
+      document.getElementById('generusKelpRw').value = g.rw || '';
+      document.getElementById('generusKelpKodePos').value = g.kode_pos || '';
+      document.getElementById('generusKelpKelurahan').value = g.kelurahan || '';
+      document.getElementById('generusKelpKabupaten').value = g.kabupaten_kota || '';
+      document.getElementById('generusKelpProvinsi').value = g.provinsi || '';
+      document.getElementById('generusKelpKecamatan').value = g.kecamatan || '';
+      window.updateGenerusKelpUmur();
+      window.showToast_('Data diisi otomatis dari data Guru "' + g.nama + '".');
+    } else if (formType === 'guru') {
+      if (window.currentEditGuruId) return;
+      const s = (window.lastSantriListData || []).find(x => String(x.nama || '').trim().toLowerCase() === nama);
+      if (!s) return;
+      document.getElementById('guruKelpTempatLahir').value = s.tempat_lahir || '';
+      document.getElementById('guruKelpTglLahir').value = s.tanggal_lahir || '';
+      document.getElementById('guruKelpTglLahirDisplay').value = window.formatTanggalDisplay_(s.tanggal_lahir);
+      document.getElementById('guruKelpGender').value = s.gender || '';
+      document.getElementById('guruKelpPendidikan').value = s.pendidikan || '';
+      document.getElementById('guruKelpAlamat').value = s.alamat || '';
+      document.getElementById('guruKelpRt').value = s.rt || '';
+      document.getElementById('guruKelpRw').value = s.rw || '';
+      document.getElementById('guruKelpKodePos').value = s.kode_pos || '';
+      document.getElementById('guruKelpKelurahan').value = s.kelurahan || '';
+      document.getElementById('guruKelpKabupaten').value = s.kabupaten_kota || '';
+      document.getElementById('guruKelpProvinsi').value = s.provinsi || '';
+      document.getElementById('guruKelpKecamatan').value = s.kecamatan || '';
+      window.updateGuruKelpUmur();
+      window.showToast_('Data diisi otomatis dari data Generus "' + s.nama + '".');
+    }
+  };
+
   /* ═════ REFRESH — ambil ulang data layar yang sedang aktif ═════
      Peta layar -> fungsi pemuat datanya, dipakai window.hardRefresh_ agar user
      tetap berada di layar yang sama setelah refresh. */

@@ -575,7 +575,7 @@
 
               <div class="form-group">
                 <label class="form-label">Nama</label>
-                <input type="text" class="form-input" id="guruKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap">
+                <input type="text" class="form-input" id="guruKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap" oninput="window.autofillNamaMatch_(this.value, 'guru')">
               </div>
 
               <div class="guru-kelp-row-2">
@@ -966,7 +966,7 @@
 
               <div class="form-group">
                 <label class="form-label">Nama</label>
-                <input type="text" class="form-input" id="generusKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap">
+                <input type="text" class="form-input" id="generusKelpNama" list="dlNama" autocomplete="off" placeholder="Nama lengkap" oninput="window.autofillNamaMatch_(this.value, 'generus')">
               </div>
 
               <div class="guru-kelp-row-2">
