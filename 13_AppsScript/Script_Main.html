@@ -2407,6 +2407,79 @@
     });
     const panel = document.getElementById('kelpPanel' + sectionName);
     if (panel) panel.classList.add('active');
+
+    if (sectionName === 'Monitoring' && window.currentKelompokId) {
+      const bulanEl = document.getElementById('monitoringBulan');
+      const tahunEl = document.getElementById('monitoringTahun');
+      if (bulanEl && !bulanEl.dataset.inited) {
+        const now = new Date();
+        bulanEl.value = String(now.getMonth() + 1);
+        tahunEl.value = String(now.getFullYear());
+        bulanEl.dataset.inited = '1';
+      }
+      window.loadMonitoringGenerus_(window.currentKelompokId);
+    }
+  };
+
+  // Ambang batas & warna kategori kehadiran generus — HARUS sama persis dgn
+  // kategoriKehadiran_() di Modul_Monitoring.gs (satu-satunya sumber warna
+  // dikembalikan server via field `warna`, klien cuma memetakan ke class CSS).
+  window.loadMonitoringGenerus_ = function (kelompokId) {
+    const barsEl = document.getElementById('monitoringJenjangBars');
+    const rankEl = document.getElementById('monitoringKelasRanking');
+    if (!barsEl || !rankEl || !kelompokId) return;
+
+    barsEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>';
+    rankEl.innerHTML = '';
+
+    const tahun = document.getElementById('monitoringTahun').value;
+    const bulan = document.getElementById('monitoringBulan').value;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          barsEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">' + (result.error || 'Gagal memuat data.') + '</div>';
+          return;
+        }
+        window.renderMonitoringGenerus_(result.data);
+      })
+      .withFailureHandler(function () {
+        barsEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Gagal memuat data monitoring.</div>';
+      })
+      .serverGetMonitoringGenerus(window.currentToken, kelompokId, tahun, bulan);
+  };
+
+  window.renderMonitoringGenerus_ = function (jenjangList) {
+    const barsEl = document.getElementById('monitoringJenjangBars');
+    const rankEl = document.getElementById('monitoringKelasRanking');
+
+    barsEl.innerHTML = jenjangList.map(function (j) {
+      const pctWidth = j.avgPct === null ? 0 : j.avgPct;
+      const pctLabel = j.avgPct === null ? '—' : j.avgPct + '%';
+      return '<div class="monitoring-jenjang-card">'
+        + '<div class="monitoring-jenjang-header">'
+        + '<div><div class="monitoring-jenjang-title">' + j.label + '</div>'
+        + '<div class="monitoring-jenjang-meta">' + j.jumlahSantri + ' santri &middot; ' + j.jumlahKelas + ' kelas</div></div>'
+        + '<span class="monitoring-badge monitoring-badge-' + j.warna + '">' + pctLabel + ' &middot; ' + j.kategoriLabel + '</span>'
+        + '</div>'
+        + '<div class="monitoring-bar-track"><div class="monitoring-bar-fill monitoring-fill-' + j.warna + '" style="width: ' + pctWidth + '%;"></div></div>'
+        + '</div>';
+    }).join('');
+
+    rankEl.innerHTML = jenjangList.map(function (j) {
+      if (j.kelasList.length === 0) return '';
+      const rows = j.kelasList.map(function (k, idx) {
+        const pctLabel = k.adaData ? k.avgPct + '%' : '—';
+        return '<div class="monitoring-kelas-row">'
+          + '<div class="monitoring-kelas-rank">' + (idx + 1) + '</div>'
+          + '<div class="monitoring-kelas-nama">' + k.kelas + '</div>'
+          + '<div class="monitoring-kelas-jumlah">' + k.jumlahSantri + ' santri</div>'
+          + '<span class="monitoring-badge monitoring-badge-' + k.warna + '">' + pctLabel + '</span>'
+          + '</div>';
+      }).join('');
+      return '<div><div class="dash-section-title" style="font-size: 13px; margin-bottom: 10px;">Ranking Kelas — ' + j.label + '</div>'
+        + '<div class="monitoring-kelas-list">' + rows + '</div></div>';
+    }).join('');
   };
 
   window.loadKelompokDashboard = function (kelompokId, kelompokName, onDone, forceFresh) {
