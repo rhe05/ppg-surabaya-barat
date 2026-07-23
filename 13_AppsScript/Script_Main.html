@@ -1468,6 +1468,34 @@
     }
   };
 
+  /* Isi otomatis field Alamat & Orang Tua kalau "Nama Ayah" yang diketik
+     PERSIS sama dengan salah satu generus lain yang sudah ada (satu orang tua
+     bisa punya beberapa anak) — supaya admin tidak perlu ketik ulang alamat +
+     data ortu tiap anak. Cuma jalan di mode TAMBAH & saat field alamat masih
+     kosong, supaya tidak menimpa data yang sedang diedit/diketik. */
+  window.autofillOrtuMatch_ = function (namaAyahValue) {
+    if (window.currentEditGenerusId) return;
+    const nama = String(namaAyahValue || '').trim().toLowerCase();
+    if (!nama) return;
+    if (document.getElementById('generusKelpAlamat').value.trim()) return;
+
+    const s = (window.lastSantriListData || []).find(x => String(x.nama_ayah || '').trim().toLowerCase() === nama);
+    if (!s) return;
+
+    document.getElementById('generusKelpAlamat').value = s.alamat || '';
+    document.getElementById('generusKelpRt').value = s.rt || '';
+    document.getElementById('generusKelpRw').value = s.rw || '';
+    document.getElementById('generusKelpKodePos').value = s.kode_pos || '';
+    document.getElementById('generusKelpKelurahan').value = s.kelurahan || '';
+    document.getElementById('generusKelpKabupaten').value = s.kabupaten_kota || '';
+    document.getElementById('generusKelpProvinsi').value = s.provinsi || '';
+    document.getElementById('generusKelpKecamatan').value = s.kecamatan || '';
+    document.getElementById('generusKelpNamaIbu').value = s.nama_ibu || '';
+    document.getElementById('generusKelpNomorWaAyah').value = s.nomor_wa_ayah || '';
+    document.getElementById('generusKelpNomorWaIbu').value = s.nomor_wa_ibu || '';
+    window.showToast_('Data alamat & orang tua diisi otomatis dari data "' + s.nama + '".');
+  };
+
   /* ═════ REFRESH — ambil ulang data layar yang sedang aktif ═════
      Peta layar -> fungsi pemuat datanya, dipakai window.hardRefresh_ agar user
      tetap berada di layar yang sama setelah refresh. */
