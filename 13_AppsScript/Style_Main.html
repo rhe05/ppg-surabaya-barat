@@ -405,6 +405,41 @@
       color: var(--text-dim);
     }
 
+    /* Level-3 submenu sidebar (khusus Kelp Petemon, ERROR_LOG-free rollout
+       pilot): Dashboard/Data Master/Operasional/Kurikulum/Monitoring/Laporan
+       nempel di bawah baris kelompoknya, gaya sama dgn sidebar-tree/-tree-2
+       (accordion max-height) tapi versi bawa ikon + state aktif lebih cerah. */
+    .sidebar-tree-link-3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 20px 9px 68px;
+      color: var(--text-dim);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sidebar-tree-link-3:hover {
+      color: var(--text);
+      background: var(--panel-2);
+    }
+
+    .sidebar-tree-link-3.active {
+      color: #fff;
+      background: linear-gradient(135deg, #F59E0B 0%, var(--brass) 100%);
+      font-weight: 700;
+      box-shadow: 0 2px 8px -2px rgba(217, 119, 6, 0.5);
+    }
+
+    .sidebar-icon-3 {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+
     .app-sidebar.collapsed .sidebar-menu-text,
     .app-sidebar.collapsed .sidebar-caret {
       display: none;

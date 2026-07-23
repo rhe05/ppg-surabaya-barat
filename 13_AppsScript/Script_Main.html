@@ -152,6 +152,28 @@
     caret.classList.toggle('rotated', isOpen);
   };
 
+  // Submenu section (Dashboard/Data Master/Operasional/Kurikulum/Monitoring/
+  // Laporan) di bawah baris kelompok — SAAT INI khusus Kelp Petemon (id '1'),
+  // pilot rollout sama seperti pola Firestore per-kelompok yg sudah ada.
+  window.KELP_SIDEBAR_SECTIONS_ = [
+    { name: 'Dashboard', label: 'Dashboard', icon: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>' },
+    { name: 'DataMaster', label: 'Data Master', icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
+    { name: 'Operasional', label: 'Operasional', icon: '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>' },
+    { name: 'Kurikulum', label: 'Kurikulum', icon: '<path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/>' },
+    { name: 'Monitoring', label: 'Monitoring', icon: '<path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/>' },
+    { name: 'Laporan', label: 'Laporan', icon: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>' },
+  ];
+
+  window.toggleKelpSidebarSubmenu_ = function (event, kelompokId) {
+    event.preventDefault();
+    event.stopPropagation();
+    const submenu = document.getElementById('kelpSidebarSubmenu' + kelompokId);
+    const caret = document.getElementById('kelpSidebarCaret' + kelompokId);
+    if (!submenu || !caret) return;
+    const isOpen = submenu.classList.toggle('open');
+    caret.classList.toggle('rotated', isOpen);
+  };
+
   /**
    * Bangun tree Desa > Kelompok dari sheet (bukan hardcode).
    * Kelompok non-aktif tetap ditampilkan tapi disabled ("Segera hadir").
@@ -200,9 +222,22 @@
           desa.kelompok.forEach(function (kel) {
             const kLi = document.createElement('li');
             const kLink = document.createElement('a');
-            kLink.textContent = kel.nama;
+            kLink.dataset.kelompokId = kel.id;
+            const kLabel = document.createElement('span');
+            kLabel.textContent = kel.nama;
+            kLink.appendChild(kLabel);
+
+            const isPilotSubmenu = kel.aktif && String(kel.id) === '1';
+
             if (kel.aktif) {
               kLink.className = 'sidebar-tree-link-2';
+              if (isPilotSubmenu) {
+                const kCaret = document.createElement('span');
+                kCaret.className = 'sidebar-caret';
+                kCaret.id = 'kelpSidebarCaret' + kel.id;
+                kCaret.textContent = '▸';
+                kLink.appendChild(kCaret);
+              }
               kLink.addEventListener('click', function (ev) {
                 window.selectKelompok(ev, kel.id, kel.nama);
               });
@@ -211,6 +246,27 @@
               kLink.title = 'Segera hadir';
             }
             kLi.appendChild(kLink);
+
+            if (isPilotSubmenu) {
+              const sectionSub = document.createElement('ul');
+              sectionSub.className = 'sidebar-tree sidebar-tree-3';
+              sectionSub.id = 'kelpSidebarSubmenu' + kel.id;
+
+              window.KELP_SIDEBAR_SECTIONS_.forEach(function (sec) {
+                const sLi = document.createElement('li');
+                const sLink = document.createElement('a');
+                sLink.className = 'sidebar-tree-link-3';
+                sLink.innerHTML = '<svg class="sidebar-icon-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + sec.icon + '</svg><span>' + sec.label + '</span>';
+                sLink.addEventListener('click', function (ev) {
+                  window.selectKelpSidebarSection_(ev, kel.id, kel.nama, sec.name);
+                });
+                sLi.appendChild(sLink);
+                sectionSub.appendChild(sLi);
+              });
+
+              kLi.appendChild(sectionSub);
+            }
+
             sub.appendChild(kLi);
           });
 
@@ -2449,7 +2505,7 @@
     document.querySelectorAll('.modal-overlay.active').forEach(function (m) {
       m.classList.remove('active');
     });
-    document.querySelectorAll('.kelp-section-tab').forEach(function (b) {
+    document.querySelectorAll('.kelp-section-tab, .sidebar-tree-link-3').forEach(function (b) {
       b.classList.remove('active');
     });
     btn.classList.add('active');
@@ -2552,15 +2608,15 @@
     window.loadKelompokDashboardPengumuman_(kelompokId);
   };
 
-  window.selectKelompok = function (event, kelompokId, kelompokName) {
-    event.preventDefault();
-    event.stopPropagation();
-
+  // Inti aktivasi screen Dashboard Kelompok, TANPA event — dipakai baik oleh
+  // selectKelompok (klik baris kelompok) maupun selectKelpSidebarSection_
+  // (klik langsung salah satu section di submenu sidebar Kelp Petemon).
+  window.activateKelompokScreen_ = function (kelompokId, kelompokName, kelompokLinkEl) {
     window.currentKelompokId = kelompokId;
     window.currentKelompokName = kelompokName;
 
     document.querySelectorAll('.sidebar-tree-link-2').forEach(link => link.classList.remove('active'));
-    event.target.closest('.sidebar-tree-link-2').classList.add('active');
+    if (kelompokLinkEl) kelompokLinkEl.classList.add('active');
 
     document.querySelectorAll('.sidebar-menu-link').forEach(link => link.classList.remove('active'));
 
@@ -2571,10 +2627,50 @@
     });
     document.getElementById('screenGuruDashboard').classList.add('active');
 
-    const firstTab = document.querySelector('#kelpSectionTabs .kelp-section-tab');
-    if (firstTab) window.switchKelpSectionTab_(firstTab, 'Dashboard');
-
     window.loadKelompokDashboard(kelompokId, kelompokName);
+  };
+
+  window.selectKelompok = function (event, kelompokId, kelompokName) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const linkEl = event.target.closest('.sidebar-tree-link-2');
+    window.activateKelompokScreen_(kelompokId, kelompokName, linkEl);
+
+    // Kelp Petemon (id '1'): tombol section pindah ke submenu sidebar (buka
+    // otomatis), strip tab di atas konten disembunyikan krn sudah tidak
+    // dipakai. Kelompok lain: strip tab di atas konten tetap seperti semula.
+    const isPilotSubmenu = String(kelompokId) === '1';
+    const topStrip = document.getElementById('kelpSectionTabs');
+    if (topStrip) topStrip.style.display = isPilotSubmenu ? 'none' : '';
+
+    if (isPilotSubmenu) {
+      const submenu = document.getElementById('kelpSidebarSubmenu' + kelompokId);
+      const caret = document.getElementById('kelpSidebarCaret' + kelompokId);
+      if (submenu) submenu.classList.add('open');
+      if (caret) caret.classList.add('rotated');
+      const firstSideTab = document.querySelector('#kelpSidebarSubmenu' + kelompokId + ' .sidebar-tree-link-3');
+      if (firstSideTab) window.switchKelpSectionTab_(firstSideTab, 'Dashboard');
+    } else {
+      const firstTab = document.querySelector('#kelpSectionTabs .kelp-section-tab');
+      if (firstTab) window.switchKelpSectionTab_(firstTab, 'Dashboard');
+    }
+  };
+
+  // Klik salah satu section langsung dari submenu sidebar (mis. "Kurikulum")
+  // tanpa harus lewat "Dashboard" dulu — dipakai KHUSUS Kelp Petemon.
+  window.selectKelpSidebarSection_ = function (event, kelompokId, kelompokName, sectionName) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (String(window.currentKelompokId) !== String(kelompokId)) {
+      const linkEl = document.querySelector('.sidebar-tree-link-2[data-kelompok-id="' + kelompokId + '"]');
+      window.activateKelompokScreen_(kelompokId, kelompokName, linkEl);
+      const topStrip = document.getElementById('kelpSectionTabs');
+      if (topStrip) topStrip.style.display = 'none';
+    }
+
+    window.switchKelpSectionTab_(event.currentTarget, sectionName);
   };
 
   window.switchScreen = function (screenName) {
