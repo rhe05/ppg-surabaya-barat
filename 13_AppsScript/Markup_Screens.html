@@ -1011,7 +1011,7 @@
 
                 <div class="form-group">
                   <label class="form-label">Jenjang</label>
-                  <select class="form-select" id="generusKelpJenjang">
+                  <select class="form-select" id="generusKelpJenjang" onchange="window.toggleGenerusNomorWa_()">
                     <option value="">-- Pilih Jenjang --</option>
                     <option value="AUD">PAUD-TK</option>
                     <option value="Cabe Rawit">Cabe Rawit</option>
@@ -1020,6 +1020,11 @@
                     <option value="Remaja">Remaja Pra Nikah</option>
                   </select>
                 </div>
+              </div>
+
+              <div class="form-group" id="generusKelpNomorWaWrap" style="display: none;">
+                <label class="form-label">Nomor WA (Generus)</label>
+                <input type="tel" class="form-input" id="generusKelpNomorWa" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
               </div>
             </div>
 

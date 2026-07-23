@@ -356,9 +356,11 @@
     document.getElementById('generusKelpNamaIbu').value = '';
     document.getElementById('generusKelpNomorWaAyah').value = '';
     document.getElementById('generusKelpNomorWaIbu').value = '';
+    document.getElementById('generusKelpNomorWa').value = '';
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
     document.getElementById('generusKelpGender').value = '';
     window.toggleGenerusKlsSekolah_();
+    window.toggleGenerusNomorWa_();
     window.populateAutocomplete_();
     document.getElementById('modalGenerusKelp').classList.add('active');
   };
@@ -373,6 +375,16 @@
     const wrap = document.getElementById('generusKelpKlsSekolahWrap');
     wrap.style.display = pendidikan === 'SD' ? 'block' : 'none';
     if (pendidikan !== 'SD') document.getElementById('generusKelpKlsSekolah').value = '';
+  };
+
+  // Nomor WA milik generus sendiri — cuma relevan utk jenjang yg biasanya
+  // sudah pegang HP sendiri (Pra Remaja/Remaja SMA/Remaja Pra Nikah).
+  window.toggleGenerusNomorWa_ = function () {
+    const jenjang = document.getElementById('generusKelpJenjang').value;
+    const wrap = document.getElementById('generusKelpNomorWaWrap');
+    const tampilkan = ['Pra Remaja', 'Remaja SMA', 'Remaja'].indexOf(jenjang) !== -1;
+    wrap.style.display = tampilkan ? 'block' : 'none';
+    if (!tampilkan) document.getElementById('generusKelpNomorWa').value = '';
   };
 
   window.updateGenerusKelpUmur = function () {
@@ -420,6 +432,7 @@
       nama_ibu: document.getElementById('generusKelpNamaIbu').value.trim(),
       nomor_wa_ayah: document.getElementById('generusKelpNomorWaAyah').value.trim(),
       nomor_wa_ibu: document.getElementById('generusKelpNomorWaIbu').value.trim(),
+      nomor_wa: document.getElementById('generusKelpNomorWa').value.trim(),
     };
 
     if (!data.nama.trim() || !data.nis.trim() || !data.gender || !data.tanggal_lahir || !data.jenjang_saat_ini) {
@@ -523,6 +536,8 @@
     document.getElementById('generusKelpNamaIbu').value = s.nama_ibu || '';
     document.getElementById('generusKelpNomorWaAyah').value = s.nomor_wa_ayah || '';
     document.getElementById('generusKelpNomorWaIbu').value = s.nomor_wa_ibu || '';
+    document.getElementById('generusKelpNomorWa').value = s.nomor_wa || '';
+    window.toggleGenerusNomorWa_();
     document.getElementById('modalGenerusKelpTitle').textContent = 'Edit Generus';
     window.updateGenerusKelpUmur();
     window.populateAutocomplete_();

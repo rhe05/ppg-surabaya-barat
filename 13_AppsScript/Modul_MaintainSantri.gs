@@ -98,6 +98,7 @@ function serverAddSantri(token, kelompokId, santriData) {
         nomor_wa_ayah: santriData.nomor_wa_ayah || '',
         nomor_wa_ibu: santriData.nomor_wa_ibu || '',
         kecamatan: santriData.kecamatan || '',
+        nomor_wa: santriData.nomor_wa || '',
       };
 
       let id;
@@ -133,6 +134,7 @@ function serverAddSantri(token, kelompokId, santriData) {
           fields.nomor_wa_ayah,
           fields.nomor_wa_ibu,
           fields.kecamatan,
+          fields.nomor_wa,
         ]);
       }
 
@@ -187,6 +189,7 @@ function serverUpdateSantri(token, kelompokId, santriId, santriData) {
     kecamatan: santriData.kecamatan !== undefined ? santriData.kecamatan : santri.kecamatan,
     nomor_wa_ayah: santriData.nomor_wa_ayah !== undefined ? santriData.nomor_wa_ayah : santri.nomor_wa_ayah,
     nomor_wa_ibu: santriData.nomor_wa_ibu !== undefined ? santriData.nomor_wa_ibu : santri.nomor_wa_ibu,
+    nomor_wa: santriData.nomor_wa !== undefined ? santriData.nomor_wa : santri.nomor_wa,
   };
 
   try {
