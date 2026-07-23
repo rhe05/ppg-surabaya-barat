@@ -343,12 +343,24 @@
 
   window.currentEditGenerusId = null;
 
+  // NIS berurutan otomatis: nomor tertinggi yg sudah dipakai di kelompok ini + 1
+  // (contoh acuan: Kayla = NIS 1, generus berikutnya lanjut 2, 3, dst).
+  window.nextGenerusNis_ = function () {
+    const list = window.lastSantriListData || [];
+    let max = 0;
+    list.forEach(function (s) {
+      const n = parseInt(String(s.nis || '').trim(), 10);
+      if (!isNaN(n) && n > max) max = n;
+    });
+    return String(max + 1);
+  };
+
   window.openModalGenerusKelp = function () {
     window.currentEditGenerusId = null;
     document.getElementById('modalGenerusKelpTitle').textContent = 'Tambah Generus';
     document.getElementById('generusKelpNama').value = '';
     document.getElementById('generusKelpNamaPanggilan').value = '';
-    document.getElementById('generusKelpNis').value = '';
+    document.getElementById('generusKelpNis').value = window.nextGenerusNis_();
     document.getElementById('generusKelpTempatLahir').value = '';
     document.getElementById('generusKelpTglLahir').value = '';
     document.getElementById('generusKelpTglLahirDisplay').value = '';
@@ -538,7 +550,7 @@
     window.currentEditGenerusId = id;
     document.getElementById('generusKelpNama').value = s.nama || '';
     document.getElementById('generusKelpNamaPanggilan').value = s.nama_panggilan || '';
-    document.getElementById('generusKelpNis').value = s.nis || '';
+    document.getElementById('generusKelpNis').value = s.nis || window.nextGenerusNis_();
     document.getElementById('generusKelpGender').value = s.gender || '';
     document.getElementById('generusKelpTempatLahir').value = s.tempat_lahir || '';
     document.getElementById('generusKelpTglLahir').value = s.tanggal_lahir || '';
