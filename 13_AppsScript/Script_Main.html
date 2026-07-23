@@ -282,11 +282,18 @@
   // Generus (card+tombol) supaya tabel Guru bisa tampil penuh 1 layar,
   // 'generus' sebaliknya, null = tampil semua seperti semula (default).
   window.setDataMasterFocus_ = function (focus) {
-    ['dataGuruTitle', 'dataGuruKpiRow'].forEach(function (id) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = (focus === 'generus') ? 'none' : '';
-    });
-    ['dataGenerusTitle', 'dataGenerusKpiRow', 'generusJenjangRow'].forEach(function (id) {
+    // ⚠️ dataGuruTitle/dataGenerusTitle punya inline style "display: flex"
+    // bawaan (judul+tombol sejajar) — WAJIB dikembalikan ke 'flex' persis,
+    // BUKAN '' (string kosong menghapus flex-nya permanen, jadi judul &
+    // tombol malah tersusun ke bawah alih-alih sejajar seperti semula).
+    const guruTitle = document.getElementById('dataGuruTitle');
+    if (guruTitle) guruTitle.style.display = (focus === 'generus') ? 'none' : 'flex';
+    const guruKpi = document.getElementById('dataGuruKpiRow');
+    if (guruKpi) guruKpi.style.display = (focus === 'generus') ? 'none' : '';
+
+    const generusTitle = document.getElementById('dataGenerusTitle');
+    if (generusTitle) generusTitle.style.display = (focus === 'guru') ? 'none' : 'flex';
+    ['dataGenerusKpiRow', 'generusJenjangRow'].forEach(function (id) {
       const el = document.getElementById(id);
       if (el) el.style.display = (focus === 'guru') ? 'none' : '';
     });
