@@ -309,6 +309,11 @@
       if (guruWrap) guruWrap.style.display = 'none';
       if (guruBtn) guruBtn.classList.remove('active-state');
     }
+
+    // Saat salah satu tabel difokuskan (bisa sampai 10 baris), panel butuh
+    // scroll lagi — lihat override overflow-y di Style_Main.html.
+    const panel = document.getElementById('kelpPanelDataMaster');
+    if (panel) panel.classList.toggle('focused', focus !== null);
   };
 
   window.toggleGenerusDashTable_ = function () {

@@ -1503,6 +1503,14 @@
       overflow-y: hidden;
     }
 
+    /* Tapi begitu Daftar Guru/Daftar Generus diklik (fokus salah satu tabel,
+       lihat window.setDataMasterFocus_ — kelas "focused" ditambahkan ke
+       #kelpPanelDataMaster), tabelnya bisa sampai 10 baris jadi butuh scroll
+       lagi — aturan ini override overflow:hidden di atas KHUSUS saat fokus. */
+    #screenGuruDashboard:has(#kelpPanelDataMaster.active.focused) .dash-container {
+      overflow-y: auto;
+    }
+
     #kelpPanelDataMaster .dash-section-title {
       margin-bottom: 12px;
     }
@@ -2015,11 +2023,11 @@
 
     /* ═════ SCROLL HORIZONTAL + FREEZE KOLOM (No/Nama kiri, Aksi kanan) ═════
        Kolom beku pakai position:sticky relatif ke .gk-table-scroll. */
-    /* Maksimal ~5 baris terlihat; sisanya scroll vertikal. Header tabel tetap
+    /* Maksimal ~10 baris terlihat; sisanya scroll vertikal. Header tabel tetap
        menempel di atas (sticky) saat digulir ke bawah. */
     .gk-table-scroll {
       overflow: auto;
-      max-height: 330px;
+      max-height: 620px;
       -webkit-overflow-scrolling: touch;
     }
 
