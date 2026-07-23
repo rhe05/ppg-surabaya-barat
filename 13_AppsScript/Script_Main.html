@@ -1730,6 +1730,11 @@
     document.getElementById('kdSantriLBar').style.width = lPct + '%';
     document.getElementById('kdSantriPBar').style.width = pPct + '%';
 
+    const siapNikah = santri.filter(s => s.status_nikah === 'Siap Nikah');
+    document.getElementById('kdSiapNikah').textContent = siapNikah.length;
+    document.getElementById('kdSiapNikah_L').textContent = siapNikah.filter(s => String(s.gender).toUpperCase() === 'L').length;
+    document.getElementById('kdSiapNikah_P').textContent = siapNikah.filter(s => String(s.gender).toUpperCase() === 'P').length;
+
     if (document.getElementById('santriDashTableWrapper').style.display !== 'none') {
       window.renderSantriDashTable_(santri, window.santriTableScope || 'all', window.santriDashSearchQuery || '');
     }
