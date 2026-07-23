@@ -24,6 +24,30 @@ function isSantriOnFirestore_(kelompokId) {
 }
 
 /**
+ * NIS otomatis berurutan format {YY}{urut 4 digit}, YY = 2 digit tahun input
+ * (contoh acuan: Kayla = 260001, generus berikutnya di tahun sama = 260002, dst).
+ * Dihitung PPG-wide (readSheetAsObjects gabung Sheets+Firestore) bukan per
+ * Kelompok, karena urutannya global per tahun.
+ */
+function serverGetNextGenerusNis(token) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const prefix = String(new Date().getFullYear()).slice(-2);
+  let maxUrut = 0;
+  readSheetAsObjects(SHEET_NAMES.SANTRI).forEach(function (s) {
+    const nis = String(s.nis || '').trim();
+    if (nis.length === 6 && nis.indexOf(prefix) === 0) {
+      const urut = parseInt(nis.slice(2), 10);
+      if (!isNaN(urut) && urut > maxUrut) maxUrut = urut;
+    }
+  });
+
+  const next = prefix + String(maxUrut + 1).padStart(4, '0');
+  return { success: true, nis: next };
+}
+
+/**
  * GET santri per Kelompok (dengan search/filter).
  * Dipanggil saat load screen Data Santri.
  */

@@ -343,16 +343,16 @@
 
   window.currentEditGenerusId = null;
 
-  // NIS berurutan otomatis: nomor tertinggi yg sudah dipakai di kelompok ini + 1
-  // (contoh acuan: Kayla = NIS 1, generus berikutnya lanjut 2, 3, dst).
-  window.nextGenerusNis_ = function () {
-    const list = window.lastSantriListData || [];
-    let max = 0;
-    list.forEach(function (s) {
-      const n = parseInt(String(s.nis || '').trim(), 10);
-      if (!isNaN(n) && n > max) max = n;
-    });
-    return String(max + 1);
+  // NIS berurutan otomatis format {YY}{urut 4 digit} (contoh acuan: Kayla =
+  // 260001, generus berikutnya tahun sama = 260002, dst) — dihitung server
+  // (PPG-wide, bukan cuma kelompok yg sedang dibuka) via serverGetNextGenerusNis.
+  window.fillNextGenerusNis_ = function (fieldId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) document.getElementById(fieldId).value = result.nis;
+      })
+      .withFailureHandler(function () {})
+      .serverGetNextGenerusNis(window.currentToken);
   };
 
   window.openModalGenerusKelp = function () {
@@ -360,7 +360,8 @@
     document.getElementById('modalGenerusKelpTitle').textContent = 'Tambah Generus';
     document.getElementById('generusKelpNama').value = '';
     document.getElementById('generusKelpNamaPanggilan').value = '';
-    document.getElementById('generusKelpNis').value = window.nextGenerusNis_();
+    document.getElementById('generusKelpNis').value = '';
+    window.fillNextGenerusNis_('generusKelpNis');
     document.getElementById('generusKelpTempatLahir').value = '';
     document.getElementById('generusKelpTglLahir').value = '';
     document.getElementById('generusKelpTglLahirDisplay').value = '';
@@ -550,7 +551,8 @@
     window.currentEditGenerusId = id;
     document.getElementById('generusKelpNama').value = s.nama || '';
     document.getElementById('generusKelpNamaPanggilan').value = s.nama_panggilan || '';
-    document.getElementById('generusKelpNis').value = s.nis || window.nextGenerusNis_();
+    document.getElementById('generusKelpNis').value = s.nis || '';
+    if (!s.nis) window.fillNextGenerusNis_('generusKelpNis');
     document.getElementById('generusKelpGender').value = s.gender || '';
     document.getElementById('generusKelpTempatLahir').value = s.tempat_lahir || '';
     document.getElementById('generusKelpTglLahir').value = s.tanggal_lahir || '';
