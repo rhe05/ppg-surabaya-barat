@@ -247,6 +247,39 @@ memang butuh objek `Date` asli).
 
 ---
 
+## #9 — Judul+tombol Data Guru/Generus pecah ke bawah saat toggle tabel (2026-07-23)
+
+**Gejala**: setelah fitur "fokus tampilan" ditambahkan di tab Data Master
+(klik "Daftar Guru"/"Daftar Generus" menyembunyikan section satunya), judul
+section yang TETAP tampil ikut rusak tampilannya — teks judul & tombol
+Ekspor/Daftar/Tambah yang seharusnya sejajar 1 baris malah tersusun ke bawah
+kiri, walau section itu sendiri tidak seharusnya disentuh sama sekali.
+
+**Akar masalah**: `dataGuruTitle`/`dataGenerusTitle` punya inline style
+bawaan `style="display: flex; align-items: center; justify-content:
+space-between;"` di markup (JS TIDAK punya di CSS class, cuma inline). Kode
+`window.setDataMasterFocus_()` yang menunjukkan/menyembunyikan section lain
+memakai pola `el.style.display = kondisi ? 'none' : ''` — string kosong
+`''` DIKIRA "kembalikan ke semula", padahal itu MENGHAPUS PERMANEN properti
+`display` dari inline style, bukan mengembalikan ke `flex`. Karena tidak ada
+aturan CSS stylesheet utk `display` di `.dash-section-title` (cuma font-
+size/weight/color/margin), elemen jatuh ke default `block` — anak-anaknya
+(`<span>` judul + `<div>` tombol) jadi tersusun vertikal, bukan flex-row.
+
+**Perbaikan**: untuk elemen yang punya inline `display` bawaan bukan-default
+(di sini `flex`), toggle visibility WAJIB set nilai eksplisit ('flex'/'none'),
+JANGAN pernah pakai `''` mengira itu "mengembalikan semula" — `''` hanya
+aman dipakai kalau `display`-nya berasal dari CSS class (mis. `.guru-dash-
+kpi-row` yang `display:grid` via class, bukan inline), karena di situ `''`
+benar-benar mengembalikan ke aturan class.
+
+**Aturan permanen**: sebelum menulis `el.style.display = ''` di JS mana pun
+utk "menampilkan lagi" sebuah elemen, CEK DULU apakah elemen itu punya
+inline `display` bawaan di markup HTML-nya. Kalau ya, set nilai eksplisitnya
+(bukan `''`). Kalau tidak (display berasal dari CSS), `''` aman.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
