@@ -357,10 +357,12 @@
     document.getElementById('generusKelpNomorWaAyah').value = '';
     document.getElementById('generusKelpNomorWaIbu').value = '';
     document.getElementById('generusKelpNomorWa').value = '';
+    document.getElementById('generusKelpStatusNikah').value = '';
     document.getElementById('generusKelpUmurBadge').style.display = 'none';
     document.getElementById('generusKelpGender').value = '';
     window.toggleGenerusKlsSekolah_();
     window.toggleGenerusNomorWa_();
+    window.toggleGenerusStatusNikah_();
     window.populateAutocomplete_();
     document.getElementById('modalGenerusKelp').classList.add('active');
   };
@@ -385,6 +387,15 @@
     const tampilkan = ['Pra Remaja', 'Remaja SMA', 'Remaja'].indexOf(jenjang) !== -1;
     wrap.style.display = tampilkan ? 'block' : 'none';
     if (!tampilkan) document.getElementById('generusKelpNomorWa').value = '';
+  };
+
+  // Status kesiapan nikah — cuma relevan utk jenjang Remaja Pra Nikah.
+  window.toggleGenerusStatusNikah_ = function () {
+    const jenjang = document.getElementById('generusKelpJenjang').value;
+    const wrap = document.getElementById('generusKelpStatusNikahWrap');
+    const tampilkan = jenjang === 'Remaja';
+    wrap.style.display = tampilkan ? 'block' : 'none';
+    if (!tampilkan) document.getElementById('generusKelpStatusNikah').value = '';
   };
 
   window.updateGenerusKelpUmur = function () {
@@ -433,6 +444,7 @@
       nomor_wa_ayah: document.getElementById('generusKelpNomorWaAyah').value.trim(),
       nomor_wa_ibu: document.getElementById('generusKelpNomorWaIbu').value.trim(),
       nomor_wa: document.getElementById('generusKelpNomorWa').value.trim(),
+      status_nikah: document.getElementById('generusKelpStatusNikah').value,
     };
 
     if (!data.nama.trim() || !data.nis.trim() || !data.gender || !data.tanggal_lahir || !data.jenjang_saat_ini) {
@@ -538,6 +550,8 @@
     document.getElementById('generusKelpNomorWaIbu').value = s.nomor_wa_ibu || '';
     document.getElementById('generusKelpNomorWa').value = s.nomor_wa || '';
     window.toggleGenerusNomorWa_();
+    document.getElementById('generusKelpStatusNikah').value = s.status_nikah || '';
+    window.toggleGenerusStatusNikah_();
     document.getElementById('modalGenerusKelpTitle').textContent = 'Edit Generus';
     window.updateGenerusKelpUmur();
     window.populateAutocomplete_();
