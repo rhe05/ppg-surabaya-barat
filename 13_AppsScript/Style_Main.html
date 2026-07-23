@@ -1494,6 +1494,42 @@
       display: block;
     }
 
+    /* Tab Data Master (Kelp Petemon): dirapatkan supaya Data Guru + Data
+       Generus muat 1 layar desktop tanpa scroll. Scroll dimatikan HANYA saat
+       panel ini aktif — panel lain (Dashboard/Operasional/Kurikulum/dst)
+       tidak terpengaruh sama sekali. */
+    #screenGuruDashboard:has(#kelpPanelDataMaster.active) .dash-container {
+      overflow-y: hidden;
+    }
+
+    #kelpPanelDataMaster .dash-section-title {
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    #kelpPanelDataMaster .guru-dash-kpi-row {
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    #kelpPanelDataMaster .guru-dash-kpi-card {
+      padding: 12px 14px 10px;
+    }
+
+    #kelpPanelDataMaster .guru-dash-kpi-label {
+      font-size: 10px;
+      margin-bottom: 6px;
+    }
+
+    #kelpPanelDataMaster .guru-dash-kpi-value {
+      font-size: clamp(18px, 1.8vw, 24px);
+    }
+
+    #kelpPanelDataMaster .guru-dash-kpi-bar {
+      margin-top: 8px;
+      height: 4px;
+    }
+
     /* Monitoring kehadiran generus (tab Monitoring, Dashboard Kelompok):
        4 bar per jenjang + ranking kelas_ngaji per jenjang di bawahnya. */
     .monitoring-jenjang-card {
