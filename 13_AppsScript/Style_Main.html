@@ -1494,40 +1494,21 @@
       display: block;
     }
 
-    /* Tab Data Master (Kelp Petemon): dirapatkan supaya Data Guru + Data
-       Generus muat 1 layar desktop tanpa scroll. Scroll dimatikan HANYA saat
-       panel ini aktif — panel lain (Dashboard/Operasional/Kurikulum/dst)
-       tidak terpengaruh sama sekali. */
+    /* Tab Data Master (Kelp Petemon): ukuran card TETAP sama seperti semula
+       (jangan diperkecil lagi — sudah sempat kebablasan & jadi tidak
+       presisi), cuma jarak antar-baris dipangkas dikit supaya scrollbar
+       hilang. Scroll dimatikan HANYA saat panel ini aktif — panel lain
+       (Dashboard/Operasional/Kurikulum/dst) tidak terpengaruh sama sekali. */
     #screenGuruDashboard:has(#kelpPanelDataMaster.active) .dash-container {
       overflow-y: hidden;
     }
 
     #kelpPanelDataMaster .dash-section-title {
-      margin-bottom: 8px;
-      font-size: 13px;
+      margin-bottom: 12px;
     }
 
     #kelpPanelDataMaster .guru-dash-kpi-row {
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    #kelpPanelDataMaster .guru-dash-kpi-card {
-      padding: 12px 14px 10px;
-    }
-
-    #kelpPanelDataMaster .guru-dash-kpi-label {
-      font-size: 10px;
-      margin-bottom: 6px;
-    }
-
-    #kelpPanelDataMaster .guru-dash-kpi-value {
-      font-size: clamp(18px, 1.8vw, 24px);
-    }
-
-    #kelpPanelDataMaster .guru-dash-kpi-bar {
-      margin-top: 8px;
-      height: 4px;
+      margin-bottom: 14px;
     }
 
     /* Monitoring kehadiran generus (tab Monitoring, Dashboard Kelompok):
