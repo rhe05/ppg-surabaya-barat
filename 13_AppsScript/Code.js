@@ -162,6 +162,26 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=monitoringtest&kelompok=<id>&tahun=<yyyy>&bulan=<1-12> → panggil
+  // serverGetMonitoringGenerus() langsung, dipakai verifikasi logika rata-rata
+  // per kelas/jenjang terhadap data asli sebelum tampilan dibangun.
+  if (e && e.parameter && e.parameter.diag === 'monitoringtest') {
+    let result;
+    try {
+      const dev = serverCheckDevMode();
+      const now = new Date();
+      const kelompokId = e.parameter.kelompok || '1';
+      const tahun = parseInt(e.parameter.tahun, 10) || now.getFullYear();
+      const bulan = parseInt(e.parameter.bulan, 10) || (now.getMonth() + 1);
+      result = serverGetMonitoringGenerus(dev.token, kelompokId, tahun, bulan);
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // ?diag=dashboardbundle → panggil serverGetDashboardBundle() langsung & lihat
   // hasil JSON-nya, dipakai memverifikasi struktur (kpi/desaBreakdown/
   // santriTeladan) setelah refactor tanpa perlu login browser (web app
