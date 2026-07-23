@@ -1078,6 +1078,30 @@
             <div class="guru-kelp-section">
               <div class="guru-kelp-section-title">Alamat &amp; Orang Tua</div>
 
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Nama Ayah</label>
+                  <input type="text" class="form-input" id="generusKelpNamaAyah" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ayah" oninput="window.autofillOrtuMatch_(this.value)">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Nama Ibu</label>
+                  <input type="text" class="form-input" id="generusKelpNamaIbu" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ibu">
+                </div>
+              </div>
+
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Nomor WA Ayah</label>
+                  <input type="tel" class="form-input" id="generusKelpNomorWaAyah" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Nomor WA Ibu</label>
+                  <input type="tel" class="form-input" id="generusKelpNomorWaIbu" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
+                </div>
+              </div>
+
               <div class="form-group">
                 <label class="form-label">Alamat Rumah</label>
                 <input type="text" class="form-input" id="generusKelpAlamat" list="dlAlamat" autocomplete="off" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;">
@@ -1120,30 +1144,6 @@
                 <div class="form-group">
                   <label class="form-label">Provinsi</label>
                   <input type="text" class="form-input" id="generusKelpProvinsi" list="dlProvinsi" autocomplete="off" placeholder="Misal: Jawa Timur">
-                </div>
-              </div>
-
-              <div class="guru-kelp-row-2">
-                <div class="form-group">
-                  <label class="form-label">Nama Ayah</label>
-                  <input type="text" class="form-input" id="generusKelpNamaAyah" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ayah" oninput="window.autofillOrtuMatch_(this.value)">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Nama Ibu</label>
-                  <input type="text" class="form-input" id="generusKelpNamaIbu" list="dlNamaOrtu" autocomplete="off" placeholder="Nama ibu">
-                </div>
-              </div>
-
-              <div class="guru-kelp-row-2">
-                <div class="form-group">
-                  <label class="form-label">Nomor WA Ayah</label>
-                  <input type="tel" class="form-input" id="generusKelpNomorWaAyah" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
-                </div>
-
-                <div class="form-group">
-                  <label class="form-label">Nomor WA Ibu</label>
-                  <input type="tel" class="form-input" id="generusKelpNomorWaIbu" placeholder="0812-3456-7890" inputmode="numeric" maxlength="17" oninput="window.formatPhoneDashInput_(this)">
                 </div>
               </div>
             </div>
