@@ -154,6 +154,7 @@
     <datalist id="dlKabupaten"></datalist>
     <datalist id="dlProvinsi"></datalist>
     <datalist id="dlKodePos"></datalist>
+    <datalist id="dlAlamat"></datalist>
 
     <!-- DASHBOARD SCREEN -->
     <div class="screen-wrapper active" id="screenDashboard">
@@ -657,7 +658,7 @@
 
               <div class="form-group">
                 <label class="form-label">Alamat Rumah</label>
-                <textarea class="form-input" id="guruKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+                <input type="text" class="form-input" id="guruKelpAlamat" list="dlAlamat" autocomplete="off" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;">
               </div>
 
               <div class="guru-kelp-row-2">
@@ -1056,7 +1057,7 @@
 
               <div class="form-group">
                 <label class="form-label">Alamat Rumah</label>
-                <textarea class="form-input" id="generusKelpAlamat" rows="2" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;"></textarea>
+                <input type="text" class="form-input" id="generusKelpAlamat" list="dlAlamat" autocomplete="off" placeholder="Alamat lengkap domisili saat ini" style="width: 100%; font-family: inherit;">
               </div>
 
               <div class="guru-kelp-row-2">
