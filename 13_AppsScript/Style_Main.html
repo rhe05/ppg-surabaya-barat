@@ -981,6 +981,13 @@
       overflow: hidden;
     }
 
+    /* Kategori yang sedang dibuka (pill kelas / panel detail terlihat) keluar dari kolom
+       grid sempit dan mengambil lebar penuh baris — supaya pill & panel detail punya
+       ruang selebar desktop, bukan terjepit sejajar kartu kategori lain. */
+    .jadwal-kat-card.jadwal-kat-full {
+      grid-column: 1 / -1;
+    }
+
     .jadwal-kat-header {
       width: 100%;
       display: flex;

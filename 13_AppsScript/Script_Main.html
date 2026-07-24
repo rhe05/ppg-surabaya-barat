@@ -2151,7 +2151,7 @@
       const hariAktif = window.lastJadwalHariAktifData_[kat] || [];
 
       const card = document.createElement('div');
-      card.className = 'jadwal-kat-card' + (isCollapsed ? ' collapsed' : '');
+      card.className = 'jadwal-kat-card' + (isCollapsed ? ' collapsed' : ' jadwal-kat-full');
       card.innerHTML = `
         <button type="button" class="jadwal-kat-header" onclick="window.toggleJadwalKatCollapse_('${kat}')">
           <span class="jadwal-kat-title">${kat}</span>
