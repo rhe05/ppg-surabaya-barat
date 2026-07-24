@@ -1069,9 +1069,16 @@
                 </div>
               </div>
 
-              <div class="form-group">
-                <label class="form-label">Kelas Ngaji</label>
-                <input type="text" class="form-input" id="generusKelpKelasNgaji" placeholder="Misal: Iqro 3 / Juz 5">
+              <div class="guru-kelp-row-2">
+                <div class="form-group">
+                  <label class="form-label">Kelas Ngaji</label>
+                  <input type="text" class="form-input" id="generusKelpKelasNgaji" placeholder="Misal: Iqro 3 / Juz 5">
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Mulai Ngaji</label>
+                  <input type="date" class="form-input" id="generusKelpMulaiNgaji">
+                </div>
               </div>
             </div>
 
@@ -1454,6 +1461,10 @@
               <input type="hidden" id="jadwalKBMJamSelesai">
               <div class="ppg-timepicker" id="jadwalKBMJamSelesaiPicker"></div>
             </div>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label">Durasi</label>
+              <input type="text" class="form-input" id="jadwalKBMDurasi" placeholder="—" readonly>
+            </div>
           </div>
 
           <div class="form-group">
@@ -1513,6 +1524,28 @@
           <div class="modal-footer">
             <button class="btn btn-secondary" onclick="window.closeModalJadwalHariAktif()">Batal</button>
             <button class="btn btn-primary" onclick="window.saveJadwalHariAktif()">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Pilih Santri (assign generus yang SUDAH ada di Data Master ke satu kelas Jadwal KBM) -->
+      <div class="modal-overlay" id="modalPilihSantriKelas">
+        <div class="modal-content">
+          <div class="modal-header">
+            <span id="modalPilihSantriKelasTitle">Tambah Santri</span>
+            <button class="modal-close-btn" onclick="window.closeModalPilihSantriKelas()">×</button>
+          </div>
+
+          <input type="hidden" id="pilihSantriKelasNama">
+
+          <div class="form-group">
+            <input type="text" class="form-input" id="pilihSantriSearchInput" placeholder="Cari nama generus..." oninput="window.renderPilihSantriList_()">
+          </div>
+
+          <div class="pilih-santri-list" id="pilihSantriList"></div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="window.closeModalPilihSantriKelas()">Selesai</button>
           </div>
         </div>
       </div>

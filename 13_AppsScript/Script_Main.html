@@ -369,6 +369,7 @@
     document.getElementById('generusKelpPendidikan').value = '';
     document.getElementById('generusKelpKlsSekolah').value = '';
     document.getElementById('generusKelpKelasNgaji').value = '';
+    document.getElementById('generusKelpMulaiNgaji').value = '';
     document.getElementById('generusKelpAlamat').value = '';
     document.getElementById('generusKelpRt').value = '';
     document.getElementById('generusKelpRw').value = '';
@@ -456,6 +457,7 @@
       pendidikan: document.getElementById('generusKelpPendidikan').value,
       kelas_sekolah: document.getElementById('generusKelpKlsSekolah').value.trim(),
       kelas_ngaji: document.getElementById('generusKelpKelasNgaji').value.trim(),
+      mulai_ngaji: document.getElementById('generusKelpMulaiNgaji').value,
       alamat: document.getElementById('generusKelpAlamat').value.trim(),
       rt: document.getElementById('generusKelpRt').value.trim(),
       rw: document.getElementById('generusKelpRw').value.trim(),
@@ -562,6 +564,7 @@
     window.toggleGenerusKlsSekolah_();
     document.getElementById('generusKelpKlsSekolah').value = s.kelas_sekolah || '';
     document.getElementById('generusKelpKelasNgaji').value = s.kelas_ngaji || '';
+    document.getElementById('generusKelpMulaiNgaji').value = window.toDateInputValue_(s.mulai_ngaji);
     document.getElementById('generusKelpAlamat').value = s.alamat || '';
     document.getElementById('generusKelpRt').value = s.rt || '';
     document.getElementById('generusKelpRw').value = s.rw || '';
@@ -1027,6 +1030,24 @@
     document.getElementById(inputId + 'Preview').textContent = value;
     document.getElementById(inputId).value = value;
     document.getElementById(inputId + 'Display').value = value;
+    if (inputId === 'jadwalKBMJamMulai' || inputId === 'jadwalKBMJamSelesai') window.updateJadwalKBMDurasi_();
+  };
+
+  /** Durasi otomatis (mis. "60 menit" / "1 jam 15 menit") dari Jam Mulai–Selesai di modal Jadwal KBM. */
+  window.updateJadwalKBMDurasi_ = function () {
+    const out = document.getElementById('jadwalKBMDurasi');
+    const mulai = document.getElementById('jadwalKBMJamMulai').value;
+    const selesai = document.getElementById('jadwalKBMJamSelesai').value;
+    if (!mulai || !selesai) { out.value = ''; return; }
+
+    let menit = window.jamKeMenit_(selesai) - window.jamKeMenit_(mulai);
+    if (menit <= 0) { out.value = 'Jam selesai harus setelah jam mulai'; return; }
+
+    const jam = Math.floor(menit / 60);
+    const sisaMenit = menit % 60;
+    out.value = jam > 0
+      ? `${jam} jam${sisaMenit > 0 ? ' ' + sisaMenit + ' menit' : ''}`
+      : `${sisaMenit} menit`;
   };
 
   window.closeTimePicker_ = function (inputId) {
@@ -1636,6 +1657,15 @@
     return `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 
+  /** Normalisasi tanggal (bisa datang sbg objek Date dari Sheets) → 'YYYY-MM-DD' untuk
+      value <input type="date">. Dipakai field "Mulai Ngaji". */
+  window.toDateInputValue_ = function (dateStr) {
+    const d = window.parseDateFlexible_(dateStr);
+    if (!d) return '';
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
   window.editGuruKelp = function (id) {
     const g = (window.lastGuruListData || []).find(x => String(x.id) === String(id));
     if (!g) return;
@@ -1998,10 +2028,73 @@
     return (window.lastSantriListData || []).filter(s => String(s.kelas_ngaji || '').trim().toLowerCase() === target);
   };
 
-  /** Buka modal Tambah Generus dengan "Kelas Ngaji" sudah terisi kelas yang sedang dibuka. */
-  window.openModalGenerusKelpFromKelas_ = function (kelasNama) {
-    window.openModalGenerusKelp();
-    document.getElementById('generusKelpKelasNgaji').value = kelasNama;
+  /** Kelas yang sedang dipilihkan santri lewat modal Pilih Santri. */
+  window.currentPilihSantriKelas_ = '';
+
+  /** Buka modal "Pilih Santri" — assign generus yang SUDAH ada di Data Master ke kelas ini
+      (bukan bikin data generus baru), sesuai permintaan: tinggal ambil dari yang sudah tersimpan. */
+  window.openModalPilihSantriKelas_ = function (kelasNama) {
+    window.currentPilihSantriKelas_ = kelasNama;
+    document.getElementById('pilihSantriKelasNama').value = kelasNama;
+    document.getElementById('modalPilihSantriKelasTitle').textContent = 'Tambah Santri — Kelas ' + kelasNama;
+    document.getElementById('pilihSantriSearchInput').value = '';
+    window.renderPilihSantriList_();
+    document.getElementById('modalPilihSantriKelas').classList.add('active');
+  };
+
+  window.closeModalPilihSantriKelas = function () {
+    document.getElementById('modalPilihSantriKelas').classList.remove('active');
+  };
+
+  /** Render daftar generus yang sudah ada (filter nama) untuk dipilih masuk ke kelas ini. */
+  window.renderPilihSantriList_ = function () {
+    const container = document.getElementById('pilihSantriList');
+    const search = (document.getElementById('pilihSantriSearchInput').value || '').trim().toLowerCase();
+    const kelasNama = window.currentPilihSantriKelas_;
+    const kelasNamaLower = String(kelasNama).trim().toLowerCase();
+
+    const list = (window.lastSantriListData || [])
+      .filter(s => !search || String(s.nama || '').toLowerCase().includes(search))
+      .sort((a, b) => String(a.nama || '').localeCompare(String(b.nama || ''), 'id'));
+
+    container.innerHTML = list.length === 0
+      ? '<div style="text-align: center; padding: 24px; color: var(--text-faint);">Tidak ada generus ditemukan.</div>'
+      : list.map(s => {
+        const sudah = String(s.kelas_ngaji || '').trim().toLowerCase() === kelasNamaLower;
+        const meta = [s.jenjang_saat_ini, s.kelas_ngaji].filter(Boolean).join(' · ');
+        return `
+          <div class="pilih-santri-row">
+            <div class="pilih-santri-info">
+              <span class="pilih-santri-nama">${s.nama}</span>
+              ${meta ? `<span class="pilih-santri-meta">${meta}</span>` : ''}
+            </div>
+            ${sudah
+              ? '<span class="pilih-santri-sudah">Sudah di kelas ini</span>'
+              : `<button type="button" class="pilih-santri-add-btn" onclick='window.assignSantriToKelas_(${JSON.stringify(String(s.id))}, ${JSON.stringify(kelasNama)})'>+ Tambahkan</button>`}
+          </div>
+        `;
+      }).join('');
+  };
+
+  /** Set kelas_ngaji satu generus yang SUDAH ada ke kelas ini (bukan bikin generus baru). */
+  window.assignSantriToKelas_ = function (santriId, kelasNama) {
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(santriId));
+    if (!s) return;
+
+    window.showGlobalLoading_('Menambahkan santri...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        s.kelas_ngaji = kelasNama;
+        window.renderPilihSantriList_();
+        window.renderJadwalKBMList_(window.lastJadwalListData || []);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverUpdateSantri(window.currentToken, window.currentKelompokId, santriId, { kelas_ngaji: kelasNama });
   };
 
   /** Slug aman-untuk-id dari nama kategori (mis. "Cabe Rawit" → "cabe_rawit"). */
@@ -2012,12 +2105,15 @@
   /** Baris <tr> tabel santri dari satu array santri (dipakai render awal & saat pencarian). */
   window.buildSantriRowsHtml_ = function (santri) {
     return santri.length === 0
-      ? '<tr><td colspan="4" style="text-align: center; padding: 24px; color: var(--text-faint);">Belum ada santri di kelas ini.</td></tr>'
+      ? '<tr><td colspan="7" style="text-align: center; padding: 24px; color: var(--text-faint);">Belum ada santri di kelas ini.</td></tr>'
       : santri.map((s, i) => `
         <tr>
           <td>${i + 1}</td>
           <td>${s.nama}</td>
           <td>${s.gender || '-'}</td>
+          <td>${s.kelas_sekolah || '-'}</td>
+          <td>${s.kelas_ngaji || '-'}</td>
+          <td>${window.formatTanggalDisplay_(s.mulai_ngaji) || '-'}</td>
           <td style="text-align: center;">
             <div class="jadwal-row-actions" style="justify-content: center;">
               <button class="jadwal-row-icon-btn" title="Edit" onclick="window.editGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.edit}</button>
@@ -2100,9 +2196,9 @@
               ${ic.search}
               <input type="text" id="jadwalKelasSantriSearch_${slug}" placeholder="Cari santri..." oninput='window.renderJadwalKelasSantriTableBody_(${katJson})'>
             </div>
-            <button class="btn-edit-kelas" onclick='window.editJadwalKBM(${idJson}, ${kategoriJson}, ${guruIdJson}, ${kelasJson}, ${jamMulaiJson}, ${jamSelesaiJson}, ${ruanganJson}, ${keteranganJson}, ${santriCountJson}, ${statusJson})'>${ic.edit}<span>Kelas</span></button>
-            <button type="button" class="btn-toggle-daftar-santri${rosterOpen ? ' active-state' : ''}" id="jadwalSantriToggleBtn_${slug}" onclick='window.toggleJadwalSantriRoster_(${katJson})'>Daftar Santri</button>
-            <button class="btn btn-primary" onclick='window.openModalGenerusKelpFromKelas_(${kelasJson})'>+ Santri</button>
+            <button class="btn-edit-kelas jadwal-header-btn" onclick='window.editJadwalKBM(${idJson}, ${kategoriJson}, ${guruIdJson}, ${kelasJson}, ${jamMulaiJson}, ${jamSelesaiJson}, ${ruanganJson}, ${keteranganJson}, ${santriCountJson}, ${statusJson})'>${ic.edit}<span>Kelas</span></button>
+            <button type="button" class="btn-toggle-daftar-santri jadwal-header-btn${rosterOpen ? ' active-state' : ''}" id="jadwalSantriToggleBtn_${slug}" onclick='window.toggleJadwalSantriRoster_(${katJson})'>Daftar Santri</button>
+            <button class="btn btn-primary jadwal-header-btn" onclick='window.openModalPilihSantriKelas_(${kelasJson})'>+ Santri</button>
           </div>
         </div>
 
@@ -2134,7 +2230,7 @@
         <div class="jadwal-santri-roster-wrap" id="jadwalSantriWrapper_${slug}" style="display: ${rosterOpen ? 'block' : 'none'};">
           <div class="data-table-wrapper">
             <table class="data-table">
-              <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th style="text-align: center;">Aksi</th></tr></thead>
+              <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th>Kelas Sekolah</th><th>Kelas Ngaji</th><th>Mulai Ngaji</th><th style="text-align: center;">Aksi</th></tr></thead>
               <tbody id="jadwalKelasSantriTableBody_${slug}" data-kelas="${j.kelas}">${window.buildSantriRowsHtml_(santri)}</tbody>
             </table>
           </div>
@@ -2300,6 +2396,7 @@
     document.getElementById('jadwalKBMJamMulaiDisplay').value = '';
     document.getElementById('jadwalKBMJamSelesai').value = '';
     document.getElementById('jadwalKBMJamSelesaiDisplay').value = '';
+    document.getElementById('jadwalKBMDurasi').value = '';
     document.getElementById('jadwalKBMRuangan').value = '';
     document.getElementById('jadwalKBMSantriCount').value = '';
     document.getElementById('jadwalKBMStatus').value = 'Aktif';
@@ -2317,6 +2414,7 @@
     document.getElementById('jadwalKBMJamMulaiDisplay').value = jamMulai;
     document.getElementById('jadwalKBMJamSelesai').value = jamSelesai;
     document.getElementById('jadwalKBMJamSelesaiDisplay').value = jamSelesai;
+    window.updateJadwalKBMDurasi_();
     document.getElementById('jadwalKBMRuangan').value = ruangan;
     document.getElementById('jadwalKBMSantriCount').value = santriCount || 0;
     document.getElementById('jadwalKBMStatus').value = status || 'Aktif';
