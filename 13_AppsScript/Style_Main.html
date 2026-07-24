@@ -1372,6 +1372,170 @@
       border-color: rgba(220, 38, 38, 0.3);
     }
 
+    /* ═════ KELAS PENGAJIAN: pill kelas + panel detail (klik kartu kategori → baris tombol
+       kelas presisi sama panjang/tinggi; klik satu kelas → detail memanjang ke bawah) ═════ */
+    .jadwal-kelas-pill-row {
+      display: flex;
+      gap: 8px;
+      padding: 12px 16px;
+      flex-wrap: wrap;
+    }
+
+    .jadwal-kelas-pill {
+      flex: 1 1 0;
+      min-width: 72px;
+      height: 40px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: all 0.15s ease;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+    }
+
+    .jadwal-kelas-pill:hover {
+      border-color: var(--brass);
+      color: var(--brass);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px -4px rgba(217, 119, 6, 0.35);
+    }
+
+    .jadwal-kelas-pill.active {
+      background: linear-gradient(135deg, #F59E0B 0%, var(--brass) 55%, #B45309 100%);
+      border-color: var(--brass);
+      color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(217, 119, 6, 0.5);
+    }
+
+    .jadwal-detail-panel {
+      margin: 0 16px 16px;
+      padding: 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+
+    .jadwal-detail-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .jadwal-info-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .jadwal-info-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+
+    .jadwal-info-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+
+    .jadwal-info-label svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      color: var(--brass);
+    }
+
+    .jadwal-info-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .jadwal-info-value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .jadwal-info-value-row .gk-kpi-lp {
+      margin-left: auto;
+    }
+
+    .jadwal-info-subvalue {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-faint);
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .jadwal-santri-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .jadwal-santri-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .jadwal-santri-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .jadwal-santri-search-wrap {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+
+    .jadwal-santri-search-wrap svg {
+      position: absolute;
+      left: 10px;
+      width: 14px;
+      height: 14px;
+      color: var(--text-faint);
+      pointer-events: none;
+    }
+
+    .jadwal-santri-search-wrap input {
+      width: 200px;
+      padding: 8px 10px 8px 30px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-family: inherit;
+      background: var(--panel);
+      color: var(--text);
+    }
+
     /* Dashboard Kelompok: judul seksi pertama dinaikkan supaya jaraknya dengan
        header "Dashboard Kelompok" di atasnya tidak terlalu jauh. */
     #screenGuruDashboard .dash-container {

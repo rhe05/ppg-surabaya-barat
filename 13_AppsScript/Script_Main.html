@@ -1839,6 +1839,7 @@
       if (idx >= 0) list[idx] = rec; else list.push(rec);
     }
     window.renderSantriKpis_(list);
+    window.refreshJadwalKelasSantriPanels_();
   };
 
   window.renderSantriDashTable_ = function (santri, scope, search) {
@@ -1963,6 +1964,149 @@
 
   /** Render ulang daftar Jadwal KBM dari array data (dipakai loader server & update lokal instan).
       Jadwal umum per kategori jenjang, tampil sebagai kolom berdampingan — tanpa tanggal. */
+  /** Ikon inline (line-style, bukan gambar asli) dipakai panel detail kelas & pill kelas. */
+  window.JADWAL_ICONS_ = {
+    edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>',
+    delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+    caret: '<svg class="jadwal-kat-caret-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
+    guru: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>',
+    santri: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+    ruangan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3"/><circle cx="12" cy="4.3" r=".6" fill="currentColor" stroke="none"/><path d="M8 8.5a4 4 0 0 1 8 0V11H8V8.5z"/><path d="M4 21v-6.5a2 2 0 0 1 2-2h1"/><path d="M20 21v-6.5a2 2 0 0 1-2-2h-1"/><path d="M9 21v-4a3 3 0 0 1 6 0v4"/><path d="M2 21h20"/></svg>',
+    jadwal: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>',
+    search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
+  };
+
+  /** Kelas yang sedang dibuka detailnya per kategori: { '<kategori>': '<jadwalId>' }. */
+  window.jadwalKelasSelected_ = window.jadwalKelasSelected_ || {};
+
+  /** Toggle pilihan kelas dalam satu kategori — klik ulang pill yang sama menutupnya. */
+  window.toggleJadwalKelasSelect_ = function (kategori, jadwalId) {
+    window.jadwalKelasSelected_[kategori] = window.jadwalKelasSelected_[kategori] === jadwalId ? null : jadwalId;
+    window.renderJadwalKBMList_(window.lastJadwalListData || []);
+  };
+
+  /** Santri satu kelas: dicocokkan dari field bebas `kelas_ngaji` milik generus (case-insensitive). */
+  window.cariSantriKelas_ = function (kelasNama) {
+    const target = String(kelasNama || '').trim().toLowerCase();
+    if (!target) return [];
+    return (window.lastSantriListData || []).filter(s => String(s.kelas_ngaji || '').trim().toLowerCase() === target);
+  };
+
+  /** Buka modal Tambah Generus dengan "Kelas Ngaji" sudah terisi kelas yang sedang dibuka. */
+  window.openModalGenerusKelpFromKelas_ = function (kelasNama) {
+    window.openModalGenerusKelp();
+    document.getElementById('generusKelpKelasNgaji').value = kelasNama;
+  };
+
+  /** Slug aman-untuk-id dari nama kategori (mis. "Cabe Rawit" → "cabe_rawit"). */
+  window.jadwalKatSlug_ = function (kat) {
+    return String(kat || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  };
+
+  /** Baris <tr> tabel santri dari satu array santri (dipakai render awal & saat pencarian). */
+  window.buildSantriRowsHtml_ = function (santri) {
+    return santri.length === 0
+      ? '<tr><td colspan="4" style="text-align: center; padding: 24px; color: var(--text-faint);">Belum ada santri di kelas ini.</td></tr>'
+      : santri.map((s, i) => `
+        <tr>
+          <td>${i + 1}</td>
+          <td>${s.nama}</td>
+          <td>${s.gender || '-'}</td>
+          <td style="text-align: center;">
+            <div class="jadwal-row-actions" style="justify-content: center;">
+              <button class="jadwal-row-icon-btn" title="Edit" onclick="window.editGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.edit}</button>
+              <button class="jadwal-row-icon-btn danger" title="Hapus" onclick="window.deleteGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.delete}</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+  };
+
+  /** Render ulang HANYA isi tabel santri kelas terpilih (dipakai saat mengetik pencarian,
+      supaya fokus input tidak hilang — tidak menulis ulang seluruh daftar Jadwal KBM). */
+  window.renderJadwalKelasSantriTableBody_ = function (kat) {
+    const slug = window.jadwalKatSlug_(kat);
+    const tbody = document.getElementById('jadwalKelasSantriTableBody_' + slug);
+    if (!tbody) return;
+
+    const kelasNama = tbody.dataset.kelas;
+    const searchEl = document.getElementById('jadwalKelasSantriSearch_' + slug);
+    const search = (searchEl ? searchEl.value : '').trim().toLowerCase();
+    const santri = window.cariSantriKelas_(kelasNama).filter(s => !search || String(s.nama || '').toLowerCase().includes(search));
+
+    tbody.innerHTML = window.buildSantriRowsHtml_(santri);
+  };
+
+  /** Refresh tabel santri di semua panel kelas yang sedang terbuka — dipanggil setelah
+      generus ditambah/diubah/dihapus supaya daftar santri per kelas ikut ter-update. */
+  window.refreshJadwalKelasSantriPanels_ = function () {
+    Object.keys(window.jadwalKelasSelected_).forEach(function (kat) {
+      if (window.jadwalKelasSelected_[kat]) window.renderJadwalKelasSantriTableBody_(kat);
+    });
+  };
+
+  /** Panel detail satu kelas: 4 kartu info (guru/santri/ruangan/jadwal) + daftar santri. */
+  window.renderJadwalKelasDetailHtml_ = function (kat, j) {
+    const santri = window.cariSantriKelas_(j.kelas);
+    const totalL = santri.filter(s => s.gender === 'L').length;
+    const totalP = santri.filter(s => s.gender === 'P').length;
+    const ic = window.JADWAL_ICONS_;
+    const statusVal = j.status || 'Aktif';
+    const slug = window.jadwalKatSlug_(kat);
+
+    return `
+      <div class="jadwal-detail-panel">
+        <div class="jadwal-detail-toolbar">
+          <span class="jadwal-status-badge ${statusVal === 'Aktif' ? 'aktif' : 'nonaktif'}">${statusVal}</span>
+          <div class="jadwal-row-actions">
+            <button class="jadwal-row-icon-btn" title="Edit Kelas" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")}, ${JSON.stringify(j.santri_count || 0)}, ${JSON.stringify(statusVal)})'>${ic.edit}</button>
+            <button class="jadwal-row-icon-btn danger" title="Hapus Kelas" onclick="window.deleteJadwalKBM('${j.id}')">${ic.delete}</button>
+          </div>
+        </div>
+
+        <div class="jadwal-info-row">
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.guru} Guru</div>
+            <div class="jadwal-info-value">${j.guru_nama}</div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.santri} Total Santri</div>
+            <div class="jadwal-info-value-row">
+              <span class="jadwal-info-value">${santri.length} Santri</span>
+              <div class="gk-kpi-lp"><span>L <b>${totalL}</b></span><span>P <b>${totalP}</b></span></div>
+            </div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.ruangan} Ruangan</div>
+            <div class="jadwal-info-value">${j.ruangan}</div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.jadwal} Jadwal KBM</div>
+            <div class="jadwal-info-value">${window.formatHariAktifLabel_(window.lastJadwalHariAktifData_[j.kategori] || []).replace(/\s*\(\d+x Seminggu\)$/, '')}</div>
+            <div class="jadwal-info-subvalue">${j.jam_mulai} - ${j.jam_selesai}</div>
+          </div>
+        </div>
+
+        <div class="jadwal-santri-header">
+          <span class="jadwal-santri-title">Daftar Santri &mdash; Kelas ${j.kelas}</span>
+          <div class="jadwal-santri-toolbar">
+            <div class="jadwal-santri-search-wrap">
+              ${ic.search}
+              <input type="text" id="jadwalKelasSantriSearch_${slug}" placeholder="Cari santri..." oninput="window.renderJadwalKelasSantriTableBody_('${kat}')">
+            </div>
+            <button class="btn btn-primary" onclick="window.openModalGenerusKelpFromKelas_('${j.kelas}')">+ Santri</button>
+          </div>
+        </div>
+        <div class="data-table-wrapper">
+          <table class="data-table">
+            <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th style="text-align: center;">Aksi</th></tr></thead>
+            <tbody id="jadwalKelasSantriTableBody_${slug}" data-kelas="${j.kelas}">${window.buildSantriRowsHtml_(santri)}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  };
+
   window.renderJadwalKBMList_ = function (data) {
     window.populateJadwalKbmFilterGuru_();
     window.renderJadwalKbmSummary_(data);
@@ -1970,9 +2114,7 @@
     const list = document.getElementById('kdJadwalList');
     list.innerHTML = '';
 
-    const editIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>';
-    const deleteIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>';
-    const caretIcon = '<svg class="jadwal-kat-caret-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+    const ic = window.JADWAL_ICONS_;
 
     const searchStr = (document.getElementById('jadwalKbmSearchInput').value || '').trim().toLowerCase();
     const filterGuru = document.getElementById('jadwalKbmFilterGuru').value;
@@ -1994,28 +2136,16 @@
         .filter(j => !filterStatus || (j.status || 'Aktif') === filterStatus)
         .sort((a, b) => String(a.jam_mulai || '').localeCompare(String(b.jam_mulai || '')));
 
-      const rowsHtml = sesi.length === 0
+      const selectedId = window.jadwalKelasSelected_[kat];
+      const selectedSesi = sesi.find(j => String(j.id) === String(selectedId));
+
+      const pillRowHtml = sesi.length === 0
         ? '<div class="jadwal-kat-empty">Belum ada jadwal</div>'
-        : sesi.map(j => {
-          const statusVal = j.status || 'Aktif';
-          const statusCls = statusVal === 'Aktif' ? 'aktif' : 'nonaktif';
-          return `
-          <div class="jadwal-sesi">
-            <div class="jadwal-sesi-top">
-              <span class="jadwal-sesi-time">${j.jam_mulai} – ${j.jam_selesai}</span>
-              <div class="jadwal-row-actions">
-                <span class="jadwal-status-badge ${statusCls}">${statusVal}</span>
-                <button class="jadwal-row-icon-btn" title="Edit" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")}, ${JSON.stringify(j.santri_count || 0)}, ${JSON.stringify(statusVal)})'>${editIcon}</button>
-                <button class="jadwal-row-icon-btn danger" title="Hapus" onclick="window.deleteJadwalKBM('${j.id}')">${deleteIcon}</button>
-              </div>
-            </div>
-            <div class="jadwal-sesi-kelas">Kls ${j.kelas}</div>
-            <div class="jadwal-sesi-meta">${j.guru_nama} · ${j.ruangan}</div>
-            <div class="jadwal-sesi-santri">${Number(j.santri_count) || 0} santri</div>
-            ${j.keterangan ? `<div class="jadwal-sesi-note">${j.keterangan}</div>` : ''}
-          </div>
-        `;
-        }).join('');
+        : '<div class="jadwal-kelas-pill-row">' + sesi.map(j => `
+            <button type="button" class="jadwal-kelas-pill${String(j.id) === String(selectedId) ? ' active' : ''}" onclick="window.toggleJadwalKelasSelect_('${kat}', '${j.id}')">${j.kelas}</button>
+          `).join('') + '</div>';
+
+      const rowsHtml = pillRowHtml + (selectedSesi ? window.renderJadwalKelasDetailHtml_(kat, selectedSesi) : '');
 
       const isCollapsed = window.jadwalKatCollapsed_[kat] !== false;
       const hariAktif = window.lastJadwalHariAktifData_[kat] || [];
@@ -2027,7 +2157,7 @@
           <span class="jadwal-kat-title">${kat}</span>
           <span class="jadwal-kat-header-right">
             <span class="jadwal-kat-count">${sesi.length} kelas</span>
-            ${caretIcon}
+            ${ic.caret}
           </span>
         </button>
         <button type="button" class="jadwal-hari-row" title="Atur hari aktif ${kat}" onclick="window.openModalJadwalHariAktif('${kat}')">
