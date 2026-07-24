@@ -53,7 +53,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'audit_log', ['id', 'table_name', 'record_id', 'action', 'user_id', 'timestamp', 'detail_perubahan']);
 
   // 11. JADWAL KBM (jadwal rutin mingguan per Kelompok)
-  createSheetIfNotExists(ss, 'jadwal_kbm', ['id', 'kelompok_id', 'hari', 'jam_mulai', 'jam_selesai', 'keterangan', 'dibuat_oleh', 'dibuat_pada', 'tanggal', 'guru_id', 'kelas', 'ruangan', 'kategori']);
+  createSheetIfNotExists(ss, 'jadwal_kbm', ['id', 'kelompok_id', 'hari', 'jam_mulai', 'jam_selesai', 'keterangan', 'dibuat_oleh', 'dibuat_pada', 'tanggal', 'guru_id', 'kelas', 'ruangan', 'kategori', 'santri_count', 'status']);
 
   // 12. PENGUMUMAN (per Kelompok)
   createSheetIfNotExists(ss, 'pengumuman', ['id', 'kelompok_id', 'judul', 'isi', 'tanggal', 'dibuat_oleh', 'dibuat_pada', 'kategori']);
@@ -140,7 +140,7 @@ function migrateJadwalKbmSchemaAddFields_(ss) {
   const sheet = ss.getSheetByName('jadwal_kbm');
   if (!sheet) return;
 
-  const newColumns = ['tanggal', 'guru_id', 'kelas', 'ruangan', 'kategori'];
+  const newColumns = ['tanggal', 'guru_id', 'kelas', 'ruangan', 'kategori', 'santri_count', 'status'];
   const lastCol = sheet.getLastColumn();
   const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
 

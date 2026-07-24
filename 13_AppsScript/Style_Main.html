@@ -1297,6 +1297,46 @@
       white-space: nowrap;
     }
 
+    .jadwal-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .jadwal-toolbar #jadwalKbmSearchInput {
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .jadwal-toolbar select {
+      max-width: 180px;
+    }
+
+    .jadwal-status-badge {
+      display: inline-block;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .jadwal-status-badge.aktif {
+      background: rgba(21, 128, 61, 0.14);
+      color: #15803d;
+    }
+
+    .jadwal-status-badge.nonaktif {
+      background: var(--panel-2);
+      color: var(--text-faint);
+    }
+
+    .jadwal-sesi-santri {
+      font-size: 11.5px;
+      color: var(--text-faint);
+    }
+
     .jadwal-row-actions {
       display: flex;
       gap: 4px;

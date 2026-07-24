@@ -1209,10 +1209,49 @@
         </div>
 
         <div class="kelp-section-panel" id="kelpPanelOperasional">
-        <!-- ═══ JADWAL KBM ═══ -->
+        <!-- ═══ JADWAL KBM (Kelas Pengajian) ═══ -->
         <div class="dash-section-title" id="jadwalKbmTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Jadwal KBM</span>
           <button class="btn btn-primary" onclick="window.openModalJadwalKBM()">+ Jadwal</button>
+        </div>
+
+        <div class="guru-dash-kpi-row" id="jadwalKbmKpiRow" style="margin-bottom: 16px;">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Total Kelas</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="jkKpiTotalKelas">0</span>
+            </div>
+          </div>
+          <div class="guru-dash-kpi-card accent-indigo">
+            <div class="guru-dash-kpi-label">Total Guru</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="jkKpiTotalGuru">0</span>
+            </div>
+          </div>
+          <div class="guru-dash-kpi-card accent-teal">
+            <div class="guru-dash-kpi-label">Total Santri</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="jkKpiTotalSantri">0</span>
+            </div>
+          </div>
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Jam Operasional</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="jkKpiJamOperasional" style="font-size: 16px;">–</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="jadwal-toolbar">
+          <input type="text" class="form-input" id="jadwalKbmSearchInput" placeholder="Cari nama kelas..." oninput="window.applyJadwalKbmFilter_()">
+          <select class="form-select" id="jadwalKbmFilterGuru" onchange="window.applyJadwalKbmFilter_()">
+            <option value="">Semua Guru</option>
+          </select>
+          <select class="form-select" id="jadwalKbmFilterStatus" onchange="window.applyJadwalKbmFilter_()">
+            <option value="">Semua Status</option>
+            <option value="Aktif">Aktif</option>
+            <option value="Tidak Aktif">Tidak Aktif</option>
+          </select>
         </div>
 
         <div id="kdJadwalList" style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
@@ -1420,6 +1459,20 @@
           <div class="form-group">
             <label class="form-label">Ruangan</label>
             <input type="text" class="form-input" id="jadwalKBMRuangan" placeholder="Misal: Aula, Masjid Lantai 1">
+          </div>
+
+          <div style="display: flex; gap: 16px;">
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label">Jumlah Santri</label>
+              <input type="number" class="form-input" id="jadwalKBMSantriCount" placeholder="0" min="0" inputmode="numeric">
+            </div>
+            <div class="form-group" style="flex: 1;">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="jadwalKBMStatus">
+                <option value="Aktif">Aktif</option>
+                <option value="Tidak Aktif">Tidak Aktif</option>
+              </select>
+            </div>
           </div>
 
           <div class="form-group">

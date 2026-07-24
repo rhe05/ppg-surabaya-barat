@@ -24,6 +24,9 @@
  */
 const KATEGORI_JADWAL_ = ['Cabe Rawit', 'Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi'];
 
+/** Status kelas — dipakai badge & filter "Kelas Pengajian" di UI. */
+const STATUS_JADWAL_KBM_ = ['Aktif', 'Tidak Aktif'];
+
 /** Urutan hari baku (Senin dulu) — dipakai menyusun 'hari_aktif' & tampilan ringkasannya. */
 const HARI_URUTAN_JKH_ = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
@@ -74,6 +77,8 @@ function serverGetJadwalKBM(token, kelompokId) {
       keterangan: j.keterangan ? String(j.keterangan) : '',
       guru_id: j.guru_id,
       guru_nama: guru ? guru.nama : '(guru tidak ditemukan)',
+      santri_count: j.santri_count !== undefined && j.santri_count !== '' ? Number(j.santri_count) : 0,
+      status: j.status ? String(j.status) : 'Aktif',
     };
   });
 
@@ -101,6 +106,10 @@ function serverCreateJadwalKBM(token, jadwalData) {
 
   if (KATEGORI_JADWAL_.indexOf(jadwalData.kategori) === -1) {
     return { success: false, error: 'Kategori tidak valid.' };
+  }
+
+  if (jadwalData.status !== undefined && jadwalData.status !== '' && STATUS_JADWAL_KBM_.indexOf(jadwalData.status) === -1) {
+    return { success: false, error: 'Status tidak valid.' };
   }
 
   if (!validateUserAccess(token, 'kelompok', jadwalData.kelompok_id)) {
@@ -132,6 +141,8 @@ function serverCreateJadwalKBM(token, jadwalData) {
         kelas: jadwalData.kelas.trim(),
         ruangan: jadwalData.ruangan.trim(),
         kategori: jadwalData.kategori,
+        santri_count: jadwalData.santri_count !== undefined && jadwalData.santri_count !== '' ? Number(jadwalData.santri_count) : 0,
+        status: jadwalData.status || 'Aktif',
       };
 
       let id;
@@ -156,6 +167,8 @@ function serverCreateJadwalKBM(token, jadwalData) {
           fields.kelas,
           fields.ruangan,
           fields.kategori,
+          fields.santri_count,
+          fields.status,
         ]);
       }
 
@@ -190,6 +203,10 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
     return { success: false, error: 'Kategori tidak valid.' };
   }
 
+  if (updates.status !== undefined && updates.status !== '' && STATUS_JADWAL_KBM_.indexOf(updates.status) === -1) {
+    return { success: false, error: 'Status tidak valid.' };
+  }
+
   try {
     return withScriptLock_(function () {
       // Nilai jam lama dinormalkan dulu — sel jam bisa berupa objek Date bawaan Sheets.
@@ -201,6 +218,8 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
         jam_selesai: updates.jam_selesai !== undefined ? updates.jam_selesai : jamKeString_(jadwal.jam_selesai),
         ruangan: updates.ruangan !== undefined ? String(updates.ruangan).trim() : jadwal.ruangan,
         keterangan: updates.keterangan !== undefined ? updates.keterangan : jadwal.keterangan,
+        santri_count: updates.santri_count !== undefined && updates.santri_count !== '' ? Number(updates.santri_count) : (jadwal.santri_count || 0),
+        status: updates.status !== undefined && updates.status !== '' ? updates.status : (jadwal.status || 'Aktif'),
       };
 
       if (isKelompokTableOnFirestore_('jadwal_kbm', jadwal.kelompok_id)) {
