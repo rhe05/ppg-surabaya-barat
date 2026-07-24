@@ -1976,6 +1976,12 @@
     search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>',
   };
 
+  /** "Kak <nama depan>" — julukan akrab guru di panel detail kelas (bukan nama lengkap). */
+  window.namaPanggilanGuru_ = function (namaLengkap) {
+    const depan = String(namaLengkap || '').trim().split(/\s+/)[0];
+    return depan ? 'Kak ' + depan : '(guru tidak ditemukan)';
+  };
+
   /** Kelas yang sedang dibuka detailnya per kategori: { '<kategori>': '<jadwalId>' }. */
   window.jadwalKelasSelected_ = window.jadwalKelasSelected_ || {};
 
@@ -2057,17 +2063,13 @@
     return `
       <div class="jadwal-detail-panel">
         <div class="jadwal-detail-toolbar">
-          <span class="jadwal-status-badge ${statusVal === 'Aktif' ? 'aktif' : 'nonaktif'}">${statusVal}</span>
-          <div class="jadwal-row-actions">
-            <button class="jadwal-row-icon-btn" title="Edit Kelas" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")}, ${JSON.stringify(j.santri_count || 0)}, ${JSON.stringify(statusVal)})'>${ic.edit}</button>
-            <button class="jadwal-row-icon-btn danger" title="Hapus Kelas" onclick="window.deleteJadwalKBM('${j.id}')">${ic.delete}</button>
-          </div>
+          <button class="btn-edit-kelas" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")}, ${JSON.stringify(j.santri_count || 0)}, ${JSON.stringify(statusVal)})'>${ic.edit}<span>Edit Kelas</span></button>
         </div>
 
         <div class="jadwal-info-row">
           <div class="jadwal-info-card">
             <div class="jadwal-info-label">${ic.guru} Guru</div>
-            <div class="jadwal-info-value">${j.guru_nama}</div>
+            <div class="jadwal-info-value">${window.namaPanggilanGuru_(j.guru_nama)}</div>
           </div>
           <div class="jadwal-info-card">
             <div class="jadwal-info-label">${ic.santri} Total Santri</div>
