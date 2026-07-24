@@ -2128,7 +2128,14 @@
     const grid = document.createElement('div');
     grid.className = 'jadwal-kat-grid';
 
+    // Kalau ada satu kategori sedang dibuka, kategori lain disembunyikan total
+    // (bukan cuma diciutkan) supaya pill kelas & panel detail jadi satu-satunya
+    // yang terlihat — bukan tersusun di bawah kategori lain yang masih tampil.
+    const expandedKat = kategoriList.find(k => window.jadwalKatCollapsed_[k] === false);
+
     kategoriList.forEach(kat => {
+      if (expandedKat && kat !== expandedKat) return;
+
       const sesi = data
         .filter(j => (kat === 'Lainnya' ? window.KATEGORI_JADWAL_UI_.indexOf(j.kategori) === -1 : j.kategori === kat))
         .filter(j => !searchStr || String(j.kelas || '').toLowerCase().includes(searchStr))
@@ -2173,9 +2180,11 @@
     list.appendChild(grid);
   };
 
-  /** Buka/tutup daftar sesi satu kartu kategori (biar tidak terlalu panjang). */
+  /** Buka/tutup daftar sesi satu kartu kategori — hanya satu kategori boleh terbuka
+      sekaligus, jadi kategori lain otomatis diciutkan (disembunyikan total saat render). */
   window.toggleJadwalKatCollapse_ = function (kategori) {
     const isCollapsed = window.jadwalKatCollapsed_[kategori] !== false;
+    window.KATEGORI_JADWAL_UI_.concat(['Lainnya']).forEach(k => { window.jadwalKatCollapsed_[k] = true; });
     window.jadwalKatCollapsed_[kategori] = isCollapsed ? false : true;
     window.renderJadwalKBMList_(window.lastJadwalListData || []);
   };
