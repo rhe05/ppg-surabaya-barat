@@ -1429,11 +1429,47 @@
       background: var(--panel-2);
     }
 
-    .jadwal-detail-toolbar {
+    .jadwal-detail-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .jadwal-detail-header-actions {
       display: flex;
       align-items: center;
-      justify-content: flex-end;
-      margin-bottom: 14px;
+      gap: 8px;
+    }
+
+    .btn-toggle-daftar-santri {
+      padding: 7px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .btn-toggle-daftar-santri:hover {
+      border-color: var(--brass);
+      color: var(--brass);
+    }
+
+    .btn-toggle-daftar-santri.active-state {
+      background: var(--brass);
+      border-color: var(--brass);
+      color: #fff;
+    }
+
+    .jadwal-santri-roster-wrap {
+      margin-top: 4px;
     }
 
     .btn-edit-kelas {
@@ -1522,25 +1558,10 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .jadwal-santri-header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
     .jadwal-santri-title {
       font-size: 13px;
       font-weight: 700;
       color: var(--text);
-    }
-
-    .jadwal-santri-toolbar {
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
 
     .jadwal-santri-search-wrap {

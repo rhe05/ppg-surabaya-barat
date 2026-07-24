@@ -2051,7 +2051,25 @@
     });
   };
 
-  /** Panel detail satu kelas: 4 kartu info (guru/santri/ruangan/jadwal) + daftar santri. */
+  /** Roster santri per kelas terbuka/tertutup (default TERTUTUP, sama seperti pola
+      "Daftar Guru"/"Daftar Generus"): { '<slug kategori>': true|false }. */
+  window.jadwalSantriRosterOpen_ = window.jadwalSantriRosterOpen_ || {};
+
+  /** Buka/tutup roster santri satu kelas TANPA render ulang seluruh panel (supaya kotak
+      pencarian & state lain tidak ikut ter-reset) — langsung toggle style.display. */
+  window.toggleJadwalSantriRoster_ = function (kat) {
+    const slug = window.jadwalKatSlug_(kat);
+    const wrap = document.getElementById('jadwalSantriWrapper_' + slug);
+    const btn = document.getElementById('jadwalSantriToggleBtn_' + slug);
+    if (!wrap) return;
+    const isOpening = wrap.style.display === 'none';
+    wrap.style.display = isOpening ? 'block' : 'none';
+    window.jadwalSantriRosterOpen_[slug] = isOpening;
+    if (btn) btn.classList.toggle('active-state', isOpening);
+  };
+
+  /** Panel detail satu kelas: header (judul + aksi) → 4 kartu info (guru/santri/ruangan/jadwal)
+      → roster santri (toggle-able, tersembunyi default). */
   window.renderJadwalKelasDetailHtml_ = function (kat, j) {
     const santri = window.cariSantriKelas_(j.kelas);
     const totalL = santri.filter(s => s.gender === 'L').length;
@@ -2059,11 +2077,33 @@
     const ic = window.JADWAL_ICONS_;
     const statusVal = j.status || 'Aktif';
     const slug = window.jadwalKatSlug_(kat);
+    const rosterOpen = !!window.jadwalSantriRosterOpen_[slug];
+
+    const idJson = JSON.stringify(String(j.id));
+    const kategoriJson = JSON.stringify(j.kategori);
+    const guruIdJson = JSON.stringify(String(j.guru_id));
+    const kelasJson = JSON.stringify(j.kelas);
+    const jamMulaiJson = JSON.stringify(j.jam_mulai);
+    const jamSelesaiJson = JSON.stringify(j.jam_selesai);
+    const ruanganJson = JSON.stringify(j.ruangan);
+    const keteranganJson = JSON.stringify(j.keterangan || '');
+    const santriCountJson = JSON.stringify(j.santri_count || 0);
+    const statusJson = JSON.stringify(statusVal);
+    const katJson = JSON.stringify(kat);
 
     return `
       <div class="jadwal-detail-panel">
-        <div class="jadwal-detail-toolbar">
-          <button class="btn-edit-kelas" onclick='window.editJadwalKBM(${JSON.stringify(String(j.id))}, ${JSON.stringify(j.kategori)}, ${JSON.stringify(String(j.guru_id))}, ${JSON.stringify(j.kelas)}, ${JSON.stringify(j.jam_mulai)}, ${JSON.stringify(j.jam_selesai)}, ${JSON.stringify(j.ruangan)}, ${JSON.stringify(j.keterangan || "")}, ${JSON.stringify(j.santri_count || 0)}, ${JSON.stringify(statusVal)})'>${ic.edit}<span>Edit Kelas</span></button>
+        <div class="jadwal-detail-header">
+          <span class="jadwal-santri-title">Daftar Santri &mdash; Kelas ${j.kelas}</span>
+          <div class="jadwal-detail-header-actions">
+            <div class="jadwal-santri-search-wrap">
+              ${ic.search}
+              <input type="text" id="jadwalKelasSantriSearch_${slug}" placeholder="Cari santri..." oninput='window.renderJadwalKelasSantriTableBody_(${katJson})'>
+            </div>
+            <button class="btn-edit-kelas" onclick='window.editJadwalKBM(${idJson}, ${kategoriJson}, ${guruIdJson}, ${kelasJson}, ${jamMulaiJson}, ${jamSelesaiJson}, ${ruanganJson}, ${keteranganJson}, ${santriCountJson}, ${statusJson})'>${ic.edit}<span>Kelas</span></button>
+            <button type="button" class="btn-toggle-daftar-santri${rosterOpen ? ' active-state' : ''}" id="jadwalSantriToggleBtn_${slug}" onclick='window.toggleJadwalSantriRoster_(${katJson})'>Daftar Santri</button>
+            <button class="btn btn-primary" onclick='window.openModalGenerusKelpFromKelas_(${kelasJson})'>+ Santri</button>
+          </div>
         </div>
 
         <div class="jadwal-info-row">
@@ -2084,26 +2124,20 @@
           </div>
           <div class="jadwal-info-card">
             <div class="jadwal-info-label">${ic.jadwal} Jadwal KBM</div>
-            <div class="jadwal-info-value">${window.formatHariAktifLabel_(window.lastJadwalHariAktifData_[j.kategori] || []).replace(/\s*\(\d+x Seminggu\)$/, '')}</div>
-            <div class="jadwal-info-subvalue">${j.jam_mulai} - ${j.jam_selesai}</div>
+            <div class="jadwal-info-value-row">
+              <span class="jadwal-info-value">${window.formatHariAktifLabel_(window.lastJadwalHariAktifData_[j.kategori] || []).replace(/\s*\(\d+x Seminggu\)$/, '')}</span>
+              <span class="jadwal-info-subvalue">${j.jam_mulai} - ${j.jam_selesai}</span>
+            </div>
           </div>
         </div>
 
-        <div class="jadwal-santri-header">
-          <span class="jadwal-santri-title">Daftar Santri &mdash; Kelas ${j.kelas}</span>
-          <div class="jadwal-santri-toolbar">
-            <div class="jadwal-santri-search-wrap">
-              ${ic.search}
-              <input type="text" id="jadwalKelasSantriSearch_${slug}" placeholder="Cari santri..." oninput="window.renderJadwalKelasSantriTableBody_('${kat}')">
-            </div>
-            <button class="btn btn-primary" onclick="window.openModalGenerusKelpFromKelas_('${j.kelas}')">+ Santri</button>
+        <div class="jadwal-santri-roster-wrap" id="jadwalSantriWrapper_${slug}" style="display: ${rosterOpen ? 'block' : 'none'};">
+          <div class="data-table-wrapper">
+            <table class="data-table">
+              <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th style="text-align: center;">Aksi</th></tr></thead>
+              <tbody id="jadwalKelasSantriTableBody_${slug}" data-kelas="${j.kelas}">${window.buildSantriRowsHtml_(santri)}</tbody>
+            </table>
           </div>
-        </div>
-        <div class="data-table-wrapper">
-          <table class="data-table">
-            <thead><tr><th>No</th><th>Nama</th><th>L/P</th><th style="text-align: center;">Aksi</th></tr></thead>
-            <tbody id="jadwalKelasSantriTableBody_${slug}" data-kelas="${j.kelas}">${window.buildSantriRowsHtml_(santri)}</tbody>
-          </table>
         </div>
       </div>
     `;
