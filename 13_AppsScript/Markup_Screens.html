@@ -148,6 +148,7 @@
     <!-- Sumber saran autocomplete (diisi JS dari data yang sudah tersimpan) -->
     <datalist id="dlNama"></datalist>
     <datalist id="dlSiklusGenerusNama"></datalist>
+    <datalist id="dlPendidikanFormalNama"></datalist>
     <datalist id="dlNamaOrtu"></datalist>
     <datalist id="dlTempatLahir"></datalist>
     <datalist id="dlKelurahan"></datalist>
@@ -1059,6 +1060,7 @@
                     <option value="SD">SD</option>
                     <option value="SMP">SMP</option>
                     <option value="SMA/SMK">SMA/SMK</option>
+                    <option value="Kuliah">Kuliah</option>
                     <option value="Lainnya">Lainnya</option>
                   </select>
                 </div>
@@ -1209,6 +1211,176 @@
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalEksporGenerus()">Batal</button>
               <button class="btn btn-primary" onclick="window.confirmEksporGenerus()">Unduh</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ═══ PENDIDIKAN FORMAL ═══ -->
+        <div class="dash-section-title" id="dataPendidikanFormalTitle" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Pendidikan Formal</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporPendidikanFormal()">
+              <span>Ekspor</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="pendidikanFormalTableToggleBtn" onclick="window.togglePendidikanFormalDashTable_()">
+              <span id="pendidikanFormalTableToggleLabel">Daftar Pendidikan</span>
+            </button>
+            <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalPendidikanFormal()">+ Pendidikan</button>
+          </div>
+        </div>
+
+        <div class="guru-dash-kpi-row" id="dataPendidikanFormalKpiRow">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">PAUD-TK</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfPaudTkCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfPaudTk_L">0</b></span><span>P <b id="pfPaudTk_P">0</b></span></div>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">SD</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfSdCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfSd_L">0</b></span><span>P <b id="pfSd_P">0</b></span></div>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">SMP</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfSmpCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfSmp_L">0</b></span><span>P <b id="pfSmp_P">0</b></span></div>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-indigo">
+            <div class="guru-dash-kpi-label">SMA</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfSmaCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfSma_L">0</b></span><span>P <b id="pfSma_P">0</b></span></div>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-teal">
+            <div class="guru-dash-kpi-label">Kuliah</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfKuliahCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfKuliah_L">0</b></span><span>P <b id="pfKuliah_P">0</b></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="pendidikanFormalTableWrapper" style="display: none;">
+          <div class="guru-kelp-table-toolbar">
+            <select class="guru-kelp-filter-select" id="pendidikanFormalScopeSelect" onchange="window.filterPendidikanFormalDashTable_(document.getElementById('pendidikanFormalSearchInput').value)">
+              <option value="all">Semua Pendidikan</option>
+              <option value="PAUD/TK">PAUD-TK</option>
+              <option value="SD">SD</option>
+              <option value="SMP">SMP</option>
+              <option value="SMA/SMK">SMA</option>
+              <option value="Kuliah">Kuliah</option>
+            </select>
+            <input type="text" class="search-input guru-kelp-search-input" id="pendidikanFormalSearchInput" placeholder="Cari nama generus..." oninput="window.filterPendidikanFormalDashTable_(this.value)">
+          </div>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead>
+                <tr><th>No</th><th>Nama Generus</th><th>Pendidikan</th><th style="text-align: center;">Aksi</th></tr>
+              </thead>
+              <tbody id="pendidikanFormalTableBody">
+                <tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Tambah/Ubah Pendidikan Formal (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalPendidikanFormal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <span id="modalPendidikanFormalTitle">Pendidikan Formal</span>
+                <div class="guru-kelp-modal-subtitle">Atur jenjang pendidikan formal generus</div>
+              </div>
+              <button class="modal-close-btn" onclick="window.closeModalPendidikanFormal()">×</button>
+            </div>
+
+            <div class="guru-kelp-section">
+              <div class="form-group">
+                <label class="form-label">Nama Generus</label>
+                <input type="text" class="form-input" id="pendidikanFormalNamaInput" list="dlPendidikanFormalNama" autocomplete="off" placeholder="Ketik nama generus (harus sudah ada di Data Master)" oninput="window.matchPendidikanFormalSantri_(this.value)">
+                <input type="hidden" id="pendidikanFormalSantriId">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Pendidikan</label>
+                <select class="form-input" id="pendidikanFormalJenjang">
+                  <option value="Belum Sekolah">Belum Sekolah</option>
+                  <option value="PAUD/TK">PAUD/TK</option>
+                  <option value="SD">SD</option>
+                  <option value="SMP">SMP</option>
+                  <option value="SMA/SMK">SMA/SMK</option>
+                  <option value="Kuliah">Kuliah</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalPendidikanFormal()">Batal</button>
+              <button class="btn btn-primary" onclick="window.savePendidikanFormal()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Ekspor Pendidikan Formal (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalEksporPendidikanFormal">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Ekspor Data Pendidikan Formal</span>
+              <button class="modal-close-btn" onclick="window.closeModalEksporPendidikanFormal()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalFormat" value="excel" checked> Excel
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalFormat" value="pdf"> PDF
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Data yang diambil</label>
+              <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="all" checked> Semua Pendidikan
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="PAUD/TK"> PAUD-TK
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="SD"> SD
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="SMP"> SMP
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="SMA/SMK"> SMA
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="Kuliah"> Kuliah
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalEksporPendidikanFormal()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmEksporPendidikanFormal()">Unduh</button>
             </div>
           </div>
         </div>

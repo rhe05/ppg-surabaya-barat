@@ -281,56 +281,38 @@
   // Fokus tampilan Data Master (Kelp Petemon): 'guru' menyembunyikan section
   // Generus (card+tombol) supaya tabel Guru bisa tampil penuh 1 layar,
   // 'generus' sebaliknya, null = tampil semua seperti semula (default).
+  /** Satu entri per section yg toggle-able di Data Master (Daftar Guru/Generus/Siklus/Pendidikan). */
+  window.DATA_MASTER_SECTIONS_ = {
+    guru: { title: 'dataGuruTitle', kpis: ['dataGuruKpiRow'], wrap: 'guruDashTableWrapper', btn: 'guruTableToggleBtn' },
+    generus: { title: 'dataGenerusTitle', kpis: ['dataGenerusKpiRow', 'generusJenjangRow'], wrap: 'santriDashTableWrapper', btn: 'santriTableToggleBtn' },
+    pendidikan: { title: 'dataPendidikanFormalTitle', kpis: ['dataPendidikanFormalKpiRow'], wrap: 'pendidikanFormalTableWrapper', btn: 'pendidikanFormalTableToggleBtn' },
+    siklus: { title: 'dataSiklusGenerusTitle', kpis: ['dataSiklusGenerusKpiRow'], wrap: 'siklusGenerusTableWrapper', btn: 'siklusGenerusTableToggleBtn' },
+  };
+
   window.setDataMasterFocus_ = function (focus) {
-    // ⚠️ dataGuruTitle/dataGenerusTitle punya inline style "display: flex"
-    // bawaan (judul+tombol sejajar) — WAJIB dikembalikan ke 'flex' persis,
-    // BUKAN '' (string kosong menghapus flex-nya permanen, jadi judul &
-    // tombol malah tersusun ke bawah alih-alih sejajar seperti semula).
-    const guruTitle = document.getElementById('dataGuruTitle');
-    if (guruTitle) guruTitle.style.display = (focus === 'generus' || focus === 'siklus') ? 'none' : 'flex';
-    const guruKpi = document.getElementById('dataGuruKpiRow');
-    if (guruKpi) guruKpi.style.display = (focus === 'generus' || focus === 'siklus') ? 'none' : '';
+    Object.keys(window.DATA_MASTER_SECTIONS_).forEach(function (name) {
+      const sec = window.DATA_MASTER_SECTIONS_[name];
+      const isThis = name === focus;
+      const isOtherFocused = focus !== null && !isThis;
 
-    const generusTitle = document.getElementById('dataGenerusTitle');
-    if (generusTitle) generusTitle.style.display = (focus === 'guru' || focus === 'siklus') ? 'none' : 'flex';
-    ['dataGenerusKpiRow', 'generusJenjangRow'].forEach(function (id) {
-      const el = document.getElementById(id);
-      if (el) el.style.display = (focus === 'guru' || focus === 'siklus') ? 'none' : '';
+      // ⚠️ Title punya inline style "display: flex" bawaan (judul+tombol
+      // sejajar) — WAJIB dikembalikan ke 'flex' persis, BUKAN '' (string
+      // kosong menghapus flex-nya permanen — lihat ERROR_LOG.md #9).
+      const titleEl = document.getElementById(sec.title);
+      if (titleEl) titleEl.style.display = isOtherFocused ? 'none' : 'flex';
+
+      sec.kpis.forEach(function (kpiId) {
+        const el = document.getElementById(kpiId);
+        if (el) el.style.display = isOtherFocused ? 'none' : '';
+      });
+
+      if (isOtherFocused) {
+        const wrapEl = document.getElementById(sec.wrap);
+        const btnEl = document.getElementById(sec.btn);
+        if (wrapEl) wrapEl.style.display = 'none';
+        if (btnEl) btnEl.classList.remove('active-state');
+      }
     });
-
-    const siklusTitle = document.getElementById('dataSiklusGenerusTitle');
-    if (siklusTitle) siklusTitle.style.display = (focus === 'guru' || focus === 'generus') ? 'none' : 'flex';
-    const siklusKpi = document.getElementById('dataSiklusGenerusKpiRow');
-    if (siklusKpi) siklusKpi.style.display = (focus === 'guru' || focus === 'generus') ? 'none' : '';
-
-    if (focus === 'guru') {
-      const santriWrap = document.getElementById('santriDashTableWrapper');
-      const santriBtn = document.getElementById('santriTableToggleBtn');
-      if (santriWrap) santriWrap.style.display = 'none';
-      if (santriBtn) santriBtn.classList.remove('active-state');
-      const siklusWrap = document.getElementById('siklusGenerusTableWrapper');
-      const siklusBtn = document.getElementById('siklusGenerusTableToggleBtn');
-      if (siklusWrap) siklusWrap.style.display = 'none';
-      if (siklusBtn) siklusBtn.classList.remove('active-state');
-    } else if (focus === 'generus') {
-      const guruWrap = document.getElementById('guruDashTableWrapper');
-      const guruBtn = document.getElementById('guruTableToggleBtn');
-      if (guruWrap) guruWrap.style.display = 'none';
-      if (guruBtn) guruBtn.classList.remove('active-state');
-      const siklusWrap = document.getElementById('siklusGenerusTableWrapper');
-      const siklusBtn = document.getElementById('siklusGenerusTableToggleBtn');
-      if (siklusWrap) siklusWrap.style.display = 'none';
-      if (siklusBtn) siklusBtn.classList.remove('active-state');
-    } else if (focus === 'siklus') {
-      const guruWrap = document.getElementById('guruDashTableWrapper');
-      const guruBtn = document.getElementById('guruTableToggleBtn');
-      if (guruWrap) guruWrap.style.display = 'none';
-      if (guruBtn) guruBtn.classList.remove('active-state');
-      const santriWrap = document.getElementById('santriDashTableWrapper');
-      const santriBtn = document.getElementById('santriTableToggleBtn');
-      if (santriWrap) santriWrap.style.display = 'none';
-      if (santriBtn) santriBtn.classList.remove('active-state');
-    }
 
     // Saat salah satu tabel difokuskan (bisa sampai 10 baris), panel butuh
     // scroll lagi — lihat override overflow-y di Style_Main.html.
@@ -583,6 +565,155 @@
       return;
     }
     window.runXlsxExport_('Siklus Generus', headers, rows, window.closeModalEksporSiklusGenerus);
+  };
+
+  /** Pemetaan kartu KPI Pendidikan Formal → nilai field 'pendidikan' pada generus. */
+  window.PENDIDIKAN_FORMAL_MAP_ = [
+    { key: 'PaudTk', value: 'PAUD/TK' },
+    { key: 'Sd', value: 'SD' },
+    { key: 'Smp', value: 'SMP' },
+    { key: 'Sma', value: 'SMA/SMK' },
+    { key: 'Kuliah', value: 'Kuliah' },
+  ];
+
+  /** Kartu ringkasan (jumlah + L/P) per jenjang pendidikan formal, dihitung dari data Generus yang sudah dimuat. */
+  window.renderPendidikanFormalKpis_ = function (data) {
+    window.PENDIDIKAN_FORMAL_MAP_.forEach(function (m) {
+      const list = (data || []).filter(function (s) { return s.pendidikan === m.value; });
+      document.getElementById('pf' + m.key + 'Count').textContent = list.length;
+      document.getElementById('pf' + m.key + '_L').textContent = list.filter(function (s) { return s.gender === 'L'; }).length;
+      document.getElementById('pf' + m.key + '_P').textContent = list.filter(function (s) { return s.gender === 'P'; }).length;
+    });
+  };
+
+  window.togglePendidikanFormalDashTable_ = function () {
+    const wrapper = document.getElementById('pendidikanFormalTableWrapper');
+    const btn = document.getElementById('pendidikanFormalTableToggleBtn');
+    const isOpening = wrapper.style.display === 'none';
+
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
+    window.setDataMasterFocus_(isOpening ? 'pendidikan' : null);
+
+    if (isOpening) {
+      document.getElementById('pendidikanFormalScopeSelect').value = 'all';
+      document.getElementById('pendidikanFormalSearchInput').value = '';
+      window.renderPendidikanFormalDashTable_(window.lastSantriListData || [], 'all', '');
+    }
+  };
+
+  window.filterPendidikanFormalDashTable_ = function (query) {
+    const scope = document.getElementById('pendidikanFormalScopeSelect').value;
+    window.renderPendidikanFormalDashTable_(window.lastSantriListData || [], scope, query);
+  };
+
+  window.renderPendidikanFormalDashTable_ = function (data, scope, search) {
+    const q = (search || '').trim().toLowerCase();
+    const list = (data || []).filter(function (s) {
+      if (scope && scope !== 'all' && s.pendidikan !== scope) return false;
+      if (q && !String(s.nama || '').toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const tbody = document.getElementById('pendidikanFormalTableBody');
+    tbody.innerHTML = list.length === 0
+      ? '<tr><td colspan="4" style="text-align: center; padding: 40px; color: var(--text-faint);">Tidak ada generus ditemukan.</td></tr>'
+      : list.map(function (s, i) {
+        return '<tr>'
+          + '<td>' + (i + 1) + '</td>'
+          + '<td>' + s.nama + '</td>'
+          + '<td>' + (s.pendidikan || '-') + '</td>'
+          + '<td style="text-align: center;">'
+          + '<div class="jadwal-row-actions" style="justify-content: center;">'
+          + '<button class="jadwal-row-icon-btn" title="Ubah" onclick="window.editPendidikanFormal(\'' + s.id + '\')">' + window.JADWAL_ICONS_.edit + '</button>'
+          + '</div></td></tr>';
+      }).join('');
+  };
+
+  window.openModalPendidikanFormal = function () {
+    document.getElementById('modalPendidikanFormalTitle').textContent = 'Pendidikan Formal';
+    document.getElementById('pendidikanFormalNamaInput').value = '';
+    document.getElementById('pendidikanFormalNamaInput').disabled = false;
+    document.getElementById('pendidikanFormalSantriId').value = '';
+    document.getElementById('pendidikanFormalJenjang').value = 'Belum Sekolah';
+    window.fillDatalist_('dlPendidikanFormalNama', (window.lastSantriListData || []).map(function (s) { return s.nama; }));
+    document.getElementById('modalPendidikanFormal').classList.add('active');
+  };
+
+  window.closeModalPendidikanFormal = function () {
+    document.getElementById('modalPendidikanFormal').classList.remove('active');
+  };
+
+  /** Cocokkan nama yang diketik ke generus yang SUDAH ADA di Data Master (bukan bikin baru). */
+  window.matchPendidikanFormalSantri_ = function (namaValue) {
+    const nama = String(namaValue || '').trim().toLowerCase();
+    const s = (window.lastSantriListData || []).find(function (x) { return String(x.nama || '').trim().toLowerCase() === nama; });
+    document.getElementById('pendidikanFormalSantriId').value = s ? s.id : '';
+    if (s) document.getElementById('pendidikanFormalJenjang').value = s.pendidikan || 'Belum Sekolah';
+  };
+
+  window.editPendidikanFormal = function (id) {
+    const s = (window.lastSantriListData || []).find(function (x) { return String(x.id) === String(id); });
+    if (!s) return;
+
+    document.getElementById('modalPendidikanFormalTitle').textContent = 'Ubah Pendidikan — ' + s.nama;
+    document.getElementById('pendidikanFormalNamaInput').value = s.nama || '';
+    document.getElementById('pendidikanFormalNamaInput').disabled = true;
+    document.getElementById('pendidikanFormalSantriId').value = s.id;
+    document.getElementById('pendidikanFormalJenjang').value = s.pendidikan || 'Belum Sekolah';
+    document.getElementById('modalPendidikanFormal').classList.add('active');
+  };
+
+  window.savePendidikanFormal = function () {
+    const santriId = document.getElementById('pendidikanFormalSantriId').value;
+    const jenjang = document.getElementById('pendidikanFormalJenjang').value;
+
+    if (!santriId) {
+      alert('Pilih generus yang sudah ada di Data Master (ketik nama, lalu pilih dari daftar saran).');
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan data...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        window.closeModalPendidikanFormal();
+        window.applyGenerusMutationLocal_({ pendidikan: jenjang }, santriId, false);
+        const wrapper = document.getElementById('pendidikanFormalTableWrapper');
+        if (wrapper && wrapper.style.display !== 'none') {
+          window.renderPendidikanFormalDashTable_(window.lastSantriListData || [], document.getElementById('pendidikanFormalScopeSelect').value, document.getElementById('pendidikanFormalSearchInput').value);
+        }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverUpdateSantri(window.currentToken, window.currentKelompokId, santriId, { pendidikan: jenjang });
+  };
+
+  window.openModalEksporPendidikanFormal = function () {
+    document.getElementById('modalEksporPendidikanFormal').classList.add('active');
+  };
+
+  window.closeModalEksporPendidikanFormal = function () {
+    document.getElementById('modalEksporPendidikanFormal').classList.remove('active');
+  };
+
+  window.confirmEksporPendidikanFormal = function () {
+    const format = document.querySelector('input[name="eksporPendidikanFormalFormat"]:checked').value;
+    const scope = document.querySelector('input[name="eksporPendidikanFormalScope"]:checked').value;
+    const list = (window.lastSantriListData || []).filter(function (s) { return scope === 'all' || s.pendidikan === scope; });
+
+    const headers = ['No', 'Nama Generus', 'Pendidikan'];
+    const rows = list.map(function (s, i) { return [i + 1, s.nama, s.pendidikan || '-']; });
+
+    if (format === 'pdf') {
+      window.printPdfList_('Data Pendidikan Formal', headers, rows);
+      window.closeModalEksporPendidikanFormal();
+      return;
+    }
+    window.runXlsxExport_('Pendidikan Formal', headers, rows, window.closeModalEksporPendidikanFormal);
   };
 
   window.currentEditGenerusId = null;
@@ -2096,6 +2227,7 @@
         if (result.success) {
           window.lastSantriListData = result.data;
           window.renderSantriKpis_(result.data);
+          window.renderPendidikanFormalKpis_(result.data);
         }
         finish();
       })
@@ -2113,6 +2245,7 @@
       if (idx >= 0) list[idx] = rec; else list.push(rec);
     }
     window.renderSantriKpis_(list);
+    window.renderPendidikanFormalKpis_(list);
     window.refreshJadwalKelasSantriPanels_();
   };
 
