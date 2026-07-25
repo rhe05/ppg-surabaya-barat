@@ -1828,20 +1828,12 @@
       display: block;
     }
 
-    /* Tab Data Master (Kelp Petemon): ukuran card TETAP sama seperti semula
-       (jangan diperkecil lagi — sudah sempat kebablasan & jadi tidak
-       presisi), cuma jarak antar-baris dipangkas dikit supaya scrollbar
-       hilang. Scroll dimatikan HANYA saat panel ini aktif — panel lain
-       (Dashboard/Operasional/Kurikulum/dst) tidak terpengaruh sama sekali. */
+    /* Tab Data Master (Kelp Petemon): dulu overflow dimatikan di sini karena
+       Data Guru + Data Generus pas persis 1 layar tanpa scroll. Sejak section
+       Siklus Generus ditambahkan, isi panel ini lebih tinggi dari viewport,
+       jadi overflow HARUS auto supaya bisa discroll (dulu terkunci, tidak
+       bisa scroll ke section paling bawah). */
     #screenGuruDashboard:has(#kelpPanelDataMaster.active) .dash-container {
-      overflow-y: hidden;
-    }
-
-    /* Tapi begitu Daftar Guru/Daftar Generus diklik (fokus salah satu tabel,
-       lihat window.setDataMasterFocus_ — kelas "focused" ditambahkan ke
-       #kelpPanelDataMaster), tabelnya bisa sampai 10 baris jadi butuh scroll
-       lagi — aturan ini override overflow:hidden di atas KHUSUS saat fokus. */
-    #screenGuruDashboard:has(#kelpPanelDataMaster.active.focused) .dash-container {
       overflow-y: auto;
     }
 
