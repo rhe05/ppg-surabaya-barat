@@ -287,27 +287,49 @@
     // BUKAN '' (string kosong menghapus flex-nya permanen, jadi judul &
     // tombol malah tersusun ke bawah alih-alih sejajar seperti semula).
     const guruTitle = document.getElementById('dataGuruTitle');
-    if (guruTitle) guruTitle.style.display = (focus === 'generus') ? 'none' : 'flex';
+    if (guruTitle) guruTitle.style.display = (focus === 'generus' || focus === 'siklus') ? 'none' : 'flex';
     const guruKpi = document.getElementById('dataGuruKpiRow');
-    if (guruKpi) guruKpi.style.display = (focus === 'generus') ? 'none' : '';
+    if (guruKpi) guruKpi.style.display = (focus === 'generus' || focus === 'siklus') ? 'none' : '';
 
     const generusTitle = document.getElementById('dataGenerusTitle');
-    if (generusTitle) generusTitle.style.display = (focus === 'guru') ? 'none' : 'flex';
+    if (generusTitle) generusTitle.style.display = (focus === 'guru' || focus === 'siklus') ? 'none' : 'flex';
     ['dataGenerusKpiRow', 'generusJenjangRow'].forEach(function (id) {
       const el = document.getElementById(id);
-      if (el) el.style.display = (focus === 'guru') ? 'none' : '';
+      if (el) el.style.display = (focus === 'guru' || focus === 'siklus') ? 'none' : '';
     });
+
+    const siklusTitle = document.getElementById('dataSiklusGenerusTitle');
+    if (siklusTitle) siklusTitle.style.display = (focus === 'guru' || focus === 'generus') ? 'none' : 'flex';
+    const siklusKpi = document.getElementById('dataSiklusGenerusKpiRow');
+    if (siklusKpi) siklusKpi.style.display = (focus === 'guru' || focus === 'generus') ? 'none' : '';
 
     if (focus === 'guru') {
       const santriWrap = document.getElementById('santriDashTableWrapper');
       const santriBtn = document.getElementById('santriTableToggleBtn');
       if (santriWrap) santriWrap.style.display = 'none';
       if (santriBtn) santriBtn.classList.remove('active-state');
+      const siklusWrap = document.getElementById('siklusGenerusTableWrapper');
+      const siklusBtn = document.getElementById('siklusGenerusTableToggleBtn');
+      if (siklusWrap) siklusWrap.style.display = 'none';
+      if (siklusBtn) siklusBtn.classList.remove('active-state');
     } else if (focus === 'generus') {
       const guruWrap = document.getElementById('guruDashTableWrapper');
       const guruBtn = document.getElementById('guruTableToggleBtn');
       if (guruWrap) guruWrap.style.display = 'none';
       if (guruBtn) guruBtn.classList.remove('active-state');
+      const siklusWrap = document.getElementById('siklusGenerusTableWrapper');
+      const siklusBtn = document.getElementById('siklusGenerusTableToggleBtn');
+      if (siklusWrap) siklusWrap.style.display = 'none';
+      if (siklusBtn) siklusBtn.classList.remove('active-state');
+    } else if (focus === 'siklus') {
+      const guruWrap = document.getElementById('guruDashTableWrapper');
+      const guruBtn = document.getElementById('guruTableToggleBtn');
+      if (guruWrap) guruWrap.style.display = 'none';
+      if (guruBtn) guruBtn.classList.remove('active-state');
+      const santriWrap = document.getElementById('santriDashTableWrapper');
+      const santriBtn = document.getElementById('santriTableToggleBtn');
+      if (santriWrap) santriWrap.style.display = 'none';
+      if (santriBtn) santriBtn.classList.remove('active-state');
     }
 
     // Saat salah satu tabel difokuskan (bisa sampai 10 baris), panel butuh
@@ -339,6 +361,228 @@
     const scope = document.getElementById('santriDashScopeSelect').value;
     window.santriTableScope = scope;
     window.renderSantriDashTable_(window.lastSantriListData || [], scope, query);
+  };
+
+  window.toggleSiklusGenerusDashTable_ = function () {
+    const wrapper = document.getElementById('siklusGenerusTableWrapper');
+    const btn = document.getElementById('siklusGenerusTableToggleBtn');
+    const isOpening = wrapper.style.display === 'none';
+
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
+    window.setDataMasterFocus_(isOpening ? 'siklus' : null);
+
+    if (isOpening) {
+      document.getElementById('siklusGenerusScopeSelect').value = 'all';
+      document.getElementById('siklusGenerusSearchInput').value = '';
+      window.renderSiklusGenerusDashTable_(window.lastSiklusGenerusListData || [], 'all', '');
+    }
+  };
+
+  window.filterSiklusGenerusDashTable_ = function (query) {
+    const scope = document.getElementById('siklusGenerusScopeSelect').value;
+    window.renderSiklusGenerusDashTable_(window.lastSiklusGenerusListData || [], scope, query);
+  };
+
+  window.renderSiklusGenerusDashTable_ = function (data, scope, search) {
+    const q = (search || '').trim().toLowerCase();
+    const list = (data || []).filter(function (s) {
+      if (scope && scope !== 'all' && s.jenis_siklus !== scope) return false;
+      if (q && !String(s.nama || '').toLowerCase().includes(q)) return false;
+      return true;
+    });
+
+    const tbody = document.getElementById('siklusGenerusTableBody');
+    tbody.innerHTML = list.length === 0
+      ? '<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada catatan siklus.</td></tr>'
+      : list.map(function (s, i) {
+        return '<tr>'
+          + '<td>' + (i + 1) + '</td>'
+          + '<td>' + s.nama + '</td>'
+          + '<td>' + s.jenis_siklus + '</td>'
+          + '<td>' + (window.formatTanggalDisplay_(s.tanggal) || '-') + '</td>'
+          + '<td>' + (s.lokasi || '-') + '</td>'
+          + '<td>' + (s.instansi || '-') + '</td>'
+          + '<td>' + (s.keterangan || '-') + '</td>'
+          + '<td style="text-align: center;">'
+          + '<div class="jadwal-row-actions" style="justify-content: center;">'
+          + '<button class="jadwal-row-icon-btn" title="Edit" onclick="window.editSiklusGenerus(\'' + s.id + '\')">' + window.JADWAL_ICONS_.edit + '</button>'
+          + '<button class="jadwal-row-icon-btn" title="Hapus" onclick="window.deleteSiklusGenerus(\'' + s.id + '\')">' + window.JADWAL_ICONS_.delete + '</button>'
+          + '</div></td></tr>';
+      }).join('');
+  };
+
+  /** Kartu ringkasan (jumlah generus per jenis siklus). */
+  window.renderSiklusGenerusKpis_ = function (data) {
+    const counts = { 'Kerja': 0, 'Kuliah': 0, 'Pindah': 0, 'Mondok': 0, 'Tugas': 0, 'Tidak Aktif': 0 };
+    (data || []).forEach(function (s) {
+      if (counts[s.jenis_siklus] !== undefined) counts[s.jenis_siklus]++;
+    });
+    document.getElementById('sgKerjaCount').textContent = counts['Kerja'];
+    document.getElementById('sgKuliahCount').textContent = counts['Kuliah'];
+    document.getElementById('sgPindahCount').textContent = counts['Pindah'];
+    document.getElementById('sgMondokCount').textContent = counts['Mondok'];
+    document.getElementById('sgTugasCount').textContent = counts['Tugas'];
+    document.getElementById('sgTidakAktifCount').textContent = counts['Tidak Aktif'];
+  };
+
+  window.loadSiklusGenerusList_ = function (kelompokId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+        window.lastSiklusGenerusListData = result.data;
+        window.renderSiklusGenerusKpis_(result.data);
+        const wrapper = document.getElementById('siklusGenerusTableWrapper');
+        if (wrapper && wrapper.style.display !== 'none') {
+          window.renderSiklusGenerusDashTable_(result.data, document.getElementById('siklusGenerusScopeSelect').value, document.getElementById('siklusGenerusSearchInput').value);
+        }
+      })
+      .withFailureHandler(function () { /* KPI tetap 0, tabel tetap "Memuat..." — tidak fatal */ })
+      .serverGetSiklusGenerusList(window.currentToken, kelompokId);
+  };
+
+  window.currentEditSiklusGenerusId_ = null;
+
+  window.openModalSiklusGenerus = function () {
+    window.currentEditSiklusGenerusId_ = null;
+    document.getElementById('modalSiklusGenerusTitle').textContent = 'Tambah Siklus Generus';
+    document.getElementById('siklusGenerusNamaInput').value = '';
+    document.getElementById('siklusGenerusNamaInput').disabled = false;
+    document.getElementById('siklusGenerusSantriId').value = '';
+    document.getElementById('siklusGenerusJenis').value = 'Kerja';
+    document.getElementById('siklusGenerusTanggal').value = '';
+    document.getElementById('siklusGenerusLokasi').value = '';
+    document.getElementById('siklusGenerusInstansi').value = '';
+    document.getElementById('siklusGenerusKeterangan').value = '';
+    window.fillDatalist_('dlSiklusGenerusNama', (window.lastSantriListData || []).map(function (s) { return s.nama; }));
+    document.getElementById('modalSiklusGenerus').classList.add('active');
+  };
+
+  window.closeModalSiklusGenerus = function () {
+    document.getElementById('modalSiklusGenerus').classList.remove('active');
+  };
+
+  /** Cocokkan nama yang diketik ke generus yang SUDAH ADA di Data Master (bukan bikin baru). */
+  window.matchSiklusGenerusSantri_ = function (namaValue) {
+    const nama = String(namaValue || '').trim().toLowerCase();
+    const s = (window.lastSantriListData || []).find(function (x) { return String(x.nama || '').trim().toLowerCase() === nama; });
+    document.getElementById('siklusGenerusSantriId').value = s ? s.id : '';
+  };
+
+  window.saveSiklusGenerus = function () {
+    const santriId = document.getElementById('siklusGenerusSantriId').value;
+    const jenis = document.getElementById('siklusGenerusJenis').value;
+    const tanggal = document.getElementById('siklusGenerusTanggal').value;
+
+    if (!santriId) {
+      alert('Pilih generus yang sudah ada di Data Master (ketik nama, lalu pilih dari daftar saran).');
+      return;
+    }
+    if (!jenis || !tanggal) {
+      alert('Jenis siklus dan tanggal wajib diisi.');
+      return;
+    }
+
+    const data = {
+      kelompok_id: window.currentKelompokId,
+      santri_id: santriId,
+      jenis_siklus: jenis,
+      tanggal: tanggal,
+      lokasi: document.getElementById('siklusGenerusLokasi').value.trim(),
+      instansi: document.getElementById('siklusGenerusInstansi').value.trim(),
+      keterangan: document.getElementById('siklusGenerusKeterangan').value.trim(),
+    };
+
+    const editId = window.currentEditSiklusGenerusId_;
+    window.showGlobalLoading_('Menyimpan data...');
+    const onDone = function (result) {
+      window.hideGlobalLoading_();
+      if (!result.success) { alert(result.error); return; }
+      window.closeModalSiklusGenerus();
+      const list = window.lastSiklusGenerusListData || (window.lastSiklusGenerusListData = []);
+      const rec = Object.assign({ nama: result.nama }, data, { id: editId || result.id });
+      const idx = list.findIndex(function (x) { return String(x.id) === String(rec.id); });
+      if (idx >= 0) list[idx] = rec; else list.unshift(rec);
+      window.renderSiklusGenerusKpis_(list);
+      const wrapper = document.getElementById('siklusGenerusTableWrapper');
+      if (wrapper && wrapper.style.display !== 'none') {
+        window.renderSiklusGenerusDashTable_(list, document.getElementById('siklusGenerusScopeSelect').value, document.getElementById('siklusGenerusSearchInput').value);
+      }
+    };
+    const onFail = function (err) {
+      window.hideGlobalLoading_();
+      alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+    };
+
+    if (editId) {
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverUpdateSiklusGenerus(window.currentToken, editId, data);
+    } else {
+      google.script.run.withSuccessHandler(onDone).withFailureHandler(onFail).serverCreateSiklusGenerus(window.currentToken, data);
+    }
+  };
+
+  window.editSiklusGenerus = function (id) {
+    const s = (window.lastSiklusGenerusListData || []).find(function (x) { return String(x.id) === String(id); });
+    if (!s) return;
+
+    window.currentEditSiklusGenerusId_ = id;
+    document.getElementById('modalSiklusGenerusTitle').textContent = 'Edit Siklus Generus';
+    document.getElementById('siklusGenerusNamaInput').value = s.nama || '';
+    document.getElementById('siklusGenerusNamaInput').disabled = true;
+    document.getElementById('siklusGenerusSantriId').value = s.santri_id;
+    document.getElementById('siklusGenerusJenis').value = s.jenis_siklus || 'Kerja';
+    document.getElementById('siklusGenerusTanggal').value = window.toDateInputValue_(s.tanggal) || s.tanggal || '';
+    document.getElementById('siklusGenerusLokasi').value = s.lokasi || '';
+    document.getElementById('siklusGenerusInstansi').value = s.instansi || '';
+    document.getElementById('siklusGenerusKeterangan').value = s.keterangan || '';
+    document.getElementById('modalSiklusGenerus').classList.add('active');
+  };
+
+  window.deleteSiklusGenerus = function (id) {
+    if (!confirm('Hapus catatan siklus ini?')) return;
+
+    window.showGlobalLoading_('Menghapus data...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        const list = window.lastSiklusGenerusListData || [];
+        const idx = list.findIndex(function (x) { return String(x.id) === String(id); });
+        if (idx >= 0) list.splice(idx, 1);
+        window.renderSiklusGenerusKpis_(list);
+        window.renderSiklusGenerusDashTable_(list, document.getElementById('siklusGenerusScopeSelect').value, document.getElementById('siklusGenerusSearchInput').value);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
+      })
+      .serverDeleteSiklusGenerus(window.currentToken, id);
+  };
+
+  window.openModalEksporSiklusGenerus = function () {
+    document.getElementById('modalEksporSiklusGenerus').classList.add('active');
+  };
+
+  window.closeModalEksporSiklusGenerus = function () {
+    document.getElementById('modalEksporSiklusGenerus').classList.remove('active');
+  };
+
+  window.confirmEksporSiklusGenerus = function () {
+    const format = document.querySelector('input[name="eksporSiklusGenerusFormat"]:checked').value;
+    const scope = document.querySelector('input[name="eksporSiklusGenerusScope"]:checked').value;
+    const list = (window.lastSiklusGenerusListData || []).filter(function (s) { return scope === 'all' || s.jenis_siklus === scope; });
+
+    const headers = ['No', 'Nama Generus', 'Jenis Siklus', 'Tanggal', 'Lokasi', 'Instansi', 'Keterangan'];
+    const rows = list.map(function (s, i) {
+      return [i + 1, s.nama, s.jenis_siklus, window.formatTanggalDisplay_(s.tanggal) || '-', s.lokasi || '-', s.instansi || '-', s.keterangan || '-'];
+    });
+
+    if (format === 'pdf') {
+      window.printPdfList_('Data Siklus Generus', headers, rows);
+      window.closeModalEksporSiklusGenerus();
+      return;
+    }
+    window.runXlsxExport_('Siklus Generus', headers, rows, window.closeModalEksporSiklusGenerus);
   };
 
   window.currentEditGenerusId = null;
@@ -3092,6 +3336,7 @@
     window.loadKelompokDashboardJadwal_(kelompokId);
     window.loadJadwalKategoriHari_(kelompokId);
     window.loadKelompokDashboardPengumuman_(kelompokId);
+    window.loadSiklusGenerusList_(kelompokId);
   };
 
   // Inti aktivasi screen Dashboard Kelompok, TANPA event — dipakai baik oleh

@@ -28,6 +28,7 @@ const SHEET_NAMES = {
   JADWAL_KBM: 'jadwal_kbm',
   PENGUMUMAN: 'pengumuman',
   JADWAL_KATEGORI_HARI: 'jadwal_kategori_hari',
+  SIKLUS_GENERUS: 'siklus_generus',
 };
 
 /**
