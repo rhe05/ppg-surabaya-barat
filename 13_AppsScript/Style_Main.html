@@ -1710,6 +1710,25 @@
       padding: 18px 16px 16px;
     }
 
+    /* Siklus Generus: 6 kartu WAJIB satu baris (bukan auto-fit yang bisa
+       membungkus ke baris ke-2) — kolomnya menyempit mengikuti lebar layar
+       desktop masing-masing, bukan jumlah kolomnya yang berkurang. */
+    #dataSiklusGenerusKpiRow {
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    #dataSiklusGenerusKpiRow .guru-dash-kpi-card {
+      padding: 16px 12px 14px;
+      min-width: 0;
+    }
+
+    #dataSiklusGenerusKpiRow .guru-dash-kpi-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
     .guru-dash-toggle-table {
       display: inline-flex;
       align-items: center;
