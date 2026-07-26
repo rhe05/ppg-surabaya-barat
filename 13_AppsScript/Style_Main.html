@@ -1856,26 +1856,18 @@
     }
 
     /* Baris kotak sejajar (Wk Pembina 1-4 kotak, atau 5 dapukan di bawah PJP
-       Kelp). Garis horizontal digambar via ::before dgn inset kiri/kanan =
-       SETENGAH lebar kotak (172/2 = 86px) — jadi garis SELALU mulai & berakhir
-       PERSIS di titik tengah kotak pertama & terakhir, bukan di tepinya,
-       berapa pun jumlah kotaknya (kalau cuma 1 kotak, otomatis tidak ada garis
-       horizontal sama sekali, karena insetnya saling menutup). */
+       Kelp). Garis horizontal TIDAK LAGI pakai ::before/::after dgn inset
+       tebak-tebakan (pernah meleset — garis berhenti di tengah jalan, tidak
+       nyampe kotak terakhir). Sekarang diukur & digambar oleh JS
+       (drawStrukturBranchLines_) sbg elemen sungguhan `.struktur-branch-line`,
+       posisi PERSIS dari titik-tengah kotak pertama & terakhir yg terukur —
+       akurat berapa pun jumlah/lebar kotaknya, tidak bergantung asumsi lebar
+       tetap. */
     .struktur-branch-row {
       position: relative;
       display: inline-flex;
       gap: 24px;
       padding-top: 26px;
-    }
-
-    .struktur-branch-row::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 86px;
-      right: 86px;
-      height: 2px;
-      background: var(--border);
     }
 
     /* "converge-below": dipakai KHUSUS baris Wk Pembina Generus — baris ini
@@ -1886,14 +1878,18 @@
       padding-bottom: 26px;
     }
 
-    .struktur-branch-row.converge-below::after {
-      content: '';
+    /* Elemen garis horizontal sungguhan (bukan pseudo-element) — posisi
+       (left/width) di-set oleh JS hasil pengukuran nyata tiap render. */
+    .struktur-branch-line {
       position: absolute;
-      bottom: 0;
-      left: 86px;
-      right: 86px;
+      top: 0;
       height: 2px;
       background: var(--border);
+    }
+
+    .struktur-branch-line.bottom {
+      top: auto;
+      bottom: 0;
     }
 
     /* Batang tengah yg menyambungkan kotak Wk Pembina (di atas) ke garis

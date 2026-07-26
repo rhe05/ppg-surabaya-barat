@@ -1049,8 +1049,48 @@
       + '</div>';
   };
 
+  /** Gambar garis horizontal tiap ".struktur-branch-row" berdasarkan posisi
+      NYATA (getBoundingClientRect) kolom pertama & terakhirnya — bukan
+      nebak dari asumsi lebar kotak tetap (itu penyebab garis pernah berhenti
+      di tengah jalan, tidak nyampe kotak paling kanan). Dipanggil SETELAH
+      HTML disisipkan ke DOM, SEBELUM transform:scale diterapkan (supaya
+      koordinat yg diukur murni, tidak perlu dibagi skala). */
+  window.drawStrukturBranchLines_ = function (root) {
+    const rows = root.querySelectorAll('.struktur-branch-row');
+    rows.forEach(function (row) {
+      row.querySelectorAll('.struktur-branch-line').forEach(function (el) { el.remove(); });
+
+      const cols = Array.prototype.filter.call(row.children, function (el) { return el.classList.contains('struktur-col'); });
+      if (cols.length < 2) return;
+
+      const rowRect = row.getBoundingClientRect();
+      const firstRect = cols[0].getBoundingClientRect();
+      const lastRect = cols[cols.length - 1].getBoundingClientRect();
+      const firstCenter = (firstRect.left + firstRect.right) / 2 - rowRect.left;
+      const lastCenter = (lastRect.left + lastRect.right) / 2 - rowRect.left;
+      const left = Math.min(firstCenter, lastCenter);
+      const width = Math.abs(lastCenter - firstCenter);
+
+      const topLine = document.createElement('div');
+      topLine.className = 'struktur-branch-line';
+      topLine.style.left = left + 'px';
+      topLine.style.width = width + 'px';
+      row.appendChild(topLine);
+
+      if (row.classList.contains('converge-below')) {
+        const botLine = document.createElement('div');
+        botLine.className = 'struktur-branch-line bottom';
+        botLine.style.left = left + 'px';
+        botLine.style.width = width + 'px';
+        row.appendChild(botLine);
+      }
+    });
+  };
+
   window.renderStrukturPengurusChart_ = function () {
-    document.getElementById('strukturPengurusBody').innerHTML = window.buildStrukturPengurusChartHtml_();
+    const body = document.getElementById('strukturPengurusBody');
+    body.innerHTML = window.buildStrukturPengurusChartHtml_();
+    window.drawStrukturBranchLines_(body);
     window.fitStrukturPengurusChart_();
   };
 
@@ -1142,9 +1182,9 @@
             .struktur-node-name { font-size: 13.5px; font-weight: 700; color: #0F172A; line-height: 1.35; word-break: break-word; }
             .struktur-connector { width: 2px; height: 26px; background: #E2E8F0; }
             .struktur-branch-row { position: relative; display: inline-flex; gap: 24px; padding-top: 26px; }
-            .struktur-branch-row::before { content: ''; position: absolute; top: 0; left: 86px; right: 86px; height: 2px; background: #E2E8F0; }
             .struktur-branch-row.converge-below { padding-bottom: 26px; }
-            .struktur-branch-row.converge-below::after { content: ''; position: absolute; bottom: 0; left: 86px; right: 86px; height: 2px; background: #E2E8F0; }
+            .struktur-branch-line { position: absolute; top: 0; height: 2px; background: #E2E8F0; }
+            .struktur-branch-line.bottom { top: auto; bottom: 0; }
             .struktur-converge-stem { position: absolute; bottom: 0; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
             .struktur-col { position: relative; display: flex; flex-direction: column; align-items: center; }
             .struktur-col::before { content: ''; position: absolute; top: -26px; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
@@ -1164,7 +1204,34 @@
             </div>
             <div>Waktu Unduh : ${waktuUnduh}</div>
           </div>
-          <script>window.onload = function () { window.print(); };<\/script>
+          <script>
+            window.onload = function () {
+              document.querySelectorAll('.struktur-branch-row').forEach(function (row) {
+                const cols = Array.prototype.filter.call(row.children, function (el) { return el.classList.contains('struktur-col'); });
+                if (cols.length < 2) return;
+                const rowRect = row.getBoundingClientRect();
+                const firstRect = cols[0].getBoundingClientRect();
+                const lastRect = cols[cols.length - 1].getBoundingClientRect();
+                const firstCenter = (firstRect.left + firstRect.right) / 2 - rowRect.left;
+                const lastCenter = (lastRect.left + lastRect.right) / 2 - rowRect.left;
+                const left = Math.min(firstCenter, lastCenter);
+                const width = Math.abs(lastCenter - firstCenter);
+                const topLine = document.createElement('div');
+                topLine.className = 'struktur-branch-line';
+                topLine.style.left = left + 'px';
+                topLine.style.width = width + 'px';
+                row.appendChild(topLine);
+                if (row.classList.contains('converge-below')) {
+                  const botLine = document.createElement('div');
+                  botLine.className = 'struktur-branch-line bottom';
+                  botLine.style.left = left + 'px';
+                  botLine.style.width = width + 'px';
+                  row.appendChild(botLine);
+                }
+              });
+              window.print();
+            };
+          <\/script>
         </body>
       </html>
     `);
