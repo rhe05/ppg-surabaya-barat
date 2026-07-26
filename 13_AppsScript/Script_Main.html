@@ -1037,10 +1037,8 @@
     return '<div class="struktur-chart">'
       + window.strukturNodeHtml_('Pembina Generus', namaSingle('Pembina Generus Kelp'))
       + '<div class="struktur-connector"></div>'
-      // "converge-below": baris Wk Pembina Generus butuh garis horizontal DI
-      // BAWAHNYA juga (bukan cuma di atas) supaya garis turun ke PJP Kelp
-      // kelihatan jelas nyambung ke "kelompok Wk Pembina" (satu batang, bukan
-      // muncul dari celah kosong antar kotak).
+      // "converge-below": penanda baris ini turun ke PJP Kelp lewat siku
+      // (elbow) dari kotak Wk Pembina pertama — lihat drawWkPembinaElbow_.
       + '<div class="struktur-branch-row converge-below">' + wkPembinaCols + '</div>'
       + '<div class="struktur-connector"></div>'
       + window.strukturNodeHtml_('PJP Kelp', namaSingle('PJP Kelp'))
@@ -1076,21 +1074,70 @@
       topLine.style.left = left + 'px';
       topLine.style.width = width + 'px';
       row.appendChild(topLine);
-
-      if (row.classList.contains('converge-below')) {
-        const botLine = document.createElement('div');
-        botLine.className = 'struktur-branch-line bottom';
-        botLine.style.left = left + 'px';
-        botLine.style.width = width + 'px';
-        row.appendChild(botLine);
-      }
     });
+  };
+
+  /** Baris "converge-below" (Wk Pembina Generus) TIDAK LAGI digabung lewat
+      batang tengah — sekarang bercabang jelas berupa siku (elbow): turun dari
+      kotak Wk Pembina PERTAMA, belok mendatar, lalu turun lagi tepat di
+      sumbu-tengah menuju connector polos yg sudah ada ke PJP Kelp. Kalau cuma
+      1 kotak (atau kebetulan sudah segaris tengah), otomatis jadi garis lurus
+      biasa tanpa siku. */
+  window.drawWkPembinaElbow_ = function (root) {
+    const row = root.querySelector('.struktur-branch-row.converge-below');
+    if (!row) return;
+    row.querySelectorAll('.struktur-elbow-line').forEach(function (el) { el.remove(); });
+
+    const cols = Array.prototype.filter.call(row.children, function (el) { return el.classList.contains('struktur-col'); });
+    const connector = row.nextElementSibling;
+    if (cols.length === 0 || !connector) return;
+
+    const rowRect = row.getBoundingClientRect();
+    const sourceRect = cols[0].getBoundingClientRect();
+    const sourceX = (sourceRect.left + sourceRect.right) / 2 - rowRect.left;
+    const connectorRect = connector.getBoundingClientRect();
+    const targetX = (connectorRect.left + connectorRect.right) / 2 - rowRect.left;
+
+    const dropHeight = 26;
+    if (cols.length === 1 || Math.abs(sourceX - targetX) < 1) {
+      const straight = document.createElement('div');
+      straight.className = 'struktur-elbow-line struktur-elbow-vline';
+      straight.style.left = (sourceX - 1) + 'px';
+      straight.style.top = '0';
+      straight.style.height = dropHeight + 'px';
+      row.appendChild(straight);
+      return;
+    }
+
+    const turnY = dropHeight / 2;
+
+    const v1 = document.createElement('div');
+    v1.className = 'struktur-elbow-line struktur-elbow-vline';
+    v1.style.left = (sourceX - 1) + 'px';
+    v1.style.top = '0';
+    v1.style.height = turnY + 'px';
+    row.appendChild(v1);
+
+    const h = document.createElement('div');
+    h.className = 'struktur-elbow-line struktur-elbow-hline';
+    h.style.left = Math.min(sourceX, targetX) + 'px';
+    h.style.width = Math.abs(targetX - sourceX) + 'px';
+    h.style.top = (turnY - 1) + 'px';
+    row.appendChild(h);
+
+    const v2 = document.createElement('div');
+    v2.className = 'struktur-elbow-line struktur-elbow-vline';
+    v2.style.left = (targetX - 1) + 'px';
+    v2.style.top = turnY + 'px';
+    v2.style.height = (dropHeight - turnY) + 'px';
+    row.appendChild(v2);
   };
 
   window.renderStrukturPengurusChart_ = function () {
     const body = document.getElementById('strukturPengurusBody');
     body.innerHTML = window.buildStrukturPengurusChartHtml_();
     window.drawStrukturBranchLines_(body);
+    window.drawWkPembinaElbow_(body);
     window.fitStrukturPengurusChart_();
   };
 
@@ -1182,8 +1229,11 @@
             .struktur-node-name { font-size: 13.5px; font-weight: 700; color: #0F172A; line-height: 1.35; word-break: break-word; }
             .struktur-connector { width: 2px; height: 26px; background: #E2E8F0; }
             .struktur-branch-row { position: relative; display: inline-flex; gap: 24px; padding-top: 26px; }
+            .struktur-branch-row.converge-below { padding-bottom: 26px; }
             .struktur-branch-line { position: absolute; top: 0; height: 2px; background: #E2E8F0; }
-            .struktur-branch-line.bottom { top: auto; bottom: 0; }
+            .struktur-elbow-line { position: absolute; background: #E2E8F0; }
+            .struktur-elbow-vline { width: 2px; }
+            .struktur-elbow-hline { height: 2px; }
             .struktur-col { position: relative; display: flex; flex-direction: column; align-items: center; }
             .struktur-col::before { content: ''; position: absolute; top: -26px; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
             .struktur-pdf-footer { position: fixed; bottom: 6mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 6px; }
@@ -1219,14 +1269,53 @@
                 topLine.style.left = left + 'px';
                 topLine.style.width = width + 'px';
                 row.appendChild(topLine);
-                if (row.classList.contains('converge-below')) {
-                  const botLine = document.createElement('div');
-                  botLine.className = 'struktur-branch-line bottom';
-                  botLine.style.left = left + 'px';
-                  botLine.style.width = width + 'px';
-                  row.appendChild(botLine);
-                }
               });
+
+              const wkRow = document.querySelector('.struktur-branch-row.converge-below');
+              if (wkRow) {
+                const cols = Array.prototype.filter.call(wkRow.children, function (el) { return el.classList.contains('struktur-col'); });
+                const connector = wkRow.nextElementSibling;
+                if (cols.length > 0 && connector) {
+                  const rowRect = wkRow.getBoundingClientRect();
+                  const sourceRect = cols[0].getBoundingClientRect();
+                  const sourceX = (sourceRect.left + sourceRect.right) / 2 - rowRect.left;
+                  const connectorRect = connector.getBoundingClientRect();
+                  const targetX = (connectorRect.left + connectorRect.right) / 2 - rowRect.left;
+                  const dropHeight = 26;
+
+                  if (cols.length === 1 || Math.abs(sourceX - targetX) < 1) {
+                    const straight = document.createElement('div');
+                    straight.className = 'struktur-elbow-line struktur-elbow-vline';
+                    straight.style.left = (sourceX - 1) + 'px';
+                    straight.style.top = '0';
+                    straight.style.height = dropHeight + 'px';
+                    wkRow.appendChild(straight);
+                  } else {
+                    const turnY = dropHeight / 2;
+                    const v1 = document.createElement('div');
+                    v1.className = 'struktur-elbow-line struktur-elbow-vline';
+                    v1.style.left = (sourceX - 1) + 'px';
+                    v1.style.top = '0';
+                    v1.style.height = turnY + 'px';
+                    wkRow.appendChild(v1);
+
+                    const h = document.createElement('div');
+                    h.className = 'struktur-elbow-line struktur-elbow-hline';
+                    h.style.left = Math.min(sourceX, targetX) + 'px';
+                    h.style.width = Math.abs(targetX - sourceX) + 'px';
+                    h.style.top = (turnY - 1) + 'px';
+                    wkRow.appendChild(h);
+
+                    const v2 = document.createElement('div');
+                    v2.className = 'struktur-elbow-line struktur-elbow-vline';
+                    v2.style.left = (targetX - 1) + 'px';
+                    v2.style.top = turnY + 'px';
+                    v2.style.height = (dropHeight - turnY) + 'px';
+                    wkRow.appendChild(v2);
+                  }
+                }
+              }
+
               window.print();
             };
           <\/script>
