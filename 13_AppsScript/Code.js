@@ -19,7 +19,7 @@
  * (Kelp Petemon, Bangun Rejo, Purwodadi, Dupak) — selama true, SIAPA PUN
  * yang membuka URL langsung masuk sebagai Admin PPG tanpa password.
  */
-const DEV_MODE_SKIP_LOGIN = true;
+const DEV_MODE_SKIP_LOGIN = false;
 
 /**
  * SHEET_NAMES — Daftar semua sheet di Spreadsheet.
@@ -259,8 +259,12 @@ function serverLogin(username, password) {
   }
 
   const hashed = hashPassword_(password);
-  if (hashed !== found.passwordHash) {
+  if (hashed !== found.password_hash) {
     return { success: false, error: 'Username atau password salah.' };
+  }
+
+  if (String(found.status).toLowerCase() === 'inactive') {
+    return { success: false, error: 'Akun tidak aktif. Hubungi admin.' };
   }
 
   // Buat token sesi sederhana, simpan di cache 6 jam
@@ -269,8 +273,9 @@ function serverLogin(username, password) {
     id: found.id,
     nama: found.nama,
     role: found.role,
-    scopeType: found.scopeType,
-    scopeId: found.scopeId,
+    scopeType: found.scope_type,
+    scopeId: found.scope_id,
+    guruId: found.guru_id || null,
   };
   CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600); // 6 jam
 

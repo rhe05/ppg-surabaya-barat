@@ -111,6 +111,16 @@
   function renderApp(user) {
     window.hideGlobalLoading_();
     document.getElementById('screenLogin').style.display = 'none';
+
+    // Role 'guru' TIDAK PERNAH melihat shell admin (appLayout/sidebar/menu) —
+    // dikunci total ke screen Input Absen sendiri (Modul_InputAbsen.gs).
+    if (user.role === 'guru') {
+      document.getElementById('appLayout').style.display = 'none';
+      document.getElementById('screenInputAbsen').style.display = 'flex';
+      window.initInputAbsen_();
+      return;
+    }
+
     document.getElementById('appLayout').style.display = 'flex';
 
     // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
@@ -129,8 +139,309 @@
     window.currentUser = null;
     document.getElementById('screenLogin').style.display = 'flex';
     document.getElementById('appLayout').style.display = 'none';
+    document.getElementById('screenInputAbsen').style.display = 'none';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
+  };
+
+  /* ═════ INPUT ABSEN (khusus role='guru') — Modul_InputAbsen.gs ═════ */
+
+  window.iaState_ = { kelas: null, list: [], santriCount: 0 };
+
+  function iaToday_() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function iaShowToast_(message, type) {
+    const toast = document.getElementById('iaToast');
+    toast.textContent = message;
+    toast.className = 'ia-toast show' + (type ? ' ' + type : '');
+    setTimeout(function () { toast.classList.remove('show'); }, 2500);
+  }
+
+  function iaInitials_(nama) {
+    const parts = String(nama || '').trim().split(/\s+/);
+    return ((parts[0] || '')[0] || '?').toUpperCase() + ((parts[1] || '')[0] || '').toUpperCase();
+  }
+
+  window.initInputAbsen_ = function () {
+    document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Guru';
+    document.getElementById('iaTanggal').value = iaToday_();
+    window.iaLoadBell_();
+    window.iaOnTanggalChange_();
+  };
+
+  window.iaLoadBell_ = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+        const badge = document.getElementById('iaBellBadge');
+        if (result.data.pendingIncomingCount > 0) {
+          badge.textContent = result.data.pendingIncomingCount;
+          badge.style.display = 'flex';
+        } else {
+          badge.style.display = 'none';
+        }
+      })
+      .serverGetInputAbsenMeta(window.currentToken);
+  };
+
+  window.iaOnTanggalChange_ = function () {
+    window.iaState_.kelas = null;
+    document.getElementById('iaEmptyState').style.display = 'flex';
+    document.getElementById('iaProgressWrap').style.display = 'none';
+    document.getElementById('iaSantriList').innerHTML = '';
+    document.getElementById('iaBottomBar').style.display = 'none';
+
+    const tanggal = document.getElementById('iaTanggal').value;
+    const row = document.getElementById('iaKelasRow');
+    row.innerHTML = '<div style="padding:8px; color:var(--text-faint); font-size:13px;">Memuat kelas...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        row.innerHTML = '';
+        if (!result.success) {
+          row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
+          return;
+        }
+        result.data.forEach(function (item) {
+          const chip = document.createElement('div');
+          chip.className = 'ia-kelas-chip' + (item.isOwn ? '' : ' pinjam');
+          chip.innerHTML = `
+            <div class="ia-kelas-chip-nama">${item.kelas}</div>
+            <div class="ia-kelas-chip-meta">${item.santriCount} santri</div>
+          `;
+          chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
+          row.appendChild(chip);
+        });
+
+        const addChip = document.createElement('div');
+        addChip.className = 'ia-kelas-chip-add';
+        addChip.innerHTML = '<span>+</span><span>Minta Akses</span>';
+        addChip.onclick = window.openModalMintaAkses_;
+        row.appendChild(addChip);
+      })
+      .serverGetKelasAbsenList(window.currentToken, tanggal);
+  };
+
+  window.iaSelectKelas_ = function (kelas, chipEl) {
+    document.querySelectorAll('.ia-kelas-chip').forEach(function (c) { c.classList.remove('active'); });
+    if (chipEl) chipEl.classList.add('active');
+    window.iaState_.kelas = kelas;
+
+    const tanggal = document.getElementById('iaTanggal').value;
+    document.getElementById('iaEmptyState').style.display = 'none';
+    document.getElementById('iaSantriList').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-faint); font-size:13px;">Memuat santri...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          iaShowToast_(result.error, 'error');
+          document.getElementById('iaSantriList').innerHTML = '';
+          document.getElementById('iaEmptyState').style.display = 'flex';
+          return;
+        }
+        window.iaState_.list = result.data;
+        window.iaRenderSantriList_();
+      })
+      .serverGetAbsensiKelasForm(window.currentToken, kelas, tanggal);
+  };
+
+  window.iaRenderSantriList_ = function () {
+    const list = window.iaState_.list;
+    const wrap = document.getElementById('iaSantriList');
+    wrap.innerHTML = '';
+
+    if (list.length === 0) {
+      wrap.innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-faint); font-size:13px;">Belum ada santri di kelas ini.</div>';
+      document.getElementById('iaProgressWrap').style.display = 'none';
+      document.getElementById('iaBottomBar').style.display = 'none';
+      return;
+    }
+
+    list.forEach(function (s, idx) {
+      const card = document.createElement('div');
+      card.className = 'ia-santri-card';
+      card.style.animationDelay = (idx * 0.03) + 's';
+      card.innerHTML = `
+        <div class="ia-avatar">${iaInitials_(s.nama)}</div>
+        <div class="ia-santri-nama">${s.nama}</div>
+        <div class="ia-status-toggle" data-santri="${s.santri_id}">
+          <button class="ia-status-btn${s.status === 'hadir' ? ' active' : ''}" data-status="hadir" onclick="window.iaSetStatus_(${s.santri_id}, 'hadir', this)">Hadir</button>
+          <button class="ia-status-btn${s.status === 'izin' ? ' active' : ''}" data-status="izin" onclick="window.iaSetStatus_(${s.santri_id}, 'izin', this)">Izin</button>
+          <button class="ia-status-btn${s.status === 'alpa' ? ' active' : ''}" data-status="alpa" onclick="window.iaSetStatus_(${s.santri_id}, 'alpa', this)">Alpa</button>
+        </div>
+      `;
+      wrap.appendChild(card);
+    });
+
+    document.getElementById('iaProgressWrap').style.display = 'block';
+    document.getElementById('iaBottomBar').style.display = 'block';
+    window.iaUpdateProgress_();
+  };
+
+  window.iaSetStatus_ = function (santriId, status, btnEl) {
+    const item = window.iaState_.list.find(function (s) { return s.santri_id === santriId; });
+    if (item) item.status = status;
+
+    const toggle = btnEl.closest('.ia-status-toggle');
+    toggle.querySelectorAll('.ia-status-btn').forEach(function (b) { b.classList.remove('active'); });
+    btnEl.classList.add('active');
+    window.iaUpdateProgress_();
+  };
+
+  window.iaUpdateProgress_ = function () {
+    const list = window.iaState_.list;
+    const hadir = list.filter(function (s) { return s.status === 'hadir'; }).length;
+    document.getElementById('iaProgressLabel').textContent = hadir + '/' + list.length + ' Hadir';
+    document.getElementById('iaProgressFill').style.width = (list.length ? (hadir / list.length * 100) : 0) + '%';
+  };
+
+  window.saveInputAbsen_ = function () {
+    const kelas = window.iaState_.kelas;
+    const tanggal = document.getElementById('iaTanggal').value;
+    const btn = document.getElementById('iaSaveBtn');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+
+    const absensiList = window.iaState_.list.map(function (s) { return { santri_id: s.santri_id, status: s.status }; });
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Absen';
+        if (result.success) {
+          iaShowToast_('✓ ' + result.message, 'success');
+        } else {
+          iaShowToast_(result.error, 'error');
+        }
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Absen';
+        iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
+      })
+      .serverSaveAbsensiKelas(window.currentToken, kelas, tanggal, absensiList);
+  };
+
+  /* ─── Minta Akses Kelas Lain ─── */
+
+  window.openModalMintaAkses_ = function () {
+    document.getElementById('mintaAksesTanggal').value = document.getElementById('iaTanggal').value || iaToday_();
+    document.getElementById('mintaAksesKeterangan').value = '';
+    document.getElementById('mintaAksesMsg').style.display = 'none';
+    const select = document.getElementById('mintaAksesKelas');
+    select.innerHTML = '<option value="">Memuat...</option>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        select.innerHTML = '<option value="">-- Pilih Kelas --</option>';
+        if (result.success) {
+          result.data.forEach(function (item) {
+            const opt = document.createElement('option');
+            opt.value = item.kelas;
+            opt.textContent = item.kelas + ' (Guru: ' + item.namaGuruPemilik + ')';
+            select.appendChild(opt);
+          });
+        }
+      })
+      .serverListKelasUntukPermintaan(window.currentToken);
+
+    document.getElementById('modalMintaAkses').classList.add('active');
+  };
+
+  window.closeModalMintaAkses_ = function () {
+    document.getElementById('modalMintaAkses').classList.remove('active');
+  };
+
+  window.kirimMintaAkses_ = function () {
+    const kelas = document.getElementById('mintaAksesKelas').value;
+    const tanggal = document.getElementById('mintaAksesTanggal').value;
+    const keterangan = document.getElementById('mintaAksesKeterangan').value;
+    const msg = document.getElementById('mintaAksesMsg');
+
+    if (!kelas || !tanggal) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Pilih kelas dan tanggal terlebih dahulu.';
+      return;
+    }
+
+    const btn = document.getElementById('btnKirimMintaAkses');
+    btn.disabled = true;
+    btn.textContent = 'Mengirim...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Kirim Permintaan';
+        msg.style.display = 'block';
+        msg.style.color = result.success ? 'var(--sage)' : 'var(--red)';
+        msg.textContent = result.success ? result.message : result.error;
+        if (result.success) {
+          setTimeout(window.closeModalMintaAkses_, 1200);
+        }
+      })
+      .serverRequestAksesKelas(window.currentToken, kelas, tanggal, keterangan);
+  };
+
+  /* ─── Permintaan Akses Masuk (approve/reject) ─── */
+
+  window.openModalIncomingRequests_ = function () {
+    const list = document.getElementById('incomingRequestsList');
+    list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-faint); font-size:13px;">Memuat...</div>';
+    document.getElementById('modalIncomingRequests').classList.add('active');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          list.innerHTML = '<div style="padding:16px; color:var(--red); font-size:13px;">' + result.error + '</div>';
+          return;
+        }
+        if (result.data.length === 0) {
+          list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-faint); font-size:13px;">Tidak ada permintaan.</div>';
+          return;
+        }
+        list.innerHTML = '';
+        result.data.forEach(function (r) {
+          const item = document.createElement('div');
+          item.className = 'ia-incoming-item';
+          item.innerHTML = `
+            <div class="ia-incoming-item-title">${r.requester_nama} minta akses kelas "${r.kelas}"</div>
+            <div class="ia-incoming-item-meta">Tanggal: ${r.tanggal}${r.keterangan ? ' — ' + r.keterangan : ''}</div>
+            <div class="ia-incoming-item-actions">
+              <button class="btn btn-secondary" onclick="window.respondAksesRequest_(${r.id}, 'rejected', this)">Tolak</button>
+              <button class="btn btn-primary" onclick="window.respondAksesRequest_(${r.id}, 'approved', this)">Setujui</button>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+      })
+      .serverGetIncomingAksesRequests(window.currentToken);
+  };
+
+  window.closeModalIncomingRequests_ = function () {
+    document.getElementById('modalIncomingRequests').classList.remove('active');
+  };
+
+  window.respondAksesRequest_ = function (requestId, decision, btnEl) {
+    const item = btnEl.closest('.ia-incoming-item');
+    item.style.opacity = '0.5';
+    item.style.pointerEvents = 'none';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          item.remove();
+          window.iaLoadBell_();
+        } else {
+          iaShowToast_(result.error, 'error');
+          item.style.opacity = '1';
+          item.style.pointerEvents = 'auto';
+        }
+      })
+      .serverRespondAksesRequest(window.currentToken, requestId, decision);
   };
 
   window.toggleDesaMenu = function (event) {
@@ -5153,7 +5464,42 @@
     document.getElementById('userFormMessage').style.display = 'block';
     document.getElementById('userFormMessage').innerHTML = '✓ Password sementara akan di-generate otomatis. User dapat mengubahnya setelah login pertama.';
     document.getElementById('btnSaveUser').textContent = 'Buat User';
+    window.refreshUserGuruOptions_('');
     document.getElementById('modalUserForm').classList.add('active');
+  };
+
+  // Tampilkan/isi dropdown "Terhubung ke Data Guru" HANYA saat role=guru & scope Kelompok
+  // sudah ditentukan (Modul_UserManagement.gs → serverGetGuruOptionsForUser).
+  window.refreshUserGuruOptions_ = function (selectedGuruId) {
+    const role = document.getElementById('userRole').value;
+    const scopeType = document.getElementById('userScopeType').value;
+    const scopeId = document.getElementById('userScopeId').value;
+    const group = document.getElementById('userGuruGroup');
+    const select = document.getElementById('userGuruId');
+
+    if (role !== 'guru' || scopeType !== 'kelompok' || !scopeId) {
+      group.style.display = 'none';
+      select.innerHTML = '<option value="">-- Pilih Guru --</option>';
+      return;
+    }
+
+    group.style.display = 'block';
+    select.innerHTML = '<option value="">Memuat...</option>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        select.innerHTML = '<option value="">-- Pilih Guru --</option>';
+        if (result.success) {
+          result.data.forEach(function (g) {
+            const opt = document.createElement('option');
+            opt.value = g.id;
+            opt.textContent = g.nama;
+            if (String(g.id) === String(selectedGuruId)) opt.selected = true;
+            select.appendChild(opt);
+          });
+        }
+      })
+      .serverGetGuruOptionsForUser(window.currentToken, scopeId);
   };
 
   window.editUser = function (userId) {
@@ -5172,6 +5518,7 @@
           document.getElementById('userScopeId').value = user.scope_id;
           document.getElementById('userFormMessage').style.display = 'none';
           document.getElementById('btnSaveUser').textContent = 'Update User';
+          window.refreshUserGuruOptions_(user.guru_id);
           document.getElementById('modalUserForm').classList.add('active');
         }
       })
@@ -5184,9 +5531,14 @@
     const role = document.getElementById('userRole').value;
     const scopeType = document.getElementById('userScopeType').value;
     const scopeId = document.getElementById('userScopeId').value;
+    const guruId = document.getElementById('userGuruId').value;
 
     if (!nama || !email || !role || !scopeType || !scopeId) {
       showAlert('userMgmtError', 'Semua field wajib diisi.', 'error');
+      return;
+    }
+    if (role === 'guru' && !guruId) {
+      showAlert('userMgmtError', 'Pilih data Guru yang terhubung dengan akun ini.', 'error');
       return;
     }
 
@@ -5210,7 +5562,7 @@
           }
         })
         .serverUpdateUser(window.currentToken, window.currentEditingUserId, {
-          nama, email, role, scope_type: scopeType, scope_id: scopeId
+          nama, email, role, scope_type: scopeType, scope_id: scopeId, guru_id: guruId
         });
     } else {
       // Create new user
@@ -5230,7 +5582,7 @@
           }
         })
         .serverCreateUser(window.currentToken, {
-          nama, username, email, role, scope_type: scopeType, scope_id: scopeId
+          nama, username, email, role, scope_type: scopeType, scope_id: scopeId, guru_id: guruId
         });
     }
   };

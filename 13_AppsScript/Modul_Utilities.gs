@@ -30,6 +30,7 @@ const SHEET_NAMES = {
   JADWAL_KATEGORI_HARI: 'jadwal_kategori_hari',
   SIKLUS_GENERUS: 'siklus_generus',
   PENGURUS_KELP: 'pengurus_kelp',
+  AKSES_KELAS_REQUEST: 'akses_kelas_request',
 };
 
 /**

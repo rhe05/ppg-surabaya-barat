@@ -10,6 +10,56 @@
 
 ---
 
+## #10 — `serverLogin` selalu gagal (bug laten, ditemukan 2026-07-26)
+
+**Gejala**: kalau `DEV_MODE_SKIP_LOGIN` pernah dimatikan, login asli manapun
+akan SELALU gagal ("Username atau password salah"), padahal password benar.
+
+**Akar masalah**: `Code.js` → `serverLogin` membandingkan `found.passwordHash`
+dan menaruh `found.scopeType`/`found.scopeId` ke sesi — padahal
+`readSheetAsObjects()` (Modul_Utilities.gs) mengembalikan key APA ADANYA dari
+header sheet (huruf kecil, snake_case: `password_hash`, `scope_type`,
+`scope_id`), BUKAN di-camelCase. Jadi `found.passwordHash` selalu `undefined`.
+Bug ini tidak pernah ketahuan sebelumnya karena `DEV_MODE_SKIP_LOGIN=true`
+sejak awal development (login form tidak pernah benar-benar dipakai).
+
+**Perbaikan**: baca `found.password_hash`/`found.scope_type`/`found.scope_id`
+(snake_case, sesuai header sheet asli). Ditemukan & diperbaiki bersamaan
+dengan mematikan `DEV_MODE_SKIP_LOGIN` (jadi `false`) untuk rollout fitur
+Input Absen guru — lihat juga entri #11.
+
+**Cara verifikasi**: `serverLogin('admin', 'admin123')` (atau akun lain)
+harus `success:true` dan `sessionData.scopeType`/`scopeId` terisi benar
+(bukan `undefined`).
+
+## #11 — Input Absen (role guru) & mematikan DEV_MODE_SKIP_LOGIN (2026-07-26)
+
+**Konteks**: fitur baru — akun role `guru` dikunci HANYA ke screen Input
+Absen (tidak melihat shell admin sama sekali), per kelas (kelas = nilai
+`jadwal_kbm.kelas` milik `guru_id` yang terhubung ke `users.guru_id`), dengan
+alur izin akses kelas guru lain (sheet baru `akses_kelas_request`, approve
+per-tanggal oleh guru pemilik kelas).
+
+**⚠️ Perubahan penting yang menyertai**: `DEV_MODE_SKIP_LOGIN` di `Code.js`
+diubah dari `true` → `false` (dikonfirmasi user). Sebelumnya SEMUA orang yang
+membuka URL app otomatis masuk sebagai Admin PPG tanpa password — kalau
+pembatasan role guru mau berlaku, ini WAJIB mati. Konsekuensi: semua
+admin_ppg/admin_desa/admin_kelompok yang sudah ada SEKARANG WAJIB login
+pakai username+password asli mereka (pastikan akun & password sudah benar
+di sheet `users` sebelum user pilot memakai app).
+
+**Skema baru**: `users.guru_id` (link ke sheet `guru`), sheet
+`akses_kelas_request` (id, kelompok_id, kelas, tanggal, requester_user_id,
+requester_guru_id, requester_nama, owner_guru_id, status, keterangan,
+dibuat_pada, diputuskan_pada). ⚠️ **BELUM DIJALANKAN**: `setupDatabaseStructure()`
+perlu di-run ulang manual di Apps Script editor supaya kolom/sheet baru ini
+benar-benar ada di spreadsheet produksi.
+
+**Cara verifikasi**: buat user role=guru via User Management (pilih data
+Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
+screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
+tidak boleh muncul.
+
 ## #1 — Layar putih total / "tidak bisa login" (2026-07-17) ⚠️ PALING PENTING
 
 **Gejala**: Aplikasi hanya menampilkan layar putih. Console browser:

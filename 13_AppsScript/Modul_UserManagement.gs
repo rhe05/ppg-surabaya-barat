@@ -72,10 +72,34 @@ function serverGetUserById(token, userId) {
       role: targetUser.role,
       scope_type: targetUser.scope_type,
       scope_id: targetUser.scope_id,
+      guru_id: targetUser.guru_id || '',
       status: targetUser.status || 'active',
       created_at: targetUser.created_at
     }
   };
+}
+
+/**
+ * GET daftar Guru satu Kelompok, untuk dropdown "Hubungkan ke akun Guru"
+ * di form buat/edit user role='guru' (User Management).
+ * Dipakai supaya login guru bisa dikunci ke kelas yang dia ajar sendiri
+ * (Modul_InputAbsen.gs mencocokkan jadwal_kbm.guru_id lewat users.guru_id ini).
+ */
+function serverGetGuruOptionsForUser(token, kelompokId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+  if (!['admin_ppg', 'admin_desa', 'admin_kelompok'].includes(user.role)) {
+    return { success: false, error: 'Anda tidak memiliki akses.' };
+  }
+  if (!validateUserAccess(token, 'kelompok', Number(kelompokId))) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  const guruList = readSheetAsObjects(SHEET_NAMES.GURU)
+    .filter(g => g.kelompok_id == kelompokId)
+    .map(g => ({ id: g.id, nama: g.nama }));
+
+  return { success: true, data: guruList };
 }
 
 /**
@@ -114,6 +138,22 @@ function serverCreateUser(token, userData) {
     return { success: false, error: 'Email sudah terdaftar.' };
   }
 
+  const role = userData.role || 'guru';
+
+  // Akun role='guru' WAJIB terhubung ke satu baris data Guru (sheet 'guru')
+  // supaya Input Absen tahu kelas mana (via jadwal_kbm.guru_id) yang boleh dia isi.
+  let guruId = '';
+  if (role === 'guru') {
+    if (!userData.guru_id) {
+      return { success: false, error: 'Pilih data Guru yang terhubung dengan akun ini.' };
+    }
+    const guruRow = readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == userData.guru_id);
+    if (!guruRow || guruRow.kelompok_id != userData.scope_id) {
+      return { success: false, error: 'Data Guru tidak ditemukan di Kelompok yang dipilih.' };
+    }
+    guruId = userData.guru_id;
+  }
+
   // Generate temporary password (8-char random)
   const tempPassword = generateTemporaryPassword();
   const passwordHash = hashPassword(tempPassword);
@@ -125,14 +165,15 @@ function serverCreateUser(token, userData) {
     userData.nama,
     userData.username,
     passwordHash,
-    userData.role || 'guru',
+    role,
     userData.scope_type,
     userData.scope_id,
     userData.email,
     'active',
     new Date().toISOString().split('T')[0],
     new Date().toISOString().split('T')[0],
-    user.id
+    user.id,
+    guruId
   ]);
 
   return {
@@ -182,6 +223,17 @@ function serverUpdateUser(token, userId, userData) {
   if (userData.email) usersSheet.getRange(userRow, 8).setValue(userData.email);
   if (userData.role) usersSheet.getRange(userRow, 5).setValue(userData.role);
   if (userData.status) usersSheet.getRange(userRow, 9).setValue(userData.status);
+  if (userData.guru_id !== undefined) {
+    const roleAfterUpdate = userData.role || targetUser.role;
+    if (roleAfterUpdate === 'guru') {
+      const scopeIdAfterUpdate = targetUser.scope_id;
+      const guruRow = readSheetAsObjects(SHEET_NAMES.GURU).find(g => g.id == userData.guru_id);
+      if (!guruRow || guruRow.kelompok_id != scopeIdAfterUpdate) {
+        return { success: false, error: 'Data Guru tidak ditemukan di Kelompok user ini.' };
+      }
+    }
+    usersSheet.getRange(userRow, 13).setValue(userData.guru_id);
+  }
   usersSheet.getRange(userRow, 11).setValue(new Date().toISOString().split('T')[0]);
 
   return {

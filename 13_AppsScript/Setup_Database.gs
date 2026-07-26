@@ -69,14 +69,18 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'kurikulum_probul', ['id', 'kelompok_id', 'promes_id', 'tahun', 'bulan', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
   createSheetIfNotExists(ss, 'kurikulum_pencapaian_santri', ['id', 'kelompok_id', 'santri_id', 'probul_id', 'status', 'tanggal_update', 'catatan_guru', 'updated_by']);
 
-  console.log('✅ Semua 21 sheet berhasil dibuat atau sudah ada.');
+  // 18. IZIN AKSES KELAS LAIN (guru minta akses input absen kelas guru lain, per tanggal)
+  createSheetIfNotExists(ss, 'akses_kelas_request', ['id', 'kelompok_id', 'kelas', 'tanggal', 'requester_user_id', 'requester_guru_id', 'requester_nama', 'owner_guru_id', 'status', 'keterangan', 'dibuat_pada', 'diputuskan_pada']);
 
-  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman' yang sudah ada (aman dijalankan berulang)
+  console.log('✅ Semua 22 sheet berhasil dibuat atau sudah ada.');
+
+  // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman'/'users' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);
   migrateSantriSchemaAddFields_(ss);
   migrateJadwalKbmSchemaAddFields_(ss);
   migratePengumumanSchemaAddFields_(ss);
   migratePengurusKelpSchemaAddFields_(ss);
+  migrateUsersSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -201,6 +205,31 @@ function migratePengurusKelpSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "pengurus_kelp" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'users' yang SUDAH ADA: tambah kolom 'guru_id' di akhir jika belum ada.
+ * Menghubungkan akun login role='guru' ke baris spesifik di sheet 'guru' — dipakai
+ * menentukan kelas mana (via jadwal_kbm.guru_id) yang boleh diinput absennya
+ * (Modul_InputAbsen.gs).
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migrateUsersSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('users');
+  if (!sheet) return;
+
+  const newColumns = ['guru_id'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "users" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "users" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**
