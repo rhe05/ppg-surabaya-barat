@@ -20,6 +20,8 @@ const JABATAN_PENGURUS_ = [
   'Pembina Pra Remaja',
   'Pembina Remaja',
   'Ketua Muda-Mudi',
+  'Sekertaris Generus',
+  'Koord Tahfidz',
 ];
 
 /**
@@ -39,6 +41,7 @@ function serverGetPengurusList(token, kelompokId) {
     kelompok_id: p.kelompok_id,
     jabatan: p.jabatan ? String(p.jabatan) : '',
     nama: p.nama ? String(p.nama) : '',
+    mulai_dapukan: p.mulai_dapukan ? String(p.mulai_dapukan) : '',
     keterangan: p.keterangan ? String(p.keterangan) : '',
   }));
 
@@ -75,6 +78,7 @@ function serverSavePengurus(token, data) {
       if (existing) {
         updateRowByQuery(SHEET_NAMES.PENGURUS_KELP, { id: existing.id }, {
           nama: data.nama.trim(),
+          mulai_dapukan: data.mulai_dapukan || '',
           keterangan: data.keterangan || '',
           diubah_oleh: user.id,
           diubah_pada: now,
@@ -89,6 +93,7 @@ function serverSavePengurus(token, data) {
         data.kelompok_id,
         data.jabatan,
         data.nama.trim(),
+        data.mulai_dapukan || '',
         data.keterangan || '',
         user.id,
         now,

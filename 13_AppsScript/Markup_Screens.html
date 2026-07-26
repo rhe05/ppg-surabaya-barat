@@ -149,6 +149,7 @@
     <datalist id="dlNama"></datalist>
     <datalist id="dlSiklusGenerusNama"></datalist>
     <datalist id="dlPendidikanFormalNama"></datalist>
+    <datalist id="dlPengurusNama"></datalist>
     <datalist id="dlNamaOrtu"></datalist>
     <datalist id="dlTempatLahir"></datalist>
     <datalist id="dlKelurahan"></datalist>
@@ -525,6 +526,16 @@
             <div class="guru-dash-kpi-label">Ketua Muda-Mudi</div>
             <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_KetuaMudaMudi">Belum diisi</span></div>
           </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">Sekertaris Generus</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_SekertarisGenerus">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-indigo">
+            <div class="guru-dash-kpi-label">Koord Tahfidz</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_KoordTahfidz">Belum diisi</span></div>
+          </div>
         </div>
 
         <div class="data-table-wrapper guru-kelp-table-wrapper" id="pengurusTableWrapper" style="display: none;">
@@ -549,14 +560,14 @@
             <div class="modal-header">
               <div>
                 <span id="modalPengurusTitle">Tambah Pengurus</span>
-                <div class="guru-kelp-modal-subtitle">Atur pengurus jabatan Kelompok</div>
+                <div class="guru-kelp-modal-subtitle">Atur Dapukan Pengurus Kelompok</div>
               </div>
               <button class="modal-close-btn" onclick="window.closeModalPengurus()">×</button>
             </div>
 
             <div class="guru-kelp-section">
               <div class="form-group">
-                <label class="form-label">Jabatan</label>
+                <label class="form-label">Dapukan</label>
                 <select class="form-input" id="pengurusJabatan">
                   <option value="Pembina Generus Kelp">Pembina Generus Kelp</option>
                   <option value="Wk Pembina Generus Kelp">Wk Pembina Generus Kelp</option>
@@ -565,12 +576,22 @@
                   <option value="Pembina Pra Remaja">Pembina Pra Remaja</option>
                   <option value="Pembina Remaja">Pembina Remaja</option>
                   <option value="Ketua Muda-Mudi">Ketua Muda-Mudi</option>
+                  <option value="Sekertaris Generus">Sekertaris Generus</option>
+                  <option value="Koord Tahfidz">Koord Tahfidz</option>
                 </select>
               </div>
 
               <div class="form-group">
                 <label class="form-label">Nama Pengurus</label>
-                <input type="text" class="form-input" id="pengurusNama" placeholder="Nama lengkap">
+                <input type="text" class="form-input" id="pengurusNama" list="dlPengurusNama" autocomplete="off" placeholder="Ketik nama (saran dari data orang tua &amp; Remaja Pra Nikah)">
+              </div>
+
+              <div class="form-group" style="position: relative;">
+                <label class="form-label">Mulai Dapukan</label>
+                <input type="text" class="form-input" id="pengurusMulaiDapukanDisplay" data-datepicker-trigger placeholder="Pilih tanggal mulai dapukan" readonly onclick="window.toggleDatePicker('pengurusMulaiDapukan')">
+                <input type="hidden" id="pengurusMulaiDapukan">
+                <div class="ppg-datepicker" id="pengurusMulaiDapukanPicker"></div>
+                <div class="guru-kelp-umur-badge" id="pengurusLamaBadge" style="display: none;">Lama: <strong id="pengurusLama">—</strong></div>
               </div>
 
               <div class="form-group">
@@ -580,8 +601,23 @@
             </div>
 
             <div class="modal-footer">
+              <button class="guru-kelp-btn-danger" id="pengurusDeleteBtn" style="display: none; margin-right: auto;" onclick="window.deletePengurusFromModal_()">Hapus</button>
               <button class="btn btn-secondary" onclick="window.closeModalPengurus()">Batal</button>
               <button class="btn btn-primary" onclick="window.savePengurus()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Detail Pengurus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalDetailPengurus">
+          <div class="modal-content guru-kelp-detail-modal">
+            <div class="modal-header">
+              <span>Detail Pengurus</span>
+              <button class="modal-close-btn" onclick="window.closeModalDetailPengurus()">×</button>
+            </div>
+            <div class="guru-kelp-detail-body" id="pengurusDetailBody"></div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDetailPengurus()">Tutup</button>
             </div>
           </div>
         </div>

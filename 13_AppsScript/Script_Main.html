@@ -727,6 +727,8 @@
     { jabatan: 'Pembina Pra Remaja', key: 'PembinaPraRemaja' },
     { jabatan: 'Pembina Remaja', key: 'PembinaRemaja' },
     { jabatan: 'Ketua Muda-Mudi', key: 'KetuaMudaMudi' },
+    { jabatan: 'Sekertaris Generus', key: 'SekertarisGenerus' },
+    { jabatan: 'Koord Tahfidz', key: 'KoordTahfidz' },
   ];
 
   /** Isi nama pengurus di tiap kartu jabatan (atau "Belum diisi" kalau kosong). */
@@ -736,6 +738,26 @@
       const el = document.getElementById('pgNama_' + m.key);
       if (el) el.textContent = rec && rec.nama ? rec.nama : 'Belum diisi';
     });
+  };
+
+  /** Saran nama pengurus: nama orang tua (ayah/ibu) generus + generus jenjang
+      "Remaja" (Remaja Pra Nikah) yang sudah tersimpan di Data Master — pengurus
+      TIDAK WAJIB ada di kedua sumber ini, cuma dipakai sbg saran ketik (mirip
+      pencarian Google), nama tetap bebas diketik manual. */
+  window.populatePengurusNamaDatalist_ = function () {
+    const santri = window.lastSantriListData || [];
+    const namaOrtu = santri.map(function (s) { return s.nama_ayah; }).concat(santri.map(function (s) { return s.nama_ibu; }));
+    const namaRemaja = santri.filter(function (s) { return s.jenjang_saat_ini === 'Remaja'; }).map(function (s) { return s.nama; });
+    window.fillDatalist_('dlPengurusNama', namaOrtu.concat(namaRemaja));
+  };
+
+  /** Badge "Lama: X tahun Y bulan" di modal Tambah/Ubah Pengurus, sama pola dgn Lama Mengajar guru. */
+  window.updatePengurusLama_ = function () {
+    const badge = document.getElementById('pengurusLamaBadge');
+    const teks = window.calcDurasiDetail_(document.getElementById('pengurusMulaiDapukan').value);
+    if (!teks) { badge.style.display = 'none'; return; }
+    document.getElementById('pengurusLama').textContent = teks;
+    badge.style.display = 'inline-flex';
   };
 
   window.loadPengurusList_ = function (kelompokId) {
@@ -790,6 +812,7 @@
           + '<td>' + (p.keterangan || '-') + '</td>'
           + '<td style="text-align: center;">'
           + '<div class="jadwal-row-actions" style="justify-content: center;">'
+          + '<button class="jadwal-row-icon-btn" title="Lihat Detail" onclick="window.viewPengurus(\'' + p.id + '\')">' + window.iconViewSvg_ + '</button>'
           + '<button class="jadwal-row-icon-btn" title="Edit" onclick="window.editPengurus(\'' + p.id + '\')">' + window.JADWAL_ICONS_.edit + '</button>'
           + '<button class="jadwal-row-icon-btn" title="Hapus" onclick="window.deletePengurus(\'' + p.id + '\')">' + window.JADWAL_ICONS_.delete + '</button>'
           + '</div></td></tr>';
@@ -804,12 +827,18 @@
     document.getElementById('pengurusJabatan').disabled = false;
     document.getElementById('pengurusJabatan').value = 'Pembina Generus Kelp';
     document.getElementById('pengurusNama').value = '';
+    document.getElementById('pengurusMulaiDapukan').value = '';
+    document.getElementById('pengurusMulaiDapukanDisplay').value = '';
+    document.getElementById('pengurusLamaBadge').style.display = 'none';
     document.getElementById('pengurusKeterangan').value = '';
+    document.getElementById('pengurusDeleteBtn').style.display = 'none';
+    window.populatePengurusNamaDatalist_();
     document.getElementById('modalPengurus').classList.add('active');
   };
 
   window.closeModalPengurus = function () {
     document.getElementById('modalPengurus').classList.remove('active');
+    document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
   };
 
   window.editPengurus = function (id) {
@@ -821,13 +850,25 @@
     document.getElementById('pengurusJabatan').value = p.jabatan;
     document.getElementById('pengurusJabatan').disabled = true;
     document.getElementById('pengurusNama').value = p.nama || '';
+    document.getElementById('pengurusMulaiDapukan').value = p.mulai_dapukan || '';
+    document.getElementById('pengurusMulaiDapukanDisplay').value = window.formatTanggalDisplay_(p.mulai_dapukan);
     document.getElementById('pengurusKeterangan').value = p.keterangan || '';
+    document.getElementById('pengurusDeleteBtn').style.display = 'inline-flex';
+    window.updatePengurusLama_();
+    window.populatePengurusNamaDatalist_();
     document.getElementById('modalPengurus').classList.add('active');
+  };
+
+  window.deletePengurusFromModal_ = function () {
+    const id = window.currentEditPengurusId_;
+    if (!id) return;
+    window.deletePengurus(id);
   };
 
   window.savePengurus = function () {
     const jabatan = document.getElementById('pengurusJabatan').value;
     const nama = document.getElementById('pengurusNama').value.trim();
+    const mulaiDapukan = document.getElementById('pengurusMulaiDapukan').value;
     const keterangan = document.getElementById('pengurusKeterangan').value.trim();
 
     if (!nama) {
@@ -835,7 +876,7 @@
       return;
     }
 
-    const data = { kelompok_id: window.currentKelompokId, jabatan: jabatan, nama: nama, keterangan: keterangan };
+    const data = { kelompok_id: window.currentKelompokId, jabatan: jabatan, nama: nama, mulai_dapukan: mulaiDapukan, keterangan: keterangan };
 
     window.showGlobalLoading_('Menyimpan data...');
     google.script.run
@@ -868,6 +909,7 @@
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) { alert(result.error); return; }
+        window.closeModalPengurus();
         const list = window.lastPengurusListData || [];
         const idx = list.findIndex(function (x) { return String(x.id) === String(id); });
         if (idx >= 0) list.splice(idx, 1);
@@ -902,6 +944,27 @@
       return;
     }
     window.runXlsxExport_('Pengurus', headers, rows, window.closeModalEksporPengurus);
+  };
+
+  /** Detail pengurus — "Lama Dapukan" dihitung otomatis dari Mulai Dapukan, sama pola dgn Lama Mengajar guru. */
+  window.viewPengurus = function (id) {
+    const p = (window.lastPengurusListData || []).find(function (x) { return String(x.id) === String(id); });
+    if (!p) return;
+
+    const html = [
+      window.buildDetailItemHtml_('Dapukan', p.jabatan, true),
+      window.buildDetailItemHtml_('Nama Pengurus', p.nama, true),
+      window.buildDetailItemHtml_('Mulai Dapukan', p.mulai_dapukan ? window.formatTanggalDisplay_(p.mulai_dapukan) : ''),
+      window.buildDetailItemHtml_('Lama Dapukan', window.calcDurasiDetail_(p.mulai_dapukan)),
+      window.buildDetailItemHtml_('Keterangan', p.keterangan, true),
+    ].join('');
+
+    document.getElementById('pengurusDetailBody').innerHTML = html;
+    document.getElementById('modalDetailPengurus').classList.add('active');
+  };
+
+  window.closeModalDetailPengurus = function () {
+    document.getElementById('modalDetailPengurus').classList.remove('active');
   };
 
   window.currentEditGenerusId = null;
@@ -1478,6 +1541,9 @@
     }
     if (inputId === 'pengumumanKBMTanggal') {
       window.renderPengumumanKBMPreview_();
+    }
+    if (inputId === 'pengurusMulaiDapukan') {
+      window.updatePengurusLama_();
     }
   };
 

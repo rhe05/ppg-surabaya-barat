@@ -30,7 +30,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'guru', ['id', 'kelompok_id', 'nama', 'kategori', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'mulai_mengajar', 'alamat', 'nomor_wa', 'pendidikan', 'rt', 'rw', 'kelurahan', 'kode_pos', 'kabupaten_kota', 'provinsi', 'kecamatan', 'lama_mengajar']);
   createSheetIfNotExists(ss, 'riwayat_jenjang', ['id', 'santri_id', 'jenjang_lama', 'jenjang_baru', 'tanggal', 'catatan', 'dicatat_oleh']);
   createSheetIfNotExists(ss, 'siklus_generus', ['id', 'kelompok_id', 'santri_id', 'nama', 'jenis_siklus', 'tanggal', 'lokasi', 'instansi', 'keterangan', 'dicatat_oleh', 'dibuat_pada']);
-  createSheetIfNotExists(ss, 'pengurus_kelp', ['id', 'kelompok_id', 'jabatan', 'nama', 'keterangan', 'dicatat_oleh', 'dibuat_pada', 'diubah_oleh', 'diubah_pada']);
+  createSheetIfNotExists(ss, 'pengurus_kelp', ['id', 'kelompok_id', 'jabatan', 'nama', 'mulai_dapukan', 'keterangan', 'dicatat_oleh', 'dibuat_pada', 'diubah_oleh', 'diubah_pada']);
 
   // 4. KEHADIRAN
   createSheetIfNotExists(ss, 'absensi', ['id', 'santri_id', 'tanggal', 'status', 'dicatat_oleh']);
@@ -76,6 +76,7 @@ function setupDatabaseStructure() {
   migrateSantriSchemaAddFields_(ss);
   migrateJadwalKbmSchemaAddFields_(ss);
   migratePengumumanSchemaAddFields_(ss);
+  migratePengurusKelpSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -178,6 +179,28 @@ function migratePengumumanSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "pengumuman" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'pengurus_kelp' yang SUDAH ADA: tambah kolom 'mulai_dapukan' di akhir jika belum ada.
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migratePengurusKelpSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('pengurus_kelp');
+  if (!sheet) return;
+
+  const newColumns = ['mulai_dapukan'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "pengurus_kelp" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "pengurus_kelp" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**
