@@ -1729,6 +1729,34 @@
       text-overflow: ellipsis;
     }
 
+    /* Pendidikan Formal: 6 kartu (PAUD/TK/SD/SMP/SMA/Kuliah) WAJIB satu baris
+       di desktop — sama seperti #dataSiklusGenerusKpiRow, cuma di sini tiap
+       kartu masih bawa mini-stat L/P (.gk-kpi-lp) jadi nilai besarnya perlu
+       ikut mengecil supaya tidak tabrakan/overflow di kartu yang menyempit. */
+    #dataPendidikanFormalKpiRow {
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+    }
+
+    #dataPendidikanFormalKpiRow .guru-dash-kpi-card {
+      padding: 16px 12px 14px;
+      min-width: 0;
+    }
+
+    #dataPendidikanFormalKpiRow .guru-dash-kpi-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #dataPendidikanFormalKpiRow .guru-dash-kpi-value {
+      font-size: clamp(18px, 1.8vw, 26px);
+    }
+
+    #dataPendidikanFormalKpiRow .gk-kpi-lp {
+      font-size: 10px;
+    }
+
     .guru-dash-toggle-table {
       display: inline-flex;
       align-items: center;
