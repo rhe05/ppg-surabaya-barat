@@ -1056,7 +1056,8 @@
                   <select class="form-select" id="generusKelpPendidikan" onchange="window.toggleGenerusKlsSekolah_()">
                     <option value="">-- Pilih Pendidikan --</option>
                     <option value="Belum Sekolah">Belum Sekolah</option>
-                    <option value="PAUD/TK">PAUD/TK</option>
+                    <option value="PAUD">PAUD</option>
+                    <option value="TK">TK</option>
                     <option value="SD">SD</option>
                     <option value="SMP">SMP</option>
                     <option value="SMA/SMK">SMA/SMK</option>
@@ -1231,14 +1232,22 @@
 
         <div class="guru-dash-kpi-row" id="dataPendidikanFormalKpiRow">
           <div class="guru-dash-kpi-card accent-brass">
-            <div class="guru-dash-kpi-label">PAUD-TK</div>
+            <div class="guru-dash-kpi-label">PAUD</div>
             <div class="guru-dash-kpi-value-row">
-              <span class="guru-dash-kpi-value" id="pfPaudTkCount">0</span>
-              <div class="gk-kpi-lp"><span>L <b id="pfPaudTk_L">0</b></span><span>P <b id="pfPaudTk_P">0</b></span></div>
+              <span class="guru-dash-kpi-value" id="pfPaudCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfPaud_L">0</b></span><span>P <b id="pfPaud_P">0</b></span></div>
             </div>
           </div>
 
           <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">TK</div>
+            <div class="guru-dash-kpi-value-row">
+              <span class="guru-dash-kpi-value" id="pfTkCount">0</span>
+              <div class="gk-kpi-lp"><span>L <b id="pfTk_L">0</b></span><span>P <b id="pfTk_P">0</b></span></div>
+            </div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
             <div class="guru-dash-kpi-label">SD</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="pfSdCount">0</span>
@@ -1246,7 +1255,7 @@
             </div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-volt">
+          <div class="guru-dash-kpi-card accent-indigo">
             <div class="guru-dash-kpi-label">SMP</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="pfSmpCount">0</span>
@@ -1254,7 +1263,7 @@
             </div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-indigo">
+          <div class="guru-dash-kpi-card accent-teal">
             <div class="guru-dash-kpi-label">SMA</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="pfSmaCount">0</span>
@@ -1262,7 +1271,7 @@
             </div>
           </div>
 
-          <div class="guru-dash-kpi-card accent-teal">
+          <div class="guru-dash-kpi-card accent-brass">
             <div class="guru-dash-kpi-label">Kuliah</div>
             <div class="guru-dash-kpi-value-row">
               <span class="guru-dash-kpi-value" id="pfKuliahCount">0</span>
@@ -1275,7 +1284,8 @@
           <div class="guru-kelp-table-toolbar">
             <select class="guru-kelp-filter-select" id="pendidikanFormalScopeSelect" onchange="window.filterPendidikanFormalDashTable_(document.getElementById('pendidikanFormalSearchInput').value)">
               <option value="all">Semua Pendidikan</option>
-              <option value="PAUD/TK">PAUD-TK</option>
+              <option value="PAUD">PAUD</option>
+              <option value="TK">TK</option>
               <option value="SD">SD</option>
               <option value="SMP">SMP</option>
               <option value="SMA/SMK">SMA</option>
@@ -1317,7 +1327,8 @@
                 <label class="form-label">Pendidikan</label>
                 <select class="form-input" id="pendidikanFormalJenjang">
                   <option value="Belum Sekolah">Belum Sekolah</option>
-                  <option value="PAUD/TK">PAUD/TK</option>
+                  <option value="PAUD">PAUD</option>
+                  <option value="TK">TK</option>
                   <option value="SD">SD</option>
                   <option value="SMP">SMP</option>
                   <option value="SMA/SMK">SMA/SMK</option>
@@ -1361,7 +1372,10 @@
                   <input type="radio" name="eksporPendidikanFormalScope" value="all" checked> Semua Pendidikan
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
-                  <input type="radio" name="eksporPendidikanFormalScope" value="PAUD/TK"> PAUD-TK
+                  <input type="radio" name="eksporPendidikanFormalScope" value="PAUD"> PAUD
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPendidikanFormalScope" value="TK"> TK
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
                   <input type="radio" name="eksporPendidikanFormalScope" value="SD"> SD
