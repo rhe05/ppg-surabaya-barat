@@ -175,12 +175,9 @@
       box-shadow: var(--shadow-subtle);
     }
 
-    .login-hint {
-      font-size: 11.5px;
-      color: var(--text-faint);
-      line-height: 1.5;
-      margin-top: -4px;
-      margin-bottom: 8px;
+    /* Tab & tombol Daftar pakai warna hijau khas aplikasi (beda dari Masuk/brass) */
+    .login-tab.tab-daftar.active {
+      color: var(--brand-green);
     }
 
     .login-success {
@@ -191,6 +188,149 @@
       font-size: 13px;
       margin-top: 20px;
       display: none;
+    }
+
+    .login-btn.green {
+      background: var(--brand-green);
+    }
+
+    .login-forgot-link {
+      text-align: right;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .login-forgot-link:hover {
+      color: var(--brass);
+      text-decoration: underline;
+    }
+
+    /* ═════ SCREEN ONBOARDING (wizard pasca-login pertama) ═════ */
+    #screenOnboarding {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .onboard-card {
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-card);
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 400px;
+    }
+
+    .onboard-steps {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .onboard-step-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.2s ease, transform 0.2s ease;
+    }
+
+    .onboard-step-dot.active {
+      background: var(--brand-green);
+      transform: scale(1.3);
+    }
+
+    .onboard-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    .onboard-role-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .onboard-role-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 22px 12px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      background: var(--panel-2);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .onboard-role-btn:active { transform: scale(0.97); }
+    .onboard-role-btn:hover { border-color: var(--brand-green); }
+
+    .onboard-role-icon { font-size: 28px; }
+
+    .onboard-admin-msg {
+      margin-top: 18px;
+      background: #FFFBEB;
+      border: 1px solid #FDE68A;
+      color: #92400E;
+      border-radius: var(--radius);
+      padding: 14px;
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.5;
+    }
+
+    .onboard-kelompok-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .onboard-kelompok-item {
+      padding: 14px 16px;
+      border: 2px solid var(--border);
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+
+    .onboard-kelompok-item:hover,
+    .onboard-kelompok-item.active {
+      border-color: var(--brand-green);
+      background: #F0FDF4;
+    }
+
+    .onboard-nav {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .onboard-nav .btn { flex: 1; }
+
+    .onboard-error {
+      background: #FEF2F2;
+      color: var(--red);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 13px;
+      margin-top: 16px;
     }
 
     /* ═════ APP LAYOUT (after login) ═════ */

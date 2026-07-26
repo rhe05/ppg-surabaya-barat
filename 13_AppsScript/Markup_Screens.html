@@ -18,7 +18,7 @@
 
     <div class="login-tabs">
       <button class="login-tab active" id="loginTabMasuk" onclick="window.switchLoginTab_('masuk')">Masuk</button>
-      <button class="login-tab" id="loginTabDaftar" onclick="window.switchLoginTab_('daftar')">Daftar (Guru)</button>
+      <button class="login-tab tab-daftar" id="loginTabDaftar" onclick="window.switchLoginTab_('daftar')">Daftar</button>
     </div>
 
     <!-- Panel Masuk -->
@@ -33,20 +33,15 @@
         <input class="login-input" type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
       </div>
 
+      <div class="login-forgot-link" onclick="window.openModalLupaPassword_()">Lupa Password?</div>
+
       <div class="login-error" id="loginError"></div>
 
       <button class="login-btn" id="btnLogin" onclick="window.handleLogin()">Masuk</button>
     </div>
 
-    <!-- Panel Daftar (Guru) -->
+    <!-- Panel Daftar -->
     <div id="loginPanelDaftar" style="display:none;">
-      <div class="login-hint">Khusus Guru. Isi nama lengkap PERSIS seperti yang tercatat di data Guru Kelompok Anda — sistem otomatis mencocokkan (huruf besar/kecil tidak masalah).</div>
-
-      <div class="login-form-group">
-        <label class="login-label" for="daftarNama">Nama Lengkap (sesuai data Guru)</label>
-        <input class="login-input" type="text" id="daftarNama" autocomplete="name" placeholder="Contoh: Baban Achmad Intiyas">
-      </div>
-
       <div class="login-form-group">
         <label class="login-label" for="daftarEmail">Email</label>
         <input class="login-input" type="email" id="daftarEmail" autocomplete="email" placeholder="nama@email.com">
@@ -60,7 +55,109 @@
       <div class="login-error" id="daftarError"></div>
       <div class="login-success" id="daftarSuccess"></div>
 
-      <button class="login-btn" id="btnDaftar" onclick="window.handleRegisterGuru()">Daftar & Masuk</button>
+      <button class="login-btn green" id="btnDaftar" onclick="window.handleRegisterGuru()">Daftar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Lupa Password (mandiri, verifikasi Kelompok+Nama+Kelas) -->
+<div class="modal-overlay" id="modalLupaPassword">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Lupa Password</span>
+      <button class="modal-close-btn" onclick="window.closeModalLupaPassword_()">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input type="email" class="form-input" id="lupaEmail" placeholder="Email akun Anda">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kelompok</label>
+      <select class="form-select" id="lupaKelompok">
+        <option value="">-- Pilih Kelompok --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Nama</label>
+      <input type="text" class="form-input" id="lupaNama" placeholder="Nama lengkap">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Kelas</label>
+      <input type="text" class="form-input" id="lupaKelas" placeholder="Nama kelas yang Anda ajar">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password Baru</label>
+      <input type="password" class="form-input" id="lupaPasswordBaru" placeholder="Minimal 6 karakter">
+    </div>
+    <div id="lupaMsg" style="display:none; margin-bottom: 12px; font-size: 13px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.closeModalLupaPassword_()">Batal</button>
+      <button class="btn btn-primary" id="btnLupaSubmit" onclick="window.submitLupaPassword_()">Ubah Password</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═════ SCREEN ONBOARDING (setelah login pertama, akun belum lengkap) ═════ -->
+<div id="screenOnboarding" style="display:none;">
+  <div class="onboard-card">
+    <div class="onboard-steps" id="onboardSteps">
+      <span class="onboard-step-dot active" data-step="1"></span>
+      <span class="onboard-step-dot" data-step="2"></span>
+      <span class="onboard-step-dot" data-step="3"></span>
+      <span class="onboard-step-dot" data-step="4"></span>
+    </div>
+
+    <!-- Step 1: pilih peran -->
+    <div class="onboard-step" id="onboardStep1">
+      <div class="onboard-title">Anda masuk sebagai apa?</div>
+      <div class="onboard-role-grid">
+        <button class="onboard-role-btn" onclick="window.onboardChooseRole_('guru')">
+          <div class="onboard-role-icon">📖</div>
+          <div>Guru</div>
+        </button>
+        <button class="onboard-role-btn" onclick="window.onboardChooseRole_('admin')">
+          <div class="onboard-role-icon">🗂️</div>
+          <div>Admin</div>
+        </button>
+      </div>
+      <div class="onboard-admin-msg" id="onboardAdminMsg" style="display:none;">
+        Untuk akun Admin, hubungi Admin PPG agar akun Anda dibuatkan.
+        <button class="btn btn-secondary" style="margin-top:14px; width:100%;" onclick="window.onboardBackToRole_()">Kembali</button>
+      </div>
+    </div>
+
+    <!-- Step 2: pilih kelompok -->
+    <div class="onboard-step" id="onboardStep2" style="display:none;">
+      <div class="onboard-title">Pilih Kelompok Anda</div>
+      <div class="onboard-kelompok-list" id="onboardKelompokList"></div>
+      <div class="onboard-nav">
+        <button class="btn btn-secondary" onclick="window.onboardGoStep_(1)">Kembali</button>
+      </div>
+    </div>
+
+    <!-- Step 3: input nama -->
+    <div class="onboard-step" id="onboardStep3" style="display:none;">
+      <div class="onboard-title">Siapa nama Anda?</div>
+      <div class="login-form-group">
+        <input class="login-input" type="text" id="onboardNama">
+      </div>
+      <div class="onboard-nav">
+        <button class="btn btn-secondary" onclick="window.onboardGoStep_(2)">Kembali</button>
+        <button class="btn btn-primary" onclick="window.onboardNamaNext_()">Lanjut</button>
+      </div>
+    </div>
+
+    <!-- Step 4: input kelas -->
+    <div class="onboard-step" id="onboardStep4" style="display:none;">
+      <div class="onboard-title">Kelas apa yang Anda ajar?</div>
+      <div class="login-form-group">
+        <input class="login-input" type="text" id="onboardKelas">
+      </div>
+      <div class="onboard-error" id="onboardError" style="display:none;"></div>
+      <div class="onboard-nav">
+        <button class="btn btn-secondary" onclick="window.onboardGoStep_(3)">Kembali</button>
+        <button class="btn btn-primary" id="btnOnboardSubmit" onclick="window.onboardSubmit_()">Selesai</button>
+      </div>
     </div>
   </div>
 </div>

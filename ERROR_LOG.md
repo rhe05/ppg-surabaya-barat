@@ -60,7 +60,15 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
-## #12 — Daftar mandiri Guru (verifikasi nama saja) (2026-07-26)
+## #12 — Daftar mandiri Guru (verifikasi nama saja) (2026-07-26) ⚠️ SUPERSEDED oleh #13
+
+**⚠️ Update 2026-07-26 (sesi lanjutan)**: alur di bawah ini SUDAH DIGANTI oleh
+entri #13 — Daftar sekarang HANYA email+password (tanpa nama), verifikasi
+nama/kelas/kelompok dipindah ke wizard onboarding SETELAH login pertama.
+Dibiarkan di sini sbg riwayat kenapa `serverRegisterGuru` sempat berbentuk
+begini.
+
+**(Riwayat)** — konteks di bawah:
 
 **Konteks**: user minta login form biasa (tab Masuk/Daftar) menggantikan
 jalur admin manual (dropdown "Terhubung ke Data Guru" di User Management,
@@ -75,6 +83,42 @@ pendaftaran ditolak dengan pesan suruh hubungi Admin Kelompok dulu.
 (username = email, jadi `serverLogin` yang sudah ada otomatis berfungsi
 tanpa perubahan). Jalur admin manual (`serverGetGuruOptionsForUser`, dropdown
 di User Management) TETAP ADA sbg opsi cadangan, tidak dihapus.
+
+## #13 — Onboarding wizard pasca-login pertama (2026-07-26)
+
+**Konteks**: user minta verifikasi guru dipindah dari saat "Daftar" ke
+SETELAH login pertama, lewat wizard step-by-step: pilih peran (Guru/Admin)
+→ pilih Kelompok (untuk saat ini HANYA "Kelp Petemon", lihat
+`ONBOARDING_ACTIVE_KELOMPOK_IDS_` di `Code.js`) → isi Nama → isi Kelas.
+Form Daftar sendiri disederhanakan jadi HANYA Email + Password (field Nama
+dihapus dari form Daftar, lihat #12 di atas).
+
+**Implementasi**:
+- `Code.js` → `serverRegisterGuru(email, password)` sekarang membuat baris
+  user dengan `role`/`scope_type`/`scope_id`/`guru_id`/`nama` KOSONG ("akun
+  belum lengkap").
+- `renderApp(user)` (Script_Main.html) mendeteksi `!user.role` → tampilkan
+  `#screenOnboarding` (wizard), BUKAN dashboard/Input Absen.
+- `Code.js` → `serverCompleteOnboardingGuru(token, kelompokId, nama, kelas)`
+  memverifikasi via `verifyGuruIdentity_()` (cocokkan ke sheet `guru` +
+  `getKelasOwnedByGuru_()` dari Modul_InputAbsen.gs, satu sumber kebenaran
+  dgn fitur Input Absen) — kalau cocok, baris user di-`updateRowByQuery`
+  jadi lengkap (role='guru', dst) & sesi di-cache ulang. Kalau tidak cocok:
+  TIDAK ADA perubahan, pesan generik "Data belum terdaftar. Silakan hubungi
+  Admin Ruang Ngaji." (sesuai permintaan user, tidak dirinci lebih jauh
+  supaya tidak bocor informasi mana bagian yang salah — nama atau kelas).
+- Pilihan "Admin" di wizard SENGAJA tidak melakukan apa pun selain pesan
+  "hubungi Admin PPG" — mencegah siapa pun self-elevate jadi admin dari
+  form pendaftaran publik ini.
+- "Lupa Password" mandiri (`serverResetPasswordSelfGuru`) memakai
+  verifikasi yang SAMA (Kelompok+Nama+Kelas) + syarat tambahan: guru_id
+  hasil cocokan HARUS SAMA dengan guru_id akun bersangkutan — supaya tidak
+  bisa reset password akun guru lain hanya dgn menebak nama+kelas guru itu.
+
+**Cara verifikasi**: Daftar (email+password) → harus langsung ke wizard
+onboarding (bukan dashboard). Pilih Guru → Kelp Petemon → nama yang ADA di
+sheet `guru` Kelp Petemon → kelas yang benar dia ajar → harus lolos ke Input
+Absen. Nama/kelas yang salah → harus ditolak dengan pesan generik di atas.
 
 **⚠️ Keterbatasan yang disengaja** (sesuai permintaan): dua Guru dengan nama
 persis sama di Kelompok berbeda/sama akan match ke baris PERTAMA yang

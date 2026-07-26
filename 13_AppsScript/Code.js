@@ -283,23 +283,26 @@ function serverLogin(username, password) {
 }
 
 /**
- * Dipanggil dari Index.html lewat google.script.run.serverRegisterGuru(...)
- * Pendaftaran mandiri akun role='guru' — TANPA admin memilih dropdown
- * (beda dari Modul_UserManagement.gs → serverGetGuruOptionsForUser, yang
- * tetap ada sbg jalur manual admin kalau suatu saat diperlukan).
- *
- * Verifikasi HANYA dari kecocokan nama (case-insensitive, spasi di-trim)
- * terhadap sheet 'guru' — sesuai permintaan user: siapa pun yang tahu
- * namanya sendiri persis seperti yang di-input admin ke data Guru otomatis
- * bisa daftar & langsung terhubung (guru_id) ke baris itu. Login berikutnya
- * pakai email (disimpan sbg 'username') + password yang dibuat di sini.
+ * Kelompok yang ditampilkan di wizard onboarding guru (Daftar → pilih Kelompok).
+ * Untuk saat ini HANYA Kelp Petemon (id 1) — Kelompok lain belum aktif dipakai
+ * fitur ini. Tambah id di sini kapan pun Kelompok lain siap dipakai.
  */
-function serverRegisterGuru(nama, email, password) {
-  nama = String(nama || '').trim();
+const ONBOARDING_ACTIVE_KELOMPOK_IDS_ = [1];
+
+/**
+ * Dipanggil dari Index.html lewat google.script.run.serverRegisterGuru(...)
+ * Pendaftaran mandiri — HANYA email + password. Akun dibuat dalam status
+ * "belum lengkap" (role/scope/guru_id kosong) — verifikasi identitas guru
+ * (Kelompok/Nama/Kelas) baru dilakukan SETELAH login pertama lewat wizard
+ * onboarding (lihat serverCompleteOnboardingGuru di bawah), bukan saat
+ * daftar. Jalur admin manual (Modul_UserManagement.gs →
+ * serverGetGuruOptionsForUser) tetap ada sbg opsi cadangan.
+ */
+function serverRegisterGuru(email, password) {
   email = String(email || '').trim().toLowerCase();
 
-  if (!nama || !email || !password) {
-    return { success: false, error: 'Nama, email, dan password wajib diisi.' };
+  if (!email || !password) {
+    return { success: false, error: 'Email dan password wajib diisi.' };
   }
   if (password.length < 6) {
     return { success: false, error: 'Password minimal 6 karakter.' };
@@ -308,21 +311,7 @@ function serverRegisterGuru(nama, email, password) {
     return { success: false, error: 'Format email tidak valid.' };
   }
 
-  const guruRows = readSheetAsObjects(SHEET_NAMES.GURU);
-  const matched = guruRows.find(function (g) {
-    return String(g.nama || '').trim().toLowerCase() === nama.toLowerCase();
-  });
-  if (!matched) {
-    return { success: false, error: 'Nama tidak ditemukan di data Guru. Hubungi Admin Kelompok agar nama Anda didaftarkan terlebih dahulu, lalu coba lagi.' };
-  }
-
   const usersData = readSheetAsObjects(SHEET_NAMES.USERS);
-  const alreadyRegistered = usersData.find(function (u) {
-    return u.role === 'guru' && u.guru_id == matched.id;
-  });
-  if (alreadyRegistered) {
-    return { success: false, error: 'Guru ini sudah pernah mendaftar. Silakan Masuk dengan email yang didaftarkan sebelumnya.' };
-  }
   const emailTaken = usersData.find(function (u) {
     return String(u.username || '').toLowerCase() === email || String(u.email || '').toLowerCase() === email;
   });
@@ -335,14 +324,99 @@ function serverRegisterGuru(nama, email, password) {
     newId = generateId(SHEET_NAMES.USERS);
     const now = new Date().toISOString().split('T')[0];
     appendRowToSheet(SHEET_NAMES.USERS, [
-      newId, matched.nama, email, hashPassword_(password), 'guru',
-      'kelompok', matched.kelompok_id, email, 'active', now, now, 'self_register', matched.id,
+      newId, '', email, hashPassword_(password), '',
+      '', '', email, 'active', now, now, 'self_register', '',
     ]);
   });
 
   const token = Utilities.getUuid();
   const sessionData = {
     id: newId,
+    nama: '',
+    role: '',
+    scopeType: '',
+    scopeId: '',
+    guruId: null,
+  };
+  CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
+
+  return { success: true, token: token, user: sessionData, message: 'Akun berhasil dibuat.' };
+}
+
+/**
+ * GET daftar Kelompok yang boleh dipilih di wizard onboarding (lihat
+ * ONBOARDING_ACTIVE_KELOMPOK_IDS_ di atas).
+ */
+function serverGetOnboardingKelompokOptions() {
+  const list = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
+    .filter(function (k) { return ONBOARDING_ACTIVE_KELOMPOK_IDS_.indexOf(Number(k.id)) !== -1; })
+    .map(function (k) { return { id: k.id, nama: k.nama }; });
+  return { success: true, data: list };
+}
+
+/**
+ * Cari baris 'guru' di satu Kelompok yang nama-nya cocok (case-insensitive,
+ * trim) — dipakai onboarding & reset password mandiri.
+ */
+function findGuruByNamaKelompok_(kelompokId, nama) {
+  const namaLower = String(nama || '').trim().toLowerCase();
+  if (!namaLower) return null;
+  return readSheetAsObjects(SHEET_NAMES.GURU).find(function (g) {
+    return g.kelompok_id == kelompokId && String(g.nama || '').trim().toLowerCase() === namaLower;
+  }) || null;
+}
+
+/**
+ * Verifikasi identitas guru: Kelompok + Nama + Kelas harus cocok dengan data
+ * yang sudah ada (guru row di Kelompok itu, dan kelas ada di jadwal_kbm milik
+ * guru_id itu — pakai getKelasOwnedByGuru_ dari Modul_InputAbsen.gs supaya
+ * satu sumber kebenaran dgn fitur Input Absen). Return guru row atau null.
+ */
+function verifyGuruIdentity_(kelompokId, nama, kelas) {
+  const matched = findGuruByNamaKelompok_(kelompokId, nama);
+  if (!matched) return null;
+
+  const kelasLower = String(kelas || '').trim().toLowerCase();
+  if (!kelasLower) return null;
+  const owned = getKelasOwnedByGuru_(kelompokId, matched.id).map(function (k) { return k.toLowerCase(); });
+  if (owned.indexOf(kelasLower) === -1) return null;
+
+  return matched;
+}
+
+/**
+ * Dipanggil SETELAH login pertama (akun role masih kosong) — wizard
+ * onboarding: user pilih Kelompok, isi Nama, isi Kelas. Kalau cocok dengan
+ * data Guru+Jadwal KBM yang sudah ada, akun ini "dilengkapi" jadi role='guru'
+ * terhubung ke guru_id itu. Kalau tidak cocok, TIDAK ADA perubahan apa pun
+ * (aman diulang) — pesan error generik sesuai permintaan user.
+ */
+function serverCompleteOnboardingGuru(token, kelompokId, nama, kelas) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (ONBOARDING_ACTIVE_KELOMPOK_IDS_.indexOf(Number(kelompokId)) === -1) {
+    return { success: false, error: 'Kelompok tidak tersedia untuk saat ini.' };
+  }
+
+  const matched = verifyGuruIdentity_(kelompokId, nama, kelas);
+  if (!matched) {
+    return { success: false, error: 'Data belum terdaftar. Silakan hubungi Admin Ruang Ngaji.' };
+  }
+
+  withScriptLock_(function () {
+    updateRowByQuery(SHEET_NAMES.USERS, { id: user.id }, {
+      nama: matched.nama,
+      role: 'guru',
+      scope_type: 'kelompok',
+      scope_id: matched.kelompok_id,
+      guru_id: matched.id,
+      updated_at: new Date().toISOString().split('T')[0],
+    });
+  });
+
+  const sessionData = {
+    id: user.id,
     nama: matched.nama,
     role: 'guru',
     scopeType: 'kelompok',
@@ -351,7 +425,47 @@ function serverRegisterGuru(nama, email, password) {
   };
   CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
 
-  return { success: true, token: token, user: sessionData, message: 'Pendaftaran berhasil! Selamat datang, ' + matched.nama + '.' };
+  return { success: true, user: sessionData };
+}
+
+/**
+ * "Lupa Password" mandiri — dipakai untuk akun guru self-register. Ganti
+ * password TANPA tahu password lama, tapi harus membuktikan identitas yang
+ * SAMA dengan yang dipakai saat onboarding (Kelompok+Nama+Kelas cocok data
+ * Guru, DAN guru_id hasil pencocokan itu harus SAMA dengan guru_id akun yang
+ * emailnya diberikan) — supaya tidak bisa reset password akun guru lain
+ * hanya dengan menebak nama+kelas guru itu.
+ */
+function serverResetPasswordSelfGuru(email, kelompokId, nama, kelas, newPassword) {
+  email = String(email || '').trim().toLowerCase();
+  if (!email || !newPassword) {
+    return { success: false, error: 'Email dan password baru wajib diisi.' };
+  }
+  if (newPassword.length < 6) {
+    return { success: false, error: 'Password baru minimal 6 karakter.' };
+  }
+
+  const usersData = readSheetAsObjects(SHEET_NAMES.USERS);
+  const targetUser = usersData.find(function (u) {
+    return String(u.username || '').toLowerCase() === email || String(u.email || '').toLowerCase() === email;
+  });
+  if (!targetUser || targetUser.role !== 'guru' || !targetUser.guru_id) {
+    return { success: false, error: 'Data belum terdaftar. Silakan hubungi Admin Ruang Ngaji.' };
+  }
+
+  const matched = verifyGuruIdentity_(kelompokId, nama, kelas);
+  if (!matched || matched.id != targetUser.guru_id) {
+    return { success: false, error: 'Data belum terdaftar. Silakan hubungi Admin Ruang Ngaji.' };
+  }
+
+  withScriptLock_(function () {
+    updateRowByQuery(SHEET_NAMES.USERS, { id: targetUser.id }, {
+      password_hash: hashPassword_(newPassword),
+      updated_at: new Date().toISOString().split('T')[0],
+    });
+  });
+
+  return { success: true, message: 'Password berhasil diubah. Silakan Masuk dengan password baru.' };
 }
 
 /**

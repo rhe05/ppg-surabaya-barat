@@ -60,7 +60,6 @@
   };
 
   window.handleRegisterGuru = function () {
-    const nama = document.getElementById('daftarNama').value.trim();
     const email = document.getElementById('daftarEmail').value.trim();
     const password = document.getElementById('daftarPassword').value;
     const errorEl = document.getElementById('daftarError');
@@ -68,8 +67,8 @@
     errorEl.style.display = 'none';
     successEl.style.display = 'none';
 
-    if (!nama || !email || !password) {
-      errorEl.textContent = 'Nama, email, dan password wajib diisi.';
+    if (!email || !password) {
+      errorEl.textContent = 'Email dan password wajib diisi.';
       errorEl.style.display = 'block';
       return;
     }
@@ -82,7 +81,7 @@
       .withSuccessHandler(function (result) {
         if (!result.success) {
           btn.disabled = false;
-          btn.textContent = 'Daftar & Masuk';
+          btn.textContent = 'Daftar';
           errorEl.textContent = result.error;
           errorEl.style.display = 'block';
           return;
@@ -96,15 +95,15 @@
         window.currentUser = result.user;
         window.currentKelompokId = result.user.scopeId;
 
-        setTimeout(function () { renderApp(result.user); }, 700);
+        setTimeout(function () { renderApp(result.user); }, 500);
       })
       .withFailureHandler(function () {
         btn.disabled = false;
-        btn.textContent = 'Daftar & Masuk';
+        btn.textContent = 'Daftar';
         errorEl.textContent = 'Gagal mendaftar. Coba lagi.';
         errorEl.style.display = 'block';
       })
-      .serverRegisterGuru(nama, email, password);
+      .serverRegisterGuru(email, password);
   };
 
   window.handleLogin = function () {
@@ -167,6 +166,18 @@
   function renderApp(user) {
     window.hideGlobalLoading_();
     document.getElementById('screenLogin').style.display = 'none';
+    document.getElementById('screenOnboarding').style.display = 'none';
+
+    // Akun baru daftar (role masih kosong) belum lengkap — wajib lewat
+    // wizard onboarding dulu sebelum bisa akses apa pun (Code.js →
+    // serverCompleteOnboardingGuru).
+    if (!user.role) {
+      document.getElementById('appLayout').style.display = 'none';
+      document.getElementById('screenInputAbsen').style.display = 'none';
+      document.getElementById('screenOnboarding').style.display = 'flex';
+      window.initOnboarding_();
+      return;
+    }
 
     // Role 'guru' TIDAK PERNAH melihat shell admin (appLayout/sidebar/menu) —
     // dikunci total ke screen Input Absen sendiri (Modul_InputAbsen.gs).
@@ -196,9 +207,183 @@
     document.getElementById('screenLogin').style.display = 'flex';
     document.getElementById('appLayout').style.display = 'none';
     document.getElementById('screenInputAbsen').style.display = 'none';
+    document.getElementById('screenOnboarding').style.display = 'none';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
     window.switchLoginTab_('masuk');
+  };
+
+  /* ═════ ONBOARDING WIZARD (akun baru daftar, role masih kosong) ═════ */
+
+  window.onboardState_ = { step: 1, role: null, kelompokId: null, kelompokNama: null };
+
+  window.initOnboarding_ = function () {
+    window.onboardState_ = { step: 1, role: null, kelompokId: null, kelompokNama: null };
+    document.getElementById('onboardAdminMsg').style.display = 'none';
+    document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'grid';
+    document.getElementById('onboardNama').value = '';
+    document.getElementById('onboardKelas').value = '';
+    document.getElementById('onboardError').style.display = 'none';
+    window.onboardGoStep_(1);
+  };
+
+  window.onboardGoStep_ = function (step) {
+    window.onboardState_.step = step;
+    [1, 2, 3, 4].forEach(function (n) {
+      document.getElementById('onboardStep' + n).style.display = n === step ? 'block' : 'none';
+      document.querySelector('.onboard-step-dot[data-step="' + n + '"]').classList.toggle('active', n === step);
+    });
+    if (step === 2) window.onboardLoadKelompok_();
+  };
+
+  window.onboardChooseRole_ = function (role) {
+    window.onboardState_.role = role;
+    if (role === 'admin') {
+      document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'none';
+      document.getElementById('onboardAdminMsg').style.display = 'block';
+      return;
+    }
+    window.onboardGoStep_(2);
+  };
+
+  window.onboardBackToRole_ = function () {
+    document.getElementById('onboardAdminMsg').style.display = 'none';
+    document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'grid';
+  };
+
+  window.onboardLoadKelompok_ = function () {
+    const list = document.getElementById('onboardKelompokList');
+    list.innerHTML = '<div style="text-align:center; color:var(--text-faint); font-size:13px; padding:12px;">Memuat...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        list.innerHTML = '';
+        if (!result.success || result.data.length === 0) {
+          list.innerHTML = '<div style="text-align:center; color:var(--text-faint); font-size:13px; padding:12px;">Belum ada Kelompok tersedia.</div>';
+          return;
+        }
+        result.data.forEach(function (k) {
+          const item = document.createElement('div');
+          item.className = 'onboard-kelompok-item';
+          item.textContent = k.nama;
+          item.onclick = function () {
+            document.querySelectorAll('.onboard-kelompok-item').forEach(function (el) { el.classList.remove('active'); });
+            item.classList.add('active');
+            window.onboardState_.kelompokId = k.id;
+            window.onboardState_.kelompokNama = k.nama;
+            setTimeout(function () { window.onboardGoStep_(3); }, 150);
+          };
+          list.appendChild(item);
+        });
+      })
+      .serverGetOnboardingKelompokOptions();
+  };
+
+  window.onboardNamaNext_ = function () {
+    const nama = document.getElementById('onboardNama').value.trim();
+    if (!nama) return;
+    window.onboardGoStep_(4);
+  };
+
+  window.onboardSubmit_ = function () {
+    const nama = document.getElementById('onboardNama').value.trim();
+    const kelas = document.getElementById('onboardKelas').value.trim();
+    const errorEl = document.getElementById('onboardError');
+    errorEl.style.display = 'none';
+
+    if (!kelas) return;
+
+    const btn = document.getElementById('btnOnboardSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Memeriksa...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Selesai';
+
+        if (!result.success) {
+          errorEl.textContent = result.error;
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        window.currentUser = result.user;
+        window.currentKelompokId = result.user.scopeId;
+        renderApp(result.user);
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Selesai';
+        errorEl.textContent = 'Gagal memeriksa data. Coba lagi.';
+        errorEl.style.display = 'block';
+      })
+      .serverCompleteOnboardingGuru(window.currentToken, window.onboardState_.kelompokId, nama, kelas);
+  };
+
+  /* ─── Lupa Password mandiri ─── */
+
+  window.openModalLupaPassword_ = function () {
+    document.getElementById('lupaEmail').value = '';
+    document.getElementById('lupaNama').value = '';
+    document.getElementById('lupaKelas').value = '';
+    document.getElementById('lupaPasswordBaru').value = '';
+    document.getElementById('lupaMsg').style.display = 'none';
+
+    const select = document.getElementById('lupaKelompok');
+    select.innerHTML = '<option value="">Memuat...</option>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        select.innerHTML = '<option value="">-- Pilih Kelompok --</option>';
+        if (result.success) {
+          result.data.forEach(function (k) {
+            const opt = document.createElement('option');
+            opt.value = k.id;
+            opt.textContent = k.nama;
+            select.appendChild(opt);
+          });
+        }
+      })
+      .serverGetOnboardingKelompokOptions();
+
+    document.getElementById('modalLupaPassword').classList.add('active');
+  };
+
+  window.closeModalLupaPassword_ = function () {
+    document.getElementById('modalLupaPassword').classList.remove('active');
+  };
+
+  window.submitLupaPassword_ = function () {
+    const email = document.getElementById('lupaEmail').value.trim();
+    const kelompokId = document.getElementById('lupaKelompok').value;
+    const nama = document.getElementById('lupaNama').value.trim();
+    const kelas = document.getElementById('lupaKelas').value.trim();
+    const passwordBaru = document.getElementById('lupaPasswordBaru').value;
+    const msg = document.getElementById('lupaMsg');
+
+    if (!email || !kelompokId || !nama || !kelas || !passwordBaru) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Semua field wajib diisi.';
+      return;
+    }
+
+    const btn = document.getElementById('btnLupaSubmit');
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Ubah Password';
+        msg.style.display = 'block';
+        msg.style.color = result.success ? 'var(--sage)' : 'var(--red)';
+        msg.textContent = result.success ? result.message : result.error;
+        if (result.success) {
+          setTimeout(window.closeModalLupaPassword_, 1500);
+        }
+      })
+      .serverResetPasswordSelfGuru(email, kelompokId, nama, kelas, passwordBaru);
   };
 
   /* ═════ INPUT ABSEN (khusus role='guru') — Modul_InputAbsen.gs ═════ */
