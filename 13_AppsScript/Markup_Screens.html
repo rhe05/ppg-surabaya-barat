@@ -16,19 +16,52 @@
 
     <div class="login-dev-banner" id="devBanner">⚠️ Mode Pengembangan — Login Dinonaktifkan</div>
 
-    <div class="login-form-group">
-      <label class="login-label" for="username">Username</label>
-      <input class="login-input" type="text" id="username" autocomplete="username" placeholder="Masukkan username">
+    <div class="login-tabs">
+      <button class="login-tab active" id="loginTabMasuk" onclick="window.switchLoginTab_('masuk')">Masuk</button>
+      <button class="login-tab" id="loginTabDaftar" onclick="window.switchLoginTab_('daftar')">Daftar (Guru)</button>
     </div>
 
-    <div class="login-form-group">
-      <label class="login-label" for="password">Password</label>
-      <input class="login-input" type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
+    <!-- Panel Masuk -->
+    <div id="loginPanelMasuk">
+      <div class="login-form-group">
+        <label class="login-label" for="username">Username / Email</label>
+        <input class="login-input" type="text" id="username" autocomplete="username" placeholder="Username atau email">
+      </div>
+
+      <div class="login-form-group">
+        <label class="login-label" for="password">Password</label>
+        <input class="login-input" type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+
+      <button class="login-btn" id="btnLogin" onclick="window.handleLogin()">Masuk</button>
     </div>
 
-    <div class="login-error" id="loginError"></div>
+    <!-- Panel Daftar (Guru) -->
+    <div id="loginPanelDaftar" style="display:none;">
+      <div class="login-hint">Khusus Guru. Isi nama lengkap PERSIS seperti yang tercatat di data Guru Kelompok Anda — sistem otomatis mencocokkan (huruf besar/kecil tidak masalah).</div>
 
-    <button class="login-btn" id="btnLogin" onclick="window.handleLogin()">Masuk</button>
+      <div class="login-form-group">
+        <label class="login-label" for="daftarNama">Nama Lengkap (sesuai data Guru)</label>
+        <input class="login-input" type="text" id="daftarNama" autocomplete="name" placeholder="Contoh: Baban Achmad Intiyas">
+      </div>
+
+      <div class="login-form-group">
+        <label class="login-label" for="daftarEmail">Email</label>
+        <input class="login-input" type="email" id="daftarEmail" autocomplete="email" placeholder="nama@email.com">
+      </div>
+
+      <div class="login-form-group">
+        <label class="login-label" for="daftarPassword">Buat Password</label>
+        <input class="login-input" type="password" id="daftarPassword" autocomplete="new-password" placeholder="Minimal 6 karakter">
+      </div>
+
+      <div class="login-error" id="daftarError"></div>
+      <div class="login-success" id="daftarSuccess"></div>
+
+      <button class="login-btn" id="btnDaftar" onclick="window.handleRegisterGuru()">Daftar & Masuk</button>
+    </div>
   </div>
 </div>
 

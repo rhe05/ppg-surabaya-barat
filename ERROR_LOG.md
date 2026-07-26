@@ -60,6 +60,31 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
+## #12 — Daftar mandiri Guru (verifikasi nama saja) (2026-07-26)
+
+**Konteks**: user minta login form biasa (tab Masuk/Daftar) menggantikan
+jalur admin manual (dropdown "Terhubung ke Data Guru" di User Management,
+lihat entri #11) — guru cukup "Daftar" isi Nama Lengkap + Email + Password
+sendiri, TANPA campur tangan admin. Verifikasi HANYA lewat kecocokan nama
+(case-insensitive, trim) terhadap sheet `guru` — kalau namanya persis sama
+(besar/kecil huruf diabaikan) dengan salah satu baris di data Guru, akun
+langsung dibuat & terhubung (`users.guru_id`). Kalau nama tidak ditemukan,
+pendaftaran ditolak dengan pesan suruh hubungi Admin Kelompok dulu.
+
+**Implementasi**: `Code.js` → `serverRegisterGuru(nama, email, password)`
+(username = email, jadi `serverLogin` yang sudah ada otomatis berfungsi
+tanpa perubahan). Jalur admin manual (`serverGetGuruOptionsForUser`, dropdown
+di User Management) TETAP ADA sbg opsi cadangan, tidak dihapus.
+
+**⚠️ Keterbatasan yang disengaja** (sesuai permintaan): dua Guru dengan nama
+persis sama di Kelompok berbeda/sama akan match ke baris PERTAMA yang
+ditemukan — tidak ada disambiguasi tambahan (mis. tanggal lahir). Kalau ini
+jadi masalah nyata di lapangan, perlu field pembeda tambahan saat daftar.
+
+**Cara verifikasi**: Daftar dengan nama yang ADA di sheet `guru` (variasi
+huruf besar/kecil) → harus berhasil & langsung masuk ke Input Absen. Daftar
+dengan nama yang TIDAK ada → harus ditolak dengan pesan yang jelas.
+
 ## #1 — Layar putih total / "tidak bisa login" (2026-07-17) ⚠️ PALING PENTING
 
 **Gejala**: Aplikasi hanya menampilkan layar putih. Console browser:

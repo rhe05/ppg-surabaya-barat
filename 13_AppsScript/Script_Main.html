@@ -51,6 +51,62 @@
       .serverCheckDevMode();
   };
 
+  window.switchLoginTab_ = function (tab) {
+    const isMasuk = tab === 'masuk';
+    document.getElementById('loginTabMasuk').classList.toggle('active', isMasuk);
+    document.getElementById('loginTabDaftar').classList.toggle('active', !isMasuk);
+    document.getElementById('loginPanelMasuk').style.display = isMasuk ? 'block' : 'none';
+    document.getElementById('loginPanelDaftar').style.display = isMasuk ? 'none' : 'block';
+  };
+
+  window.handleRegisterGuru = function () {
+    const nama = document.getElementById('daftarNama').value.trim();
+    const email = document.getElementById('daftarEmail').value.trim();
+    const password = document.getElementById('daftarPassword').value;
+    const errorEl = document.getElementById('daftarError');
+    const successEl = document.getElementById('daftarSuccess');
+    errorEl.style.display = 'none';
+    successEl.style.display = 'none';
+
+    if (!nama || !email || !password) {
+      errorEl.textContent = 'Nama, email, dan password wajib diisi.';
+      errorEl.style.display = 'block';
+      return;
+    }
+
+    const btn = document.getElementById('btnDaftar');
+    btn.disabled = true;
+    btn.textContent = 'Memproses...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          btn.disabled = false;
+          btn.textContent = 'Daftar & Masuk';
+          errorEl.textContent = result.error;
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        successEl.textContent = '✓ ' + result.message;
+        successEl.style.display = 'block';
+
+        sessionStorage.setItem('ppg_token', result.token);
+        window.currentToken = result.token;
+        window.currentUser = result.user;
+        window.currentKelompokId = result.user.scopeId;
+
+        setTimeout(function () { renderApp(result.user); }, 700);
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Daftar & Masuk';
+        errorEl.textContent = 'Gagal mendaftar. Coba lagi.';
+        errorEl.style.display = 'block';
+      })
+      .serverRegisterGuru(nama, email, password);
+  };
+
   window.handleLogin = function () {
     const username = document.getElementById('username').value.trim();
     const password = document.getElementById('password').value;
@@ -142,6 +198,7 @@
     document.getElementById('screenInputAbsen').style.display = 'none';
     document.getElementById('username').value = '';
     document.getElementById('password').value = '';
+    window.switchLoginTab_('masuk');
   };
 
   /* ═════ INPUT ABSEN (khusus role='guru') — Modul_InputAbsen.gs ═════ */

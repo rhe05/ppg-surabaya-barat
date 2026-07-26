@@ -283,6 +283,78 @@ function serverLogin(username, password) {
 }
 
 /**
+ * Dipanggil dari Index.html lewat google.script.run.serverRegisterGuru(...)
+ * Pendaftaran mandiri akun role='guru' — TANPA admin memilih dropdown
+ * (beda dari Modul_UserManagement.gs → serverGetGuruOptionsForUser, yang
+ * tetap ada sbg jalur manual admin kalau suatu saat diperlukan).
+ *
+ * Verifikasi HANYA dari kecocokan nama (case-insensitive, spasi di-trim)
+ * terhadap sheet 'guru' — sesuai permintaan user: siapa pun yang tahu
+ * namanya sendiri persis seperti yang di-input admin ke data Guru otomatis
+ * bisa daftar & langsung terhubung (guru_id) ke baris itu. Login berikutnya
+ * pakai email (disimpan sbg 'username') + password yang dibuat di sini.
+ */
+function serverRegisterGuru(nama, email, password) {
+  nama = String(nama || '').trim();
+  email = String(email || '').trim().toLowerCase();
+
+  if (!nama || !email || !password) {
+    return { success: false, error: 'Nama, email, dan password wajib diisi.' };
+  }
+  if (password.length < 6) {
+    return { success: false, error: 'Password minimal 6 karakter.' };
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { success: false, error: 'Format email tidak valid.' };
+  }
+
+  const guruRows = readSheetAsObjects(SHEET_NAMES.GURU);
+  const matched = guruRows.find(function (g) {
+    return String(g.nama || '').trim().toLowerCase() === nama.toLowerCase();
+  });
+  if (!matched) {
+    return { success: false, error: 'Nama tidak ditemukan di data Guru. Hubungi Admin Kelompok agar nama Anda didaftarkan terlebih dahulu, lalu coba lagi.' };
+  }
+
+  const usersData = readSheetAsObjects(SHEET_NAMES.USERS);
+  const alreadyRegistered = usersData.find(function (u) {
+    return u.role === 'guru' && u.guru_id == matched.id;
+  });
+  if (alreadyRegistered) {
+    return { success: false, error: 'Guru ini sudah pernah mendaftar. Silakan Masuk dengan email yang didaftarkan sebelumnya.' };
+  }
+  const emailTaken = usersData.find(function (u) {
+    return String(u.username || '').toLowerCase() === email || String(u.email || '').toLowerCase() === email;
+  });
+  if (emailTaken) {
+    return { success: false, error: 'Email ini sudah terdaftar.' };
+  }
+
+  let newId;
+  withScriptLock_(function () {
+    newId = generateId(SHEET_NAMES.USERS);
+    const now = new Date().toISOString().split('T')[0];
+    appendRowToSheet(SHEET_NAMES.USERS, [
+      newId, matched.nama, email, hashPassword_(password), 'guru',
+      'kelompok', matched.kelompok_id, email, 'active', now, now, 'self_register', matched.id,
+    ]);
+  });
+
+  const token = Utilities.getUuid();
+  const sessionData = {
+    id: newId,
+    nama: matched.nama,
+    role: 'guru',
+    scopeType: 'kelompok',
+    scopeId: matched.kelompok_id,
+    guruId: matched.id,
+  };
+  CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
+
+  return { success: true, token: token, user: sessionData, message: 'Pendaftaran berhasil! Selamat datang, ' + matched.nama + '.' };
+}
+
+/**
  * Dipanggil dari halaman-halaman lain (setelah login) untuk verifikasi sesi
  * masih valid — dipakai client-side sebelum menampilkan dashboard.
  */
