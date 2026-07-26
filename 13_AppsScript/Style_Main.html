@@ -1896,6 +1896,19 @@
       background: var(--border);
     }
 
+    /* Batang tengah yg menyambungkan kotak Wk Pembina (di atas) ke garis
+       horizontal ::after (di bawah) — TANPA ini, garis ::after kelihatan
+       mengambang karena padding-bottom kosong tanpa penghubung visual. */
+    .struktur-converge-stem {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      width: 2px;
+      height: 26px;
+      background: var(--border);
+      transform: translateX(-50%);
+    }
+
     /* Satu kolom di dalam baris sejajar — "kaki" vertikal dari garis horizontal
        ke kotaknya, dan (kalau ada) menampung anak turunan di bawahnya (mis.
        kolom Pembina Remaja membawa Ketua Muda-Mudi). */
