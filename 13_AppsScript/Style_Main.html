@@ -1871,15 +1871,13 @@
     }
 
     /* "converge-below": dipakai KHUSUS baris Wk Pembina Generus — baris ini
-       butuh garis di BAWAHNYA juga (bukan cuma di atas), supaya turunan ke
-       PJP Kelp kelihatan jelas nyambung ke "batang" Wk Pembina, bukan muncul
-       dari celah kosong antar kotak Wk Pembina. */
-    .struktur-branch-row.converge-below {
-      padding-bottom: 26px;
-    }
-
-    /* Elemen garis horizontal sungguhan (bukan pseudo-element) — posisi
-       (left/width) di-set oleh JS hasil pengukuran nyata tiap render. */
+       butuh garis di BAWAHNYA juga (bukan cuma di atas) kalau isinya >1 kotak,
+       supaya turunan ke PJP Kelp kelihatan jelas nyambung jadi SATU garis
+       (bukan dari celah kosong antar kotak Wk Pembina). Garis ini sengaja
+       digambar PERSIS di tepi bawah kotak (tanpa padding/stem terpisah lagi —
+       versi sebelumnya sempat kelihatan dobel/redundan di antara Wk Pembina
+       dan PJP Kelp), lalu disambung LANGSUNG oleh SATU `.struktur-connector`
+       tunggal menuju PJP Kelp. */
     .struktur-branch-line {
       position: absolute;
       top: 0;
@@ -1890,19 +1888,6 @@
     .struktur-branch-line.bottom {
       top: auto;
       bottom: 0;
-    }
-
-    /* Batang tengah yg menyambungkan kotak Wk Pembina (di atas) ke garis
-       horizontal ::after (di bawah) — TANPA ini, garis ::after kelihatan
-       mengambang karena padding-bottom kosong tanpa penghubung visual. */
-    .struktur-converge-stem {
-      position: absolute;
-      bottom: 0;
-      left: 50%;
-      width: 2px;
-      height: 26px;
-      background: var(--border);
-      transform: translateX(-50%);
     }
 
     /* Satu kolom di dalam baris sejajar — "kaki" vertikal dari garis horizontal

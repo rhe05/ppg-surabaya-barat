@@ -1041,7 +1041,7 @@
       // BAWAHNYA juga (bukan cuma di atas) supaya garis turun ke PJP Kelp
       // kelihatan jelas nyambung ke "kelompok Wk Pembina" (satu batang, bukan
       // muncul dari celah kosong antar kotak).
-      + '<div class="struktur-branch-row converge-below">' + wkPembinaCols + '<div class="struktur-converge-stem"></div></div>'
+      + '<div class="struktur-branch-row converge-below">' + wkPembinaCols + '</div>'
       + '<div class="struktur-connector"></div>'
       + window.strukturNodeHtml_('PJP Kelp', namaSingle('PJP Kelp'))
       + '<div class="struktur-connector"></div>'
@@ -1182,10 +1182,8 @@
             .struktur-node-name { font-size: 13.5px; font-weight: 700; color: #0F172A; line-height: 1.35; word-break: break-word; }
             .struktur-connector { width: 2px; height: 26px; background: #E2E8F0; }
             .struktur-branch-row { position: relative; display: inline-flex; gap: 24px; padding-top: 26px; }
-            .struktur-branch-row.converge-below { padding-bottom: 26px; }
             .struktur-branch-line { position: absolute; top: 0; height: 2px; background: #E2E8F0; }
             .struktur-branch-line.bottom { top: auto; bottom: 0; }
-            .struktur-converge-stem { position: absolute; bottom: 0; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
             .struktur-col { position: relative; display: flex; flex-direction: column; align-items: center; }
             .struktur-col::before { content: ''; position: absolute; top: -26px; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
             .struktur-pdf-footer { position: fixed; bottom: 6mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 6px; }
