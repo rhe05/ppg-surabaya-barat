@@ -22,6 +22,7 @@ const JABATAN_PENGURUS_ = [
   'Ketua Muda-Mudi',
   'Sekertaris Generus',
   'Koord Tahfidz',
+  'Bendahara',
 ];
 
 /** Dapukan yang boleh dijabat LEBIH DARI SATU orang sekaligus (mis. beberapa Wk

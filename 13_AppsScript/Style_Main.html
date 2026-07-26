@@ -1772,30 +1772,40 @@
       font-variant-numeric: normal;
     }
 
-    /* Layar "Struktur Pengurus Generus Kelp" — bagan vertikal: Pembina Generus
-       → Wk Pembina Generus (1-4 kotak sejajar) → PJP Kelp → 5 kotak di bawah
-       PJP Kelp (Kepsek/Pembina Pra Remaja/Pembina Remaja/Koord Tahfidz/Sekr
-       Generus). Garis dibuat murni CSS (border), bukan gambar/SVG. */
+    /* Layar "Struktur Pengurus Generus Kelp" — bagan vertikal (Pembina Generus
+       → Wk Pembina Generus [1-4 kotak] → PJP Kelp → Kepsek/Pembina Pra Remaja/
+       Pembina Remaja [→ Ketua Muda-Mudi]/Sekretaris/Bendahara). Semua garis
+       murni CSS, dihitung presisi (bukan border bawaan flex yg melebar ke tepi
+       kotak pertama/terakhir — lihat catatan di .struktur-branch-row::before).
+       Kotak SENGAJA dibuat lebar TETAP (bukan min-width) supaya perhitungan
+       titik-tengah kotak pertama/terakhir di bawah selalu akurat. */
     .struktur-pengurus-modal {
-      max-width: 920px;
-      width: 94%;
+      max-width: 1180px;
+      width: 96%;
     }
 
     .struktur-pengurus-body {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 8px 4px 16px;
+      padding: 12px 8px 20px;
       overflow-x: auto;
+    }
+
+    .struktur-chart {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .struktur-node {
       background: var(--panel-2);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 12px 18px;
+      padding: 12px 14px;
       text-align: center;
-      min-width: 168px;
+      width: 172px;
+      box-sizing: border-box;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
     }
 
@@ -1813,32 +1823,52 @@
       font-weight: 700;
       color: var(--text);
       line-height: 1.35;
+      word-break: break-word;
     }
 
+    /* Garis vertikal lurus antar level tunggal (mis. Pembina Generus → Wk
+       Pembina Generus, atau di dalam 1 kolom antara Pembina Remaja → Ketua
+       Muda-Mudi). */
     .struktur-connector {
       width: 2px;
       height: 26px;
       background: var(--border);
     }
 
-    /* Baris sejajar (Wk Pembina bisa 1-4 kotak): garis horizontal = border-top
-       kontainer inline-flex (lebarnya cuma sepanjang isinya, bukan selebar
-       modal), tiap kotak dapat "kaki" vertikal sendiri ke garis itu. */
+    /* Baris kotak sejajar (Wk Pembina 1-4 kotak, atau 5 dapukan di bawah PJP
+       Kelp). Garis horizontal digambar via ::before dgn inset kiri/kanan =
+       SETENGAH lebar kotak (172/2 = 86px) — jadi garis SELALU mulai & berakhir
+       PERSIS di titik tengah kotak pertama & terakhir, bukan di tepinya,
+       berapa pun jumlah kotaknya (kalau cuma 1 kotak, otomatis tidak ada garis
+       horizontal sama sekali, karena insetnya saling menutup). */
     .struktur-branch-row {
+      position: relative;
       display: inline-flex;
       gap: 24px;
-      justify-content: center;
-      flex-wrap: wrap;
-      border-top: 2px solid var(--border);
       padding-top: 26px;
-      margin-top: 26px;
     }
 
-    .struktur-node-wrap {
+    .struktur-branch-row::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 86px;
+      right: 86px;
+      height: 2px;
+      background: var(--border);
+    }
+
+    /* Satu kolom di dalam baris sejajar — "kaki" vertikal dari garis horizontal
+       ke kotaknya, dan (kalau ada) menampung anak turunan di bawahnya (mis.
+       kolom Pembina Remaja membawa Ketua Muda-Mudi). */
+    .struktur-col {
       position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    .struktur-node-wrap::before {
+    .struktur-col::before {
       content: '';
       position: absolute;
       top: -26px;

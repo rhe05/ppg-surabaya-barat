@@ -729,6 +729,7 @@
     { jabatan: 'Ketua Muda-Mudi', key: 'KetuaMudaMudi' },
     { jabatan: 'Sekertaris Generus', key: 'SekertarisGenerus' },
     { jabatan: 'Koord Tahfidz', key: 'KoordTahfidz' },
+    { jabatan: 'Bendahara', key: 'Bendahara' },
   ];
 
   /** Dapukan yang boleh dijabat lebih dari satu orang sekaligus — HARUS sama
@@ -983,43 +984,62 @@
     document.getElementById('modalDetailPengurus').classList.remove('active');
   };
 
-  /** Satu kotak bagan Struktur Pengurus (title jabatan tampil + nama pengurus di bawahnya). */
+  /** Satu kotak bagan Struktur Pengurus (title jabatan tampil + nama pengurus di
+      bawahnya) — TANPA wrapper/kaki garis. Dipakai baik utk kotak tunggal
+      (Pembina Generus/PJP Kelp) maupun ditaruh di dalam .struktur-col. */
   window.strukturNodeHtml_ = function (title, nama) {
-    return '<div class="struktur-node-wrap"><div class="struktur-node">'
+    return '<div class="struktur-node">'
       + '<div class="struktur-node-title">' + title + '</div>'
       + '<div class="struktur-node-name">' + (nama || 'Belum diisi') + '</div>'
-      + '</div></div>';
+      + '</div>';
   };
 
-  /** Bangun HTML bagan "Struktur Pengurus Generus Kelp": Pembina Generus →
-      Wk Pembina Generus (1-4 kotak sejajar, dapukan multi-holder) → PJP Kelp
-      → 5 kotak di bawah PJP Kelp. */
+  /** Satu kolom di dalam baris sejajar (.struktur-branch-row) — beri "kaki"
+      garis vertikal ke kotaknya. innerHtml boleh berisi lebih dari 1 kotak
+      (mis. Pembina Remaja + konektor + Ketua Muda-Mudi bertumpuk ke bawah). */
+  window.strukturColHtml_ = function (innerHtml) {
+    return '<div class="struktur-col">' + innerHtml + '</div>';
+  };
+
+  /** Bangun HTML bagan "Struktur Pengurus Generus Kelp":
+      Pembina Generus → Wk Pembina Generus (1-4 kotak sejajar, dapukan
+      multi-holder) → PJP Kelp → Kepsek / Pembina Pra Remaja / Pembina Remaja
+      (→ Ketua Muda-Mudi di bawahnya) / Sekretaris / Bendahara. */
   window.renderStrukturPengurusChart_ = function () {
     const data = window.lastPengurusListData || [];
     const namaSingle = function (jabatan) {
       const rec = data.find(function (p) { return p.jabatan === jabatan; });
       return rec ? rec.nama : '';
     };
-    const wkPembina = data.filter(function (p) { return p.jabatan === 'Wk Pembina Generus Kelp'; });
-    const wkPembinaNodes = wkPembina.length
-      ? wkPembina.map(function (p) { return window.strukturNodeHtml_('Wk Pembina Generus', p.nama); }).join('')
-      : window.strukturNodeHtml_('Wk Pembina Generus', '');
 
-    const bawahanPJP = [
-      { jabatan: 'Kepsek', title: 'Kepsek' },
-      { jabatan: 'Pembina Pra Remaja', title: 'Pembina Pra Remaja' },
-      { jabatan: 'Pembina Remaja', title: 'Pembina Remaja' },
-      { jabatan: 'Koord Tahfidz', title: 'Koord Tahfidz' },
-      { jabatan: 'Sekertaris Generus', title: 'Sekr Generus' },
-    ].map(function (j) { return window.strukturNodeHtml_(j.title, namaSingle(j.jabatan)); }).join('');
+    const wkPembina = data.filter(function (p) { return p.jabatan === 'Wk Pembina Generus Kelp'; });
+    const wkPembinaNama = wkPembina.length ? wkPembina.map(function (p) { return p.nama; }) : [''];
+    const wkPembinaCols = wkPembinaNama
+      .map(function (nama) { return window.strukturColHtml_(window.strukturNodeHtml_('Wk Pembina Generus', nama)); })
+      .join('');
+
+    const pembinaRemajaCol = window.strukturColHtml_(
+      window.strukturNodeHtml_('Pembina Remaja', namaSingle('Pembina Remaja'))
+      + '<div class="struktur-connector"></div>'
+      + window.strukturNodeHtml_('Ketua Muda-Mudi', namaSingle('Ketua Muda-Mudi'))
+    );
+
+    const pjpChildrenCols = [
+      window.strukturColHtml_(window.strukturNodeHtml_('Kepsek', namaSingle('Kepsek'))),
+      window.strukturColHtml_(window.strukturNodeHtml_('Pembina Pra Remaja', namaSingle('Pembina Pra Remaja'))),
+      pembinaRemajaCol,
+      window.strukturColHtml_(window.strukturNodeHtml_('Sekretaris', namaSingle('Sekertaris Generus'))),
+      window.strukturColHtml_(window.strukturNodeHtml_('Bendahara', namaSingle('Bendahara'))),
+    ].join('');
 
     document.getElementById('strukturPengurusBody').innerHTML = '<div class="struktur-chart">'
       + window.strukturNodeHtml_('Pembina Generus', namaSingle('Pembina Generus Kelp'))
       + '<div class="struktur-connector"></div>'
-      + '<div class="struktur-branch-row">' + wkPembinaNodes + '</div>'
+      + '<div class="struktur-branch-row">' + wkPembinaCols + '</div>'
       + '<div class="struktur-connector"></div>'
       + window.strukturNodeHtml_('PJP Kelp', namaSingle('PJP Kelp'))
-      + '<div class="struktur-branch-row">' + bawahanPJP + '</div>'
+      + '<div class="struktur-connector"></div>'
+      + '<div class="struktur-branch-row">' + pjpChildrenCols + '</div>'
       + '</div>';
   };
 
