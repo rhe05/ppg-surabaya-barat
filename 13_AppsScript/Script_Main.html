@@ -1077,12 +1077,13 @@
     });
   };
 
-  /** Baris "converge-below" (Wk Pembina Generus) TIDAK LAGI digabung lewat
-      batang tengah — sekarang bercabang jelas berupa siku (elbow): turun dari
-      kotak Wk Pembina PERTAMA, belok mendatar, lalu turun lagi tepat di
-      sumbu-tengah menuju connector polos yg sudah ada ke PJP Kelp. Kalau cuma
-      1 kotak (atau kebetulan sudah segaris tengah), otomatis jadi garis lurus
-      biasa tanpa siku. */
+  /** Baris "converge-below" (Wk Pembina Generus) bercabang berupa siku
+      (elbow): turun dari kotak Wk Pembina yg ORANGNYA SAMA dgn PJP Kelp
+      (dicocokkan via nama, bukan asal kolom pertama — supaya tidak tergantung
+      urutan data), belok mendatar, lalu turun lagi tepat di sumbu-tengah
+      menuju connector polos yg sudah ada ke PJP Kelp. Kalau cuma 1 kotak,
+      tidak ada yg namanya cocok, atau kebetulan sudah segaris tengah,
+      otomatis jadi garis lurus biasa tanpa siku. */
   window.drawWkPembinaElbow_ = function (root) {
     const row = root.querySelector('.struktur-branch-row.converge-below');
     if (!row) return;
@@ -1092,8 +1093,23 @@
     const connector = row.nextElementSibling;
     if (cols.length === 0 || !connector) return;
 
+    // Kalau salah satu Wk Pembina orangnya SAMA dgn PJP Kelp (kasus nyata:
+    // Falikul Asbach), tarik siku dari kolom orang itu SPESIFIK — bukan asal
+    // kolom pertama — supaya tidak tergantung urutan data yg kebetulan.
+    const pjpNode = connector.nextElementSibling;
+    const pjpNameEl = pjpNode && pjpNode.querySelector('.struktur-node-name');
+    const pjpNama = pjpNameEl ? pjpNameEl.textContent.trim() : '';
+    let sourceCol = cols[0];
+    if (pjpNama) {
+      const matched = cols.find(function (col) {
+        const nameEl = col.querySelector('.struktur-node-name');
+        return nameEl && nameEl.textContent.trim() === pjpNama;
+      });
+      if (matched) sourceCol = matched;
+    }
+
     const rowRect = row.getBoundingClientRect();
-    const sourceRect = cols[0].getBoundingClientRect();
+    const sourceRect = sourceCol.getBoundingClientRect();
     const sourceX = (sourceRect.left + sourceRect.right) / 2 - rowRect.left;
     const connectorRect = connector.getBoundingClientRect();
     const targetX = (connectorRect.left + connectorRect.right) / 2 - rowRect.left;
@@ -1276,8 +1292,19 @@
                 const cols = Array.prototype.filter.call(wkRow.children, function (el) { return el.classList.contains('struktur-col'); });
                 const connector = wkRow.nextElementSibling;
                 if (cols.length > 0 && connector) {
+                  const pjpNode = connector.nextElementSibling;
+                  const pjpNameEl = pjpNode && pjpNode.querySelector('.struktur-node-name');
+                  const pjpNama = pjpNameEl ? pjpNameEl.textContent.trim() : '';
+                  let sourceCol = cols[0];
+                  if (pjpNama) {
+                    const matched = cols.find(function (col) {
+                      const nameEl = col.querySelector('.struktur-node-name');
+                      return nameEl && nameEl.textContent.trim() === pjpNama;
+                    });
+                    if (matched) sourceCol = matched;
+                  }
                   const rowRect = wkRow.getBoundingClientRect();
-                  const sourceRect = cols[0].getBoundingClientRect();
+                  const sourceRect = sourceCol.getBoundingClientRect();
                   const sourceX = (sourceRect.left + sourceRect.right) / 2 - rowRect.left;
                   const connectorRect = connector.getBoundingClientRect();
                   const targetX = (connectorRect.left + connectorRect.right) / 2 - rowRect.left;
