@@ -60,7 +60,15 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
-## #16 — Kartu info kelas + hapus greeting "Halo" di Input Absen (2026-07-26)
+## #16 — Kartu info kelas + hapus greeting "Halo" di Input Absen (2026-07-26) ⚠️ lihat #17
+
+**⚠️ Update (sesi lanjutan, sama hari)**: kartu info kelas terpisah di bawah
+ini SUDAH DIHAPUS lagi (lihat #17) — user merasa jadi 2 kartu terpisah
+("card kelas+jumlah santri" di chip DAN "card data lengkap" di bawahnya)
+kelihatan penuh/redundan. Kontennya dipindah jadi subtitle di header
+(sebelah nama guru & lonceng), bukan kartu baru.
+
+**(Riwayat)** — konteks awal di bawah:
 
 **Konteks**: setelah kelas dipilih, user minta tampilan berurutan: Kelas,
 Ruangan, jumlah santri + jam sesi, dan nama guru pengampu (bukan cuma daftar
@@ -82,6 +90,23 @@ Akses" di baris kelas — kode & fungsi backend-nya (serverListKelasUntukPermint
 dkk) TETAP ADA, tinggal un-comment block di `window.iaOnTanggalChange_`
 (Script_Main.html, dekat komentar "sengaja disembunyikan sementara") kalau
 mau diaktifkan lagi.
+
+## #17 — Hapus kartu info kelas terpisah, gabung ke header (2026-07-26)
+
+**Konteks**: user merasa 2 kartu terlihat penuh — chip kelas terpilih
+("Kelas 4 · 2 santri") DAN kartu detail putih di bawahnya (#16) tampil
+bersamaan, terasa duplikat. Minta hanya SATU kartu: info detail
+(Kelas/Ruangan/jam/Santri/Guru) digabung jadi subtitle di header brass,
+persis di bawah nama guru, di sebelah ikon lonceng — bukan kartu terpisah.
+
+**Implementasi**: `#iaKelasInfoCard` (markup+CSS, dari #16) DIHAPUS TOTAL.
+`#iaGreetingKelasInfo` (baru, di dalam `.ia-greeting` — sebaris dengan
+`#iaNamaGuru`) diisi teks satu baris via `window.iaRenderKelasInfoCard_`
+(nama fungsi dipertahankan, isi diganti): `"Kelas 4 · Masjid Lt 1 · 2 Santri
+· 15:45–16:45"`, ditambah `· Kak <nama guru>` HANYA di mode admin (mode guru
+tidak perlu, itu namanya sendiri). Chip kelas di `#iaKelasRow` TETAP ADA
+(perlu utk pilih/ganti kelas kalau guru punya >1 kelas atau admin browsing
+banyak kelas) — cuma kartu detail terpisahnya yang hilang.
 
 ## #15 — Status "Sakit" + kalender custom di Input Absen (2026-07-26)
 

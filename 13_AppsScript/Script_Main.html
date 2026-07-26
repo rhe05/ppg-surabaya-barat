@@ -513,7 +513,7 @@
   window.iaOnTanggalChange_ = function () {
     window.iaState_.kelas = null;
     document.getElementById('iaEmptyState').style.display = 'flex';
-    document.getElementById('iaKelasInfoCard').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaProgressWrap').style.display = 'none';
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
@@ -562,22 +562,17 @@
 
   window.iaRenderKelasInfoCard_ = function (kelas) {
     const meta = (window.iaState_.kelasMeta || {})[kelas.toLowerCase()];
-    const card = document.getElementById('iaKelasInfoCard');
-    if (!meta) { card.style.display = 'none'; return; }
+    const el = document.getElementById('iaGreetingKelasInfo');
+    if (!meta) { el.style.display = 'none'; return; }
 
-    document.getElementById('iaKelasInfoTitle').textContent = 'Kelas ' + meta.kelas;
-    document.getElementById('iaKelasInfoRuangan').textContent = meta.ruangan ? 'Ruangan ' + meta.ruangan : '';
-    document.getElementById('iaKelasInfoRuangan').style.display = meta.ruangan ? 'block' : 'none';
-    document.getElementById('iaKelasInfoCount').textContent = (meta.santriCount || 0) + ' Santri';
-    document.getElementById('iaKelasInfoJam').textContent = (meta.jamMulai && meta.jamSelesai) ? (meta.jamMulai + ' - ' + meta.jamSelesai) : '';
-    const guruEl = document.getElementById('iaKelasInfoGuru');
-    if (meta.namaGuru) {
-      guruEl.innerHTML = 'Guru : <b>Kak ' + meta.namaGuru + '</b>';
-      guruEl.style.display = 'block';
-    } else {
-      guruEl.style.display = 'none';
-    }
-    card.style.display = 'block';
+    const parts = ['Kelas ' + meta.kelas];
+    if (meta.ruangan) parts.push(meta.ruangan);
+    parts.push((meta.santriCount || 0) + ' Santri');
+    if (meta.jamMulai && meta.jamSelesai) parts.push(meta.jamMulai + '–' + meta.jamSelesai);
+    if (window.iaState_.mode === 'admin' && meta.namaGuru) parts.push('Kak ' + meta.namaGuru);
+
+    el.textContent = parts.join(' · ');
+    el.style.display = 'block';
   };
 
   window.iaSelectKelas_ = function (kelas, chipEl) {
