@@ -1005,7 +1005,9 @@
       Pembina Generus → Wk Pembina Generus (1-4 kotak sejajar, dapukan
       multi-holder) → PJP Kelp → Kepsek / Pembina Pra Remaja / Pembina Remaja
       (→ Ketua Muda-Mudi di bawahnya) / Sekretaris / Bendahara. */
-  window.renderStrukturPengurusChart_ = function () {
+  /** Bangun HTML isi ".struktur-chart" saja (dipakai baik utk tampilan layar
+      yg diskalakan, maupun utk dokumen cetak PDF apa adanya/tanpa skala). */
+  window.buildStrukturPengurusChartHtml_ = function () {
     const data = window.lastPengurusListData || [];
     const namaSingle = function (jabatan) {
       const rec = data.find(function (p) { return p.jabatan === jabatan; });
@@ -1032,7 +1034,7 @@
       window.strukturColHtml_(window.strukturNodeHtml_('Bendahara', namaSingle('Bendahara'))),
     ].join('');
 
-    document.getElementById('strukturPengurusBody').innerHTML = '<div class="struktur-chart">'
+    return '<div class="struktur-chart">'
       + window.strukturNodeHtml_('Pembina Generus', namaSingle('Pembina Generus Kelp'))
       + '<div class="struktur-connector"></div>'
       + '<div class="struktur-branch-row">' + wkPembinaCols + '</div>'
@@ -1043,13 +1045,114 @@
       + '</div>';
   };
 
+  window.renderStrukturPengurusChart_ = function () {
+    document.getElementById('strukturPengurusBody').innerHTML = window.buildStrukturPengurusChartHtml_();
+    window.fitStrukturPengurusChart_();
+  };
+
+  /** Skalakan .struktur-chart (via transform: scale) supaya SELALU utuh
+      terlihat di dalam .struktur-pengurus-body tanpa scroll kanan-kiri/
+      atas-bawah, berapa pun jumlah kotak Wk Pembina-nya. */
+  window.fitStrukturPengurusChart_ = function () {
+    const wrap = document.getElementById('strukturPengurusBody');
+    const chart = wrap && wrap.querySelector('.struktur-chart');
+    if (!wrap || !chart) return;
+
+    chart.style.transform = 'translate(-50%, -50%) scale(1)';
+    const naturalWidth = chart.scrollWidth;
+    const naturalHeight = chart.scrollHeight;
+    const availW = wrap.clientWidth - 16;
+    const availH = wrap.clientHeight - 16;
+    if (naturalWidth <= 0 || naturalHeight <= 0) return;
+
+    const scale = Math.min(1, availW / naturalWidth, availH / naturalHeight);
+    chart.style.transform = 'translate(-50%, -50%) scale(' + scale + ')';
+  };
+
   window.openModalStrukturPengurus = function () {
-    window.renderStrukturPengurusChart_();
     document.getElementById('modalStrukturPengurus').classList.add('active');
+    window.renderStrukturPengurusChart_();
   };
 
   window.closeModalStrukturPengurus = function () {
     document.getElementById('modalStrukturPengurus').classList.remove('active');
+  };
+
+  // Jendela di-resize sementara bagan terbuka (mis. maximize/un-maximize
+  // browser) → hitung ulang skala supaya tetap utuh tanpa scroll.
+  window.addEventListener('resize', function () {
+    const modal = document.getElementById('modalStrukturPengurus');
+    if (modal && modal.classList.contains('active')) window.fitStrukturPengurusChart_();
+  });
+
+  window.openModalDownloadStrukturPengurus = function () {
+    document.getElementById('modalDownloadStrukturPengurus').classList.add('active');
+  };
+
+  window.closeModalDownloadStrukturPengurus = function () {
+    document.getElementById('modalDownloadStrukturPengurus').classList.remove('active');
+  };
+
+  window.confirmDownloadStrukturPengurus = function () {
+    const paper = document.querySelector('input[name="strukturPengurusPaperSize"]:checked').value;
+    window.closeModalDownloadStrukturPengurus();
+    window.printStrukturPengurusPdf_(paper);
+  };
+
+  /** Cetak/unduh PDF bagan Struktur Pengurus — dokumen terpisah (bukan hasil
+      skala layar), dgn footer premium: kiri = credit aplikasi + logo, kanan =
+      tanggal unduh. Ukuran kertas dipilih user (A4/Folio), orientasi landscape
+      krn bagan lebih lebar dari tinggi. */
+  window.printStrukturPengurusPdf_ = function (paperSize) {
+    const chartHtml = window.buildStrukturPengurusChartHtml_();
+    const logoImg = document.querySelector('.brand-mark');
+    const logoSrc = logoImg ? logoImg.src : '';
+    const pageSize = paperSize === 'Folio' ? '215mm 330mm' : 'A4';
+
+    const now = new Date();
+    const bulanNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const tanggalUnduh = now.getDate() + ' ' + bulanNames[now.getMonth()] + ' ' + now.getFullYear();
+
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html>
+        <head>
+          <title>Struktur Pengurus Generus Kelp</title>
+          <style>
+            @page { size: ${pageSize} landscape; margin: 14mm; }
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; color: #0F172A; margin: 0; padding: 0; }
+            h1 { font-size: 18px; text-align: center; margin: 0 0 22px; }
+            .struktur-chart { display: flex; flex-direction: column; align-items: center; }
+            .struktur-node { background: #F9FAFB; border: 1px solid #E2E8F0; border-radius: 8px; padding: 12px 14px; text-align: center; width: 172px; box-sizing: border-box; }
+            .struktur-node-title { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #64748B; margin-bottom: 4px; }
+            .struktur-node-name { font-size: 13.5px; font-weight: 700; color: #0F172A; line-height: 1.35; word-break: break-word; }
+            .struktur-connector { width: 2px; height: 26px; background: #E2E8F0; }
+            .struktur-branch-row { position: relative; display: inline-flex; gap: 24px; padding-top: 26px; }
+            .struktur-branch-row::before { content: ''; position: absolute; top: 0; left: 86px; right: 86px; height: 2px; background: #E2E8F0; }
+            .struktur-col { position: relative; display: flex; flex-direction: column; align-items: center; }
+            .struktur-col::before { content: ''; position: absolute; top: -26px; left: 50%; width: 2px; height: 26px; background: #E2E8F0; transform: translateX(-50%); }
+            .struktur-pdf-footer { position: fixed; bottom: 6mm; left: 14mm; right: 14mm; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748B; border-top: 1px solid #E2E8F0; padding-top: 6px; }
+            .struktur-pdf-footer-brand { display: flex; align-items: center; gap: 6px; }
+            .struktur-pdf-footer-brand img { width: 16px; height: 16px; object-fit: contain; }
+          </style>
+        </head>
+        <body>
+          <h1>Struktur Pengurus Generus Kelp</h1>
+          ${chartHtml}
+          <div class="struktur-pdf-footer">
+            <div class="struktur-pdf-footer-brand">
+              <span>File ini di-download dari aplikasi</span>
+              ${logoSrc ? '<img src="' + logoSrc + '" alt="Ruang Ngaji">' : ''}
+              <span>Ruang Ngaji.</span>
+            </div>
+            <div>Tanggal Unduh : ${tanggalUnduh}</div>
+          </div>
+          <script>window.onload = function () { window.print(); };<\/script>
+        </body>
+      </html>
+    `);
+    win.document.close();
   };
 
   window.currentEditGenerusId = null;

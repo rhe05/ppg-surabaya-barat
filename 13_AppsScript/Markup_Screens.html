@@ -634,11 +634,41 @@
           <div class="modal-content struktur-pengurus-modal">
             <div class="modal-header">
               <span>Struktur Pengurus Generus Kelp</span>
-              <button class="modal-close-btn" onclick="window.closeModalStrukturPengurus()">×</button>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" onclick="window.openModalDownloadStrukturPengurus()">Unduh</button>
+                <button class="modal-close-btn" onclick="window.closeModalStrukturPengurus()">×</button>
+              </div>
             </div>
             <div class="struktur-pengurus-body" id="strukturPengurusBody"></div>
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalStrukturPengurus()">Tutup</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Pilih Ukuran Kertas — Unduh Struktur Pengurus (PDF) -->
+        <div class="modal-overlay" id="modalDownloadStrukturPengurus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Unduh Struktur Pengurus</span>
+              <button class="modal-close-btn" onclick="window.closeModalDownloadStrukturPengurus()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Ukuran Kertas</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="strukturPengurusPaperSize" value="A4" checked> A4
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="strukturPengurusPaperSize" value="Folio"> Folio
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalDownloadStrukturPengurus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmDownloadStrukturPengurus()">Unduh</button>
             </div>
           </div>
         </div>

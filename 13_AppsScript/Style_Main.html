@@ -1779,23 +1779,43 @@
        kotak pertama/terakhir — lihat catatan di .struktur-branch-row::before).
        Kotak SENGAJA dibuat lebar TETAP (bukan min-width) supaya perhitungan
        titik-tengah kotak pertama/terakhir di bawah selalu akurat. */
-    .struktur-pengurus-modal {
-      max-width: 1180px;
-      width: 96%;
+    /* Modal dibuat hampir sepenuh layar (bukan lebar tetap) supaya bagan bisa
+       muat tanpa scroll kanan-kiri/atas-bawah di layar desktop mana pun —
+       .struktur-pengurus-body TIDAK discroll (overflow hidden), isinya
+       (.struktur-chart) diskalakan pas (JS: fitStrukturPengurusChart_) supaya
+       selalu utuh terlihat. */
+    .modal-content.struktur-pengurus-modal {
+      width: 96vw;
+      max-width: 96vw;
+      height: 92vh;
+      max-height: 92vh;
+      padding: 20px 24px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .struktur-pengurus-modal .modal-header,
+    .struktur-pengurus-modal .modal-footer {
+      flex: 0 0 auto;
     }
 
     .struktur-pengurus-body {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 12px 8px 20px;
-      overflow-x: auto;
+      flex: 1 1 auto;
+      position: relative;
+      overflow: hidden;
+      padding: 8px;
+      min-height: 0;
     }
 
     .struktur-chart {
       display: flex;
       flex-direction: column;
       align-items: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      transform-origin: center center;
     }
 
     .struktur-node {
