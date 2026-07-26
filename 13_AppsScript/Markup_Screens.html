@@ -540,15 +540,16 @@
 
         <div class="data-table-wrapper guru-kelp-table-wrapper" id="pengurusTableWrapper" style="display: none;">
           <div class="guru-kelp-table-toolbar">
-            <input type="text" class="search-input guru-kelp-search-input" id="pengurusSearchInput" placeholder="Cari jabatan/nama pengurus..." oninput="window.filterPengurusDashTable_(this.value)">
+            <input type="text" class="search-input guru-kelp-search-input" id="pengurusSearchInput" placeholder="Cari dapukan/nama pengurus..." oninput="window.filterPengurusDashTable_(this.value)">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn" onclick="window.openModalStrukturPengurus()">Struktur Pengurus</button>
           </div>
           <div class="gk-table-scroll">
             <table class="data-table guru-kelp-premium-table">
               <thead>
-                <tr><th>No</th><th>Jabatan</th><th>Nama Pengurus</th><th>Keterangan</th><th style="text-align: center;">Aksi</th></tr>
+                <tr><th>No</th><th>Dapukan</th><th>Nama Pengurus</th><th>Mulai Dapukan</th><th>Lama Dapukan</th><th>Keterangan</th><th style="text-align: center;">Aksi</th></tr>
               </thead>
               <tbody id="pengurusTableBody">
-                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+                <tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
               </tbody>
             </table>
           </div>
@@ -618,6 +619,20 @@
             <div class="guru-kelp-detail-body" id="pengurusDetailBody"></div>
             <div class="modal-footer">
               <button class="btn btn-secondary" onclick="window.closeModalDetailPengurus()">Tutup</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Layar Struktur Pengurus Generus Kelp (bagan) -->
+        <div class="modal-overlay" id="modalStrukturPengurus">
+          <div class="modal-content struktur-pengurus-modal">
+            <div class="modal-header">
+              <span>Struktur Pengurus Generus Kelp</span>
+              <button class="modal-close-btn" onclick="window.closeModalStrukturPengurus()">×</button>
+            </div>
+            <div class="struktur-pengurus-body" id="strukturPengurusBody"></div>
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalStrukturPengurus()">Tutup</button>
             </div>
           </div>
         </div>

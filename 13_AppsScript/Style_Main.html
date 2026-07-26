@@ -1772,6 +1772,83 @@
       font-variant-numeric: normal;
     }
 
+    /* Layar "Struktur Pengurus Generus Kelp" — bagan vertikal: Pembina Generus
+       → Wk Pembina Generus (1-4 kotak sejajar) → PJP Kelp → 5 kotak di bawah
+       PJP Kelp (Kepsek/Pembina Pra Remaja/Pembina Remaja/Koord Tahfidz/Sekr
+       Generus). Garis dibuat murni CSS (border), bukan gambar/SVG. */
+    .struktur-pengurus-modal {
+      max-width: 920px;
+      width: 94%;
+    }
+
+    .struktur-pengurus-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 4px 16px;
+      overflow-x: auto;
+    }
+
+    .struktur-node {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      text-align: center;
+      min-width: 168px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+    }
+
+    .struktur-node-title {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-dim);
+      margin-bottom: 4px;
+    }
+
+    .struktur-node-name {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.35;
+    }
+
+    .struktur-connector {
+      width: 2px;
+      height: 26px;
+      background: var(--border);
+    }
+
+    /* Baris sejajar (Wk Pembina bisa 1-4 kotak): garis horizontal = border-top
+       kontainer inline-flex (lebarnya cuma sepanjang isinya, bukan selebar
+       modal), tiap kotak dapat "kaki" vertikal sendiri ke garis itu. */
+    .struktur-branch-row {
+      display: inline-flex;
+      gap: 24px;
+      justify-content: center;
+      flex-wrap: wrap;
+      border-top: 2px solid var(--border);
+      padding-top: 26px;
+      margin-top: 26px;
+    }
+
+    .struktur-node-wrap {
+      position: relative;
+    }
+
+    .struktur-node-wrap::before {
+      content: '';
+      position: absolute;
+      top: -26px;
+      left: 50%;
+      width: 2px;
+      height: 26px;
+      background: var(--border);
+      transform: translateX(-50%);
+    }
+
     #dataPendidikanFormalKpiRow .gk-kpi-lp {
       font-size: 10px;
     }

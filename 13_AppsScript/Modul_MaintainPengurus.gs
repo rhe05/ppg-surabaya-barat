@@ -24,6 +24,10 @@ const JABATAN_PENGURUS_ = [
   'Koord Tahfidz',
 ];
 
+/** Dapukan yang boleh dijabat LEBIH DARI SATU orang sekaligus (mis. beberapa Wk
+    Pembina) — jadi selalu ditambah baris baru, TIDAK di-upsert seperti dapukan lain. */
+const MULTI_HOLDER_JABATAN_ = ['Wk Pembina Generus Kelp'];
+
 /**
  * GET daftar pengurus untuk satu Kelompok.
  */
@@ -49,20 +53,25 @@ function serverGetPengurusList(token, kelompokId) {
 }
 
 /**
- * UPSERT pengurus: kalau jabatan itu sudah ada pengurusnya di Kelompok ini,
- * update baris yang sama; kalau belum, buat baris baru.
- * Input: {kelompok_id, jabatan, nama, keterangan?}
+ * Simpan pengurus. Dua mode:
+ * - EDIT (data.id terisi): update baris ITU SAJA by id — tidak pernah salah
+ *   sasaran ke baris lain meski dapukannya sama (penting utk dapukan
+ *   multi-orang seperti Wk Pembina Generus Kelp).
+ * - TAMBAH (data.id kosong): dapukan single-holder di-UPSERT (kalau sudah ada
+ *   pengurusnya, namanya diganti); dapukan multi-holder (MULTI_HOLDER_JABATAN_)
+ *   SELALU jadi baris baru.
+ * Input: {id?, kelompok_id, jabatan, nama, mulai_dapukan?, keterangan?}
  */
 function serverSavePengurus(token, data) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
   if (!data.kelompok_id || !data.jabatan || !String(data.nama || '').trim()) {
-    return { success: false, error: 'Jabatan dan nama pengurus wajib diisi.' };
+    return { success: false, error: 'Dapukan dan nama pengurus wajib diisi.' };
   }
 
   if (JABATAN_PENGURUS_.indexOf(data.jabatan) === -1) {
-    return { success: false, error: 'Jabatan tidak valid.' };
+    return { success: false, error: 'Dapukan tidak valid.' };
   }
 
   if (!validateUserAccess(token, 'kelompok', data.kelompok_id)) {
@@ -72,20 +81,29 @@ function serverSavePengurus(token, data) {
   try {
     return withScriptLock_(function () {
       const now = new Date().toISOString().split('T')[0];
-      const existing = readSheetAsObjects(SHEET_NAMES.PENGURUS_KELP)
-        .find(p => p.kelompok_id == data.kelompok_id && p.jabatan === data.jabatan);
+      const allPengurus = readSheetAsObjects(SHEET_NAMES.PENGURUS_KELP);
 
-      if (existing) {
-        updateRowByQuery(SHEET_NAMES.PENGURUS_KELP, { id: existing.id }, {
+      const updateExisting = function (row) {
+        updateRowByQuery(SHEET_NAMES.PENGURUS_KELP, { id: row.id }, {
           nama: data.nama.trim(),
           mulai_dapukan: data.mulai_dapukan || '',
           keterangan: data.keterangan || '',
           diubah_oleh: user.id,
           diubah_pada: now,
         });
-        logAudit(SHEET_NAMES.PENGURUS_KELP, existing.id, 'update', user.id, `${data.jabatan} -> ${data.nama}`);
-        return { success: true, message: 'Pengurus berhasil diperbarui.', id: existing.id };
+        logAudit(SHEET_NAMES.PENGURUS_KELP, row.id, 'update', user.id, `${data.jabatan} -> ${data.nama}`);
+        return { success: true, message: 'Pengurus berhasil diperbarui.', id: row.id };
+      };
+
+      if (data.id) {
+        const existingById = allPengurus.find(p => p.id == data.id && p.kelompok_id == data.kelompok_id);
+        if (!existingById) return { success: false, error: 'Data pengurus tidak ditemukan.' };
+        return updateExisting(existingById);
       }
+
+      const isMultiHolder = MULTI_HOLDER_JABATAN_.indexOf(data.jabatan) !== -1;
+      const existing = !isMultiHolder && allPengurus.find(p => p.kelompok_id == data.kelompok_id && p.jabatan === data.jabatan);
+      if (existing) return updateExisting(existing);
 
       const id = generateId(SHEET_NAMES.PENGURUS_KELP);
       appendRowToSheet(SHEET_NAMES.PENGURUS_KELP, [

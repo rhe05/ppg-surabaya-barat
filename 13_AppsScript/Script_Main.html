@@ -731,12 +731,24 @@
     { jabatan: 'Koord Tahfidz', key: 'KoordTahfidz' },
   ];
 
-  /** Isi nama pengurus di tiap kartu jabatan (atau "Belum diisi" kalau kosong). */
+  /** Dapukan yang boleh dijabat lebih dari satu orang sekaligus — HARUS sama
+      persis dgn MULTI_HOLDER_JABATAN_ di Modul_MaintainPengurus.gs. */
+  window.MULTI_HOLDER_JABATAN_ = ['Wk Pembina Generus Kelp'];
+
+  /** Isi nama pengurus di tiap kartu jabatan (atau "Belum diisi" kalau kosong).
+      Dapukan multi-holder gabungkan semua nama yang tersimpan, dipisah koma. */
   window.renderPengurusKpis_ = function (data) {
     window.PENGURUS_JABATAN_MAP_.forEach(function (m) {
-      const rec = (data || []).find(function (p) { return p.jabatan === m.jabatan; });
       const el = document.getElementById('pgNama_' + m.key);
-      if (el) el.textContent = rec && rec.nama ? rec.nama : 'Belum diisi';
+      if (!el) return;
+
+      if (window.MULTI_HOLDER_JABATAN_.indexOf(m.jabatan) !== -1) {
+        const names = (data || []).filter(function (p) { return p.jabatan === m.jabatan; }).map(function (p) { return p.nama; }).filter(Boolean);
+        el.textContent = names.length ? names.join(', ') : 'Belum diisi';
+      } else {
+        const rec = (data || []).find(function (p) { return p.jabatan === m.jabatan; });
+        el.textContent = rec && rec.nama ? rec.nama : 'Belum diisi';
+      }
     });
   };
 
@@ -803,12 +815,14 @@
 
     const tbody = document.getElementById('pengurusTableBody');
     tbody.innerHTML = list.length === 0
-      ? '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada pengurus tercatat.</td></tr>'
+      ? '<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada pengurus tercatat.</td></tr>'
       : list.map(function (p, i) {
         return '<tr>'
           + '<td>' + (i + 1) + '</td>'
           + '<td>' + p.jabatan + '</td>'
           + '<td>' + p.nama + '</td>'
+          + '<td>' + (p.mulai_dapukan ? window.formatTanggalDisplay_(p.mulai_dapukan) : '-') + '</td>'
+          + '<td>' + (window.calcDurasiDetail_(p.mulai_dapukan) || '-') + '</td>'
           + '<td>' + (p.keterangan || '-') + '</td>'
           + '<td style="text-align: center;">'
           + '<div class="jadwal-row-actions" style="justify-content: center;">'
@@ -876,7 +890,7 @@
       return;
     }
 
-    const data = { kelompok_id: window.currentKelompokId, jabatan: jabatan, nama: nama, mulai_dapukan: mulaiDapukan, keterangan: keterangan };
+    const data = { id: window.currentEditPengurusId_ || null, kelompok_id: window.currentKelompokId, jabatan: jabatan, nama: nama, mulai_dapukan: mulaiDapukan, keterangan: keterangan };
 
     window.showGlobalLoading_('Menyimpan data...');
     google.script.run
@@ -885,7 +899,9 @@
         if (!result.success) { alert(result.error); return; }
         window.closeModalPengurus();
         const list = window.lastPengurusListData || (window.lastPengurusListData = []);
-        const idx = list.findIndex(function (x) { return x.jabatan === jabatan; });
+        // Cocokkan by id hasil server (BUKAN by jabatan) — dapukan multi-holder
+        // (Wk Pembina Generus Kelp) bisa punya banyak baris jabatan yang sama.
+        const idx = list.findIndex(function (x) { return String(x.id) === String(result.id); });
         const rec = Object.assign({}, data, { id: result.id });
         if (idx >= 0) list[idx] = rec; else list.push(rec);
         window.renderPengurusKpis_(list);
@@ -965,6 +981,55 @@
 
   window.closeModalDetailPengurus = function () {
     document.getElementById('modalDetailPengurus').classList.remove('active');
+  };
+
+  /** Satu kotak bagan Struktur Pengurus (title jabatan tampil + nama pengurus di bawahnya). */
+  window.strukturNodeHtml_ = function (title, nama) {
+    return '<div class="struktur-node-wrap"><div class="struktur-node">'
+      + '<div class="struktur-node-title">' + title + '</div>'
+      + '<div class="struktur-node-name">' + (nama || 'Belum diisi') + '</div>'
+      + '</div></div>';
+  };
+
+  /** Bangun HTML bagan "Struktur Pengurus Generus Kelp": Pembina Generus →
+      Wk Pembina Generus (1-4 kotak sejajar, dapukan multi-holder) → PJP Kelp
+      → 5 kotak di bawah PJP Kelp. */
+  window.renderStrukturPengurusChart_ = function () {
+    const data = window.lastPengurusListData || [];
+    const namaSingle = function (jabatan) {
+      const rec = data.find(function (p) { return p.jabatan === jabatan; });
+      return rec ? rec.nama : '';
+    };
+    const wkPembina = data.filter(function (p) { return p.jabatan === 'Wk Pembina Generus Kelp'; });
+    const wkPembinaNodes = wkPembina.length
+      ? wkPembina.map(function (p) { return window.strukturNodeHtml_('Wk Pembina Generus', p.nama); }).join('')
+      : window.strukturNodeHtml_('Wk Pembina Generus', '');
+
+    const bawahanPJP = [
+      { jabatan: 'Kepsek', title: 'Kepsek' },
+      { jabatan: 'Pembina Pra Remaja', title: 'Pembina Pra Remaja' },
+      { jabatan: 'Pembina Remaja', title: 'Pembina Remaja' },
+      { jabatan: 'Koord Tahfidz', title: 'Koord Tahfidz' },
+      { jabatan: 'Sekertaris Generus', title: 'Sekr Generus' },
+    ].map(function (j) { return window.strukturNodeHtml_(j.title, namaSingle(j.jabatan)); }).join('');
+
+    document.getElementById('strukturPengurusBody').innerHTML = '<div class="struktur-chart">'
+      + window.strukturNodeHtml_('Pembina Generus', namaSingle('Pembina Generus Kelp'))
+      + '<div class="struktur-connector"></div>'
+      + '<div class="struktur-branch-row">' + wkPembinaNodes + '</div>'
+      + '<div class="struktur-connector"></div>'
+      + window.strukturNodeHtml_('PJP Kelp', namaSingle('PJP Kelp'))
+      + '<div class="struktur-branch-row">' + bawahanPJP + '</div>'
+      + '</div>';
+  };
+
+  window.openModalStrukturPengurus = function () {
+    window.renderStrukturPengurusChart_();
+    document.getElementById('modalStrukturPengurus').classList.add('active');
+  };
+
+  window.closeModalStrukturPengurus = function () {
+    document.getElementById('modalStrukturPengurus').classList.remove('active');
   };
 
   window.currentEditGenerusId = null;
