@@ -193,7 +193,12 @@
     <select class="ia-date-input" id="iaKelompokSelect" style="display:none; margin-bottom:10px;" onchange="window.iaOnKelompokChange_()">
       <option value="">-- Pilih Kelompok --</option>
     </select>
-    <input type="date" class="ia-date-input" id="iaTanggal" onchange="window.iaOnTanggalChange_()">
+    <div class="ia-date-row">
+      <input type="text" class="ia-date-input ia-date-display" id="iaTanggalDisplay" data-datepicker-trigger readonly placeholder="Pilih tanggal" onclick="window.toggleDatePicker('iaTanggal')">
+      <input type="hidden" id="iaTanggal">
+      <div class="ppg-datepicker" id="iaTanggalPicker"></div>
+      <button type="button" class="ia-today-btn" onclick="window.iaGoToToday_()" title="Hari ini">Hari Ini</button>
+    </div>
   </div>
 
   <div class="ia-kelas-row" id="iaKelasRow"></div>

@@ -60,6 +60,34 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
+## #15 — Status "Sakit" + kalender custom di Input Absen (2026-07-26)
+
+**Konteks**: tambah tombol status ke-4 (Hadir/Izin/Sakit/Alpa, sebelumnya
+cuma 3) di kartu santri Input Absen, dan ganti `<input type="date">` native
+(tampilan beda-beda tiap browser/OS) dengan komponen kalender custom yang
+SUDAH ADA di app (`.ppg-datepicker` / `window.toggleDatePicker`/
+`renderDatePicker`/`pickDate`, dipakai di form Tanggal Lahir Guru/Generus
+dll) — dipilih reuse, BUKAN bikin datepicker baru, supaya konsisten.
+
+**Implementasi**: `iaTanggal` sekarang hidden input (nilai asli) + 
+`iaTanggalDisplay` (readonly, teks "26 Juli 2026", trigger buka kalender)
++ tombol "Hari Ini" (`iaGoToToday_`) utk lompat cepat ke hari ini kapan pun
+(dipakai kalau guru sedang browsing tanggal lain lalu mau balik). Default
+tetap hari ini saat screen dibuka (`initInputAbsen_`/`openInputAbsenAsAdmin_`
+→ `iaSetTanggal_(iaToday_())`), TAPI guru/admin tetap bebas ganti ke tanggal
+lain (utk isi absen yang telat) — `window.pickDate` (Script_Main.html)
+ditambah cabang `if (inputId === 'iaTanggal') window.iaOnTanggalChange_();`
+supaya form kelas otomatis reload begitu tanggal baru dipilih.
+
+Status "sakit" TIDAK perlu perubahan backend — `serverSaveAbsensiKelas(Admin)`
+menyimpan `item.status` apa adanya tanpa validasi enum, jadi string baru ini
+otomatis tersimpan. ⚠️ Laporan/dashboard lama yang menghitung
+hadir/alpa/izin (Modul_Dashboard.gs, Modul_Statistics.gs,
+Modul_MaintainAbsensi.gs `serverGetAbsensiSummary`) BELUM diupdate untuk
+menghitung "sakit" secara eksplisit — santri berstatus sakit akan masuk
+hitungan "total" tapi tidak muncul di kategori manapun pada laporan-laporan
+itu. Perlu ditambah kalau nanti diminta laporan yang akurat utk kategori ini.
+
 ## #14 — Mode Admin di Input Absen (2026-07-26)
 
 **Konteks**: pemilik akun (admin_ppg) minta bisa pakai screen Input Absen

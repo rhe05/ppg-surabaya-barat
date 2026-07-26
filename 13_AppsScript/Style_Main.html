@@ -3857,6 +3857,34 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
+    .ia-date-row {
+      display: flex;
+      gap: 8px;
+      position: relative;
+    }
+
+    .ia-date-display {
+      flex: 1;
+      cursor: pointer;
+    }
+
+    .ia-today-btn {
+      flex-shrink: 0;
+      border: none;
+      border-radius: var(--radius-lg);
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brass);
+      background: rgba(255,255,255,0.95);
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .ia-today-btn:active {
+      transform: scale(0.96);
+    }
+
     .ia-kelas-row {
       display: flex;
       gap: 10px;
@@ -4019,7 +4047,7 @@
 
     .ia-status-toggle {
       display: flex;
-      gap: 4px;
+      gap: 3px;
       background: var(--bg);
       border-radius: var(--radius-button);
       padding: 3px;
@@ -4029,9 +4057,9 @@
     .ia-status-btn {
       border: none;
       background: transparent;
-      padding: 7px 11px;
+      padding: 7px 8px;
       border-radius: var(--radius-button);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 700;
       color: var(--text-faint);
       cursor: pointer;
@@ -4042,6 +4070,7 @@
 
     .ia-status-btn.active[data-status="hadir"] { background: var(--sage); color: #fff; }
     .ia-status-btn.active[data-status="izin"] { background: var(--volt); color: #78350F; }
+    .ia-status-btn.active[data-status="sakit"] { background: var(--indigo); color: #fff; }
     .ia-status-btn.active[data-status="alpa"] { background: var(--red); color: #fff; }
 
     .ia-bottom-bar {

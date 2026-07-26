@@ -406,6 +406,21 @@
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  /* Set tanggal aktif (hidden value + teks tampilan) tanpa buka picker —
+     dipakai saat init screen & tombol "Hari Ini". */
+  function iaSetTanggal_(dateStr) {
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    document.getElementById('iaTanggal').value = dateStr;
+    const d = new Date(dateStr + 'T00:00:00');
+    document.getElementById('iaTanggalDisplay').value = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    if (window.ppgDatePickerState) delete window.ppgDatePickerState['iaTanggal'];
+  }
+
+  window.iaGoToToday_ = function () {
+    iaSetTanggal_(iaToday_());
+    window.iaOnTanggalChange_();
+  };
+
   function iaShowToast_(message, type) {
     const toast = document.getElementById('iaToast');
     toast.textContent = message;
@@ -427,7 +442,7 @@
     const exitBtn = document.getElementById('iaExitBtn');
     exitBtn.title = 'Keluar';
     exitBtn.onclick = window.handleLogout;
-    document.getElementById('iaTanggal').value = iaToday_();
+    iaSetTanggal_(iaToday_());
     window.iaLoadBell_();
     window.iaOnTanggalChange_();
   };
@@ -444,7 +459,7 @@
     exitBtn.title = 'Kembali ke Dashboard';
     exitBtn.onclick = window.closeInputAbsenAdmin_;
 
-    document.getElementById('iaTanggal').value = iaToday_();
+    iaSetTanggal_(iaToday_());
     document.getElementById('iaEmptyState').style.display = 'flex';
     document.getElementById('iaEmptyState').lastElementChild.textContent = 'Pilih Kelompok & kelas di atas untuk mulai input absen.';
     document.getElementById('iaProgressWrap').style.display = 'none';
@@ -594,6 +609,7 @@
         <div class="ia-status-toggle" data-santri="${s.santri_id}">
           <button class="ia-status-btn${s.status === 'hadir' ? ' active' : ''}" data-status="hadir" onclick="window.iaSetStatus_(${s.santri_id}, 'hadir', this)">Hadir</button>
           <button class="ia-status-btn${s.status === 'izin' ? ' active' : ''}" data-status="izin" onclick="window.iaSetStatus_(${s.santri_id}, 'izin', this)">Izin</button>
+          <button class="ia-status-btn${s.status === 'sakit' ? ' active' : ''}" data-status="sakit" onclick="window.iaSetStatus_(${s.santri_id}, 'sakit', this)">Sakit</button>
           <button class="ia-status-btn${s.status === 'alpa' ? ' active' : ''}" data-status="alpa" onclick="window.iaSetStatus_(${s.santri_id}, 'alpa', this)">Alpa</button>
         </div>
       `;
@@ -2574,6 +2590,9 @@
     }
     if (inputId === 'pengurusMulaiDapukan') {
       window.updatePengurusLama_();
+    }
+    if (inputId === 'iaTanggal') {
+      window.iaOnTanggalChange_();
     }
   };
 
