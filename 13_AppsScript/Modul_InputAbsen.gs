@@ -356,3 +356,129 @@ function serverRespondAksesRequest(token, requestId, decision) {
 
   return { success: true, message: decision === 'approved' ? 'Permintaan disetujui.' : 'Permintaan ditolak.' };
 }
+
+/**
+ * ═════ MODE ADMIN (admin_ppg) — akses ke SEMUA Kelompok/Guru/Kelas ═════
+ *
+ * Admin PPG boleh pakai screen Input Absen yang sama, tapi TANPA dikunci ke
+ * satu guru_id — bebas pilih Kelompok lalu kelas mana pun (bukan cuma
+ * miliknya sendiri, karena admin_ppg memang tidak "punya" kelas). Dipisah
+ * dari fungsi guru di atas (bukan menambah percabangan ke dalamnya) supaya
+ * RBAC guru yang sudah teruji tidak ikut berubah.
+ */
+function requireAdminPpg_(token) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+  if (user.role !== 'admin_ppg') return { success: false, error: 'Fitur ini khusus Admin PPG.' };
+  return { success: true, user: user };
+}
+
+/**
+ * GET semua Kelompok (Admin PPG tidak dibatasi Kelompok aktif tertentu,
+ * beda dari ONBOARDING_ACTIVE_KELOMPOK_IDS_ yang khusus wizard guru).
+ */
+function serverGetInputAbsenKelompokOptionsAdmin(token) {
+  const ctx = requireAdminPpg_(token);
+  if (!ctx.success) return ctx;
+  const list = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(function (k) { return { id: k.id, nama: k.nama }; });
+  return { success: true, data: list };
+}
+
+/**
+ * Semua nama kelas (jadwal_kbm.kelas, Aktif) di satu Kelompok — TIDAK
+ * difilter per guru_id, beda dari getKelasOwnedByGuru_.
+ */
+function getAllKelasInKelompok_(kelompokId) {
+  const rows = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM).filter(function (j) {
+    return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
+  });
+  const guruMap = {};
+  readSheetAsObjects(SHEET_NAMES.GURU).forEach(function (g) { guruMap[g.id] = g.nama; });
+
+  const seen = {};
+  const result = [];
+  rows.forEach(function (j) {
+    const kelasTrim = String(j.kelas).trim();
+    const key = kelasTrim.toLowerCase();
+    if (seen[key]) return;
+    seen[key] = true;
+    result.push({ kelas: kelasTrim, namaGuru: guruMap[j.guru_id] || '(belum ada guru)' });
+  });
+  return result;
+}
+
+function serverGetKelasAbsenListAdmin(token, kelompokId, tanggal) {
+  const ctx = requireAdminPpg_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const list = getAllKelasInKelompok_(kelompokId);
+  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == kelompokId; });
+  list.forEach(function (item) {
+    const kelasLower = item.kelas.toLowerCase();
+    item.santriCount = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; }).length;
+  });
+
+  return { success: true, data: list };
+}
+
+function serverGetAbsensiKelasFormAdmin(token, kelompokId, kelas, tanggal) {
+  const ctx = requireAdminPpg_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const kelasLower = String(kelas).trim().toLowerCase();
+  const santriKelas = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) {
+    return s.kelompok_id == kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
+  });
+
+  const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+    return tanggalKeString_(a.tanggal) === tanggal;
+  });
+  const statusMap = {};
+  absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
+
+  const formData = santriKelas.map(function (s) {
+    return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' };
+  });
+
+  return { success: true, data: formData };
+}
+
+function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiList) {
+  const ctx = requireAdminPpg_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const kelasLower = String(kelas).trim().toLowerCase();
+  const santriIdsKelas = readSheetAsObjects(SHEET_NAMES.SANTRI)
+    .filter(function (s) { return s.kelompok_id == kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
+    .map(function (s) { return s.id; });
+
+  let count = 0;
+  withScriptLock_(function () {
+    const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+    absensiData.forEach(function (a) {
+      if (tanggalKeString_(a.tanggal) === tanggal && santriIdsKelas.includes(Number(a.santri_id))) {
+        deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
+      }
+    });
+
+    absensiList.forEach(function (item) {
+      if (santriIdsKelas.includes(Number(item.santri_id))) {
+        const id = generateId(SHEET_NAMES.ABSENSI);
+        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, ctx.user.id]);
+        count++;
+      }
+    });
+  });
+
+  logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen (Admin) kelas "${kelas}": ${count} santri`);
+  return { success: true, message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.` };
+}

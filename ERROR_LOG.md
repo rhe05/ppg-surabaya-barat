@@ -60,6 +60,36 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
+## #14 — Mode Admin di Input Absen (2026-07-26)
+
+**Konteks**: pemilik akun (admin_ppg) minta bisa pakai screen Input Absen
+yang sama seperti guru, tapi bebas pilih Kelompok+Kelas mana pun (bukan
+dikunci ke satu guru_id) — supaya tidak perlu tools terpisah untuk isi
+absen kalau perlu.
+
+**Implementasi**: sidebar dapat menu baru "Input Absen" (`id="menuInputAbsenAdmin"`,
+hanya tampil utk admin_ppg) → `window.openInputAbsenAsAdmin_()` (Script_Main.html)
+membuka `#screenInputAbsen` dalam "mode admin" (state `window.iaState_.mode`)
+DI ATAS `#appLayout` (bukan ganti route penuh) — tombol pojok kanan atas
+jadi "Kembali ke Dashboard" (`closeInputAbsenAdmin_`), bukan Keluar; bell
+notifikasi disembunyikan (fitur "Minta Akses" murni punya-guru, tidak
+relevan utk admin karena admin sudah full access). Dropdown Kelompok
+(`serverGetInputAbsenKelompokOptionsAdmin`) muncul di atas date-picker;
+begitu Kelompok dipilih, kelas yang tampil adalah SEMUA kelas Aktif di
+Kelompok itu (`getAllKelasInKelompok_`, Modul_InputAbsen.gs) — TIDAK
+difilter per guru_id seperti punya guru (`getKelasOwnedByGuru_`).
+
+**Fungsi backend baru (Modul_InputAbsen.gs, semua `requireAdminPpg_`)**:
+`serverGetInputAbsenKelompokOptionsAdmin`, `serverGetKelasAbsenListAdmin`,
+`serverGetAbsensiKelasFormAdmin`, `serverSaveAbsensiKelasAdmin` — SENGAJA
+dipisah (bukan menambah percabangan admin ke fungsi guru yang sudah ada)
+supaya RBAC guru yang sudah teruji tidak ikut berubah/berisiko regresi.
+
+**Cara verifikasi**: login admin_ppg → sidebar ada "Input Absen" → pilih
+Kelompok → kelas dari SEMUA guru muncul (bukan cuma satu) → bisa input &
+simpan absen → tombol "Kembali ke Dashboard" harus kembali ke appLayout
+tanpa logout.
+
 ## #12 — Daftar mandiri Guru (verifikasi nama saja) (2026-07-26) ⚠️ SUPERSEDED oleh #13
 
 **⚠️ Update 2026-07-26 (sesi lanjutan)**: alur di bawah ini SUDAH DIGANTI oleh

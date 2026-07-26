@@ -193,6 +193,7 @@
     // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
     const isAdminPpg = (user.role === 'admin_ppg');
     document.getElementById('menuDesaToggle').style.display = isAdminPpg ? 'flex' : 'none';
+    document.getElementById('menuInputAbsenAdmin').style.display = isAdminPpg ? 'flex' : 'none';
     if (isAdminPpg) window.renderSidebarTree_();
 
     window.loadDashboard();
@@ -388,7 +389,7 @@
 
   /* ═════ INPUT ABSEN (khusus role='guru') — Modul_InputAbsen.gs ═════ */
 
-  window.iaState_ = { kelas: null, list: [], santriCount: 0 };
+  window.iaState_ = { mode: 'guru', kelompokId: null, kelas: null, list: [], santriCount: 0 };
 
   function iaToday_() {
     const d = new Date();
@@ -407,10 +408,65 @@
     return ((parts[0] || '')[0] || '?').toUpperCase() + ((parts[1] || '')[0] || '').toUpperCase();
   }
 
+  /* Guru: dikunci ke kelas miliknya sendiri (dipanggil dari renderApp). */
   window.initInputAbsen_ = function () {
+    window.iaState_ = { mode: 'guru', kelompokId: window.currentUser.scopeId, kelas: null, list: [] };
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Guru';
+    document.getElementById('iaKelompokSelect').style.display = 'none';
+    document.getElementById('iaBellBtn').style.display = 'flex';
+    const exitBtn = document.getElementById('iaExitBtn');
+    exitBtn.title = 'Keluar';
+    exitBtn.onclick = window.handleLogout;
     document.getElementById('iaTanggal').value = iaToday_();
     window.iaLoadBell_();
+    window.iaOnTanggalChange_();
+  };
+
+  /* Admin PPG: bebas pilih Kelompok > Kelas mana pun (dipanggil dari sidebar). */
+  window.openInputAbsenAsAdmin_ = function () {
+    window.iaState_ = { mode: 'admin', kelompokId: null, kelas: null, list: [] };
+    document.getElementById('appLayout').style.display = 'none';
+    document.getElementById('screenInputAbsen').style.display = 'flex';
+
+    document.getElementById('iaNamaGuru').textContent = 'Admin PPG';
+    document.getElementById('iaBellBtn').style.display = 'none';
+    const exitBtn = document.getElementById('iaExitBtn');
+    exitBtn.title = 'Kembali ke Dashboard';
+    exitBtn.onclick = window.closeInputAbsenAdmin_;
+
+    document.getElementById('iaTanggal').value = iaToday_();
+    document.getElementById('iaEmptyState').style.display = 'flex';
+    document.getElementById('iaEmptyState').lastElementChild.textContent = 'Pilih Kelompok & kelas di atas untuk mulai input absen.';
+    document.getElementById('iaProgressWrap').style.display = 'none';
+    document.getElementById('iaSantriList').innerHTML = '';
+    document.getElementById('iaBottomBar').style.display = 'none';
+    document.getElementById('iaKelasRow').innerHTML = '';
+
+    const select = document.getElementById('iaKelompokSelect');
+    select.style.display = 'block';
+    select.innerHTML = '<option value="">Memuat...</option>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        select.innerHTML = '<option value="">-- Pilih Kelompok --</option>';
+        if (result.success) {
+          result.data.forEach(function (k) {
+            const opt = document.createElement('option');
+            opt.value = k.id;
+            opt.textContent = k.nama;
+            select.appendChild(opt);
+          });
+        }
+      })
+      .serverGetInputAbsenKelompokOptionsAdmin(window.currentToken);
+  };
+
+  window.closeInputAbsenAdmin_ = function () {
+    document.getElementById('screenInputAbsen').style.display = 'none';
+    document.getElementById('appLayout').style.display = 'flex';
+  };
+
+  window.iaOnKelompokChange_ = function () {
+    window.iaState_.kelompokId = document.getElementById('iaKelompokSelect').value || null;
     window.iaOnTanggalChange_();
   };
 
@@ -436,35 +492,47 @@
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
 
+    const isAdmin = window.iaState_.mode === 'admin';
+    if (isAdmin && !window.iaState_.kelompokId) {
+      document.getElementById('iaKelasRow').innerHTML = '';
+      return;
+    }
+
     const tanggal = document.getElementById('iaTanggal').value;
     const row = document.getElementById('iaKelasRow');
     row.innerHTML = '<div style="padding:8px; color:var(--text-faint); font-size:13px;">Memuat kelas...</div>';
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        row.innerHTML = '';
-        if (!result.success) {
-          row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
-          return;
-        }
-        result.data.forEach(function (item) {
-          const chip = document.createElement('div');
-          chip.className = 'ia-kelas-chip' + (item.isOwn ? '' : ' pinjam');
-          chip.innerHTML = `
-            <div class="ia-kelas-chip-nama">${item.kelas}</div>
-            <div class="ia-kelas-chip-meta">${item.santriCount} santri</div>
-          `;
-          chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
-          row.appendChild(chip);
-        });
+    const onKelasResult = function (result) {
+      row.innerHTML = '';
+      if (!result.success) {
+        row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
+        return;
+      }
+      result.data.forEach(function (item) {
+        const chip = document.createElement('div');
+        chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
+        chip.innerHTML = `
+          <div class="ia-kelas-chip-nama">${item.kelas}</div>
+          <div class="ia-kelas-chip-meta">${item.santriCount} santri${isAdmin && item.namaGuru ? ' · ' + item.namaGuru : ''}</div>
+        `;
+        chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
+        row.appendChild(chip);
+      });
 
+      if (!isAdmin) {
         const addChip = document.createElement('div');
         addChip.className = 'ia-kelas-chip-add';
         addChip.innerHTML = '<span>+</span><span>Minta Akses</span>';
         addChip.onclick = window.openModalMintaAkses_;
         row.appendChild(addChip);
-      })
-      .serverGetKelasAbsenList(window.currentToken, tanggal);
+      }
+    };
+
+    if (isAdmin) {
+      google.script.run.withSuccessHandler(onKelasResult).serverGetKelasAbsenListAdmin(window.currentToken, window.iaState_.kelompokId, tanggal);
+    } else {
+      google.script.run.withSuccessHandler(onKelasResult).serverGetKelasAbsenList(window.currentToken, tanggal);
+    }
   };
 
   window.iaSelectKelas_ = function (kelas, chipEl) {
@@ -476,18 +544,22 @@
     document.getElementById('iaEmptyState').style.display = 'none';
     document.getElementById('iaSantriList').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-faint); font-size:13px;">Memuat santri...</div>';
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success) {
-          iaShowToast_(result.error, 'error');
-          document.getElementById('iaSantriList').innerHTML = '';
-          document.getElementById('iaEmptyState').style.display = 'flex';
-          return;
-        }
-        window.iaState_.list = result.data;
-        window.iaRenderSantriList_();
-      })
-      .serverGetAbsensiKelasForm(window.currentToken, kelas, tanggal);
+    const onFormResult = function (result) {
+      if (!result.success) {
+        iaShowToast_(result.error, 'error');
+        document.getElementById('iaSantriList').innerHTML = '';
+        document.getElementById('iaEmptyState').style.display = 'flex';
+        return;
+      }
+      window.iaState_.list = result.data;
+      window.iaRenderSantriList_();
+    };
+
+    if (window.iaState_.mode === 'admin') {
+      google.script.run.withSuccessHandler(onFormResult).serverGetAbsensiKelasFormAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal);
+    } else {
+      google.script.run.withSuccessHandler(onFormResult).serverGetAbsensiKelasForm(window.currentToken, kelas, tanggal);
+    }
   };
 
   window.iaRenderSantriList_ = function () {
@@ -549,22 +621,32 @@
 
     const absensiList = window.iaState_.list.map(function (s) { return { santri_id: s.santri_id, status: s.status }; });
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        btn.disabled = false;
-        btn.textContent = 'Simpan Absen';
-        if (result.success) {
-          iaShowToast_('✓ ' + result.message, 'success');
-        } else {
-          iaShowToast_(result.error, 'error');
-        }
-      })
-      .withFailureHandler(function () {
-        btn.disabled = false;
-        btn.textContent = 'Simpan Absen';
-        iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
-      })
-      .serverSaveAbsensiKelas(window.currentToken, kelas, tanggal, absensiList);
+    const onSaveResult = function (result) {
+      btn.disabled = false;
+      btn.textContent = 'Simpan Absen';
+      if (result.success) {
+        iaShowToast_('✓ ' + result.message, 'success');
+      } else {
+        iaShowToast_(result.error, 'error');
+      }
+    };
+    const onSaveFailure = function () {
+      btn.disabled = false;
+      btn.textContent = 'Simpan Absen';
+      iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
+    };
+
+    if (window.iaState_.mode === 'admin') {
+      google.script.run
+        .withSuccessHandler(onSaveResult)
+        .withFailureHandler(onSaveFailure)
+        .serverSaveAbsensiKelasAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal, absensiList);
+    } else {
+      google.script.run
+        .withSuccessHandler(onSaveResult)
+        .withFailureHandler(onSaveFailure)
+        .serverSaveAbsensiKelas(window.currentToken, kelas, tanggal, absensiList);
+    }
   };
 
   /* ─── Minta Akses Kelas Lain ─── */
