@@ -30,7 +30,12 @@
 
       <div class="login-form-group">
         <label class="login-label" for="password">Password</label>
-        <input class="login-input" type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
+        <div class="login-password-wrap">
+          <input class="login-input" type="password" id="password" autocomplete="current-password" placeholder="Masukkan password">
+          <button type="button" class="login-eye-btn" onclick="window.toggleLoginPasswordVisibility_('password', this)" title="Tampilkan password">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
 
       <div class="login-forgot-link" onclick="window.openModalLupaPassword_()">Lupa Password?</div>
@@ -49,7 +54,12 @@
 
       <div class="login-form-group">
         <label class="login-label" for="daftarPassword">Buat Password</label>
-        <input class="login-input" type="password" id="daftarPassword" autocomplete="new-password" placeholder="Minimal 6 karakter">
+        <div class="login-password-wrap">
+          <input class="login-input" type="password" id="daftarPassword" autocomplete="new-password" placeholder="Minimal 6 karakter">
+          <button type="button" class="login-eye-btn" onclick="window.toggleLoginPasswordVisibility_('daftarPassword', this)" title="Tampilkan password">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
       </div>
 
       <div class="login-error" id="daftarError"></div>
