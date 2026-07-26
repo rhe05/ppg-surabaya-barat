@@ -283,6 +283,7 @@
   // 'generus' sebaliknya, null = tampil semua seperti semula (default).
   /** Satu entri per section yg toggle-able di Data Master (Daftar Guru/Generus/Siklus/Pendidikan). */
   window.DATA_MASTER_SECTIONS_ = {
+    pengurus: { title: 'dataPengurusTitle', kpis: ['dataPengurusKpiRow'], wrap: 'pengurusTableWrapper', btn: 'pengurusTableToggleBtn' },
     guru: { title: 'dataGuruTitle', kpis: ['dataGuruKpiRow'], wrap: 'guruDashTableWrapper', btn: 'guruTableToggleBtn' },
     generus: { title: 'dataGenerusTitle', kpis: ['dataGenerusKpiRow', 'generusJenjangRow'], wrap: 'santriDashTableWrapper', btn: 'santriTableToggleBtn' },
     pendidikan: { title: 'dataPendidikanFormalTitle', kpis: ['dataPendidikanFormalKpiRow'], wrap: 'pendidikanFormalTableWrapper', btn: 'pendidikanFormalTableToggleBtn' },
@@ -715,6 +716,192 @@
       return;
     }
     window.runXlsxExport_('Pendidikan Formal', headers, rows, window.closeModalEksporPendidikanFormal);
+  };
+
+  /** Jabatan pengurus tetap (7 posisi) → id-safe key dipakai kartu #pgNama_<key>. */
+  window.PENGURUS_JABATAN_MAP_ = [
+    { jabatan: 'Pembina Generus Kelp', key: 'PembinaGenerusKelp' },
+    { jabatan: 'Wk Pembina Generus Kelp', key: 'WkPembinaGenerusKelp' },
+    { jabatan: 'PJP Kelp', key: 'PJPKelp' },
+    { jabatan: 'Kepsek', key: 'Kepsek' },
+    { jabatan: 'Pembina Pra Remaja', key: 'PembinaPraRemaja' },
+    { jabatan: 'Pembina Remaja', key: 'PembinaRemaja' },
+    { jabatan: 'Ketua Muda-Mudi', key: 'KetuaMudaMudi' },
+  ];
+
+  /** Isi nama pengurus di tiap kartu jabatan (atau "Belum diisi" kalau kosong). */
+  window.renderPengurusKpis_ = function (data) {
+    window.PENGURUS_JABATAN_MAP_.forEach(function (m) {
+      const rec = (data || []).find(function (p) { return p.jabatan === m.jabatan; });
+      const el = document.getElementById('pgNama_' + m.key);
+      if (el) el.textContent = rec && rec.nama ? rec.nama : 'Belum diisi';
+    });
+  };
+
+  window.loadPengurusList_ = function (kelompokId) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+        window.lastPengurusListData = result.data;
+        window.renderPengurusKpis_(result.data);
+        const wrapper = document.getElementById('pengurusTableWrapper');
+        if (wrapper && wrapper.style.display !== 'none') {
+          window.renderPengurusDashTable_(result.data, document.getElementById('pengurusSearchInput').value);
+        }
+      })
+      .withFailureHandler(function () { /* kartu tetap "Belum diisi" — tidak fatal */ })
+      .serverGetPengurusList(window.currentToken, kelompokId);
+  };
+
+  window.togglePengurusDashTable_ = function () {
+    const wrapper = document.getElementById('pengurusTableWrapper');
+    const btn = document.getElementById('pengurusTableToggleBtn');
+    const isOpening = wrapper.style.display === 'none';
+
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
+    window.setDataMasterFocus_(isOpening ? 'pengurus' : null);
+
+    if (isOpening) {
+      document.getElementById('pengurusSearchInput').value = '';
+      window.renderPengurusDashTable_(window.lastPengurusListData || [], '');
+    }
+  };
+
+  window.filterPengurusDashTable_ = function (query) {
+    window.renderPengurusDashTable_(window.lastPengurusListData || [], query);
+  };
+
+  window.renderPengurusDashTable_ = function (data, search) {
+    const q = (search || '').trim().toLowerCase();
+    const list = (data || []).filter(function (p) {
+      if (!q) return true;
+      return String(p.jabatan || '').toLowerCase().includes(q) || String(p.nama || '').toLowerCase().includes(q);
+    });
+
+    const tbody = document.getElementById('pengurusTableBody');
+    tbody.innerHTML = list.length === 0
+      ? '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada pengurus tercatat.</td></tr>'
+      : list.map(function (p, i) {
+        return '<tr>'
+          + '<td>' + (i + 1) + '</td>'
+          + '<td>' + p.jabatan + '</td>'
+          + '<td>' + p.nama + '</td>'
+          + '<td>' + (p.keterangan || '-') + '</td>'
+          + '<td style="text-align: center;">'
+          + '<div class="jadwal-row-actions" style="justify-content: center;">'
+          + '<button class="jadwal-row-icon-btn" title="Edit" onclick="window.editPengurus(\'' + p.id + '\')">' + window.JADWAL_ICONS_.edit + '</button>'
+          + '<button class="jadwal-row-icon-btn" title="Hapus" onclick="window.deletePengurus(\'' + p.id + '\')">' + window.JADWAL_ICONS_.delete + '</button>'
+          + '</div></td></tr>';
+      }).join('');
+  };
+
+  window.currentEditPengurusId_ = null;
+
+  window.openModalPengurus = function () {
+    window.currentEditPengurusId_ = null;
+    document.getElementById('modalPengurusTitle').textContent = 'Tambah Pengurus';
+    document.getElementById('pengurusJabatan').disabled = false;
+    document.getElementById('pengurusJabatan').value = 'Pembina Generus Kelp';
+    document.getElementById('pengurusNama').value = '';
+    document.getElementById('pengurusKeterangan').value = '';
+    document.getElementById('modalPengurus').classList.add('active');
+  };
+
+  window.closeModalPengurus = function () {
+    document.getElementById('modalPengurus').classList.remove('active');
+  };
+
+  window.editPengurus = function (id) {
+    const p = (window.lastPengurusListData || []).find(function (x) { return String(x.id) === String(id); });
+    if (!p) return;
+
+    window.currentEditPengurusId_ = id;
+    document.getElementById('modalPengurusTitle').textContent = 'Ubah Pengurus';
+    document.getElementById('pengurusJabatan').value = p.jabatan;
+    document.getElementById('pengurusJabatan').disabled = true;
+    document.getElementById('pengurusNama').value = p.nama || '';
+    document.getElementById('pengurusKeterangan').value = p.keterangan || '';
+    document.getElementById('modalPengurus').classList.add('active');
+  };
+
+  window.savePengurus = function () {
+    const jabatan = document.getElementById('pengurusJabatan').value;
+    const nama = document.getElementById('pengurusNama').value.trim();
+    const keterangan = document.getElementById('pengurusKeterangan').value.trim();
+
+    if (!nama) {
+      alert('Nama pengurus wajib diisi.');
+      return;
+    }
+
+    const data = { kelompok_id: window.currentKelompokId, jabatan: jabatan, nama: nama, keterangan: keterangan };
+
+    window.showGlobalLoading_('Menyimpan data...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        window.closeModalPengurus();
+        const list = window.lastPengurusListData || (window.lastPengurusListData = []);
+        const idx = list.findIndex(function (x) { return x.jabatan === jabatan; });
+        const rec = Object.assign({}, data, { id: result.id });
+        if (idx >= 0) list[idx] = rec; else list.push(rec);
+        window.renderPengurusKpis_(list);
+        const wrapper = document.getElementById('pengurusTableWrapper');
+        if (wrapper && wrapper.style.display !== 'none') {
+          window.renderPengurusDashTable_(list, document.getElementById('pengurusSearchInput').value);
+        }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverSavePengurus(window.currentToken, data);
+  };
+
+  window.deletePengurus = function (id) {
+    if (!confirm('Kosongkan jabatan pengurus ini?')) return;
+
+    window.showGlobalLoading_('Menghapus data...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        const list = window.lastPengurusListData || [];
+        const idx = list.findIndex(function (x) { return String(x.id) === String(id); });
+        if (idx >= 0) list.splice(idx, 1);
+        window.renderPengurusKpis_(list);
+        window.renderPengurusDashTable_(list, document.getElementById('pengurusSearchInput').value);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal menghapus: ' + (err && err.message ? err.message : err));
+      })
+      .serverDeletePengurus(window.currentToken, id);
+  };
+
+  window.openModalEksporPengurus = function () {
+    document.getElementById('modalEksporPengurus').classList.add('active');
+  };
+
+  window.closeModalEksporPengurus = function () {
+    document.getElementById('modalEksporPengurus').classList.remove('active');
+  };
+
+  window.confirmEksporPengurus = function () {
+    const format = document.querySelector('input[name="eksporPengurusFormat"]:checked').value;
+    const list = window.lastPengurusListData || [];
+
+    const headers = ['No', 'Jabatan', 'Nama Pengurus', 'Keterangan'];
+    const rows = list.map(function (p, i) { return [i + 1, p.jabatan, p.nama, p.keterangan || '-']; });
+
+    if (format === 'pdf') {
+      window.printPdfList_('Data Pengurus', headers, rows);
+      window.closeModalEksporPengurus();
+      return;
+    }
+    window.runXlsxExport_('Pengurus', headers, rows, window.closeModalEksporPengurus);
   };
 
   window.currentEditGenerusId = null;
@@ -3471,6 +3658,7 @@
     window.loadJadwalKategoriHari_(kelompokId);
     window.loadKelompokDashboardPengumuman_(kelompokId);
     window.loadSiklusGenerusList_(kelompokId);
+    window.loadPengurusList_(kelompokId);
   };
 
   // Inti aktivasi screen Dashboard Kelompok, TANPA event — dipakai baik oleh

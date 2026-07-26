@@ -475,6 +475,144 @@
         </div>
 
         <div class="kelp-section-panel" id="kelpPanelDataMaster">
+        <!-- ═══ DATA PENGURUS ═══ -->
+        <div class="dash-section-title" id="dataPengurusTitle" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Data Pengurus</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporPengurus()">
+              <span>Ekspor</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="pengurusTableToggleBtn" onclick="window.togglePengurusDashTable_()" aria-label="Daftar Pengurus" title="Daftar Pengurus">
+              <svg class="guru-dash-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="5" x2="20" y2="5"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="4" y1="19" x2="20" y2="19"/></svg>
+              <span>Pengurus</span>
+            </button>
+            <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalPengurus()">+ Pengurus</button>
+          </div>
+        </div>
+
+        <div class="guru-dash-kpi-row" id="dataPengurusKpiRow">
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Pembina Generus Kelp</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_PembinaGenerusKelp">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Wk Pembina Generus Kelp</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_WkPembinaGenerusKelp">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-volt">
+            <div class="guru-dash-kpi-label">PJP Kelp</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_PJPKelp">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-indigo">
+            <div class="guru-dash-kpi-label">Kepsek</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_Kepsek">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-teal">
+            <div class="guru-dash-kpi-label">Pembina Pra Remaja</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_PembinaPraRemaja">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-brass">
+            <div class="guru-dash-kpi-label">Pembina Remaja</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_PembinaRemaja">Belum diisi</span></div>
+          </div>
+
+          <div class="guru-dash-kpi-card accent-sage">
+            <div class="guru-dash-kpi-label">Ketua Muda-Mudi</div>
+            <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value pengurus-nama-value" id="pgNama_KetuaMudaMudi">Belum diisi</span></div>
+          </div>
+        </div>
+
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="pengurusTableWrapper" style="display: none;">
+          <div class="guru-kelp-table-toolbar">
+            <input type="text" class="search-input guru-kelp-search-input" id="pengurusSearchInput" placeholder="Cari jabatan/nama pengurus..." oninput="window.filterPengurusDashTable_(this.value)">
+          </div>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead>
+                <tr><th>No</th><th>Jabatan</th><th>Nama Pengurus</th><th>Keterangan</th><th style="text-align: center;">Aksi</th></tr>
+              </thead>
+              <tbody id="pengurusTableBody">
+                <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Tambah/Ubah Pengurus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalPengurus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <div>
+                <span id="modalPengurusTitle">Tambah Pengurus</span>
+                <div class="guru-kelp-modal-subtitle">Atur pengurus jabatan Kelompok</div>
+              </div>
+              <button class="modal-close-btn" onclick="window.closeModalPengurus()">×</button>
+            </div>
+
+            <div class="guru-kelp-section">
+              <div class="form-group">
+                <label class="form-label">Jabatan</label>
+                <select class="form-input" id="pengurusJabatan">
+                  <option value="Pembina Generus Kelp">Pembina Generus Kelp</option>
+                  <option value="Wk Pembina Generus Kelp">Wk Pembina Generus Kelp</option>
+                  <option value="PJP Kelp">PJP Kelp</option>
+                  <option value="Kepsek">Kepsek</option>
+                  <option value="Pembina Pra Remaja">Pembina Pra Remaja</option>
+                  <option value="Pembina Remaja">Pembina Remaja</option>
+                  <option value="Ketua Muda-Mudi">Ketua Muda-Mudi</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Nama Pengurus</label>
+                <input type="text" class="form-input" id="pengurusNama" placeholder="Nama lengkap">
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Keterangan</label>
+                <textarea class="form-input" id="pengurusKeterangan" rows="2" placeholder="Catatan tambahan (opsional)"></textarea>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalPengurus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.savePengurus()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Ekspor Pengurus (khusus Dashboard Kelompok) -->
+        <div class="modal-overlay" id="modalEksporPengurus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Ekspor Data Pengurus</span>
+              <button class="modal-close-btn" onclick="window.closeModalEksporPengurus()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPengurusFormat" value="excel" checked> Excel
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporPengurusFormat" value="pdf"> PDF
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalEksporPengurus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmEksporPengurus()">Unduh</button>
+            </div>
+          </div>
+        </div>
+
         <!-- ═══ DATA GURU ═══ -->
         <div class="dash-section-title" id="dataGuruTitle" style="display: flex; align-items: center; justify-content: space-between;">
           <span>Data Guru</span>

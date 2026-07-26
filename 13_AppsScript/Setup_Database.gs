@@ -30,6 +30,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'guru', ['id', 'kelompok_id', 'nama', 'kategori', 'tempat_lahir', 'tanggal_lahir', 'jenis_kelamin', 'mulai_mengajar', 'alamat', 'nomor_wa', 'pendidikan', 'rt', 'rw', 'kelurahan', 'kode_pos', 'kabupaten_kota', 'provinsi', 'kecamatan', 'lama_mengajar']);
   createSheetIfNotExists(ss, 'riwayat_jenjang', ['id', 'santri_id', 'jenjang_lama', 'jenjang_baru', 'tanggal', 'catatan', 'dicatat_oleh']);
   createSheetIfNotExists(ss, 'siklus_generus', ['id', 'kelompok_id', 'santri_id', 'nama', 'jenis_siklus', 'tanggal', 'lokasi', 'instansi', 'keterangan', 'dicatat_oleh', 'dibuat_pada']);
+  createSheetIfNotExists(ss, 'pengurus_kelp', ['id', 'kelompok_id', 'jabatan', 'nama', 'keterangan', 'dicatat_oleh', 'dibuat_pada', 'diubah_oleh', 'diubah_pada']);
 
   // 4. KEHADIRAN
   createSheetIfNotExists(ss, 'absensi', ['id', 'santri_id', 'tanggal', 'status', 'dicatat_oleh']);

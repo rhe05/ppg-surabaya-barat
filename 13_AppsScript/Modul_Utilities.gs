@@ -29,6 +29,7 @@ const SHEET_NAMES = {
   PENGUMUMAN: 'pengumuman',
   JADWAL_KATEGORI_HARI: 'jadwal_kategori_hari',
   SIKLUS_GENERUS: 'siklus_generus',
+  PENGURUS_KELP: 'pengurus_kelp',
 };
 
 /**

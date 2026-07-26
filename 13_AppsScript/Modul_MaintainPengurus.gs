@@ -1,0 +1,129 @@
+/**
+ * Modul_MaintainPengurus.gs — CRUD Data Pengurus (jabatan kepengurusan Kelompok:
+ * Pembina/Wk Pembina Generus, PJP, Kepsek, Pembina Pra Remaja/Remaja, Ketua Muda-Mudi).
+ * Server-side functions dipanggil dari Index.html (bagian "Data Pengurus" di Data Master).
+ *
+ * Model: satu jabatan cuma dijabat SATU orang per Kelompok pada satu waktu (bukan
+ * riwayat berlapis seperti Siklus Generus) — "+ Pengurus" jadi UPSERT: kalau
+ * jabatan itu sudah ada pengurusnya di Kelompok ini, namanya diganti (bukan
+ * baris baru). Nama pengurus BEBAS diketik (bukan ambil dari Data Master
+ * Guru/Generus existing) karena pengurus tidak selalu tercatat di kedua tabel itu.
+ *
+ * RBAC: Admin Kelompok/Desa hanya bisa akses Kelompok yang jadi scope mereka. Admin PPG akses semua.
+ */
+
+const JABATAN_PENGURUS_ = [
+  'Pembina Generus Kelp',
+  'Wk Pembina Generus Kelp',
+  'PJP Kelp',
+  'Kepsek',
+  'Pembina Pra Remaja',
+  'Pembina Remaja',
+  'Ketua Muda-Mudi',
+];
+
+/**
+ * GET daftar pengurus untuk satu Kelompok.
+ */
+function serverGetPengurusList(token, kelompokId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  let data = readSheetAsObjects(SHEET_NAMES.PENGURUS_KELP);
+  data = data.filter(p => p.kelompok_id == kelompokId).map(p => ({
+    id: p.id,
+    kelompok_id: p.kelompok_id,
+    jabatan: p.jabatan ? String(p.jabatan) : '',
+    nama: p.nama ? String(p.nama) : '',
+    keterangan: p.keterangan ? String(p.keterangan) : '',
+  }));
+
+  return { success: true, data: data };
+}
+
+/**
+ * UPSERT pengurus: kalau jabatan itu sudah ada pengurusnya di Kelompok ini,
+ * update baris yang sama; kalau belum, buat baris baru.
+ * Input: {kelompok_id, jabatan, nama, keterangan?}
+ */
+function serverSavePengurus(token, data) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (!data.kelompok_id || !data.jabatan || !String(data.nama || '').trim()) {
+    return { success: false, error: 'Jabatan dan nama pengurus wajib diisi.' };
+  }
+
+  if (JABATAN_PENGURUS_.indexOf(data.jabatan) === -1) {
+    return { success: false, error: 'Jabatan tidak valid.' };
+  }
+
+  if (!validateUserAccess(token, 'kelompok', data.kelompok_id)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  try {
+    return withScriptLock_(function () {
+      const now = new Date().toISOString().split('T')[0];
+      const existing = readSheetAsObjects(SHEET_NAMES.PENGURUS_KELP)
+        .find(p => p.kelompok_id == data.kelompok_id && p.jabatan === data.jabatan);
+
+      if (existing) {
+        updateRowByQuery(SHEET_NAMES.PENGURUS_KELP, { id: existing.id }, {
+          nama: data.nama.trim(),
+          keterangan: data.keterangan || '',
+          diubah_oleh: user.id,
+          diubah_pada: now,
+        });
+        logAudit(SHEET_NAMES.PENGURUS_KELP, existing.id, 'update', user.id, `${data.jabatan} -> ${data.nama}`);
+        return { success: true, message: 'Pengurus berhasil diperbarui.', id: existing.id };
+      }
+
+      const id = generateId(SHEET_NAMES.PENGURUS_KELP);
+      appendRowToSheet(SHEET_NAMES.PENGURUS_KELP, [
+        id,
+        data.kelompok_id,
+        data.jabatan,
+        data.nama.trim(),
+        data.keterangan || '',
+        user.id,
+        now,
+        '',
+        '',
+      ]);
+      logAudit(SHEET_NAMES.PENGURUS_KELP, id, 'create', user.id, `${data.jabatan} -> ${data.nama}`);
+      return { success: true, message: 'Pengurus berhasil ditambahkan.', id: id };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menyimpan: ' + e.message };
+  }
+}
+
+/**
+ * DELETE (kosongkan) jabatan pengurus.
+ */
+function serverDeletePengurus(token, pengurusId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const pengurus = readSheetAsObjects(SHEET_NAMES.PENGURUS_KELP).find(p => p.id == pengurusId);
+  if (!pengurus) return { success: false, error: 'Data pengurus tidak ditemukan.' };
+
+  if (!validateUserAccess(token, 'kelompok', pengurus.kelompok_id)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke data ini.' };
+  }
+
+  try {
+    return withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.PENGURUS_KELP, { id: pengurus.id });
+      logAudit(SHEET_NAMES.PENGURUS_KELP, pengurusId, 'delete', user.id, 'deleted');
+      return { success: true, message: 'Pengurus berhasil dihapus.' };
+    });
+  } catch (e) {
+    return { success: false, error: 'Gagal menghapus: ' + e.message };
+  }
+}
