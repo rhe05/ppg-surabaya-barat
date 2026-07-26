@@ -1684,21 +1684,29 @@
       margin-bottom: 14px;
     }
 
-    .guru-dash-toggle-precise {
-      min-width: 132px;
-      justify-content: center;
-    }
-
-    /* Tombol "Daftar Guru"/"Daftar Generus": LEBARNYA dipendekkan (padding
-       horizontal kecil + tanpa min-width), tinggi tetap sama dgn tombol lain. */
+    /* Tombol header Data Master (+Tambah / Daftar / Ekspor): lebar & tinggi
+       WAJIB presisi sama di keempat section (Guru/Generus/Pendidikan Formal/
+       Siklus) — fixed width+height (bukan min-width) + box-sizing border-box
+       supaya border 1px di tombol Daftar/Ekspor tidak bikin tingginya beda
+       dgn tombol +Tambah (.btn.btn-primary, tanpa border). */
+    .guru-dash-toggle-table.guru-dash-header-btn.guru-dash-add-precise,
+    .btn.guru-dash-add-precise,
     .guru-dash-toggle-table.guru-dash-header-btn.guru-dash-toggle-precise {
-      padding: 10px 12px;
-    }
-
-    .guru-dash-add-precise {
-      min-width: 112px;
+      width: 138px;
+      height: 40px;
+      box-sizing: border-box;
+      padding: 0 12px;
       text-align: center;
       justify-content: center;
+      white-space: nowrap;
+    }
+
+    /* Tombol "Daftar Guru/Generus/Pendidikan/Siklus": teks diganti icon list
+       (4 garis horizontal monokrom) — lebarnya tetap sama seperti tombol lain. */
+    .guru-dash-toggle-precise .guru-dash-toggle-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
     }
 
     #generusJenjangRow {
