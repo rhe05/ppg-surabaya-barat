@@ -1878,6 +1878,24 @@
       background: var(--border);
     }
 
+    /* "converge-below": dipakai KHUSUS baris Wk Pembina Generus — baris ini
+       butuh garis di BAWAHNYA juga (bukan cuma di atas), supaya turunan ke
+       PJP Kelp kelihatan jelas nyambung ke "batang" Wk Pembina, bukan muncul
+       dari celah kosong antar kotak Wk Pembina. */
+    .struktur-branch-row.converge-below {
+      padding-bottom: 26px;
+    }
+
+    .struktur-branch-row.converge-below::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 86px;
+      right: 86px;
+      height: 2px;
+      background: var(--border);
+    }
+
     /* Satu kolom di dalam baris sejajar — "kaki" vertikal dari garis horizontal
        ke kotaknya, dan (kalau ada) menampung anak turunan di bawahnya (mis.
        kolom Pembina Remaja membawa Ketua Muda-Mudi). */
