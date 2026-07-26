@@ -3790,16 +3790,14 @@
       margin-bottom: 14px;
     }
 
-    .ia-greeting-hello {
-      color: rgba(255,255,255,0.8);
-      font-size: 13px;
-    }
-
     .ia-greeting-name {
       color: #fff;
       font-size: 20px;
       font-weight: 700;
       line-height: 1.2;
+      display: flex;
+      align-items: center;
+      min-height: 40px;
     }
 
     .ia-header-actions {
@@ -3973,6 +3971,51 @@
     }
 
     .ia-empty-icon { font-size: 42px; }
+
+    .ia-kelas-info-card {
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-subtle);
+      border-left: 4px solid var(--brass);
+    }
+
+    .ia-kelas-info-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .ia-kelas-info-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .ia-kelas-info-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brass);
+    }
+
+    .ia-kelas-info-guru {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .ia-kelas-info-guru b {
+      color: var(--text);
+      font-weight: 700;
+    }
 
     .ia-progress-wrap {
       background: var(--panel);

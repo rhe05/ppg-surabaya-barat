@@ -513,6 +513,7 @@
   window.iaOnTanggalChange_ = function () {
     window.iaState_.kelas = null;
     document.getElementById('iaEmptyState').style.display = 'flex';
+    document.getElementById('iaKelasInfoCard').style.display = 'none';
     document.getElementById('iaProgressWrap').style.display = 'none';
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
@@ -533,7 +534,10 @@
         row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
         return;
       }
+      window.iaState_.kelasMeta = {};
       result.data.forEach(function (item) {
+        window.iaState_.kelasMeta[item.kelas.toLowerCase()] = item;
+
         const chip = document.createElement('div');
         chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
         chip.innerHTML = `
@@ -544,13 +548,9 @@
         row.appendChild(chip);
       });
 
-      if (!isAdmin) {
-        const addChip = document.createElement('div');
-        addChip.className = 'ia-kelas-chip-add';
-        addChip.innerHTML = '<span>+</span><span>Minta Akses</span>';
-        addChip.onclick = window.openModalMintaAkses_;
-        row.appendChild(addChip);
-      }
+      // ⚠️ Chip "+ Minta Akses" sengaja disembunyikan sementara (noted by user
+      // 2026-07-26) — fungsi backend/modal-nya TETAP ADA, tinggal tampilkan
+      // lagi block ini kalau diminta diaktifkan kembali.
     };
 
     if (isAdmin) {
@@ -560,10 +560,31 @@
     }
   };
 
+  window.iaRenderKelasInfoCard_ = function (kelas) {
+    const meta = (window.iaState_.kelasMeta || {})[kelas.toLowerCase()];
+    const card = document.getElementById('iaKelasInfoCard');
+    if (!meta) { card.style.display = 'none'; return; }
+
+    document.getElementById('iaKelasInfoTitle').textContent = 'Kelas ' + meta.kelas;
+    document.getElementById('iaKelasInfoRuangan').textContent = meta.ruangan ? 'Ruangan ' + meta.ruangan : '';
+    document.getElementById('iaKelasInfoRuangan').style.display = meta.ruangan ? 'block' : 'none';
+    document.getElementById('iaKelasInfoCount').textContent = (meta.santriCount || 0) + ' Santri';
+    document.getElementById('iaKelasInfoJam').textContent = (meta.jamMulai && meta.jamSelesai) ? (meta.jamMulai + ' - ' + meta.jamSelesai) : '';
+    const guruEl = document.getElementById('iaKelasInfoGuru');
+    if (meta.namaGuru) {
+      guruEl.innerHTML = 'Guru : <b>Kak ' + meta.namaGuru + '</b>';
+      guruEl.style.display = 'block';
+    } else {
+      guruEl.style.display = 'none';
+    }
+    card.style.display = 'block';
+  };
+
   window.iaSelectKelas_ = function (kelas, chipEl) {
     document.querySelectorAll('.ia-kelas-chip').forEach(function (c) { c.classList.remove('active'); });
     if (chipEl) chipEl.classList.add('active');
     window.iaState_.kelas = kelas;
+    window.iaRenderKelasInfoCard_(kelas);
 
     const tanggal = document.getElementById('iaTanggal').value;
     document.getElementById('iaEmptyState').style.display = 'none';

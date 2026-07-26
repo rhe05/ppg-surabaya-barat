@@ -50,20 +50,37 @@ function getKelasOwnedByGuru_(kelompokId, guruId) {
 }
 
 /**
- * Cari guru_id "pemilik" satu nama kelas di satu Kelompok — dipakai menentukan
- * siapa yang harus approve permintaan akses. Owner = guru_id pada baris
- * jadwal_kbm Aktif dengan kelas itu yang paling baru dibuat (dibuat_pada).
- * Return null kalau kelas tidak ditemukan/tidak ada guru terpasang.
+ * Info sesi satu kelas (ruangan, jam, guru pengampu) — diambil dari baris
+ * jadwal_kbm Aktif kelas itu yang PALING BARU dibuat (dibuat_pada), dipakai
+ * kartu info kelas di layar Input Absen & penentuan owner permintaan akses.
+ * Return null kalau kelas tidak ditemukan di jadwal_kbm.
  */
-function getKelasOwnerGuruId_(kelompokId, kelas) {
+function getKelasSessionInfo_(kelompokId, kelas) {
   const kelasLower = String(kelas).trim().toLowerCase();
   const rows = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM).filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' &&
-      String(j.kelas || '').trim().toLowerCase() === kelasLower && j.guru_id;
+      String(j.kelas || '').trim().toLowerCase() === kelasLower;
   });
   if (rows.length === 0) return null;
   rows.sort(function (a, b) { return String(b.dibuat_pada || '').localeCompare(String(a.dibuat_pada || '')); });
-  return rows[0].guru_id;
+  const row = rows[0];
+  const guruRow = row.guru_id ? readSheetAsObjects(SHEET_NAMES.GURU).find(function (g) { return g.id == row.guru_id; }) : null;
+  return {
+    guruId: row.guru_id || null,
+    namaGuru: guruRow ? guruRow.nama : '',
+    ruangan: row.ruangan || '',
+    jamMulai: row.jam_mulai || '',
+    jamSelesai: row.jam_selesai || '',
+  };
+}
+
+/**
+ * Cari guru_id "pemilik" satu nama kelas di satu Kelompok — dipakai menentukan
+ * siapa yang harus approve permintaan akses.
+ */
+function getKelasOwnerGuruId_(kelompokId, kelas) {
+  const info = getKelasSessionInfo_(kelompokId, kelas);
+  return info ? info.guruId : null;
 }
 
 /**
@@ -133,11 +150,17 @@ function serverGetKelasAbsenList(token, tanggal) {
     }
   });
 
-  // Isi jumlah santri per kelas supaya kartu pilihan kelas tidak kosong info.
+  // Isi jumlah santri + info sesi (ruangan/jam/guru) per kelas, dipakai kartu
+  // info kelas di layar Input Absen.
   const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
   list.forEach(function (item) {
     const kelasLower = item.kelas.toLowerCase();
     item.santriCount = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; }).length;
+    const info = getKelasSessionInfo_(ctx.kelompokId, item.kelas) || {};
+    item.ruangan = info.ruangan || '';
+    item.jamMulai = info.jamMulai || '';
+    item.jamSelesai = info.jamSelesai || '';
+    item.namaGuru = info.namaGuru || '';
   });
 
   return { success: true, data: list };
@@ -392,8 +415,6 @@ function getAllKelasInKelompok_(kelompokId) {
   const rows = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM).filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
-  const guruMap = {};
-  readSheetAsObjects(SHEET_NAMES.GURU).forEach(function (g) { guruMap[g.id] = g.nama; });
 
   const seen = {};
   const result = [];
@@ -402,7 +423,14 @@ function getAllKelasInKelompok_(kelompokId) {
     const key = kelasTrim.toLowerCase();
     if (seen[key]) return;
     seen[key] = true;
-    result.push({ kelas: kelasTrim, namaGuru: guruMap[j.guru_id] || '(belum ada guru)' });
+    const info = getKelasSessionInfo_(kelompokId, kelasTrim) || {};
+    result.push({
+      kelas: kelasTrim,
+      namaGuru: info.namaGuru || '(belum ada guru)',
+      ruangan: info.ruangan || '',
+      jamMulai: info.jamMulai || '',
+      jamSelesai: info.jamSelesai || '',
+    });
   });
   return result;
 }

@@ -60,6 +60,29 @@ Guru di dropdown baru), login sebagai guru itu → harus langsung masuk ke
 screen Input Absen (bukan dashboard admin), sidebar/menu admin sama sekali
 tidak boleh muncul.
 
+## #16 — Kartu info kelas + hapus greeting "Halo" di Input Absen (2026-07-26)
+
+**Konteks**: setelah kelas dipilih, user minta tampilan berurutan: Kelas,
+Ruangan, jumlah santri + jam sesi, dan nama guru pengampu (bukan cuma daftar
+santri langsung) — plus hapus tulisan "Halo," di header (nama guru saja).
+
+**Implementasi**: `Modul_InputAbsen.gs` → `getKelasSessionInfo_(kelompokId, kelas)`
+(BARU) ambil ruangan/jam_mulai/jam_selesai/guru dari baris jadwal_kbm Aktif
+kelas itu yang PALING BARU dibuat — `getKelasOwnerGuruId_` direfaktor supaya
+manggil helper ini (bukan duplikat query). Field ini ditambahkan ke tiap
+item hasil `serverGetKelasAbsenList` (guru) & `getAllKelasInKelompok_`
+(dipakai `serverGetKelasAbsenListAdmin`) — TIDAK perlu endpoint baru.
+Frontend: `window.iaState_.kelasMeta` (map kelas→data) diisi tiap kali daftar
+kelas dimuat, `iaRenderKelasInfoCard_(kelas)` mengisi kartu `#iaKelasInfoCard`
+saat `iaSelectKelas_` dipanggil (format: "Kelas X" / "Ruangan Y" / "N Santri"
++ jam / "Guru : Kak Z").
+
+**⚠️ Sengaja disembunyikan sementara** (permintaan user): chip "+ Minta
+Akses" di baris kelas — kode & fungsi backend-nya (serverListKelasUntukPermintaan
+dkk) TETAP ADA, tinggal un-comment block di `window.iaOnTanggalChange_`
+(Script_Main.html, dekat komentar "sengaja disembunyikan sementara") kalau
+mau diaktifkan lagi.
+
 ## #15 — Status "Sakit" + kalender custom di Input Absen (2026-07-26)
 
 **Konteks**: tambah tombol status ke-4 (Hadir/Izin/Sakit/Alpa, sebelumnya
