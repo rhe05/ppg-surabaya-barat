@@ -510,3 +510,81 @@ function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiL
   logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen (Admin) kelas "${kelas}": ${count} santri`);
   return { success: true, message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.` };
 }
+
+/**
+ * ═════ GURU IZIN (Izin Harian / Cuti) — tombol "Guru Izin" di layar Input Absen ═════
+ * Guru mengajukan izin sendiri (tidak butuh approval admin, sifatnya
+ * dokumentasi/notifikasi). Alasan "Lainnya" yang diketik guru disimpan supaya
+ * jadi pilihan datalist bagi guru lain berikutnya (bukan per-guru, dibagi
+ * lintas Kelompok — pola sama seperti datalist nama pengurus/ortu lain di app ini).
+ */
+
+/**
+ * GET daftar alasan "Lainnya" yang pernah diketik guru sebelumnya (dedupe,
+ * terbaru dulu) — dipakai isi datalist di modal Guru Izin.
+ */
+function serverGetGuruIzinAlasanSuggestions(token) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  const rows = readSheetAsObjects(SHEET_NAMES.GURU_IZIN)
+    .filter(function (r) { return r.alasan_kategori === 'lainnya' && String(r.alasan_detail || '').trim() !== ''; })
+    .sort(function (a, b) { return String(b.dibuat_pada || '').localeCompare(String(a.dibuat_pada || '')); });
+
+  const seen = {};
+  const result = [];
+  rows.forEach(function (r) {
+    const key = String(r.alasan_detail).trim().toLowerCase();
+    if (!seen[key]) {
+      seen[key] = true;
+      result.push(String(r.alasan_detail).trim());
+    }
+  });
+
+  return { success: true, data: result };
+}
+
+/**
+ * SUBMIT pengajuan izin guru (Izin Harian / Cuti).
+ * @param {Object} payload - { jenis, tanggalMulai, tanggalSelesai, alasanKategori, alasanDetail }
+ */
+function serverSubmitGuruIzin(token, payload) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  payload = payload || {};
+  const jenis = payload.jenis;
+  const tanggalMulai = payload.tanggalMulai;
+  const tanggalSelesai = payload.tanggalSelesai || payload.tanggalMulai;
+  const alasanKategori = payload.alasanKategori;
+  const alasanDetail = String(payload.alasanDetail || '').trim();
+
+  if (['harian', 'cuti'].indexOf(jenis) === -1) {
+    return { success: false, error: 'Jenis izin tidak valid.' };
+  }
+  if (!String(tanggalMulai).match(/^\d{4}-\d{2}-\d{2}$/) || !String(tanggalSelesai).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Tanggal izin belum diisi dengan benar.' };
+  }
+  if (tanggalSelesai < tanggalMulai) {
+    return { success: false, error: 'Tanggal selesai tidak boleh sebelum tanggal mulai.' };
+  }
+  if (['sakit', 'lainnya'].indexOf(alasanKategori) === -1) {
+    return { success: false, error: 'Alasan izin belum dipilih.' };
+  }
+  if (alasanKategori === 'lainnya' && !alasanDetail) {
+    return { success: false, error: 'Ketik alasan izin Anda.' };
+  }
+
+  let newId;
+  withScriptLock_(function () {
+    newId = generateId(SHEET_NAMES.GURU_IZIN);
+    appendRowToSheet(SHEET_NAMES.GURU_IZIN, [
+      newId, ctx.kelompokId, ctx.user.guruId, ctx.user.nama, jenis,
+      tanggalMulai, tanggalSelesai, alasanKategori, alasanKategori === 'sakit' ? '' : alasanDetail,
+      new Date().toISOString(),
+    ]);
+  });
+
+  logAudit('guru_izin', String(newId), 'create', ctx.user.id, `Ajukan ${jenis === 'cuti' ? 'Cuti' : 'Izin Harian'} (${tanggalMulai} s/d ${tanggalSelesai})`);
+  return { success: true, message: (jenis === 'cuti' ? 'Cuti' : 'Izin') + ' berhasil diajukan.' };
+}

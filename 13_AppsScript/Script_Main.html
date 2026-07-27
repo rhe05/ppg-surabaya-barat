@@ -439,6 +439,7 @@
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Guru';
     document.getElementById('iaKelompokSelect').style.display = 'none';
     document.getElementById('iaBellBtn').style.display = 'flex';
+    document.getElementById('iaIzinBtn').style.display = 'inline-flex';
     const exitBtn = document.getElementById('iaExitBtn');
     exitBtn.title = 'Keluar';
     exitBtn.onclick = window.handleLogout;
@@ -455,6 +456,7 @@
 
     document.getElementById('iaNamaGuru').textContent = 'Admin PPG';
     document.getElementById('iaBellBtn').style.display = 'none';
+    document.getElementById('iaIzinBtn').style.display = 'none';
     const exitBtn = document.getElementById('iaExitBtn');
     exitBtn.title = 'Kembali ke Dashboard';
     exitBtn.onclick = window.closeInputAbsenAdmin_;
@@ -526,37 +528,56 @@
 
     const tanggal = document.getElementById('iaTanggal').value;
     const row = document.getElementById('iaKelasRow');
-    row.innerHTML = '<div style="padding:8px; color:var(--text-faint); font-size:13px;">Memuat kelas...</div>';
+    const keepKelas = window.iaState_.kelas;
+    row.innerHTML = '';
+    window.showGlobalLoading_('Memuat kelas...');
 
     const onKelasResult = function (result) {
+      window.hideGlobalLoading_();
       row.innerHTML = '';
       if (!result.success) {
         row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
         return;
       }
       window.iaState_.kelasMeta = {};
+      const chipEls = [];
       result.data.forEach(function (item) {
         window.iaState_.kelasMeta[item.kelas.toLowerCase()] = item;
 
         const chip = document.createElement('div');
         chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
         chip.innerHTML = `
-          <div class="ia-kelas-chip-nama">${item.kelas}</div>
-          <div class="ia-kelas-chip-meta">${item.santriCount} santri${isAdmin && item.namaGuru ? ' · ' + item.namaGuru : ''}</div>
+          <span class="ia-kelas-chip-nama">${item.kelas}</span>
+          <span class="ia-kelas-chip-count">${item.santriCount}</span>
         `;
         chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
         row.appendChild(chip);
+        chipEls.push(chip);
       });
 
       // ⚠️ Chip "+ Minta Akses" sengaja disembunyikan sementara (noted by user
       // 2026-07-26) — fungsi backend/modal-nya TETAP ADA, tinggal tampilkan
       // lagi block ini kalau diminta diaktifkan kembali.
+
+      // Auto-masuk ke kelas: guru langsung diarahkan ke kelasnya sendiri
+      // (kelas terakhir dipilih tetap dipertahankan lintas ganti tanggal;
+      // kalau sudah tidak tersedia lagi, jatuh ke kelas pertama).
+      if (result.data.length > 0) {
+        let idx = keepKelas ? result.data.findIndex(function (it) { return it.kelas.toLowerCase() === keepKelas.toLowerCase(); }) : -1;
+        if (idx < 0) idx = 0;
+        window.iaSelectKelas_(result.data[idx].kelas, chipEls[idx]);
+      }
+    };
+
+    const onKelasFail = function (err) {
+      window.hideGlobalLoading_();
+      row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">Gagal memuat kelas: ' + (err && err.message ? err.message : err) + '</div>';
     };
 
     if (isAdmin) {
-      google.script.run.withSuccessHandler(onKelasResult).serverGetKelasAbsenListAdmin(window.currentToken, window.iaState_.kelompokId, tanggal);
+      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenListAdmin(window.currentToken, window.iaState_.kelompokId, tanggal);
     } else {
-      google.script.run.withSuccessHandler(onKelasResult).serverGetKelasAbsenList(window.currentToken, tanggal);
+      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenList(window.currentToken, tanggal);
     }
   };
 
@@ -583,9 +604,11 @@
 
     const tanggal = document.getElementById('iaTanggal').value;
     document.getElementById('iaEmptyState').style.display = 'none';
-    document.getElementById('iaSantriList').innerHTML = '<div style="padding:20px; text-align:center; color:var(--text-faint); font-size:13px;">Memuat santri...</div>';
+    document.getElementById('iaSantriList').innerHTML = '';
+    window.showGlobalLoading_('Memuat santri...');
 
     const onFormResult = function (result) {
+      window.hideGlobalLoading_();
       if (!result.success) {
         iaShowToast_(result.error, 'error');
         document.getElementById('iaSantriList').innerHTML = '';
@@ -596,10 +619,17 @@
       window.iaRenderSantriList_();
     };
 
+    const onFormFail = function (err) {
+      window.hideGlobalLoading_();
+      iaShowToast_('Gagal memuat santri: ' + (err && err.message ? err.message : err), 'error');
+      document.getElementById('iaSantriList').innerHTML = '';
+      document.getElementById('iaEmptyState').style.display = 'flex';
+    };
+
     if (window.iaState_.mode === 'admin') {
-      google.script.run.withSuccessHandler(onFormResult).serverGetAbsensiKelasFormAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal);
+      google.script.run.withSuccessHandler(onFormResult).withFailureHandler(onFormFail).serverGetAbsensiKelasFormAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal);
     } else {
-      google.script.run.withSuccessHandler(onFormResult).serverGetAbsensiKelasForm(window.currentToken, kelas, tanggal);
+      google.script.run.withSuccessHandler(onFormResult).withFailureHandler(onFormFail).serverGetAbsensiKelasForm(window.currentToken, kelas, tanggal);
     }
   };
 
@@ -750,6 +780,117 @@
         }
       })
       .serverRequestAksesKelas(window.currentToken, kelas, tanggal, keterangan);
+  };
+
+  /* ─── Guru Izin (Izin Harian / Cuti) ─── */
+
+  window.iaIzinState_ = { jenis: 'harian', alasan: 'sakit' };
+
+  window.iaOpenGuruIzin_ = function () {
+    window.iaIzinState_ = { jenis: 'harian', alasan: 'sakit' };
+
+    document.getElementById('iaIzinJenisHarian').classList.add('active');
+    document.getElementById('iaIzinJenisCuti').classList.remove('active');
+    document.getElementById('iaIzinAlasanSakit').classList.add('active');
+    document.getElementById('iaIzinAlasanLainnya').classList.remove('active');
+    document.getElementById('iaIzinAlasanDetail').style.display = 'none';
+    document.getElementById('iaIzinAlasanDetail').value = '';
+    document.getElementById('iaIzinTanggalLabel').textContent = 'Tanggal Izin';
+    document.getElementById('iaIzinMsg').style.display = 'none';
+
+    const mulai = document.getElementById('iaTanggal').value || iaToday_();
+    iaSetIzinTanggal_('iaIzinTanggalMulai', mulai);
+    iaSetIzinTanggal_('iaIzinTanggalSelesai', mulai);
+
+    document.getElementById('dlGuruIzinAlasan').innerHTML = '';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+        document.getElementById('dlGuruIzinAlasan').innerHTML = result.data
+          .map(function (alasan) { return '<option value="' + alasan.replace(/"/g, '&quot;') + '"></option>'; })
+          .join('');
+      })
+      .serverGetGuruIzinAlasanSuggestions(window.currentToken);
+
+    document.getElementById('modalGuruIzin').classList.add('active');
+  };
+
+  window.closeModalGuruIzin_ = function () {
+    document.getElementById('modalGuruIzin').classList.remove('active');
+  };
+
+  window.iaSetIzinJenis_ = function (jenis) {
+    window.iaIzinState_.jenis = jenis;
+    document.getElementById('iaIzinJenisHarian').classList.toggle('active', jenis === 'harian');
+    document.getElementById('iaIzinJenisCuti').classList.toggle('active', jenis === 'cuti');
+    document.getElementById('iaIzinTanggalLabel').textContent = jenis === 'cuti' ? 'Tanggal Cuti' : 'Tanggal Izin';
+  };
+
+  window.iaSetIzinAlasan_ = function (alasan) {
+    window.iaIzinState_.alasan = alasan;
+    document.getElementById('iaIzinAlasanSakit').classList.toggle('active', alasan === 'sakit');
+    document.getElementById('iaIzinAlasanLainnya').classList.toggle('active', alasan === 'lainnya');
+    document.getElementById('iaIzinAlasanDetail').style.display = alasan === 'lainnya' ? 'block' : 'none';
+  };
+
+  function iaSetIzinTanggal_(inputId, dateStr) {
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const d = new Date(dateStr + 'T00:00:00');
+    document.getElementById(inputId).value = dateStr;
+    document.getElementById(inputId + 'Display').value = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    if (window.ppgDatePickerState) delete window.ppgDatePickerState[inputId];
+  }
+
+  window.iaSubmitGuruIzin_ = function () {
+    const msg = document.getElementById('iaIzinMsg');
+    const tanggalMulai = document.getElementById('iaIzinTanggalMulai').value;
+    const tanggalSelesai = document.getElementById('iaIzinTanggalSelesai').value || tanggalMulai;
+    const alasanDetail = document.getElementById('iaIzinAlasanDetail').value.trim();
+
+    if (!tanggalMulai) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Pilih tanggal mulai izin.';
+      return;
+    }
+    if (window.iaIzinState_.alasan === 'lainnya' && !alasanDetail) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Ketik alasan izin Anda.';
+      return;
+    }
+
+    const payload = {
+      jenis: window.iaIzinState_.jenis,
+      tanggalMulai: tanggalMulai,
+      tanggalSelesai: tanggalSelesai,
+      alasanKategori: window.iaIzinState_.alasan,
+      alasanDetail: alasanDetail,
+    };
+
+    const btn = document.getElementById('iaIzinSubmitBtn');
+    btn.disabled = true;
+    btn.textContent = 'Mengirim...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Kirim Izin';
+        msg.style.display = 'block';
+        msg.style.color = result.success ? 'var(--sage)' : 'var(--red)';
+        msg.textContent = result.success ? result.message : result.error;
+        if (result.success) {
+          setTimeout(window.closeModalGuruIzin_, 1200);
+        }
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Kirim Izin';
+        msg.style.display = 'block';
+        msg.style.color = 'var(--red)';
+        msg.textContent = 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err);
+      })
+      .serverSubmitGuruIzin(window.currentToken, payload);
   };
 
   /* ─── Permintaan Akses Masuk (approve/reject) ─── */

@@ -72,7 +72,10 @@ function setupDatabaseStructure() {
   // 18. IZIN AKSES KELAS LAIN (guru minta akses input absen kelas guru lain, per tanggal)
   createSheetIfNotExists(ss, 'akses_kelas_request', ['id', 'kelompok_id', 'kelas', 'tanggal', 'requester_user_id', 'requester_guru_id', 'requester_nama', 'owner_guru_id', 'status', 'keterangan', 'dibuat_pada', 'diputuskan_pada']);
 
-  console.log('✅ Semua 22 sheet berhasil dibuat atau sudah ada.');
+  // 19. GURU IZIN (guru mengajukan izin harian / cuti dari layar Input Absen)
+  createSheetIfNotExists(ss, 'guru_izin', ['id', 'kelompok_id', 'guru_id', 'nama_guru', 'jenis', 'tanggal_mulai', 'tanggal_selesai', 'alasan_kategori', 'alasan_detail', 'dibuat_pada']);
+
+  console.log('✅ Semua 23 sheet berhasil dibuat atau sudah ada.');
 
   // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman'/'users' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);

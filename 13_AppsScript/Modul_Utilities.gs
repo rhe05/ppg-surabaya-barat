@@ -31,6 +31,7 @@ const SHEET_NAMES = {
   SIKLUS_GENERUS: 'siklus_generus',
   PENGURUS_KELP: 'pengurus_kelp',
   AKSES_KELAS_REQUEST: 'akses_kelas_request',
+  GURU_IZIN: 'guru_izin',
 };
 
 /**

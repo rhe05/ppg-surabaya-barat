@@ -198,6 +198,7 @@
       <input type="hidden" id="iaTanggal">
       <div class="ppg-datepicker" id="iaTanggalPicker"></div>
       <button type="button" class="ia-today-btn" onclick="window.iaGoToToday_()" title="Hari ini">Hari Ini</button>
+      <button type="button" class="ia-today-btn ia-izin-btn" id="iaIzinBtn" onclick="window.iaOpenGuruIzin_()" title="Ajukan izin">Guru Izin</button>
     </div>
   </div>
 
@@ -247,6 +248,64 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="window.closeModalMintaAkses_()">Batal</button>
       <button class="btn btn-primary" id="btnKirimMintaAkses" onclick="window.kirimMintaAkses_()">Kirim Permintaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Guru Izin (Izin Harian / Cuti) -->
+<div class="modal-overlay" id="modalGuruIzin">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Ajukan Izin</span>
+      <button class="modal-close-btn" onclick="window.closeModalGuruIzin_()">✕</button>
+    </div>
+
+    <div class="ia-izin-section">
+      <label class="form-label">Jenis Izin</label>
+      <div class="ia-izin-jenis-row">
+        <button type="button" class="ia-izin-jenis-btn active" id="iaIzinJenisHarian" onclick="window.iaSetIzinJenis_('harian')">
+          <span class="ia-izin-jenis-title">Izin Harian</span>
+          <span class="ia-izin-jenis-desc">Hari ini / beberapa hari ke depan</span>
+        </button>
+        <button type="button" class="ia-izin-jenis-btn" id="iaIzinJenisCuti" onclick="window.iaSetIzinJenis_('cuti')">
+          <span class="ia-izin-jenis-title">Cuti</span>
+          <span class="ia-izin-jenis-desc">Izin jangka waktu lama</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="ia-izin-section">
+      <label class="form-label" id="iaIzinTanggalLabel">Tanggal Izin</label>
+      <div class="ia-izin-tanggal-row">
+        <div class="ia-izin-tanggal-field">
+          <input type="text" class="form-input ia-date-display" id="iaIzinTanggalMulaiDisplay" data-datepicker-trigger readonly placeholder="Mulai" onclick="window.toggleDatePicker('iaIzinTanggalMulai')">
+          <input type="hidden" id="iaIzinTanggalMulai">
+          <div class="ppg-datepicker" id="iaIzinTanggalMulaiPicker"></div>
+        </div>
+        <span class="ia-izin-tanggal-sep">–</span>
+        <div class="ia-izin-tanggal-field">
+          <input type="text" class="form-input ia-date-display" id="iaIzinTanggalSelesaiDisplay" data-datepicker-trigger readonly placeholder="Selesai" onclick="window.toggleDatePicker('iaIzinTanggalSelesai')">
+          <input type="hidden" id="iaIzinTanggalSelesai">
+          <div class="ppg-datepicker" id="iaIzinTanggalSelesaiPicker"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ia-izin-section">
+      <label class="form-label">Silahkan pilih alasan izin jenengan!</label>
+      <div class="ia-izin-alasan-row">
+        <button type="button" class="ia-izin-alasan-btn active" id="iaIzinAlasanSakit" onclick="window.iaSetIzinAlasan_('sakit')">1. Sakit</button>
+        <button type="button" class="ia-izin-alasan-btn" id="iaIzinAlasanLainnya" onclick="window.iaSetIzinAlasan_('lainnya')">2. Lainnya</button>
+      </div>
+      <input type="text" class="form-input" id="iaIzinAlasanDetail" placeholder="Ketik alasan Anda..." style="display:none; margin-top:10px;" list="dlGuruIzinAlasan">
+      <datalist id="dlGuruIzinAlasan"></datalist>
+    </div>
+
+    <div id="iaIzinMsg" style="display:none; margin-top: 4px; font-size: 13px;"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.closeModalGuruIzin_()">Batal</button>
+      <button class="btn btn-primary" id="iaIzinSubmitBtn" onclick="window.iaSubmitGuruIzin_()">Kirim Izin</button>
     </div>
   </div>
 </div>

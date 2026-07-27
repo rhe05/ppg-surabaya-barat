@@ -3875,7 +3875,9 @@
       flex-shrink: 0;
       border: none;
       border-radius: var(--radius-lg);
-      padding: 0 16px;
+      padding: 0 14px;
+      min-width: 92px;
+      text-align: center;
       font-size: 13px;
       font-weight: 700;
       color: var(--brass);
@@ -3888,10 +3890,15 @@
       transform: scale(0.96);
     }
 
+    .ia-izin-btn {
+      color: var(--indigo);
+      background: rgba(255,255,255,0.95);
+    }
+
     .ia-kelas-row {
       display: flex;
-      gap: 10px;
-      padding: 16px 18px 4px;
+      gap: 8px;
+      padding: 14px 18px 6px;
       overflow-x: auto;
       -webkit-overflow-scrolling: touch;
       flex-shrink: 0;
@@ -3902,41 +3909,53 @@
     .ia-kelas-chip {
       flex-shrink: 0;
       display: flex;
-      flex-direction: column;
-      gap: 2px;
-      padding: 10px 16px;
-      border-radius: var(--radius-lg);
+      align-items: center;
+      gap: 7px;
+      padding: 9px 13px;
+      border-radius: var(--radius-button);
       background: var(--panel);
-      border: 2px solid var(--border);
+      border: 1.5px solid var(--border);
       cursor: pointer;
-      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-      min-width: 96px;
+      transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
     }
 
     .ia-kelas-chip:active { transform: scale(0.96); }
 
     .ia-kelas-chip.active {
       border-color: var(--brass);
-      background: #FFFBEB;
+      background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.18);
     }
 
     .ia-kelas-chip-nama {
       font-weight: 700;
-      font-size: 14px;
+      font-size: 13.5px;
       color: var(--text);
       white-space: nowrap;
     }
 
-    .ia-kelas-chip-meta {
+    .ia-kelas-chip.pinjam .ia-kelas-chip-nama::before {
+      content: '🔓';
+      margin-right: 3px;
       font-size: 11px;
-      color: var(--text-faint);
-      display: flex;
-      align-items: center;
-      gap: 4px;
     }
 
-    .ia-kelas-chip.pinjam .ia-kelas-chip-meta::before {
-      content: '🔓';
+    .ia-kelas-chip-count {
+      flex-shrink: 0;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--text-dim);
+      background: var(--panel-2);
+      border-radius: var(--radius-button);
+      padding: 2px 7px;
+      min-width: 18px;
+      text-align: center;
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .ia-kelas-chip.active .ia-kelas-chip-count {
+      background: var(--brass);
+      color: #fff;
     }
 
     .ia-kelas-chip-add {
@@ -3961,6 +3980,83 @@
       overflow-y: auto;
       -webkit-overflow-scrolling: touch;
       padding: 16px 18px 100px;
+    }
+
+    /* MODAL GURU IZIN */
+    .ia-izin-section { margin-bottom: 20px; }
+    .ia-izin-section:last-child { margin-bottom: 0; }
+
+    .ia-izin-jenis-row, .ia-izin-alasan-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ia-izin-jenis-btn {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      padding: 12px 14px;
+      border-radius: var(--radius-lg);
+      border: 1.5px solid var(--border);
+      background: var(--panel);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ia-izin-jenis-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ia-izin-jenis-desc {
+      font-size: 10.5px;
+      color: var(--text-faint);
+      line-height: 1.3;
+    }
+
+    .ia-izin-jenis-btn.active {
+      border-color: var(--indigo);
+      background: rgba(79, 70, 229, 0.06);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.14);
+    }
+
+    .ia-izin-jenis-btn.active .ia-izin-jenis-title { color: var(--indigo); }
+
+    .ia-izin-tanggal-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ia-izin-tanggal-field { flex: 1; min-width: 0; }
+
+    .ia-izin-tanggal-sep {
+      flex-shrink: 0;
+      color: var(--text-faint);
+      font-weight: 600;
+    }
+
+    .ia-izin-alasan-btn {
+      flex: 1;
+      padding: 10px 12px;
+      border-radius: var(--radius);
+      border: 1.5px solid var(--border);
+      background: var(--panel);
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+
+    .ia-izin-alasan-btn.active {
+      border-color: var(--indigo);
+      background: rgba(79, 70, 229, 0.06);
+      color: var(--indigo);
     }
 
     .ia-empty-state {
