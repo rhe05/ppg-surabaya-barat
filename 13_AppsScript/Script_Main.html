@@ -3010,7 +3010,7 @@
   };
 
   document.addEventListener('click', function (e) {
-    const isTrigger = e.target.hasAttribute('data-datepicker-trigger') || e.target.hasAttribute('data-timepicker-trigger');
+    const isTrigger = e.target.closest('[data-datepicker-trigger]') || e.target.closest('[data-timepicker-trigger]');
     const isInsidePicker = e.target.closest('.ppg-datepicker') || e.target.closest('.ppg-timepicker');
     if (!isTrigger && !isInsidePicker) {
       document.querySelectorAll('.ppg-datepicker, .ppg-timepicker').forEach(p => p.classList.remove('open'));
