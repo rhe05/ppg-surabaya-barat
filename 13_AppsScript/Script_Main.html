@@ -430,6 +430,17 @@
     label.textContent = (isToday ? 'Hari ini · ' : '') + `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 
+  /* Durasi (menit) dari "HH:MM"–"HH:MM", dipakai info kelas Dashboard. */
+  window.iaDurasiMenit_ = function (jamMulai, jamSelesai) {
+    const m = /^(\d{1,2}):(\d{2})$/.exec(jamMulai);
+    const s = /^(\d{1,2}):(\d{2})$/.exec(jamSelesai);
+    if (!m || !s) return null;
+    const mulaiMenit = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    let selesaiMenit = parseInt(s[1], 10) * 60 + parseInt(s[2], 10);
+    if (selesaiMenit < mulaiMenit) selesaiMenit += 24 * 60;
+    return selesaiMenit - mulaiMenit;
+  };
+
   function iaShowToast_(message, type) {
     const toast = document.getElementById('iaToast');
     toast.textContent = message;
@@ -571,25 +582,76 @@
   /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */
 
   window.iaLoadDashboardSummary_ = function () {
-    const tanggal = document.getElementById('iaTanggal').value;
     const wrap = document.getElementById('iaDashboardCards');
     window.showGlobalLoading_('Memuat ringkasan...');
 
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
-          return;
-        }
-        window.iaRenderDashboardCards_(result.data);
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat ringkasan: ' + (err && err.message ? err.message : err) + '</div>';
-      })
-      .serverGetGuruDashboardSummary(window.currentToken, tanggal);
+    const onResult = function (result) {
+      window.hideGlobalLoading_();
+      if (!result.success) {
+        wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
+        return;
+      }
+      window.iaRenderDashboardCards_(result.data);
+    };
+    const onFail = function (err) {
+      window.hideGlobalLoading_();
+      wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat ringkasan: ' + (err && err.message ? err.message : err) + '</div>';
+    };
+
+    const filter = window.iaState_.dashboardFilter;
+    if (filter) {
+      google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
+        .serverGetGuruDashboardSummaryRange(window.currentToken, filter.mulai, filter.selesai);
+    } else {
+      const tanggal = document.getElementById('iaTanggal').value;
+      google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
+        .serverGetGuruDashboardSummary(window.currentToken, tanggal);
+    }
   };
+
+  /* ─── Filter rentang tanggal Dashboard ─── */
+
+  window.iaToggleFilterPanel_ = function () {
+    const panel = document.getElementById('iaFilterPanel');
+    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+  };
+
+  window.iaResetFilter_ = function () {
+    window.iaState_.dashboardFilter = null;
+    document.getElementById('iaFilterMulai').value = '';
+    document.getElementById('iaFilterMulaiDisplay').value = '';
+    document.getElementById('iaFilterSelesai').value = '';
+    document.getElementById('iaFilterSelesaiDisplay').value = '';
+    document.getElementById('iaFilterPanel').style.display = 'none';
+    document.getElementById('iaFilterBtn').classList.remove('active');
+    document.getElementById('iaFilterBtnLabel').textContent = 'Filter';
+    window.iaLoadDashboardSummary_();
+  };
+
+  window.iaApplyFilter_ = function () {
+    const mulai = document.getElementById('iaFilterMulai').value;
+    const selesai = document.getElementById('iaFilterSelesai').value;
+    if (!mulai || !selesai) {
+      iaShowToast_('Pilih tanggal mulai dan selesai.', 'error');
+      return;
+    }
+    if (selesai < mulai) {
+      iaShowToast_('Tanggal selesai tidak boleh sebelum tanggal mulai.', 'error');
+      return;
+    }
+    window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai };
+    document.getElementById('iaFilterPanel').style.display = 'none';
+    document.getElementById('iaFilterBtn').classList.add('active');
+    document.getElementById('iaFilterBtnLabel').textContent = iaFormatFilterRangeShort_(mulai, selesai);
+    window.iaLoadDashboardSummary_();
+  };
+
+  function iaFormatFilterRangeShort_(mulai, selesai) {
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+    const d1 = new Date(mulai + 'T00:00:00');
+    const d2 = new Date(selesai + 'T00:00:00');
+    return d1.getDate() + ' ' + monthNames[d1.getMonth()] + '–' + d2.getDate() + ' ' + monthNames[d2.getMonth()];
+  }
 
   window.iaRenderDashboardCards_ = function (list) {
     const wrap = document.getElementById('iaDashboardCards');
@@ -601,11 +663,15 @@
       const infoParts = [];
       if (item.ruangan) infoParts.push(item.ruangan);
       infoParts.push(item.total + ' Santri');
-      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
+      if (item.jamMulai && item.jamSelesai) {
+        const durasi = window.iaDurasiMenit_(item.jamMulai, item.jamSelesai);
+        infoParts.push(item.jamMulai + '–' + item.jamSelesai + (durasi != null ? ' · Durasi ' + durasi + ' Menit' : ''));
+      }
+      const jenjangLabel = item.kategori === 'Cabe Rawit' ? ' <span class="ia-dash-card-jenjang">· Cabe Rawit</span>' : '';
       return `
         <div class="ia-dash-card">
           <div class="ia-dash-card-head">
-            <span class="ia-dash-card-kelas">Kelas ${item.kelas}</span>
+            <span class="ia-dash-card-kelas">Kelas ${item.kelas}${jenjangLabel}</span>
           </div>
           <div class="ia-dash-card-info">${infoParts.join(' · ')}</div>
           <div class="ia-dash-stat-row">
@@ -688,8 +754,10 @@
 
         const chip = document.createElement('div');
         chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
+        const jenjangHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kelas-chip-jenjang">· Cabe Rawit</span>' : '';
         chip.innerHTML = `
           <span class="ia-kelas-chip-nama">${item.kelas}</span>
+          ${jenjangHtml}
           <span class="ia-kelas-chip-count">${item.santriCount}</span>
         `;
         chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };

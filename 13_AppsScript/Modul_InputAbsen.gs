@@ -71,6 +71,7 @@ function getKelasSessionInfo_(kelompokId, kelas) {
     ruangan: row.ruangan || '',
     jamMulai: row.jam_mulai || '',
     jamSelesai: row.jam_selesai || '',
+    kategori: row.kategori || '',
   };
 }
 
@@ -161,6 +162,7 @@ function serverGetKelasAbsenList(token, tanggal) {
     item.jamMulai = info.jamMulai || '';
     item.jamSelesai = info.jamSelesai || '';
     item.namaGuru = info.namaGuru || '';
+    item.kategori = info.kategori || '';
   });
 
   return { success: true, data: list };
@@ -404,7 +406,7 @@ function serverGetGuruDashboardSummary(token, tanggal) {
     const info = getKelasSessionInfo_(ctx.kelompokId, kelas) || {};
     const summary = {
       kelas: kelas, total: santriKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0, belumInput: 0,
-      ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '',
+      ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '', kategori: info.kategori || '',
     };
     santriKelas.forEach(function (s) {
       const status = statusMap[s.id];
@@ -413,6 +415,52 @@ function serverGetGuruDashboardSummary(token, tanggal) {
       else if (status === 'sakit') summary.sakit++;
       else if (status === 'alpa') summary.alpa++;
       else summary.belumInput++;
+    });
+    return summary;
+  });
+
+  return { success: true, data: result };
+}
+
+/**
+ * GET ringkasan kehadiran per kelas milik guru, DIAKUMULASI sepanjang rentang
+ * tanggal (dipakai tombol Filter di Dashboard) — beda dari versi 1-hari di
+ * atas: hadir/izin/sakit/alpa di sini jumlah SELURUH catatan absensi dalam
+ * rentang (bukan per-santri per-hari), jadi tidak ada "belumInput".
+ */
+function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggalMulai).match(/^\d{4}-\d{2}-\d{2}$/) || !String(tanggalSelesai).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+  if (tanggalSelesai < tanggalMulai) {
+    return { success: false, error: 'Tanggal selesai tidak boleh sebelum tanggal mulai.' };
+  }
+
+  const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId);
+  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  const absensiRange = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+    const t = tanggalKeString_(a.tanggal);
+    return t >= tanggalMulai && t <= tanggalSelesai;
+  });
+
+  const result = kelasOwned.map(function (kelas) {
+    const kelasLower = kelas.toLowerCase();
+    const santriIdsKelas = santriAll
+      .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
+      .map(function (s) { return Number(s.id); });
+    const info = getKelasSessionInfo_(ctx.kelompokId, kelas) || {};
+    const summary = {
+      kelas: kelas, total: santriIdsKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0,
+      ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '', kategori: info.kategori || '',
+    };
+    absensiRange.forEach(function (a) {
+      if (santriIdsKelas.indexOf(Number(a.santri_id)) === -1) return;
+      if (a.status === 'hadir') summary.hadir++;
+      else if (a.status === 'izin') summary.izin++;
+      else if (a.status === 'sakit') summary.sakit++;
+      else if (a.status === 'alpa') summary.alpa++;
     });
     return summary;
   });

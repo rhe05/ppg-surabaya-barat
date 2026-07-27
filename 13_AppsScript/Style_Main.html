@@ -3776,18 +3776,19 @@
     }
 
     .ia-header {
-      background: linear-gradient(135deg, var(--brass) 0%, #B45309 100%);
-      padding: 20px 18px 16px;
+      background: var(--panel);
       border-radius: 0 0 24px 24px;
-      box-shadow: 0 6px 20px rgba(180, 83, 9, 0.25);
+      box-shadow: 0 6px 20px rgba(5, 150, 105, 0.22);
       flex-shrink: 0;
+      overflow: hidden;
     }
 
-    .ia-header-top {
+    .ia-topbar {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 14px;
+      background: var(--panel);
+      padding: 14px 18px 12px;
     }
 
     .ia-app-brand {
@@ -3795,7 +3796,7 @@
       min-width: 0;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 7px;
     }
 
@@ -3805,15 +3806,26 @@
     }
 
     .ia-app-brand-name {
-      color: #fff;
+      color: var(--brand-green);
       font-size: 15px;
       font-weight: 800;
       letter-spacing: 0.01em;
       white-space: nowrap;
     }
 
-    .ia-greeting {
-      margin-bottom: 14px;
+    .ia-topbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .ia-header-hero {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      background: linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%);
+      padding: 16px 18px 20px;
     }
 
     .ia-greeting-date {
@@ -3830,8 +3842,8 @@
       height: 40px;
       border-radius: 50%;
       border: none;
-      background: rgba(255,255,255,0.18);
-      color: #fff;
+      background: var(--panel-2);
+      color: var(--sage);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -3841,7 +3853,7 @@
 
     .ia-hamburger-btn:active {
       transform: scale(0.92);
-      background: rgba(255,255,255,0.3);
+      background: var(--border);
     }
 
     .ia-menu-overlay {
@@ -3853,7 +3865,7 @@
 
     .ia-menu-dropdown {
       position: absolute;
-      top: 66px;
+      top: 62px;
       left: 18px;
       z-index: 91;
       width: 220px;
@@ -3888,7 +3900,7 @@
 
     .ia-menu-item svg {
       flex-shrink: 0;
-      color: var(--brass);
+      color: var(--sage);
     }
 
     .ia-menu-item-danger {
@@ -3903,6 +3915,11 @@
       height: 1px;
       background: var(--border);
       margin: 6px 4px;
+    }
+
+    .ia-greeting {
+      flex: 1;
+      min-width: 0;
     }
 
     .ia-greeting-name {
@@ -3920,19 +3937,14 @@
       letter-spacing: 0.01em;
     }
 
-    .ia-header-actions {
-      display: flex;
-      gap: 8px;
-    }
-
     .ia-icon-btn {
       position: relative;
       width: 40px;
       height: 40px;
       border-radius: 50%;
       border: none;
-      background: rgba(255,255,255,0.18);
-      color: #fff;
+      background: var(--panel-2);
+      color: var(--sage);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -3942,7 +3954,16 @@
 
     .ia-icon-btn:active {
       transform: scale(0.92);
-      background: rgba(255,255,255,0.3);
+      background: var(--border);
+    }
+
+    .ia-icon-btn-hero {
+      background: rgba(255,255,255,0.2);
+      color: #fff;
+    }
+
+    .ia-icon-btn-hero:active {
+      background: rgba(255,255,255,0.32);
     }
 
     .ia-badge {
@@ -3960,19 +3981,20 @@
       align-items: center;
       justify-content: center;
       padding: 0 3px;
-      border: 2px solid var(--brass);
+      border: 2px solid var(--panel);
     }
 
     .ia-date-input {
       width: 100%;
-      border: none;
+      border: 1.5px solid var(--border);
       border-radius: var(--radius-lg);
       padding: 12px 14px;
       font-size: 15px;
       font-weight: 600;
       color: var(--text);
-      background: rgba(255,255,255,0.95);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      background: var(--panel-2);
+      margin: 0 18px 12px;
+      width: calc(100% - 36px);
     }
 
     .ia-date-display {
@@ -4006,9 +4028,16 @@
     .ia-kelas-chip:active { transform: scale(0.96); }
 
     .ia-kelas-chip.active {
-      border-color: var(--brass);
-      background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
-      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.18);
+      border-color: var(--sage);
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      box-shadow: 0 2px 8px rgba(5, 150, 105, 0.18);
+    }
+
+    .ia-kelas-chip-jenjang {
+      font-weight: 600;
+      font-size: 11px;
+      color: var(--text-dim);
+      white-space: nowrap;
     }
 
     .ia-kelas-chip-nama {
@@ -4038,7 +4067,7 @@
     }
 
     .ia-kelas-chip.active .ia-kelas-chip-count {
-      background: var(--brass);
+      background: var(--sage);
       color: #fff;
     }
 
@@ -4081,6 +4110,68 @@
       padding: 16px 18px 100px;
     }
 
+    .ia-dashboard-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+
+    .ia-filter-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid rgba(5, 150, 105, 0.25);
+      background: linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%);
+      color: var(--sage);
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 8px 14px;
+      border-radius: var(--radius-button);
+      box-shadow: 0 2px 10px rgba(5, 150, 105, 0.12);
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ia-filter-btn:active { transform: scale(0.96); }
+
+    .ia-filter-btn.active {
+      background: linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%);
+      border-color: transparent;
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
+    }
+
+    .ia-filter-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow-card);
+    }
+
+    .ia-filter-panel-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .ia-filter-field { flex: 1; min-width: 0; }
+
+    .ia-filter-label {
+      display: block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text-dim);
+      margin-bottom: 5px;
+    }
+
+    .ia-filter-panel-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
     .ia-dashboard-cards {
       display: flex;
       flex-direction: column;
@@ -4106,6 +4197,12 @@
       font-size: 15px;
       font-weight: 700;
       color: var(--text);
+    }
+
+    .ia-dash-card-jenjang {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--sage);
     }
 
     .ia-dash-card-info {
@@ -4432,7 +4529,8 @@
     }
 
     @media (max-width: 480px) {
-      .ia-header { padding: 16px 14px 14px; }
+      .ia-topbar { padding: 12px 14px 10px; }
+      .ia-header-hero { padding: 14px 14px 16px; }
       .ia-body { padding: 14px 14px 100px; }
     }
   </style>
