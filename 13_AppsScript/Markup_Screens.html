@@ -176,6 +176,9 @@
 <div id="screenInputAbsen" style="display:none;">
   <div class="ia-header">
     <div class="ia-header-top">
+      <button type="button" class="ia-hamburger-btn" id="iaMenuBtn" onclick="window.iaToggleMenu_()" title="Menu Utama" aria-label="Menu Utama">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/></svg>
+      </button>
       <div class="ia-greeting">
         <div class="ia-greeting-name" id="iaNamaGuru">Guru</div>
         <div class="ia-greeting-kelas" id="iaGreetingKelasInfo" style="display:none;"></div>
@@ -185,11 +188,34 @@
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span class="ia-badge" id="iaBellBadge" style="display:none;">0</span>
         </button>
-        <button class="ia-icon-btn" id="iaExitBtn" onclick="window.handleLogout()" title="Keluar">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        </button>
       </div>
     </div>
+
+    <div class="ia-menu-overlay" id="iaMenuOverlay" style="display:none;" onclick="window.iaCloseMenu_()"></div>
+    <div class="ia-menu-dropdown" id="iaMenuDropdown" style="display:none;">
+      <button type="button" class="ia-menu-item" id="iaMenuDashboardBtn" onclick="window.iaMenuGoDashboard_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+        <span>Dashboard</span>
+      </button>
+      <button type="button" class="ia-menu-item" id="iaMenuPilihKelasBtn" onclick="window.iaMenuGoPilihKelas_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+        <span>Pilih Kelas</span>
+      </button>
+      <button type="button" class="ia-menu-item" id="iaMenuGuruIzinBtn" onclick="window.iaMenuOpenGuruIzin_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+        <span>Guru Izin</span>
+      </button>
+      <button type="button" class="ia-menu-item" id="iaMenuMintaAksesBtn" onclick="window.iaMenuOpenMintaAkses_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg>
+        <span>Minta Akses</span>
+      </button>
+      <div class="ia-menu-divider"></div>
+      <button type="button" class="ia-menu-item ia-menu-item-danger" id="iaMenuExitBtn" onclick="window.iaMenuExit_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span id="iaMenuExitLabel">Keluar</span>
+      </button>
+    </div>
+
     <select class="ia-date-input" id="iaKelompokSelect" style="display:none; margin-bottom:10px;" onchange="window.iaOnKelompokChange_()">
       <option value="">-- Pilih Kelompok --</option>
     </select>
@@ -198,26 +224,31 @@
       <input type="hidden" id="iaTanggal">
       <div class="ppg-datepicker" id="iaTanggalPicker"></div>
       <button type="button" class="ia-today-btn" onclick="window.iaGoToToday_()" title="Hari ini">Hari Ini</button>
-      <button type="button" class="ia-today-btn ia-izin-btn" id="iaIzinBtn" onclick="window.iaOpenGuruIzin_()" title="Ajukan izin">Guru Izin</button>
     </div>
   </div>
 
-  <div class="ia-kelas-row" id="iaKelasRow"></div>
-
-  <div class="ia-body" id="iaBody">
-    <div class="ia-empty-state" id="iaEmptyState">
-      <div class="ia-empty-icon">📋</div>
-      <div>Pilih kelas di atas untuk mulai input absen.</div>
-    </div>
-    <div class="ia-progress-wrap" id="iaProgressWrap" style="display:none;">
-      <div class="ia-progress-label" id="iaProgressLabel">0/0 Hadir</div>
-      <div class="ia-progress-bar"><div class="ia-progress-fill" id="iaProgressFill" style="width:0%;"></div></div>
-    </div>
-    <div class="ia-santri-list" id="iaSantriList"></div>
+  <div class="ia-dashboard-view" id="iaDashboardView">
+    <div class="ia-dashboard-cards" id="iaDashboardCards"></div>
   </div>
 
-  <div class="ia-bottom-bar" id="iaBottomBar" style="display:none;">
-    <button class="ia-save-btn" id="iaSaveBtn" onclick="window.saveInputAbsen_()">Simpan Absen</button>
+  <div class="ia-kelas-view" id="iaKelasView" style="display:none;">
+    <div class="ia-kelas-row" id="iaKelasRow"></div>
+
+    <div class="ia-body" id="iaBody">
+      <div class="ia-empty-state" id="iaEmptyState">
+        <div class="ia-empty-icon">📋</div>
+        <div>Pilih kelas di atas untuk mulai input absen.</div>
+      </div>
+      <div class="ia-progress-wrap" id="iaProgressWrap" style="display:none;">
+        <div class="ia-progress-label" id="iaProgressLabel">0/0 Hadir</div>
+        <div class="ia-progress-bar"><div class="ia-progress-fill" id="iaProgressFill" style="width:0%;"></div></div>
+      </div>
+      <div class="ia-santri-list" id="iaSantriList"></div>
+    </div>
+
+    <div class="ia-bottom-bar" id="iaBottomBar" style="display:none;">
+      <button class="ia-save-btn" id="iaSaveBtn" onclick="window.saveInputAbsen_()">Simpan Absen</button>
+    </div>
   </div>
 
   <div class="ia-toast" id="iaToast"></div>

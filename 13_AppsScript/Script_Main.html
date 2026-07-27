@@ -435,31 +435,31 @@
 
   /* Guru: dikunci ke kelas miliknya sendiri (dipanggil dari renderApp). */
   window.initInputAbsen_ = function () {
-    window.iaState_ = { mode: 'guru', kelompokId: window.currentUser.scopeId, kelas: null, list: [] };
+    window.iaState_ = { mode: 'guru', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Guru';
     document.getElementById('iaKelompokSelect').style.display = 'none';
     document.getElementById('iaBellBtn').style.display = 'flex';
-    document.getElementById('iaIzinBtn').style.display = 'inline-flex';
-    const exitBtn = document.getElementById('iaExitBtn');
-    exitBtn.title = 'Keluar';
-    exitBtn.onclick = window.handleLogout;
+    document.getElementById('iaMenuDashboardBtn').style.display = 'flex';
+    document.getElementById('iaMenuGuruIzinBtn').style.display = 'flex';
+    document.getElementById('iaMenuMintaAksesBtn').style.display = 'flex';
+    document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
     iaSetTanggal_(iaToday_());
     window.iaLoadBell_();
-    window.iaOnTanggalChange_();
+    window.iaShowDashboardView_();
   };
 
   /* Admin PPG: bebas pilih Kelompok > Kelas mana pun (dipanggil dari sidebar). */
   window.openInputAbsenAsAdmin_ = function () {
-    window.iaState_ = { mode: 'admin', kelompokId: null, kelas: null, list: [] };
+    window.iaState_ = { mode: 'admin', kelompokId: null, kelas: null, list: [], activeView: 'kelas' };
     document.getElementById('appLayout').style.display = 'none';
     document.getElementById('screenInputAbsen').style.display = 'flex';
 
     document.getElementById('iaNamaGuru').textContent = 'Admin PPG';
     document.getElementById('iaBellBtn').style.display = 'none';
-    document.getElementById('iaIzinBtn').style.display = 'none';
-    const exitBtn = document.getElementById('iaExitBtn');
-    exitBtn.title = 'Kembali ke Dashboard';
-    exitBtn.onclick = window.closeInputAbsenAdmin_;
+    document.getElementById('iaMenuDashboardBtn').style.display = 'none';
+    document.getElementById('iaMenuGuruIzinBtn').style.display = 'none';
+    document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
+    document.getElementById('iaMenuExitLabel').textContent = 'Kembali ke Dashboard';
 
     iaSetTanggal_(iaToday_());
     document.getElementById('iaEmptyState').style.display = 'flex';
@@ -468,6 +468,7 @@
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
     document.getElementById('iaKelasRow').innerHTML = '';
+    window.iaShowKelasView_(true);
 
     const select = document.getElementById('iaKelompokSelect');
     select.style.display = 'block';
@@ -494,7 +495,127 @@
 
   window.iaOnKelompokChange_ = function () {
     window.iaState_.kelompokId = document.getElementById('iaKelompokSelect').value || null;
-    window.iaOnTanggalChange_();
+    window.iaLoadKelasList_();
+  };
+
+  /* ─── Menu Utama (hamburger dropdown) ─── */
+
+  window.iaToggleMenu_ = function () {
+    const dropdown = document.getElementById('iaMenuDropdown');
+    const isOpen = dropdown.style.display === 'flex';
+    if (isOpen) { window.iaCloseMenu_(); return; }
+    dropdown.style.display = 'flex';
+    document.getElementById('iaMenuOverlay').style.display = 'block';
+  };
+
+  window.iaCloseMenu_ = function () {
+    document.getElementById('iaMenuDropdown').style.display = 'none';
+    document.getElementById('iaMenuOverlay').style.display = 'none';
+  };
+
+  window.iaMenuGoDashboard_ = function () {
+    window.iaCloseMenu_();
+    window.iaShowDashboardView_();
+  };
+
+  window.iaMenuGoPilihKelas_ = function () {
+    window.iaCloseMenu_();
+    window.iaShowKelasView_();
+  };
+
+  window.iaMenuOpenGuruIzin_ = function () {
+    window.iaCloseMenu_();
+    window.iaOpenGuruIzin_();
+  };
+
+  window.iaMenuOpenMintaAkses_ = function () {
+    window.iaCloseMenu_();
+    window.openModalMintaAkses_();
+  };
+
+  window.iaMenuExit_ = function () {
+    window.iaCloseMenu_();
+    if (window.iaState_.mode === 'admin') {
+      window.closeInputAbsenAdmin_();
+    } else {
+      window.handleLogout();
+    }
+  };
+
+  /* ─── Switch view: Dashboard (ringkasan kehadiran) vs Pilih Kelas (input absen) ─── */
+
+  window.iaShowDashboardView_ = function () {
+    window.iaState_.activeView = 'dashboard';
+    document.getElementById('iaDashboardView').style.display = 'block';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    window.iaLoadDashboardSummary_();
+  };
+
+  window.iaShowKelasView_ = function (skipLoad) {
+    window.iaState_.activeView = 'kelas';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'flex';
+    if (!skipLoad) window.iaLoadKelasList_();
+  };
+
+  /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */
+
+  window.iaLoadDashboardSummary_ = function () {
+    const tanggal = document.getElementById('iaTanggal').value;
+    const wrap = document.getElementById('iaDashboardCards');
+    window.showGlobalLoading_('Memuat ringkasan...');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
+          return;
+        }
+        window.iaRenderDashboardCards_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat ringkasan: ' + (err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetGuruDashboardSummary(window.currentToken, tanggal);
+  };
+
+  window.iaRenderDashboardCards_ = function (list) {
+    const wrap = document.getElementById('iaDashboardCards');
+    if (!list || list.length === 0) {
+      wrap.innerHTML = '<div class="ia-dash-empty">Anda belum mengampu kelas apa pun.</div>';
+      return;
+    }
+    wrap.innerHTML = list.map(function (item) {
+      return `
+        <div class="ia-dash-card">
+          <div class="ia-dash-card-head">
+            <span class="ia-dash-card-kelas">Kelas ${item.kelas}</span>
+            <span class="ia-dash-card-total">${item.total} Santri</span>
+          </div>
+          <div class="ia-dash-stat-row">
+            <div class="ia-dash-stat hadir">
+              <span class="ia-dash-stat-num">${item.hadir}</span>
+              <span class="ia-dash-stat-label">Hadir</span>
+            </div>
+            <div class="ia-dash-stat izin">
+              <span class="ia-dash-stat-num">${item.izin}</span>
+              <span class="ia-dash-stat-label">Izin</span>
+            </div>
+            <div class="ia-dash-stat sakit">
+              <span class="ia-dash-stat-num">${item.sakit}</span>
+              <span class="ia-dash-stat-label">Sakit</span>
+            </div>
+            <div class="ia-dash-stat alpa">
+              <span class="ia-dash-stat-num">${item.alpa}</span>
+              <span class="ia-dash-stat-label">Alpa</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   };
 
   window.iaLoadBell_ = function () {
@@ -513,6 +634,14 @@
   };
 
   window.iaOnTanggalChange_ = function () {
+    if (window.iaState_.activeView === 'dashboard') {
+      window.iaLoadDashboardSummary_();
+      return;
+    }
+    window.iaLoadKelasList_();
+  };
+
+  window.iaLoadKelasList_ = function () {
     window.iaState_.kelas = null;
     document.getElementById('iaEmptyState').style.display = 'flex';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';

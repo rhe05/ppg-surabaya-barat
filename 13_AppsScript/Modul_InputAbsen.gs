@@ -381,6 +381,42 @@ function serverRespondAksesRequest(token, requestId, decision) {
 }
 
 /**
+ * GET ringkasan kehadiran (hadir/izin/sakit/alpa) per kelas milik guru ini
+ * pada satu tanggal — dipakai kartu Dashboard di layar Input Absen. Satu
+ * kartu per kelas yang diampu (guru ngajar 2 kelas → 2 kartu, dst).
+ */
+function serverGetGuruDashboardSummary(token, tanggal) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId);
+  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  const absensiTanggal = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
+  const statusMap = {};
+  absensiTanggal.forEach(function (a) { statusMap[a.santri_id] = a.status; });
+
+  const result = kelasOwned.map(function (kelas) {
+    const kelasLower = kelas.toLowerCase();
+    const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
+    const summary = { kelas: kelas, total: santriKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0, belumInput: 0 };
+    santriKelas.forEach(function (s) {
+      const status = statusMap[s.id];
+      if (status === 'hadir') summary.hadir++;
+      else if (status === 'izin') summary.izin++;
+      else if (status === 'sakit') summary.sakit++;
+      else if (status === 'alpa') summary.alpa++;
+      else summary.belumInput++;
+    });
+    return summary;
+  });
+
+  return { success: true, data: result };
+}
+
+/**
  * ═════ MODE ADMIN (admin_ppg) — akses ke SEMUA Kelompok/Guru/Kelas ═════
  *
  * Admin PPG boleh pakai screen Input Absen yang sama, tapi TANPA dikunci ke
