@@ -55,16 +55,17 @@ function getKelasOwnedByGuru_(kelompokId, guruId) {
  * kartu info kelas di layar Input Absen & penentuan owner permintaan akses.
  * Return null kalau kelas tidak ditemukan di jadwal_kbm.
  */
-function getKelasSessionInfo_(kelompokId, kelas) {
+function getKelasSessionInfo_(kelompokId, kelas, jadwalRowsAll, guruRowsAll) {
   const kelasLower = String(kelas).trim().toLowerCase();
-  const rows = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM).filter(function (j) {
+  const rows = (jadwalRowsAll || readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)).filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' &&
       String(j.kelas || '').trim().toLowerCase() === kelasLower;
   });
   if (rows.length === 0) return null;
   rows.sort(function (a, b) { return String(b.dibuat_pada || '').localeCompare(String(a.dibuat_pada || '')); });
   const row = rows[0];
-  const guruRow = row.guru_id ? readSheetAsObjects(SHEET_NAMES.GURU).find(function (g) { return g.id == row.guru_id; }) : null;
+  const guruRows = row.guru_id ? (guruRowsAll || readSheetAsObjects(SHEET_NAMES.GURU)) : [];
+  const guruRow = row.guru_id ? guruRows.find(function (g) { return g.id == row.guru_id; }) : null;
   return {
     guruId: row.guru_id || null,
     namaGuru: guruRow ? guruRow.nama : '',
@@ -152,12 +153,16 @@ function serverGetKelasAbsenList(token, tanggal) {
   });
 
   // Isi jumlah santri + info sesi (ruangan/jam/guru) per kelas, dipakai kartu
-  // info kelas di layar Input Absen.
+  // info kelas di layar Input Absen. jadwal_kbm & guru dibaca SEKALI di luar
+  // loop (bukan per-kelas) supaya tidak N+1 baca sheet — dulu ini penyebab
+  // "Pilih Kelas" lambat saat guru punya beberapa kelas.
   const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
+  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
   list.forEach(function (item) {
     const kelasLower = item.kelas.toLowerCase();
     item.santriCount = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; }).length;
-    const info = getKelasSessionInfo_(ctx.kelompokId, item.kelas) || {};
+    const info = getKelasSessionInfo_(ctx.kelompokId, item.kelas, jadwalRowsAll, guruRowsAll) || {};
     item.ruangan = info.ruangan || '';
     item.jamMulai = info.jamMulai || '';
     item.jamSelesai = info.jamSelesai || '';
@@ -399,11 +404,14 @@ function serverGetGuruDashboardSummary(token, tanggal) {
   const absensiTanggal = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
   const statusMap = {};
   absensiTanggal.forEach(function (a) { statusMap[a.santri_id] = a.status; });
+  // jadwal_kbm & guru dibaca SEKALI di luar loop, bukan per-kelas (N+1 fix).
+  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
+  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
 
   const result = kelasOwned.map(function (kelas) {
     const kelasLower = kelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const info = getKelasSessionInfo_(ctx.kelompokId, kelas) || {};
+    const info = getKelasSessionInfo_(ctx.kelompokId, kelas, jadwalRowsAll, guruRowsAll) || {};
     const summary = {
       kelas: kelas, total: santriKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0, belumInput: 0,
       ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '', kategori: info.kategori || '',
@@ -444,13 +452,16 @@ function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai)
     const t = tanggalKeString_(a.tanggal);
     return t >= tanggalMulai && t <= tanggalSelesai;
   });
+  // jadwal_kbm & guru dibaca SEKALI di luar loop, bukan per-kelas (N+1 fix).
+  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
+  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
 
   const result = kelasOwned.map(function (kelas) {
     const kelasLower = kelas.toLowerCase();
     const santriIdsKelas = santriAll
       .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
       .map(function (s) { return Number(s.id); });
-    const info = getKelasSessionInfo_(ctx.kelompokId, kelas) || {};
+    const info = getKelasSessionInfo_(ctx.kelompokId, kelas, jadwalRowsAll, guruRowsAll) || {};
     const summary = {
       kelas: kelas, total: santriIdsKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0,
       ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '', kategori: info.kategori || '',
@@ -500,7 +511,10 @@ function serverGetInputAbsenKelompokOptionsAdmin(token) {
  * difilter per guru_id, beda dari getKelasOwnedByGuru_.
  */
 function getAllKelasInKelompok_(kelompokId) {
-  const rows = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM).filter(function (j) {
+  // jadwal_kbm & guru dibaca SEKALI di luar loop, bukan per-kelas (N+1 fix).
+  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
+  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
+  const rows = jadwalRowsAll.filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
 
@@ -511,7 +525,7 @@ function getAllKelasInKelompok_(kelompokId) {
     const key = kelasTrim.toLowerCase();
     if (seen[key]) return;
     seen[key] = true;
-    const info = getKelasSessionInfo_(kelompokId, kelasTrim) || {};
+    const info = getKelasSessionInfo_(kelompokId, kelasTrim, jadwalRowsAll, guruRowsAll) || {};
     result.push({
       kelas: kelasTrim,
       namaGuru: info.namaGuru || '(belum ada guru)',
