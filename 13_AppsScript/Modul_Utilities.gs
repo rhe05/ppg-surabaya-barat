@@ -72,7 +72,7 @@ const FIRESTORE_KELOMPOK_TABLES_ = {
   guru: ['1'], // Kelp Petemon
   jadwal_kbm: ['1'], // Kelp Petemon — data lama sudah disalin (7 sesi, 0 error)
   jadwal_kategori_hari: ['1'], // Kelp Petemon — data lama sudah disalin (4 baris, 0 error)
-  absensi: [], // Kelp Petemon — MASIH KOSONG, tunggu data disalin (lihat migrateAbsensiKelompokToFirestore_)
+  absensi: ['1'], // Kelp Petemon — data lama sudah disalin (7 baris, 0 error, 2026-07-28)
 };
 
 function isKelompokTableOnFirestore_(tableName, kelompokId) {
