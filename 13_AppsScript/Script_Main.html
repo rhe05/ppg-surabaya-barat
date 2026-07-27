@@ -407,18 +407,27 @@
   }
 
   /* Set tanggal aktif (hidden value + teks tampilan) tanpa buka picker —
-     dipakai saat init screen & tombol "Hari Ini". */
+     dipakai saat init screen. */
   function iaSetTanggal_(dateStr) {
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     document.getElementById('iaTanggal').value = dateStr;
     const d = new Date(dateStr + 'T00:00:00');
     document.getElementById('iaTanggalDisplay').value = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
     if (window.ppgDatePickerState) delete window.ppgDatePickerState['iaTanggal'];
+    window.iaUpdateDateLabel_();
   }
 
-  window.iaGoToToday_ = function () {
-    iaSetTanggal_(iaToday_());
-    window.iaOnTanggalChange_();
+  /* Label tanggal aktif (nama hari + tanggal lengkap) di bawah nama guru,
+     dipakai sebagai pengganti card tanggal + tombol "Hari Ini" lama. */
+  window.iaUpdateDateLabel_ = function () {
+    const dateStr = document.getElementById('iaTanggal').value;
+    const label = document.getElementById('iaHeaderDateLabel');
+    if (!label || !dateStr) return;
+    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const d = new Date(dateStr + 'T00:00:00');
+    const isToday = dateStr === iaToday_();
+    label.textContent = (isToday ? 'Hari ini · ' : '') + `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   function iaShowToast_(message, type) {
@@ -589,12 +598,16 @@
       return;
     }
     wrap.innerHTML = list.map(function (item) {
+      const infoParts = [];
+      if (item.ruangan) infoParts.push(item.ruangan);
+      infoParts.push(item.total + ' Santri');
+      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
       return `
         <div class="ia-dash-card">
           <div class="ia-dash-card-head">
             <span class="ia-dash-card-kelas">Kelas ${item.kelas}</span>
-            <span class="ia-dash-card-total">${item.total} Santri</span>
           </div>
+          <div class="ia-dash-card-info">${infoParts.join(' · ')}</div>
           <div class="ia-dash-stat-row">
             <div class="ia-dash-stat hadir">
               <span class="ia-dash-stat-num">${item.hadir}</span>
@@ -2757,14 +2770,14 @@
   /* ═════ CUSTOM DATE PICKER (dipakai oleh form Tambah Guru) ═════ */
   window.ppgDatePickerState = {};
 
-  window.toggleDatePicker = function (inputId) {
+  window.toggleDatePicker = function (inputId, triggerElId) {
     const picker = document.getElementById(inputId + 'Picker');
     const willOpen = !picker.classList.contains('open');
 
     document.querySelectorAll('.ppg-datepicker').forEach(p => p.classList.remove('open'));
 
     if (willOpen) {
-      const trigger = document.getElementById(inputId + 'Display');
+      const trigger = document.getElementById(triggerElId || (inputId + 'Display'));
       const rect = trigger.getBoundingClientRect();
       const pickerHeight = 360;
       const openBelow = rect.bottom + pickerHeight + 10 <= window.innerHeight;
@@ -2878,6 +2891,7 @@
       window.updatePengurusLama_();
     }
     if (inputId === 'iaTanggal') {
+      window.iaUpdateDateLabel_();
       window.iaOnTanggalChange_();
     }
   };

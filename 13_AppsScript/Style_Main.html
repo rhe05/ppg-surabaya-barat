@@ -3790,9 +3790,38 @@
       margin-bottom: 14px;
     }
 
-    .ia-greeting {
+    .ia-app-brand {
       flex: 1;
       min-width: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    .ia-app-brand-icon {
+      flex-shrink: 0;
+      display: block;
+    }
+
+    .ia-app-brand-name {
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.01em;
+      white-space: nowrap;
+    }
+
+    .ia-greeting {
+      margin-bottom: 14px;
+    }
+
+    .ia-greeting-date {
+      color: rgba(255,255,255,0.88);
+      font-size: 12.5px;
+      font-weight: 600;
+      margin-top: 2px;
+      letter-spacing: 0.01em;
     }
 
     .ia-hamburger-btn {
@@ -3828,7 +3857,7 @@
       left: 18px;
       z-index: 91;
       width: 220px;
-      background: var(--surface);
+      background: var(--panel);
       border-radius: var(--radius-lg);
       box-shadow: 0 12px 32px rgba(0,0,0,0.22);
       padding: 8px;
@@ -3946,34 +3975,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
     }
 
-    .ia-date-row {
-      display: flex;
-      gap: 8px;
-      position: relative;
-    }
-
     .ia-date-display {
-      flex: 1;
       cursor: pointer;
-    }
-
-    .ia-today-btn {
-      flex-shrink: 0;
-      border: none;
-      border-radius: var(--radius-lg);
-      padding: 0 14px;
-      min-width: 92px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--brass);
-      background: rgba(255,255,255,0.95);
-      cursor: pointer;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-
-    .ia-today-btn:active {
-      transform: scale(0.96);
     }
 
     .ia-kelas-row {
@@ -4096,7 +4099,7 @@
       display: flex;
       align-items: baseline;
       justify-content: space-between;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
     }
 
     .ia-dash-card-kelas {
@@ -4105,10 +4108,11 @@
       color: var(--text);
     }
 
-    .ia-dash-card-total {
+    .ia-dash-card-info {
       font-size: 12.5px;
       font-weight: 600;
       color: var(--text-dim);
+      margin-bottom: 12px;
     }
 
     .ia-dash-stat-row {

@@ -401,7 +401,11 @@ function serverGetGuruDashboardSummary(token, tanggal) {
   const result = kelasOwned.map(function (kelas) {
     const kelasLower = kelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const summary = { kelas: kelas, total: santriKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0, belumInput: 0 };
+    const info = getKelasSessionInfo_(ctx.kelompokId, kelas) || {};
+    const summary = {
+      kelas: kelas, total: santriKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0, belumInput: 0,
+      ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '',
+    };
     santriKelas.forEach(function (s) {
       const status = statusMap[s.id];
       if (status === 'hadir') summary.hadir++;
