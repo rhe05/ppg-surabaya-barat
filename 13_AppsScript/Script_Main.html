@@ -562,13 +562,33 @@
     }
   };
 
-  /* ─── Switch view: Dashboard (ringkasan kehadiran) vs Pilih Kelas (input absen) ─── */
+  /* ─── Switch view: Dashboard (ringkasan kehadiran) vs Pilih Kelas (input absen) ───
+     Pindah antar view TIDAK selalu perlu round-trip server baru: DOM kartu/chip
+     dari load sebelumnya TIDAK dibersihkan saat view disembunyikan (cuma
+     display:none), jadi kalau datanya masih relevan (tanggal/filter sama,
+     belum ada perubahan yang butuh refresh), tinggal tampilkan lagi yang
+     sudah ada — instan, tanpa `google.script.run`. Kunci cache diperbarui
+     oleh iaLoadDashboardSummary_/iaLoadKelasList_ tiap kali berhasil memuat,
+     dan diputus (null) tiap kali datanya bisa jadi basi (simpan absen, ganti
+     filter). Lihat ERROR_LOG.md #21. */
+
+  function iaDashboardCacheKey_() {
+    const filter = window.iaState_.dashboardFilter;
+    return filter ? ('range:' + filter.mulai + ':' + filter.selesai) : ('day:' + document.getElementById('iaTanggal').value);
+  }
+
+  function iaKelasCacheKey_() {
+    const tanggal = document.getElementById('iaTanggal').value;
+    const kelompokId = window.iaState_.mode === 'admin' ? window.iaState_.kelompokId : '';
+    return tanggal + '|' + kelompokId;
+  }
 
   window.iaShowDashboardView_ = function () {
     window.iaState_.activeView = 'dashboard';
     document.getElementById('iaDashboardView').style.display = 'block';
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
     window.iaLoadDashboardSummary_();
   };
 
@@ -576,13 +596,16 @@
     window.iaState_.activeView = 'kelas';
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
-    if (!skipLoad) window.iaLoadKelasList_();
+    if (skipLoad) return;
+    if (window.iaState_.kelasLoadedKey === iaKelasCacheKey_()) return;
+    window.iaLoadKelasList_();
   };
 
   /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */
 
   window.iaLoadDashboardSummary_ = function () {
     const wrap = document.getElementById('iaDashboardCards');
+    const key = iaDashboardCacheKey_();
     window.showGlobalLoading_('Memuat ringkasan...');
 
     const onResult = function (result) {
@@ -591,6 +614,7 @@
         wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
         return;
       }
+      window.iaState_.dashboardLoadedKey = key;
       window.iaRenderDashboardCards_(result.data);
     };
     const onFail = function (err) {
@@ -737,6 +761,7 @@
     const tanggal = document.getElementById('iaTanggal').value;
     const row = document.getElementById('iaKelasRow');
     const keepKelas = window.iaState_.kelas;
+    const key = iaKelasCacheKey_();
     row.innerHTML = '';
     window.showGlobalLoading_('Memuat kelas...');
 
@@ -747,6 +772,7 @@
         row.innerHTML = '<div style="padding:8px; color:var(--red); font-size:13px;">' + result.error + '</div>';
         return;
       }
+      window.iaState_.kelasLoadedKey = key;
       window.iaState_.kelasMeta = {};
       const chipEls = [];
       result.data.forEach(function (item) {
@@ -923,6 +949,10 @@
       btn.textContent = 'Simpan Absen';
       if (result.success) {
         iaShowToast_('✓ ' + result.message, 'success');
+        // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
+        // absen baru saja disimpan — paksa reload sekali berikutnya kali
+        // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
+        window.iaState_.dashboardLoadedKey = null;
       } else {
         iaShowToast_(result.error, 'error');
       }

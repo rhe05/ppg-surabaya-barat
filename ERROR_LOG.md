@@ -630,6 +630,46 @@ request independen (tidak saling tunggu hasil), pertimbangkan
 
 ---
 
+## #21 — Pindah Dashboard↔Pilih Kelas selalu lambat DUA ARAH, walau server sudah dioptimasi (#18-#20) (2026-07-28)
+
+**Gejala**: setelah #18-#20 (server sudah jauh lebih hemat baca sheet),
+pindah dari Dashboard → Pilih Kelas TETAP lambat, dan sebaliknya Pilih
+Kelas → Dashboard JUGA lambat — padahal user cuma pindah tampilan, tanggal
+tidak berubah.
+
+**Akar masalah**: `iaShowDashboardView_`/`iaShowKelasView_` (Script_Main.html)
+SELALU memanggil `iaLoadDashboardSummary_`/`iaLoadKelasList_` tiap kali
+dipanggil, tanpa syarat — padahal DOM kartu Dashboard (`#iaDashboardCards`)
+dan chip+form Kelas (`#iaKelasRow`/`#iaSantriList`) TIDAK PERNAH dibersihkan
+saat view disembunyikan (cuma `style.display = 'none'`, isinya tetap ada).
+Jadi tiap pindah-pindah view, walau datanya 100% masih sama & valid (tanggal
+sama, belum ada perubahan), aplikasi tetap memicu `google.script.run` baru
+ke server (yang tetap butuh network round-trip meski sudah dioptimasi
+di sisi server) — kerja dua kali untuk hasil yang identik.
+
+**Perbaikan**: tambah cache client-side sederhana berbasis "kunci state
+terakhir dimuat": `iaDashboardCacheKey_()`/`iaKelasCacheKey_()` menghasilkan
+string dari tanggal+filter (Dashboard) atau tanggal+kelompokId (Kelas).
+`iaState_.dashboardLoadedKey`/`kelasLoadedKey` diisi tiap kali load SUKSES.
+`iaShowDashboardView_`/`iaShowKelasView_` sekarang cek dulu: kalau kunci
+sekarang == kunci terakhir dimuat, LANGSUNG return (tampilkan lagi apa yang
+sudah ada di DOM) — TANPA `google.script.run` sama sekali, jadi instan.
+Kunci diputus (`= null`) di `saveInputAbsen_` setelah simpan absen sukses
+(ringkasan Dashboard jadi basi, harus reload sekali berikutnya dibuka) —
+ganti tanggal/filter otomatis bikin kunci tidak cocok lagi (tidak perlu
+invalidasi eksplisit, deteksi lewat perbandingan string).
+
+**Aturan permanen**: kalau UI switch antar-view/tab TIDAK membersihkan DOM
+view yang disembunyikan (cuma `display:none`), JANGAN otomatis re-fetch
+tiap kali view itu ditampilkan lagi — cek dulu apakah data yang sudah ada
+masih valid utk state saat ini (biasanya cukup 1 string kunci berisi
+parameter yang menentukan hasil query, mis. tanggal/filter/id). Skip
+round-trip kalau kunci cocok. Ini beda dari optimasi #18-#20 (yang soal
+"1 kali load itu boros berapa banyak") — ini soal "jangan load ulang kalau
+tidak perlu load sama sekali".
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
