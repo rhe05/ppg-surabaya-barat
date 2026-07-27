@@ -203,7 +203,7 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
 
 /**
  * GET absensi summary untuk tanggal tertentu (per Kelompok).
- * Return: {tanggal, hadir, alpa, izin, total}.
+ * Return: {tanggal, hadir, alpa, izin, sakit, total}.
  */
 function serverGetAbsensiSummary(token, kelompokId, tanggal) {
   const user = getCurrentUser(token);
@@ -225,6 +225,7 @@ function serverGetAbsensiSummary(token, kelompokId, tanggal) {
     hadir: absensiKelompok.filter(a => a.status === 'hadir').length,
     alpa: absensiKelompok.filter(a => a.status === 'alpa').length,
     izin: absensiKelompok.filter(a => a.status === 'izin').length,
+    sakit: absensiKelompok.filter(a => a.status === 'sakit').length,
     total: santriIds.length,
   };
 
@@ -239,7 +240,7 @@ function serverGetAbsensiSummary(token, kelompokId, tanggal) {
  * @param {string} kelompokId - Target Kelompok ID
  * @param {number} year - Tahun (YYYY)
  * @param {number} month - Bulan (1-12)
- * @returns {Object} { success, data: [{santri_id, nama, hadir, alpa, izin, total, alpa_pct, berisiko}] }
+ * @returns {Object} { success, data: [{santri_id, nama, hadir, alpa, izin, sakit, total, alpa_pct, berisiko}] }
  */
 function serverGetSantriBerisiko(token, kelompokId, year, month) {
   const user = getCurrentUser(token);
@@ -269,7 +270,7 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
   // Calculate stats per santri
   const santriStats = {};
   santriList.forEach(s => {
-    santriStats[s.id] = { hadir: 0, alpa: 0, izin: 0 };
+    santriStats[s.id] = { hadir: 0, alpa: 0, izin: 0, sakit: 0 };
   });
 
   monthAbsensi.forEach(a => {
@@ -277,6 +278,7 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
       if (a.status === 'hadir') santriStats[a.santri_id].hadir++;
       else if (a.status === 'alpa') santriStats[a.santri_id].alpa++;
       else if (a.status === 'izin') santriStats[a.santri_id].izin++;
+      else if (a.status === 'sakit') santriStats[a.santri_id].sakit++;
     }
   });
 
@@ -284,7 +286,7 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
   const result = [];
   Object.keys(santriStats).forEach(santriId => {
     const stats = santriStats[santriId];
-    const total = stats.hadir + stats.alpa + stats.izin;
+    const total = stats.hadir + stats.alpa + stats.izin + stats.sakit;
     const alpaPct = total > 0 ? Math.round((stats.alpa / total) * 100) : 0;
     const berisiko = alpaPct > 20; // BR-13: >20% alpa is concerning
 
@@ -294,6 +296,7 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
       hadir: stats.hadir,
       alpa: stats.alpa,
       izin: stats.izin,
+      sakit: stats.sakit,
       total,
       alpa_pct: alpaPct,
       berisiko,

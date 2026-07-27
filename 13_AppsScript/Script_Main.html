@@ -3585,7 +3585,8 @@
         const totalHadir = rows.reduce((sum, r) => sum + r.hadir, 0);
         const totalAlpa = rows.reduce((sum, r) => sum + r.alpa, 0);
         const totalIzin = rows.reduce((sum, r) => sum + r.izin, 0);
-        const totalRecord = totalHadir + totalAlpa + totalIzin;
+        const totalSakit = rows.reduce((sum, r) => sum + r.sakit, 0);
+        const totalRecord = totalHadir + totalAlpa + totalIzin + totalSakit;
         const persenKehadiran = totalRecord > 0 ? Math.round((totalHadir / totalRecord) * 100) : 0;
 
         document.getElementById('kdAbsenPct').textContent = persenKehadiran;
@@ -5254,7 +5255,7 @@
               .map(s => `
                 <div style="padding: 8px 0; border-bottom: 1px solid #fecaca; display: flex; justify-content: space-between; align-items: center;">
                   <span style="color: #7f1d1d;"><strong>${s.nama}</strong> — ${s.alpa_pct}% Alpa</span>
-                  <span style="font-size: 11px; color: #991b1b;">Hadir: ${s.hadir}, Alpa: ${s.alpa}, Izin: ${s.izin}</span>
+                  <span style="font-size: 11px; color: #991b1b;">Hadir: ${s.hadir}, Alpa: ${s.alpa}, Izin: ${s.izin}, Sakit: ${s.sakit}</span>
                 </div>
               `)
               .join('');
