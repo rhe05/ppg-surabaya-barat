@@ -30,11 +30,92 @@ function requireGuruContext_(token) {
 }
 
 /**
+ * Baca 1 tabel yang di-scope per Kelompok (santri/guru/jadwal_kbm) — jauh
+ * lebih cepat dari readSheetAsObjects() generik utk kasus Input Absen, yang
+ * SELALU langsung butuh data 1 kelompok saja. readSheetAsObjects() generik
+ * WAJIB baca Sheets PENUH (semua kelompok) + Firestore (kelompok yg sudah
+ * migrasi) supaya benar utk 40+ pemanggil lain di app ini — tapi utk 1
+ * kelompok spesifik itu kerja 2x lipat yang sia-sia (baca ratusan baris
+ * kelompok LAIN cuma buat dibuang, DAN baca Firestore lagi). Kalau kelompok
+ * ini sudah pindah Firestore (isKelompokTableOnFirestore_), baca Firestore
+ * SAJA (skip Sheets total, sudah pasti kosong di sana). Kalau belum pindah,
+ * baca Sheets mentah saja (skip pengecekan Firestore kelompok lain). Lihat
+ * ERROR_LOG.md #20.
+ */
+function iaReadKelompokTable_(sheetName, kelompokId) {
+  if (isKelompokTableOnFirestore_(sheetName, kelompokId)) {
+    return firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName);
+  }
+  return readSheetRowsRaw_(sheetName).filter(function (r) { return r.kelompok_id == kelompokId; });
+}
+
+/**
+ * Baca BEBERAPA tabel Firestore ('kelompok/{id}/{tabel}') SEKALIGUS PARALEL
+ * lewat UrlFetchApp.fetchAll — bukan satu-satu berurutan. `getKelasSessionInfo_`
+ * dkk butuh jadwal_kbm+guru+santri dalam 1 request Input Absen; kalau ketiganya
+ * sudah pindah Firestore (Kelp Petemon), baca satu-satu = 3x latensi jaringan
+ * BERURUTAN. Paralel = cuma latensi 1x request (paling lambat dari yang 3).
+ * Tabel yang BELUM pindah Firestore tetap dibaca lewat readSheetRowsRaw_
+ * biasa (SpreadsheetApp, bukan HTTP, tidak bisa/perlu diparalelkan).
+ * @param {string[]} sheetNames
+ * @returns {Object} { [sheetName]: rows[] }
+ */
+function iaReadKelompokTablesParallel_(sheetNames, kelompokId) {
+  const result = {};
+  const firestoreNames = [];
+  sheetNames.forEach(function (name) {
+    if (isKelompokTableOnFirestore_(name, kelompokId)) {
+      firestoreNames.push(name);
+    } else {
+      result[name] = readSheetRowsRaw_(name).filter(function (r) { return r.kelompok_id == kelompokId; });
+    }
+  });
+
+  if (firestoreNames.length === 0) return result;
+  if (firestoreNames.length === 1) {
+    result[firestoreNames[0]] = firestoreListCollection_('kelompok/' + kelompokId + '/' + firestoreNames[0]);
+    return result;
+  }
+
+  const token = firestoreGetAccessToken_();
+  const baseUrl = firestoreBaseUrl_();
+  const requests = firestoreNames.map(function (name) {
+    return {
+      url: baseUrl + '/kelompok/' + kelompokId + '/' + name + '?pageSize=300',
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+    };
+  });
+  const responses = UrlFetchApp.fetchAll(requests);
+
+  firestoreNames.forEach(function (name, idx) {
+    const resp = responses[idx];
+    const code = resp.getResponseCode();
+    if (code < 200 || code >= 300) {
+      throw new Error('Gagal baca koleksi Firestore "kelompok/' + kelompokId + '/' + name + '": ' + resp.getContentText());
+    }
+    const body = resp.getContentText() ? JSON.parse(resp.getContentText()) : {};
+    const docs = body.documents || [];
+    let rows = docs.map(firestoreDocToObject_);
+    // Jaga-jaga kalau 1 kelompok punya >300 baris di tabel ini (jarang) —
+    // ambil sisa halamannya via jalur sekuensial biasa, tetap benar walau
+    // kehilangan sebagian manfaat paralel utk tabel itu saja.
+    if (body.nextPageToken) {
+      rows = firestoreListCollection_('kelompok/' + kelompokId + '/' + name);
+    }
+    result[name] = rows;
+  });
+
+  return result;
+}
+
+/**
  * Ambil daftar nama kelas (jadwal_kbm.kelas, status Aktif) milik satu guru_id
  * di satu Kelompok. Dedupe case-insensitive, tampilkan versi asli pertama ditemukan.
  */
 function getKelasOwnedByGuru_(kelompokId, guruId, jadwalRowsAll) {
-  const rows = (jadwalRowsAll || readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)).filter(function (j) {
+  const rows = (jadwalRowsAll || iaReadKelompokTable_(SHEET_NAMES.JADWAL_KBM, kelompokId)).filter(function (j) {
     return j.kelompok_id == kelompokId && j.guru_id == guruId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
   const seen = {};
@@ -57,14 +138,14 @@ function getKelasOwnedByGuru_(kelompokId, guruId, jadwalRowsAll) {
  */
 function getKelasSessionInfo_(kelompokId, kelas, jadwalRowsAll, guruRowsAll) {
   const kelasLower = String(kelas).trim().toLowerCase();
-  const rows = (jadwalRowsAll || readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)).filter(function (j) {
+  const rows = (jadwalRowsAll || iaReadKelompokTable_(SHEET_NAMES.JADWAL_KBM, kelompokId)).filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' &&
       String(j.kelas || '').trim().toLowerCase() === kelasLower;
   });
   if (rows.length === 0) return null;
   rows.sort(function (a, b) { return String(b.dibuat_pada || '').localeCompare(String(a.dibuat_pada || '')); });
   const row = rows[0];
-  const guruRows = row.guru_id ? (guruRowsAll || readSheetAsObjects(SHEET_NAMES.GURU)) : [];
+  const guruRows = row.guru_id ? (guruRowsAll || iaReadKelompokTable_(SHEET_NAMES.GURU, kelompokId)) : [];
   const guruRow = row.guru_id ? guruRows.find(function (g) { return g.id == row.guru_id; }) : null;
   return {
     guruId: row.guru_id || null,
@@ -143,14 +224,13 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
 
-  // jadwal_kbm, guru, & santri dibaca SEKALI di sini dan dipakai ulang di
-  // seluruh fungsi (termasuk lookup pemilik kelas & form santri di bawah) —
-  // sheet 'santri'/'guru'/'jadwal_kbm' Kelp Petemon sudah pindah ke Firestore
-  // (lihat FIRESTORE_KELOMPOK_TABLES_), jadi tiap readSheetAsObjects() baru
-  // = 1 request Firestore baru; makin sedikit dipanggil makin cepat.
-  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
-  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
-  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  // jadwal_kbm, guru, & santri dibaca SEKALI & PARALEL di sini (dipakai ulang
+  // di seluruh fungsi ini, termasuk lookup pemilik kelas & form santri di
+  // bawah). Lihat ERROR_LOG.md #19/#20/#21 — Kelp Petemon sudah pindah Firestore.
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
 
   const owned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
   const list = owned.map(function (k) { return { kelas: k, isOwn: true }; });
@@ -218,8 +298,8 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const santriKelas = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) {
-    return s.kelompok_id == ctx.kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
+  const santriKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, ctx.kelompokId).filter(function (s) {
+    return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
 
   const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
@@ -251,8 +331,8 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const santriIdsKelas = readSheetAsObjects(SHEET_NAMES.SANTRI)
-    .filter(function (s) { return s.kelompok_id == ctx.kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
+  const santriIdsKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, ctx.kelompokId)
+    .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
 
   let count = 0;
@@ -285,13 +365,13 @@ function serverListKelasUntukPermintaan(token) {
   const ctx = requireGuruContext_(token);
   if (!ctx.success) return ctx;
 
-  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
+  const jadwalRowsAll = iaReadKelompokTable_(SHEET_NAMES.JADWAL_KBM, ctx.kelompokId);
   const owned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll).map(function (k) { return k.toLowerCase(); });
   const rows = jadwalRowsAll.filter(function (j) {
     return j.kelompok_id == ctx.kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
   const guruMap = {};
-  readSheetAsObjects(SHEET_NAMES.GURU).forEach(function (g) { guruMap[g.id] = g.nama; });
+  iaReadKelompokTable_(SHEET_NAMES.GURU, ctx.kelompokId).forEach(function (g) { guruMap[g.id] = g.nama; });
 
   const seen = {};
   const result = [];
@@ -431,12 +511,13 @@ function serverGetGuruDashboardSummary(token, tanggal) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
 
-  // jadwal_kbm & guru dibaca SEKALI di sini (SEBELUM getKelasOwnedByGuru_,
-  // supaya ownership check ikut pakai array ini juga, bukan baca ulang).
-  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
-  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
+  // jadwal_kbm, guru, & santri dibaca SEKALI & PARALEL di sini (lihat
+  // ERROR_LOG.md #19/#20/#21).
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
   const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
-  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
   const absensiTanggal = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
   const statusMap = {};
   absensiTanggal.forEach(function (a) { statusMap[a.santri_id] = a.status; });
@@ -479,12 +560,13 @@ function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai)
     return { success: false, error: 'Tanggal selesai tidak boleh sebelum tanggal mulai.' };
   }
 
-  // jadwal_kbm & guru dibaca SEKALI di sini (SEBELUM getKelasOwnedByGuru_,
-  // supaya ownership check ikut pakai array ini juga, bukan baca ulang).
-  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
-  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
+  // jadwal_kbm, guru, & santri dibaca SEKALI & PARALEL di sini (lihat
+  // ERROR_LOG.md #19/#20/#21).
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
   const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
-  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == ctx.kelompokId; });
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
   const absensiRange = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
     const t = tanggalKeString_(a.tanggal);
     return t >= tanggalMulai && t <= tanggalSelesai;
@@ -545,9 +627,11 @@ function serverGetInputAbsenKelompokOptionsAdmin(token) {
  * difilter per guru_id, beda dari getKelasOwnedByGuru_.
  */
 function getAllKelasInKelompok_(kelompokId) {
-  // jadwal_kbm & guru dibaca SEKALI di luar loop, bukan per-kelas (N+1 fix).
-  const jadwalRowsAll = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM);
-  const guruRowsAll = readSheetAsObjects(SHEET_NAMES.GURU);
+  // jadwal_kbm & guru dibaca SEKALI & PARALEL di luar loop (bukan per-kelas),
+  // lihat ERROR_LOG.md #19/#20/#21.
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU], kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
   const rows = jadwalRowsAll.filter(function (j) {
     return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
@@ -585,7 +669,7 @@ function serverGetKelasAbsenListAdmin(token, kelompokId, tanggal, preferKelas) {
   }
 
   const list = getAllKelasInKelompok_(kelompokId);
-  const santriAll = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == kelompokId; });
+  const santriAll = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId);
   list.forEach(function (item) {
     const kelasLower = item.kelas.toLowerCase();
     item.santriCount = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; }).length;
@@ -619,8 +703,8 @@ function serverGetAbsensiKelasFormAdmin(token, kelompokId, kelas, tanggal) {
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const santriKelas = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) {
-    return s.kelompok_id == kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
+  const santriKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId).filter(function (s) {
+    return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
 
   const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
@@ -644,8 +728,8 @@ function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiL
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const santriIdsKelas = readSheetAsObjects(SHEET_NAMES.SANTRI)
-    .filter(function (s) { return s.kelompok_id == kelompokId && String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
+  const santriIdsKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId)
+    .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
 
   let count = 0;

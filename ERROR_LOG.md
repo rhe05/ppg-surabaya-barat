@@ -579,6 +579,57 @@ pindah ke Firestore (biaya per-call jauh lebih terasa dibanding Sheets).
 
 ---
 
+## #20 — "Pilih Kelas" MASIH ~10 detik setelah #18+#19 (readSheetAsObjects generik baca 2x tempat) (2026-07-28)
+
+**Gejala**: setelah #18 & #19, "Pilih Kelas" tetap ~10 detik (target user:
+di bawah 1 detik).
+
+**Akar masalah**: `readSheetAsObjects()` generik (Modul_Utilities.gs), untuk
+tabel yang statusnya "sudah pindah Firestore utk SEBAGIAN kelompok"
+(`santri`/`guru`/`jadwal_kbm`, kelompok `'1'` = Kelp Petemon), SELALU
+melakukan **DUA** pembacaan tiap kali dipanggil:
+1. `readSheetRowsRaw_()` — scan PENUH sheet Google Sheets, SEMUA kelompok
+   (bukan cuma kelompok yang diminta) — perlu, supaya kelompok yang BELUM
+   pindah tetap kebaca; tapi utk kelompok yang SUDAH pindah (spt kelp 1),
+   baris-barisnya sengaja dikecualikan di sini, jadi hasil scan ini 100%
+   DIBUANG untuk kelompok itu — kerja penuh, hasil nol.
+2. `firestoreListCollection_()` — request HTTP ke Firestore utk kelompok yang
+   sudah pindah.
+
+Guru di Kelp Petemon (kelompok Firestore) jadi bayar BIAYA PENUH kedua jalur
+tiap kali salah satu dari 3 tabel ini dibaca — padahal cuma butuh jalur
+Firestore saja. Fix #18/#19 sudah menghilangkan pembacaan BERULANG di dalam
+1 fungsi, tapi belum menyentuh pemborosan generik struktural ini.
+
+**Perbaikan #1 — `iaReadKelompokTable_(sheetName, kelompokId)`** (baru, di
+Modul_InputAbsen.gs): kalau `isKelompokTableOnFirestore_(sheetName,
+kelompokId)` true → baca Firestore SAJA (skip scan Sheets total). Kalau
+false → baca `readSheetRowsRaw_()` SAJA lalu filter kelompok (skip
+pengecekan/percobaan Firestore). Menggantikan SEMUA pemanggilan
+`readSheetAsObjects(SANTRI/GURU/JADWAL_KBM)` di modul ini (termasuk fallback
+default parameter di `getKelasOwnedByGuru_`/`getKelasSessionInfo_`).
+
+**Perbaikan #2 — `iaReadKelompokTablesParallel_(sheetNames, kelompokId)`**
+(baru): kalau beberapa tabel Firestore dibutuhkan SEKALIGUS (jadwal_kbm +
+guru + santri, kasus paling umum di Input Absen), jangan panggil
+`firestoreListCollection_` satu-satu BERURUTAN (3× latensi jaringan
+ditumpuk) — pakai `UrlFetchApp.fetchAll()` supaya ketiga request jalan
+PARALEL (cuma ~1× latensi, seukuran yang paling lambat dari ketiganya).
+Fallback ke jalur sekuensial normal kalau salah satu koleksi ternyata
+>300 dokumen (butuh `nextPageToken`, jarang terjadi utk 1 kelompok).
+`serverGetKelasAbsenList`, `serverGetGuruDashboardSummary(Range)`, dan
+`getAllKelasInKelompok_` (mode Admin) sekarang pakai ini.
+
+**Aturan permanen**: (1) kalau ada helper generik yang "aman tapi mahal"
+(disini: `readSheetAsObjects` yg harus benar utk 40+ pemanggil beda
+kebutuhan), dan satu pemanggil TAHU PERSIS scope-nya (di sini: 1 kelompok
+spesifik), buat helper SEMPIT khusus pemanggil itu — jangan paksa generik
+lebih pintar (resiko pecah di pemanggil lain). (2) kalau butuh >1 HTTP
+request independen (tidak saling tunggu hasil), pertimbangkan
+`UrlFetchApp.fetchAll()` alih-alih loop `UrlFetchApp.fetch()` satu-satu.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
