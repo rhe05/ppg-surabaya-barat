@@ -50,6 +50,28 @@ function iaReadKelompokTable_(sheetName, kelompokId) {
 }
 
 /**
+ * Baca absensi 1 Kelompok SAJA — TIDAK PAKAI `readSheetAsObjects(ABSENSI)`
+ * generik. Absensi tidak punya kolom kelompok_id sendiri, jadi versi generik
+ * menanganinya dgn REBUILD PETA SELURUH santri (baca ulang `readSheetAsObjects
+ * (SANTRI)`) SETIAP KALI absensi dibaca — begitu santri JUGA Firestore-migrated,
+ * itu jadi 1 scan Sheets + 1 fetch Firestore TERSEMBUNYI di tiap baca absensi
+ * (regresi nyata, lihat ERROR_LOG.md #23). Di sini join dilakukan LOKAL pakai
+ * santriIdsKelompok yang pemanggil SUDAH punya (tidak baca ulang apa pun).
+ * @param {string} kelompokId
+ * @param {(string|number)[]} santriIdsKelompok - id SEMUA santri kelompok ini
+ *   (dipakai HANYA di jalur Sheets; jalur Firestore sudah di-scope via path)
+ */
+function iaReadAbsensiKelompok_(kelompokId, santriIdsKelompok) {
+  if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, kelompokId)) {
+    return firestoreListCollection_('kelompok/' + kelompokId + '/absensi');
+  }
+  const santriIdSet = santriIdsKelompok.map(function (id) { return String(id); });
+  return readSheetRowsRaw_(SHEET_NAMES.ABSENSI).filter(function (a) {
+    return santriIdSet.indexOf(String(a.santri_id)) !== -1;
+  });
+}
+
+/**
  * Baca BEBERAPA tabel Firestore ('kelompok/{id}/{tabel}') SEKALIGUS PARALEL
  * lewat UrlFetchApp.fetchAll — bukan satu-satu berurutan. `getKelasSessionInfo_`
  * dkk butuh jadwal_kbm+guru+santri dalam 1 request Input Absen; kalau ketiganya
@@ -262,8 +284,8 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
 
   // Sekalian siapkan form santri utk kelas yang bakal auto-dipilih klien
   // (preferKelas kalau ada & masih ada di list, else kelas pertama) — pakai
-  // santriAll yang SUDAH dibaca di atas, cuma tambah 1 baca 'absensi' (masih
-  // di Sheets biasa utk Kelp Petemon, bukan Firestore, jadi murah).
+  // santriAll yang SUDAH dibaca di atas + iaReadAbsensiKelompok_ (BUKAN
+  // readSheetAsObjects generik — lihat ERROR_LOG.md #23).
   let formKelas = null;
   let formData = null;
   if (list.length > 0) {
@@ -275,7 +297,8 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     formKelas = list[idx].kelas;
     const kelasLower = formKelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
+    const absensiExisting = iaReadAbsensiKelompok_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }))
+      .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
@@ -302,9 +325,8 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
     return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
 
-  const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
-    return tanggalKeString_(a.tanggal) === tanggal;
-  });
+  const absensiExisting = iaReadAbsensiKelompok_(ctx.kelompokId, santriKelas.map(function (s) { return s.id; }))
+    .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
   const statusMap = {};
   absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
 
@@ -604,7 +626,8 @@ function serverGetGuruDashboardSummary(token, tanggal) {
   const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
   const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
   const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
-  const absensiTanggal = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
+  const absensiTanggal = iaReadAbsensiKelompok_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }))
+    .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
   const statusMap = {};
   absensiTanggal.forEach(function (a) { statusMap[a.santri_id] = a.status; });
 
@@ -653,7 +676,7 @@ function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai)
   const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
   const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
   const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
-  const absensiRange = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const absensiRange = iaReadAbsensiKelompok_(ctx.kelompokId, santriAll.map(function (s) { return s.id; })).filter(function (a) {
     const t = tanggalKeString_(a.tanggal);
     return t >= tanggalMulai && t <= tanggalSelesai;
   });
@@ -772,7 +795,8 @@ function serverGetKelasAbsenListAdmin(token, kelompokId, tanggal, preferKelas) {
     formKelas = list[idx].kelas;
     const kelasLower = formKelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
+    const absensiExisting = iaReadAbsensiKelompok_(kelompokId, santriAll.map(function (s) { return s.id; }))
+      .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
@@ -793,7 +817,7 @@ function serverGetAbsensiKelasFormAdmin(token, kelompokId, kelas, tanggal) {
     return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
 
-  const absensiExisting = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const absensiExisting = iaReadAbsensiKelompok_(kelompokId, santriKelas.map(function (s) { return s.id; })).filter(function (a) {
     return tanggalKeString_(a.tanggal) === tanggal;
   });
   const statusMap = {};

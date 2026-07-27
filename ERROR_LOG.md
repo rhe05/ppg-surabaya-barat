@@ -742,6 +742,55 @@ perubahan ini masih segar.
 
 ---
 
+## #23 — Regresi TERSEMBUNYI dari #22: baca absensi diam-diam baca ulang SELURUH santri (2026-07-28, ditemukan SEBELUM sempat dilaporkan user)
+
+**Gejala**: user melaporkan login masih terasa lambat, PADAHAL semua fix
+#18-#22 sudah jalan. Diaudit ulang dan ketemu: mengaktifkan Firestore utk
+`absensi` (bagian dari #22) ternyata MENAMBAH beban baru di jalur BACA,
+bukan cuma menghemat di jalur tulis.
+
+**Akar masalah**: `readSheetAsObjects(ABSENSI)` generik (Modul_Utilities.gs)
+punya kasus khusus karena absensi tidak punya kolom `kelompok_id` sendiri:
+
+```js
+if (sheetName === SHEET_NAMES.ABSENSI) {
+  const santriKelompokMap_ = {};
+  readSheetAsObjects(SHEET_NAMES.SANTRI).forEach(...)  // baca SANTRI lagi!
+  ...
+}
+```
+
+Ini SUDAH ada sebelum sesi ini (bukan bug baru saya buat), tapi SELAMA
+`absensi` belum Firestore-migrated, dampaknya kecil (cuma nambah 1 baca
+sheet santri biasa). Begitu saya flip `FIRESTORE_KELOMPOK_TABLES_.absensi =
+['1']` (#22), kondisi `kelompokFirestoreList.length > 0` jadi TRUE, jadi
+baris ini SELALU jalan — dan `readSheetAsObjects(SANTRI)` yang dipanggilnya
+JUGA sudah Firestore-migrated, artinya SETIAP kali absensi dibaca, diam-diam
+memicu: 1 scan Sheets (absensi) + [1 scan Sheets (santri) + 1 fetch
+Firestore (santri)] + 1 fetch Firestore (absensi) — 4 operasi jaringan
+BERURUTAN, padahal sebagian besar fungsi Input Absen SUDAH punya daftar
+santri kelompok itu di tangan (tidak perlu baca ulang sama sekali). Ini
+kena di 6 titik: `serverGetKelasAbsenList`/`Admin`, `serverGetAbsensiKelasForm`/
+`Admin`, `serverGetGuruDashboardSummary`/`Range` — praktis SEMUA alur baca
+Input Absen, termasuk yang jalan otomatis tiap login (Dashboard).
+
+**Perbaikan**: `iaReadAbsensiKelompok_(kelompokId, santriIdsKelompok)` (baru)
+— kalau kelompok sudah Firestore-migrated, langsung `firestoreListCollection_
+('kelompok/'+id+'/absensi')` (SUDAH di-scope lewat path, TIDAK BUTUH join
+sama sekali). Kalau belum, baca `readSheetRowsRaw_(ABSENSI)` mentah lalu
+filter lokal pakai `santriIdsKelompok` yang PEMANGGIL SUDAH PUNYA (bukan
+baca ulang santri). Ganti semua 6 titik di atas dari `readSheetAsObjects
+(ABSENSI)` generik ke helper ini.
+
+**Aturan permanen**: setiap kali men-flip `FIRESTORE_KELOMPOK_TABLES_` utk
+tabel baru, WAJIB audit ulang SEMUA titik yang membaca tabel itu — termasuk
+kasus-khusus/join tersembunyi di dalam `readSheetAsObjects` generik
+(cari `sheetName === SHEET_NAMES.<TABEL>` di Modul_Utilities.gs). Biaya
+tersembunyi seperti ini TIDAK akan ketahuan dari membaca kode si pemanggil
+saja — harus ditelusuri sampai ke implementasi helper generik yang dipanggil.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
