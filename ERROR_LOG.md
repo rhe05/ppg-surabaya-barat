@@ -670,6 +670,68 @@ tidak perlu load sama sekali".
 
 ---
 
+## #22 — "Simpan Absen" bisa sangat lambat & bikin 300 guru saling antre (generateId/deleteRowByQuery scan sheet berulang DI DALAM lock global) (2026-07-28)
+
+**Gejala**: belum dilaporkan lambat secara eksplisit oleh user, ditemukan
+saat audit performa menyeluruh untuk target "300 dewan guru pakai
+bersamaan, semua di bawah 1 detik". Ini BUKAN soal loading tampilan
+(#18-#21 sudah selesaikan itu) — ini soal tombol **Simpan Absen**.
+
+**Akar masalah**: `serverSaveAbsensiKelas`/`serverSaveAbsensiKelasAdmin`
+(Modul_InputAbsen.gs) di dalam `withScriptLock_`:
+1. `deleteRowByQuery(ABSENSI, {id})` dipanggil SEKALI PER BARIS yang mau
+   dihapus (1 per santri yang sudah pernah diisi) — tapi `deleteRowByQuery`
+   → `findRowByQuery` → `readSheetAsObjects(ABSENSI)`, artinya TIAP
+   pemanggilan scan ULANG SELURUH sheet absensi dari awal.
+2. `generateId(ABSENSI)` dipanggil SEKALI PER SANTRI BARU yang disimpan —
+   dan `generateId` JUGA `readSheetAsObjects(ABSENSI)` penuh tiap panggilan.
+
+Untuk 1 kelas berisi 25 santri: ~25 (delete) + 25 (generateId) = **~50 kali
+scan penuh sheet `absensi`** (sheet GABUNGAN semua kelompok, tumbuh terus
+tiap hari — berpotensi jadi sheet TERBESAR di seluruh aplikasi) — dan semua
+ini terjadi **SAMBIL MEMEGANG `LockService.getScriptLock()`, yaitu KUNCI
+GLOBAL TUNGGAL untuk SELURUH APLIKASI** (dipakai bersama oleh SEMUA mutasi:
+guru lain simpan absen kelas berbeda, admin edit santri, dll — lihat
+komentar `withScriptLock_`). Kalau 1 penyimpanan makan waktu beberapa detik
+karena ~50 scan, maka SEMUA guru lain yang mencoba menyimpan di waktu
+bersamaan ANTRE di belakangnya, sampai maksimal 10 detik lalu gagal
+("Sistem sedang sibuk"). Ini jauh lebih parah dari lambatnya loading
+tampilan — ini bisa menyebabkan KEGAGALAN SIMPAN beruntun saat banyak guru
+menyimpan absen di jam yang sama (mis. akhir sesi ngaji).
+
+⚠️ **Catatan arsitektur permanen**: Apps Script `LockService` TIDAK punya
+primitif "kunci per-kunci/named lock" (cuma Script/User/Document lock) —
+jadi "mempersempit kunci per kelas+tanggal" secara harfiah TIDAK MUNGKIN
+dengan API bawaan. Yang bisa & sudah dilakukan: PERPENDEK durasi pegang
+kunci sedrastis mungkin (baca lebih hemat, tulis lebih hemat) — itu jauh
+lebih efektif daripada berharap ada kunci granular yang tidak tersedia.
+
+**Perbaikan**: `iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal,
+absensiList, dicatatOleh)` (baru) — baca sheet absensi **SEKALI**
+(`sheet.getRange(...).getValues()`, bukan `readSheetAsObjects` yg lebih
+berat), hitung baris yang harus dibuang (kelas+tanggal cocok) dan ID baru
+(dari max ID hasil baca yg sama, bukan `generateId()` berulang) di memori,
+lalu tulis ULANG SEKALIGUS dgn 1× `clearContent()` + 1× `setValues()` —
+total 1 baca + 2 operasi tulis, TIDAK PEDULI berapa banyak santri di kelas
+itu (O(1) panggilan API, bukan O(N)). Otomatis pakai jalur Firestore
+(`iaRewriteAbsensiKelasFirestore_`, hapus+buat dokumen PARALEL lewat
+`UrlFetchApp.fetchAll`) kalau kelompoknya sudah migrasi Firestore.
+
+**Temuan tambahan (dicatat, BELUM diperbaiki sampai migrasi data
+dilakukan)**: `appendRowToSheet`/`deleteRowByQuery`/`updateRowByQuery`
+generik (Modul_Utilities.gs) HANYA cek `FIRESTORE_TABLES_` (tabel
+top-level), TIDAK cek `FIRESTORE_KELOMPOK_TABLES_` (tabel per-kelompok
+spt santri/guru/jadwal_kbm/absensi) — beda dgn `readSheetAsObjects` yang
+SUDAH menangani keduanya. Modul_MaintainSantri.gs/Modul_MaintainGuru.gs
+sudah benar krn masing-masing implementasi CRUD-nya punya percabangan
+manual sendiri (`isKelompokTableOnFirestore_(...) ? firestoreCreateDoc_(...)
+: appendRowToSheet(...)`) — POLA INI WAJIB DIIKUTI setiap kali menambah
+mutasi baru ke tabel yang berpotensi per-kelompok-Firestore, JANGAN
+mengandalkan `appendRowToSheet`/`deleteRowByQuery` polos otomatis
+"tahu" ke mana harus menulis.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

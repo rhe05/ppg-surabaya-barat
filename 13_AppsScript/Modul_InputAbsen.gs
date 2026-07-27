@@ -316,6 +316,105 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
 }
 
 /**
+ * Ganti baris absensi utk sekumpulan santri (1 kelas) pada 1 tanggal — SATU
+ * baca + SATU tulis batch, BUKAN N kali deleteRowByQuery + M kali generateId
+ * (yang masing-masing scan ULANG SELURUH sheet absensi tiap panggilan — utk
+ * kelas 25 santri itu ~50 full-table-scan, semuanya DI DALAM lock global yang
+ * memblokir SEMUA guru lain di seluruh aplikasi. Lihat ERROR_LOG.md #22).
+ * WAJIB dipanggil di dalam withScriptLock_. Otomatis pakai jalur Firestore
+ * kalau kelompokId sudah migrasi (isKelompokTableOnFirestore_).
+ * @returns {number} jumlah baris baru yang ditulis
+ */
+function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, dicatatOleh) {
+  const santriIdSet = santriIdsKelas.map(function (id) { return String(id); });
+  const relevantList = absensiList.filter(function (item) { return santriIdSet.indexOf(String(item.santri_id)) !== -1; });
+
+  if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, kelompokId)) {
+    return iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh);
+  }
+
+  const NUM_COLS = 5; // id, santri_id, tanggal, status, dicatat_oleh — Setup_Database.gs
+  const sheet = getSheetByName(SHEET_NAMES.ABSENSI);
+  const lastRow = sheet.getLastRow();
+  const data = lastRow > 1 ? sheet.getRange(2, 1, lastRow - 1, NUM_COLS).getValues() : [];
+
+  let maxId = 0;
+  const keptRows = [];
+  data.forEach(function (row) {
+    const id = Number(row[0]) || 0;
+    if (id > maxId) maxId = id;
+    const isMatch = santriIdSet.indexOf(String(row[1])) !== -1 && tanggalKeString_(row[2]) === tanggal;
+    if (!isMatch) keptRows.push(row);
+  });
+
+  const newRows = relevantList.map(function (item) {
+    maxId += 1;
+    return [maxId, item.santri_id, tanggal, item.status, dicatatOleh];
+  });
+
+  const finalRows = keptRows.concat(newRows);
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, NUM_COLS).clearContent();
+  }
+  if (finalRows.length > 0) {
+    sheet.getRange(2, 1, finalRows.length, NUM_COLS).setValues(finalRows);
+  }
+  return newRows.length;
+}
+
+/**
+ * Versi Firestore dari iaRewriteAbsensiKelas_ — koleksi 'kelompok/{id}/absensi'
+ * sudah di-scope 1 kelompok (jauh lebih kecil dari sheet gabungan semua
+ * kelompok), dan hapus+buat dokumen dijalankan PARALEL lewat UrlFetchApp.fetchAll
+ * (bukan satu-satu berurutan) — lihat pola iaReadKelompokTablesParallel_.
+ */
+function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh) {
+  const path = 'kelompok/' + kelompokId + '/absensi';
+  const existing = firestoreListCollection_(path);
+  const toDelete = existing.filter(function (a) {
+    return santriIdSet.indexOf(String(a.santri_id)) !== -1 && tanggalKeString_(a.tanggal) === tanggal;
+  });
+
+  let maxId = existing.reduce(function (max, a) { return Math.max(max, Number(a.id) || 0); }, 0);
+  const newDocs = relevantList.map(function (item) {
+    maxId += 1;
+    return {
+      id: maxId, santri_id: item.santri_id, tanggal: tanggal, status: item.status,
+      dicatat_oleh: dicatatOleh, kelompok_id: String(kelompokId),
+    };
+  });
+
+  const token = firestoreGetAccessToken_();
+  const baseUrl = firestoreBaseUrl_();
+  const requests = [];
+  toDelete.forEach(function (a) {
+    requests.push({ url: baseUrl + '/' + path + '/' + encodeURIComponent(String(a.id)), method: 'delete', headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
+  });
+  newDocs.forEach(function (doc) {
+    requests.push({
+      url: baseUrl + '/' + path + '?documentId=' + encodeURIComponent(String(doc.id)),
+      method: 'post',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify({ fields: firestoreEncodeFields_(doc) }),
+      muteHttpExceptions: true,
+    });
+  });
+
+  if (requests.length > 0) {
+    const responses = UrlFetchApp.fetchAll(requests);
+    responses.forEach(function (resp, idx) {
+      const code = resp.getResponseCode();
+      if (code < 200 || code >= 300) {
+        throw new Error('Gagal tulis absensi Firestore (request #' + idx + '): ' + resp.getContentText());
+      }
+    });
+  }
+
+  return newDocs.length;
+}
+
+/**
  * SAVE absensi satu kelas pada satu tanggal. Hanya menghapus/menulis ulang
  * baris absensi milik santri DI KELAS INI (bukan seluruh Kelompok) supaya
  * tidak menimpa input kelas lain di tanggal yang sama.
@@ -337,20 +436,7 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
 
   let count = 0;
   withScriptLock_(function () {
-    const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
-    absensiData.forEach(function (a) {
-      if (tanggalKeString_(a.tanggal) === tanggal && santriIdsKelas.includes(Number(a.santri_id))) {
-        deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
-      }
-    });
-
-    absensiList.forEach(function (item) {
-      if (santriIdsKelas.includes(Number(item.santri_id))) {
-        const id = generateId(SHEET_NAMES.ABSENSI);
-        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, ctx.user.id]);
-        count++;
-      }
-    });
+    count = iaRewriteAbsensiKelas_(ctx.kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id);
   });
 
   logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen kelas "${kelas}": ${count} santri`);
@@ -734,20 +820,7 @@ function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiL
 
   let count = 0;
   withScriptLock_(function () {
-    const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
-    absensiData.forEach(function (a) {
-      if (tanggalKeString_(a.tanggal) === tanggal && santriIdsKelas.includes(Number(a.santri_id))) {
-        deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
-      }
-    });
-
-    absensiList.forEach(function (item) {
-      if (santriIdsKelas.includes(Number(item.santri_id))) {
-        const id = generateId(SHEET_NAMES.ABSENSI);
-        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, ctx.user.id]);
-        count++;
-      }
-    });
+    count = iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id);
   });
 
   logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen (Admin) kelas "${kelas}": ${count} santri`);
