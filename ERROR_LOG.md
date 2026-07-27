@@ -730,6 +730,16 @@ mutasi baru ke tabel yang berpotensi per-kelompok-Firestore, JANGAN
 mengandalkan `appendRowToSheet`/`deleteRowByQuery` polos otomatis
 "tahu" ke mana harus menulis.
 
+**Status migrasi (2026-07-28)**: `absensi` Kelp Petemon (`kelompok_id: '1'`)
+SUDAH dipindah ke Firestore & switch SUDAH di-flip (`FIRESTORE_KELOMPOK_TABLES_.absensi
+= ['1']`) — 7 baris disalin, diverifikasi via `?diag=migrate&table=absensi&kelompok=1`
+dry-run kedua (`sudahAda:7, dibuatBaru:0`). ⚠️ **BELUM** diverifikasi end-to-end
+lewat `?diag=pilottest&table=absensi` — pilot test itu butuh sesi dev-mode
+(`serverCheckDevMode`) yang sudah dimatikan sejak `DEV_MODE_SKIP_LOGIN` diflip
+ke login sungguhan (2026-07-26). **Perlu**: guru Kelp Petemon coba Simpan
+Absen sungguhan & konfirmasi datanya tampil benar, secepatnya selagi
+perubahan ini masih segar.
+
 ---
 
 ## Prosedur Debugging Cepat (urutan baku)
