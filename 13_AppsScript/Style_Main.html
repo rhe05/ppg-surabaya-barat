@@ -1242,6 +1242,49 @@
       gap: 8px;
     }
 
+    /* KEHADIRAN GENERUS (kartu kategori Jadwal KBM, tab Operasional) */
+    .kg-kat-head-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .kg-kat-pct {
+      flex-shrink: 0;
+      font-size: 16px;
+      font-weight: 800;
+      min-width: 44px;
+    }
+
+    .kg-pill-pct {
+      flex-shrink: 0;
+      font-size: 11px;
+      font-weight: 800;
+      margin-left: 6px;
+    }
+
+    .kg-kat-card .jadwal-kelas-pill {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .kg-warna-hijau-tua { color: #15803d; }
+    .kg-warna-hijau-muda { color: #16a34a; }
+    .kg-warna-kuning { color: #a16207; }
+    .kg-warna-merah { color: #dc2626; }
+    .kg-warna-abu { color: var(--text-faint); }
+
+    /* Selector gabungan (specificity lebih tinggi) supaya menang lawan
+       .jadwal-info-value { color: var(--text); } yang urutannya lebih akhir
+       di file ini. */
+    .jadwal-info-value.kg-warna-hijau-tua { color: #15803d; }
+    .jadwal-info-value.kg-warna-hijau-muda { color: #16a34a; }
+    .jadwal-info-value.kg-warna-kuning { color: #a16207; }
+    .jadwal-info-value.kg-warna-merah { color: #dc2626; }
+    .jadwal-info-value.kg-warna-abu { color: var(--text-faint); }
+
     .jadwal-kat-count {
       flex-shrink: 0;
       padding: 2px 9px;

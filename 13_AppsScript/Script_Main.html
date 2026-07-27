@@ -3971,26 +3971,114 @@
     window.renderDataTable_(cols, list, 'santriDashTableHead', 'kdSantriTableBody', 'Tidak ada data generus.');
   };
 
+  /* ═════ KEHADIRAN GENERUS (% per kategori Jadwal KBM, tab Operasional) ═════
+     Sumber: serverGetKehadiranGenerusKategori (Modul_Monitoring.gs) — kelas
+     dikelompokkan lewat jadwal_kbm.kategori (BUKAN santri.jenjang_saat_ini,
+     beda dari tab Monitoring terpisah). Pola interaksi sama seperti Jadwal
+     KBM: 1 kartu per kategori, klik = expand jadi pill row kelas, klik
+     kelas = tampil detail. */
+  window.kgKatCollapsed_ = window.kgKatCollapsed_ || {};
+  window.kgKelasSelected_ = window.kgKelasSelected_ || {};
+  window.lastKehadiranGenerusData_ = [];
+
   window.loadKelompokDashboardAbsen_ = function (kelompokId) {
     const now = new Date();
-
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
-
-        const rows = result.data;
-        const totalHadir = rows.reduce((sum, r) => sum + r.hadir, 0);
-        const totalAlpa = rows.reduce((sum, r) => sum + r.alpa, 0);
-        const totalIzin = rows.reduce((sum, r) => sum + r.izin, 0);
-        const totalSakit = rows.reduce((sum, r) => sum + r.sakit, 0);
-        const totalRecord = totalHadir + totalAlpa + totalIzin + totalSakit;
-        const persenKehadiran = totalRecord > 0 ? Math.round((totalHadir / totalRecord) * 100) : 0;
-
-        document.getElementById('kdAbsenPct').textContent = persenKehadiran;
-        document.getElementById('kdAbsenHadir').textContent = totalHadir;
-        document.getElementById('kdAbsenBerisiko').textContent = result.berisiko_count;
+        window.lastKehadiranGenerusData_ = result.data;
+        window.renderKehadiranGenerusGrid_(result.data);
       })
-      .serverGetSantriBerisiko(window.currentToken, kelompokId, now.getFullYear(), now.getMonth() + 1);
+      .serverGetKehadiranGenerusKategori(window.currentToken, kelompokId, now.getFullYear(), now.getMonth() + 1);
+  };
+
+  window.renderKehadiranGenerusGrid_ = function (data) {
+    const grid = document.getElementById('kgKategoriGrid');
+    grid.innerHTML = '';
+    const ic = window.JADWAL_ICONS_;
+
+    // Kalau ada satu kategori sedang dibuka, kategori lain disembunyikan
+    // total (pola sama persis dgn Jadwal KBM di atas).
+    const expandedKat = data.find(function (d) { return window.kgKatCollapsed_[d.kategori] === false; });
+
+    data.forEach(function (d) {
+      if (expandedKat && d.kategori !== expandedKat.kategori) return;
+
+      const selectedKelas = window.kgKelasSelected_[d.kategori];
+      const selectedInfo = d.kelasList.find(function (k) { return k.kelas === selectedKelas; });
+
+      const pillRowHtml = d.kelasList.length === 0
+        ? '<div class="jadwal-kat-empty">Belum ada kelas di kategori ini (atur di Jadwal KBM).</div>'
+        : '<div class="jadwal-kelas-pill-row">' + d.kelasList.map(function (k) {
+            return `<button type="button" class="jadwal-kelas-pill${k.kelas === selectedKelas ? ' active' : ''}" onclick="window.toggleKgKelasSelect_('${d.kategori}', ${JSON.stringify(k.kelas)})">
+              ${k.kelas}<span class="kg-pill-pct kg-warna-${k.warna}">${k.adaData ? k.avgPct + '%' : '–'}</span>
+            </button>`;
+          }).join('') + '</div>';
+
+      const bodyHtml = pillRowHtml + (selectedInfo ? window.renderKgKelasDetailHtml_(selectedInfo) : '');
+      const isCollapsed = window.kgKatCollapsed_[d.kategori] !== false;
+
+      const card = document.createElement('div');
+      card.className = 'jadwal-kat-card kg-kat-card' + (isCollapsed ? ' collapsed' : ' jadwal-kat-full');
+      card.innerHTML = `
+        <button type="button" class="jadwal-kat-header" onclick="window.toggleKgKatCollapse_('${d.kategori}')">
+          <span class="kg-kat-head-left">
+            <span class="kg-kat-pct kg-warna-${d.warna}">${d.avgPct !== null ? d.avgPct + '%' : '–'}</span>
+            <span class="jadwal-kat-title">${d.kategori}</span>
+          </span>
+          <span class="jadwal-kat-header-right">
+            <span class="jadwal-kat-count">${d.jumlahKelas} kelas &middot; ${d.jumlahSantri} santri</span>
+            ${ic.caret}
+          </span>
+        </button>
+        <div class="jadwal-kat-body">${bodyHtml}</div>
+      `;
+      grid.appendChild(card);
+    });
+  };
+
+  window.toggleKgKatCollapse_ = function (kategori) {
+    const isCollapsed = window.kgKatCollapsed_[kategori] !== false;
+    (window.lastKehadiranGenerusData_ || []).forEach(function (d) { window.kgKatCollapsed_[d.kategori] = true; });
+    window.kgKatCollapsed_[kategori] = isCollapsed ? false : true;
+    window.renderKehadiranGenerusGrid_(window.lastKehadiranGenerusData_ || []);
+  };
+
+  window.toggleKgKelasSelect_ = function (kategori, kelas) {
+    window.kgKelasSelected_[kategori] = window.kgKelasSelected_[kategori] === kelas ? null : kelas;
+    window.renderKehadiranGenerusGrid_(window.lastKehadiranGenerusData_ || []);
+  };
+
+  window.renderKgKelasDetailHtml_ = function (k) {
+    const ic = window.JADWAL_ICONS_;
+    return `
+      <div class="jadwal-detail-panel">
+        <div class="jadwal-detail-header">
+          <span class="jadwal-santri-title">Kehadiran Kelas ${k.kelas} &mdash; Bulan Ini</span>
+        </div>
+        <div class="jadwal-info-row">
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">% Kehadiran</div>
+            <div class="jadwal-info-value kg-warna-${k.warna}">${k.adaData ? k.avgPct + '%' : 'Belum ada data'}</div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.santri} Total Santri</div>
+            <div class="jadwal-info-value">${k.jumlahSantri} Santri</div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.guru} Guru</div>
+            <div class="jadwal-info-value">${window.namaPanggilanGuru_(k.namaGuru)}</div>
+          </div>
+          <div class="jadwal-info-card">
+            <div class="jadwal-info-label">${ic.ruangan} Ruangan &amp; Jam</div>
+            <div class="jadwal-info-value-row">
+              <span class="jadwal-info-value">${k.ruangan || '–'}</span>
+              <span class="jadwal-info-subvalue">${k.jamMulai && k.jamSelesai ? k.jamMulai + ' - ' + k.jamSelesai : ''}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
   };
 
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {
