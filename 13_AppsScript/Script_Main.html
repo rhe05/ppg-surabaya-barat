@@ -771,11 +771,26 @@
 
       // Auto-masuk ke kelas: guru langsung diarahkan ke kelasnya sendiri
       // (kelas terakhir dipilih tetap dipertahankan lintas ganti tanggal;
-      // kalau sudah tidak tersedia lagi, jatuh ke kelas pertama).
+      // kalau sudah tidak tersedia lagi, jatuh ke kelas pertama). Server
+      // SUDAH menyiapkan form santri kelas ini sekalian (formKelas/formData)
+      // supaya tidak perlu round-trip google.script.run KEDUA — dulu ini
+      // yang bikin "Pilih Kelas" berasa lambat (lihat ERROR_LOG.md #19).
       if (result.data.length > 0) {
         let idx = keepKelas ? result.data.findIndex(function (it) { return it.kelas.toLowerCase() === keepKelas.toLowerCase(); }) : -1;
         if (idx < 0) idx = 0;
-        window.iaSelectKelas_(result.data[idx].kelas, chipEls[idx]);
+        const chosenKelas = result.data[idx].kelas;
+        const chosenChip = chipEls[idx];
+
+        if (result.formKelas && result.formData && result.formKelas.toLowerCase() === chosenKelas.toLowerCase()) {
+          chosenChip.classList.add('active');
+          window.iaState_.kelas = chosenKelas;
+          window.iaRenderKelasInfoCard_(chosenKelas);
+          document.getElementById('iaEmptyState').style.display = 'none';
+          window.iaState_.list = result.formData;
+          window.iaRenderSantriList_();
+        } else {
+          window.iaSelectKelas_(chosenKelas, chosenChip);
+        }
       }
     };
 
@@ -785,9 +800,9 @@
     };
 
     if (isAdmin) {
-      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenListAdmin(window.currentToken, window.iaState_.kelompokId, tanggal);
+      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenListAdmin(window.currentToken, window.iaState_.kelompokId, tanggal, keepKelas);
     } else {
-      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenList(window.currentToken, tanggal);
+      google.script.run.withSuccessHandler(onKelasResult).withFailureHandler(onKelasFail).serverGetKelasAbsenList(window.currentToken, tanggal, keepKelas);
     }
   };
 

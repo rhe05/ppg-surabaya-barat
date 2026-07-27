@@ -532,6 +532,53 @@ hasil baca itu di dalam loop.
 
 ---
 
+## #19 — "Pilih Kelas" MASIH lambat setelah #18 (2 penyebab lanjutan) (2026-07-28)
+
+**Gejala**: setelah fix #18, klik "Pilih Kelas" dari Dashboard tetap terasa
+lambat (user minta di bawah 1 detik).
+
+**Akar masalah #1 — double-read tersisa**: fix #18 nge-share `jadwalRowsAll`
+tapi TETAP memanggil `getKelasOwnedByGuru_(...)` SEBELUM `jadwalRowsAll`
+dibaca — jadi `jadwal_kbm` masih kebaca 2x per request (sekali di dalam
+`getKelasOwnedByGuru_`, sekali lagi utk `jadwalRowsAll`). Ini fatal karena
+`santri`/`guru`/`jadwal_kbm` utk Kelp Petemon (`kelompok_id: '1'`) SUDAH
+pindah ke Firestore (`FIRESTORE_KELOMPOK_TABLES_` di Modul_Utilities.gs) —
+tiap `readSheetAsObjects()` utk tabel itu = request Sheets DAN request
+Firestore (`firestoreListCollection_`, `UrlFetchApp`), jauh lebih mahal dari
+baca Sheets biasa. `getKelasOwnedByGuru_` sekarang terima parameter opsional
+`jadwalRowsAll` juga, dan semua caller-nya baca `jadwal_kbm` SEBELUM manggil
+fungsi ini (bukan sesudah).
+
+**Akar masalah #2 — 2 round-trip client↔server berurutan**: alur "Pilih
+Kelas" dari Dashboard = `iaLoadKelasList_()` panggil `serverGetKelasAbsenList`
+(load daftar kelas), lalu HASILNYA otomatis trigger `iaSelectKelas_()` yang
+panggil `serverGetAbsensiKelasForm` (load santri kelas pertama) — 2 kali
+`google.script.run` BERURUTAN (bukan paralel, karena yang kedua butuh hasil
+yang pertama). Tiap `google.script.run` = 1 eksekusi Apps Script terpisah
+(tidak ada cache antar-eksekusi), jadi total waktu = waktu request 1 + waktu
+request 2, dan request 2 baca ulang `santri` (Firestore lagi) yang
+sebenarnya sudah dibaca di request 1.
+
+**Perbaikan**: `serverGetKelasAbsenList`/`serverGetKelasAbsenListAdmin`
+sekarang terima parameter `preferKelas` (kelas terakhir dipilih guru) dan
+SEKALIAN mengembalikan `formKelas`+`formData` (form santri kelas yang bakal
+otomatis dipilih) di response yang SAMA — pakai ulang `santriAll` yang sudah
+dibaca di fungsi itu, cuma tambah 1 baca `absensi` (masih Sheets biasa utk
+Kelp Petemon, murah). Frontend (`iaLoadKelasList_` di Script_Main.html) kalau
+`result.formKelas` cocok dengan kelas yang mau di-auto-select, langsung pakai
+`result.formData` TANPA manggil `serverGetAbsensiKelasForm` lagi — jadi
+"Pilih Kelas" sekarang 1 round-trip, bukan 2. `iaSelectKelas_` (klik manual
+pindah kelas lain) TETAP 1 round-trip terpisah seperti biasa (tidak diubah).
+
+**Aturan permanen**: (1) urutan baca sheet penting — pastikan array yang mau
+"dibagikan" ke fungsi lain benar-benar dibaca SEBELUM fungsi lain itu
+dipanggil, bukan setelahnya. (2) kalau UI butuh data dari 2 fungsi server
+berurutan (B butuh hasil A dulu), pertimbangkan gabungkan jadi 1 fungsi
+server yang me-return data A+B sekaligus — terutama kalau sheet-nya sudah
+pindah ke Firestore (biaya per-call jauh lebih terasa dibanding Sheets).
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
