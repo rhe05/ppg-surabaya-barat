@@ -505,6 +505,33 @@ inline `display` bawaan di markup HTML-nya. Kalau ya, set nilai eksplisitnya
 
 ---
 
+## #18 — "Pilih Kelas" Input Absen lambat dimuat (N+1 baca sheet) (2026-07-28)
+
+**Gejala**: klik "Pilih Kelas" (atau buka Dashboard) di Input Absen terasa
+sangat lambat, makin lambat makin banyak kelas yang diampu guru.
+
+**Akar masalah**: `getKelasSessionInfo_` (Modul_InputAbsen.gs) melakukan
+`readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)` (+ `GURU` kalau ada guru_id) —
+baca ULANG SELURUH sheet dari awal — dan dipanggil di DALAM `.forEach`/`.map`
+per kelas di 4 tempat: `serverGetKelasAbsenList`, `serverGetGuruDashboardSummary`,
+`serverGetGuruDashboardSummaryRange`, `getAllKelasInKelompok_` (mode Admin).
+`readSheetAsObjects` tidak di-cache per-request (`Modul_Utilities.gs`), jadi
+guru dengan N kelas memicu N kali round-trip baca sheet penuh — klasik pola
+N+1 query, dan biang lambatnya bukan volume data tapi jumlah panggilan.
+
+**Perbaikan**: `getKelasSessionInfo_` sekarang terima 2 parameter opsional
+`(jadwalRowsAll, guruRowsAll)` — kalau dioper, dipakai langsung (tidak baca
+ulang); kalau tidak dioper (caller lama), fallback baca sendiri (backward
+compatible). Ke-4 caller di atas sekarang baca `JADWAL_KBM`/`GURU` SEKALI di
+luar loop lalu oper ke tiap panggilan `getKelasSessionInfo_`.
+
+**Aturan permanen**: JANGAN panggil `readSheetAsObjects(...)` di dalam
+`.forEach`/`.map`/loop apa pun yang jalan per-baris data lain. Baca sheet
+yang dibutuhkan SEKALI sebelum loop dimulai, lalu filter/lookup dari array
+hasil baca itu di dalam loop.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
