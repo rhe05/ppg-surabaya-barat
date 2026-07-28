@@ -2587,35 +2587,44 @@
     }
 
     /* Daftar "Target Per Bulan" per Semester (Bulan 1-5 = materi, Bulan 6 =
-       evaluasi/ujian) -- kartu bertumpuk vertikal, dirender di tab Semester. */
+       evaluasi/ujian) -- kartu berjejer horizontal (kiri ke kanan: Bulan 1
+       s/d Bulan 6), dirender di tab Semester. Scroll sendiri (overflow-x)
+       kalau space sempit -- BUKAN bikin halaman ikut melebar. */
     .kurikulum-probul-stack {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
+      flex-direction: row;
+      gap: 8px;
       margin: 4px 0 10px;
+      overflow-x: auto;
     }
 
     .kurikulum-probul-bulan-card {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 8px 12px;
+      gap: 4px;
+      padding: 10px 12px;
+      min-width: 88px;
+      flex-shrink: 0;
       border-radius: var(--radius);
       background: var(--panel-2);
       border: 1px solid var(--border);
       font-size: 12px;
+      text-align: center;
     }
 
     .kurikulum-probul-bulan-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
       font-weight: 700;
-      color: var(--text);
-      flex-shrink: 0;
+      color: var(--text-faint);
     }
 
     .kurikulum-probul-bulan-target {
-      color: var(--text-dim);
-      text-align: right;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
     }
 
     .kurikulum-probul-bulan-eval {
