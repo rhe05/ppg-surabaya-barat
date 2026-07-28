@@ -7292,6 +7292,11 @@
       const kelas = document.getElementById('kurikulumProtaKelas').value;
       window.loadKurikulumProta_(window.currentKelompokId, tahun, kelas);
     }
+
+    if (tabName === 'promes') {
+      const tahun = document.getElementById('kurikulumSemesterTahun').value || 2026;
+      window.loadKurikulumSemesterReport_(window.currentKelompokId, tahun);
+    }
   };
 
   window.loadKurikulumProta_ = function (kelompokId, tahun, kelas, onDone) {
@@ -7373,6 +7378,94 @@
             <button class="kurikulum-kelas-add-btn" onclick="window.openModalAddProta('${kelasArg}')">+ Materi</button>
           </div>
           <div class="kurikulum-materi-list">${materiHtml}</div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     TAB SEMESTER — laporan lengkap per Kelas: tiap materi, tiap Semester,
+     tabel Bulan 1-6 (horizontal, sesuai poster referensi kurikulum).
+     Read-only (kelola tiap bagian tetap lewat tab Tahunan/Bulanan) — 1
+     panggilan server (serverGetKurikulumFullTree) utk seluruh pohon data,
+     BUKAN N+1 per Prota/Promes.
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.loadKurikulumSemesterReport_ = function (kelompokId, tahun) {
+    const el = document.getElementById('kurikulumSemesterReportList');
+    if (!el) return;
+    el.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          el.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Gagal: ' + result.error + '</div>';
+          return;
+        }
+        window.renderKurikulumSemesterReport_(el, result.data);
+      })
+      .withFailureHandler(function (err) {
+        el.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetKurikulumFullTree(window.currentToken, kelompokId, parseInt(tahun) || 2026);
+  };
+
+  window.renderKurikulumSemesterReport_ = function (containerEl, data) {
+    if (!data || data.length === 0) {
+      containerEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada program tahunan untuk tahun ini</div>';
+      return;
+    }
+
+    const groups = {};
+    data.forEach(function (prota) {
+      const key = prota.kelas ? String(prota.kelas) : '__umum__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(prota);
+    });
+
+    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => parseInt(a) - parseInt(b));
+    if (groups.__umum__) kelasKeys.push('__umum__');
+
+    containerEl.innerHTML = kelasKeys.map(function (key) {
+      const items = groups[key];
+      const label = key === '__umum__' ? 'Umum (Semua Kelas)' : 'Kelas ' + key;
+
+      const materiHtml = items.map(function (prota) {
+        const semesterHtml = (prota.promes && prota.promes.length > 0)
+          ? prota.promes.map(function (promes) {
+              const semesterLabel = String(promes.semester) === '2' ? 'II' : 'I';
+              const bulanTableHtml = (promes.probul && promes.probul.length > 0) ? `
+                <div class="kurikulum-semester-bulan-table-wrap">
+                  <table class="kurikulum-semester-bulan-table">
+                    <thead><tr><th>Bulan</th>${promes.probul.map(p => `<th>${p.bulan}</th>`).join('')}</tr></thead>
+                    <tbody><tr>
+                      <td>Target</td>
+                      ${promes.probul.map(p => `<td class="${parseInt(p.bulan) === 6 ? 'kurikulum-semester-eval-cell' : ''}">${p.target || '-'}</td>`).join('')}
+                    </tr></tbody>
+                  </table>
+                </div>
+              ` : `<div class="kurikulum-semester-no-bulan">Target: ${promes.target || '-'}${promes.deskripsi ? ' — ' + promes.deskripsi : ''}</div>`;
+
+              return `
+                <div class="kurikulum-semester-sem-block">
+                  <div class="kurikulum-semester-sem-title">Semester ${semesterLabel}</div>
+                  ${bulanTableHtml}
+                </div>
+              `;
+            }).join('')
+          : '<div class="kurikulum-semester-no-bulan">Belum ada semester.</div>';
+
+        return `
+          <div class="kurikulum-semester-materi-block">
+            <div class="kurikulum-semester-materi-title">${prota.kategori || 'N/A'}</div>
+            ${semesterHtml}
+          </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="kurikulum-semester-kelas-block">
+          <div class="kurikulum-semester-kelas-title">${label}</div>
+          ${materiHtml}
         </div>
       `;
     }).join('');
@@ -7548,9 +7641,9 @@
     }
 
     document.getElementById('kurikulumTabPencapaian').style.display = 'block';
-    document.querySelectorAll('.kurikulum-tab-btn')[2].classList.add('active');
+    document.querySelectorAll('.kurikulum-tab-btn')[3].classList.add('active');
     document.querySelectorAll('.kurikulum-tab-btn').forEach((b, i) => {
-      if (i !== 2) b.classList.remove('active');
+      if (i !== 3) b.classList.remove('active');
     });
 
     window.showGlobalLoading_('Memuat pencapaian santri...');

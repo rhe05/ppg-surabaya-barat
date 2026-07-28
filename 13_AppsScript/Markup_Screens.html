@@ -2263,6 +2263,7 @@
 
         <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
           <button class="kurikulum-tab-btn active" data-tab="prota" onclick="window.switchKurikulumTab_(this, 'prota')">Tahunan</button>
+          <button class="kurikulum-tab-btn" data-tab="promes" onclick="window.switchKurikulumTab_(this, 'promes')">Semester</button>
           <button class="kurikulum-tab-btn" data-tab="probul" onclick="window.switchKurikulumTab_(this, 'probul')">Bulanan</button>
           <button class="kurikulum-tab-btn" data-tab="pencapaian" onclick="window.switchKurikulumTab_(this, 'pencapaian')">Pencapaian Santri</button>
         </div>
@@ -2290,6 +2291,20 @@
             <button class="btn btn-primary" onclick="window.openModalAddProta()">+ Tambah Prota</button>
           </div>
           <div id="kurikulumProtaList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+            <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
+          </div>
+        </div>
+
+        <!-- Tab: Semester (laporan per Kelas: tiap materi, tiap Semester, tabel Bulan 1-6) -->
+        <div class="kurikulum-tab-content" id="kurikulumTabPromes" style="margin-bottom: 48px; display: none;">
+          <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+            <select class="form-select" id="kurikulumSemesterTahun" style="max-width: 150px;" onchange="window.loadKurikulumSemesterReport_(window.currentKelompokId, this.value)">
+              <option value="2025">2025</option>
+              <option value="2026" selected>2026</option>
+              <option value="2027">2027</option>
+            </select>
+          </div>
+          <div id="kurikulumSemesterReportList">
             <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
           </div>
         </div>

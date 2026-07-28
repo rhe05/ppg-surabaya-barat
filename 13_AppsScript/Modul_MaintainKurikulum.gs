@@ -10,6 +10,72 @@
  * Pattern: lock + cache + RBAC (sama seperti Modul_MaintainJadwalKBM.gs)
  */
 
+/**
+ * Ambil SELURUH pohon Kurikulum (Prota -> Promes -> Probul) utk 1 kelompok+
+ * tahun dalam SATU panggilan -- dipakai tab "Semester" (laporan lengkap per
+ * Kelas: tiap materi, tiap Semester, tabel Bulan 1-6). Sengaja 1 panggilan
+ * (bukan serverGetProta lalu serverGetPromes/serverGetProbulByPromes per
+ * baris) supaya tidak N+1 round-trip ke server utk laporan yg nampilin
+ * semua materi sekaligus (pelajaran dari ERROR_LOG #18-23).
+ *
+ * Cache TTL sengaja pendek (60 detik, bukan 3600 spt cache Prota/Promes
+ * lain) -- ini view laporan read-only yg dibaca lintas 3 sheet sekaligus,
+ * menambah cacheDrop_ ke 9 fungsi mutasi Prota/Promes/Probul yang sudah ada
+ * cuma utk laporan ini tidak sepadan; staleness maks 60 detik cukup aman.
+ */
+function serverGetKurikulumFullTree(token, kelompokId, tahun) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Akses ditolak' };
+  }
+
+  try {
+    const cacheKey = 'kurikulum_fulltree_' + kelompokId + '_' + tahun;
+    let data = cacheGet_(cacheKey);
+    if (data) return { success: true, data: data };
+
+    const allProta = readSheetAsObjects('kurikulum_prota').filter(r =>
+      String(r.kelompok_id) === String(kelompokId) &&
+      parseInt(r.tahun || 0) === parseInt(tahun || 0)
+    );
+
+    const promesByProta_ = {};
+    readSheetAsObjects('kurikulum_promes').forEach(function (p) {
+      if (!promesByProta_[p.prota_id]) promesByProta_[p.prota_id] = [];
+      promesByProta_[p.prota_id].push(p);
+    });
+
+    const probulByPromes_ = {};
+    readSheetAsObjects('kurikulum_probul').forEach(function (b) {
+      if (!probulByPromes_[b.promes_id]) probulByPromes_[b.promes_id] = [];
+      probulByPromes_[b.promes_id].push(b);
+    });
+
+    const tree = allProta.map(function (prota) {
+      const promesList = (promesByProta_[prota.id] || [])
+        .slice()
+        .sort(function (a, b) { return parseInt(a.semester || 0) - parseInt(b.semester || 0); })
+        .map(function (promes) {
+          const probulList = (probulByPromes_[promes.id] || [])
+            .slice()
+            .sort(function (a, b) { return parseInt(a.bulan || 0) - parseInt(b.bulan || 0); });
+          const promesCopy = {};
+          Object.keys(promes).forEach(function (k) { promesCopy[k] = promes[k]; });
+          promesCopy.probul = probulList;
+          return promesCopy;
+        });
+      const protaCopy = {};
+      Object.keys(prota).forEach(function (k) { protaCopy[k] = prota[k]; });
+      protaCopy.promes = promesList;
+      return protaCopy;
+    });
+
+    cachePut_(cacheKey, tree, 60);
+    return { success: true, data: tree };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    PROTA (Program Tahunan) CRUD
    ═════════════════════════════════════════════════════════════════════════════════ */

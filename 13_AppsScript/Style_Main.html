@@ -2628,6 +2628,103 @@
       background: var(--panel-2);
     }
 
+    /* Tab Semester — laporan lengkap per Kelas (poster referensi): kartu per
+       Kelas, sub-bagian per materi, tabel horizontal Bulan 1-6 per Semester. */
+    .kurikulum-semester-kelas-block {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
+    }
+
+    .kurikulum-semester-kelas-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--brass);
+    }
+
+    .kurikulum-semester-materi-block {
+      margin-bottom: 20px;
+    }
+
+    .kurikulum-semester-materi-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .kurikulum-semester-materi-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--brass);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 10px;
+    }
+
+    .kurikulum-semester-sem-block {
+      margin-bottom: 14px;
+    }
+
+    .kurikulum-semester-sem-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .kurikulum-semester-sem-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .kurikulum-semester-bulan-table-wrap {
+      overflow-x: auto;
+    }
+
+    .kurikulum-semester-bulan-table {
+      width: 100%;
+      min-width: 480px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .kurikulum-semester-bulan-table th,
+    .kurikulum-semester-bulan-table td {
+      padding: 8px 10px;
+      text-align: center;
+      border: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .kurikulum-semester-bulan-table thead th {
+      background: var(--panel-2);
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+      font-weight: 700;
+    }
+
+    .kurikulum-semester-bulan-table th:first-child,
+    .kurikulum-semester-bulan-table td:first-child {
+      text-align: left;
+      font-weight: 700;
+      background: var(--panel-2);
+    }
+
+    .kurikulum-semester-eval-cell {
+      font-style: italic;
+      color: var(--text-faint);
+    }
+
+    .kurikulum-semester-no-bulan {
+      font-size: 12.5px;
+      color: var(--text-dim);
+    }
+
     .kurikulum-pencapaian-table {
       width: 100%;
       border-collapse: collapse;
