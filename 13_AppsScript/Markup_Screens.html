@@ -3400,8 +3400,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Kategori</label>
-          <input type="text" class="form-input" id="protaKategori" placeholder="mis. Hafalan, Doa, Tajwid, Bacaan Al-Qur'an">
+          <label class="form-label">Semester</label>
+          <select class="form-select" id="protaTarget">
+            <option value="Semester I">Semester I</option>
+            <option value="Semester II">Semester II</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Kelas (opsional)</label>
@@ -3420,12 +3423,23 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Target</label>
-          <input type="text" class="form-input" id="protaTarget" placeholder="mis. 30 juz">
-        </div>
-        <div class="form-group">
-          <label class="form-label">Deskripsi</label>
-          <textarea class="form-input" id="protaDeskripsi" rows="2" placeholder="Catatan tambahan"></textarea>
+          <label class="form-label">Materi</label>
+          <select class="form-select" id="protaKategori">
+            <option value="Bacaan Al-Qur'an">1. Bacaan Al-Qur'an</option>
+            <option value="Tulis Huruf Arab">2. Tulis Huruf Arab</option>
+            <option value="Hafalan Surat-Surat Al-Qur'an">3. Hafalan Surat-Surat Al-Qur'an</option>
+            <option value="Hafalan Do'a-Do'a Harian">4. Hafalan Do'a-Do'a Harian</option>
+            <option value="Dasar Keagamaan">5. Dasar Keagamaan</option>
+            <option value="Kefahaman Agama">6. Kefahaman Agama</option>
+            <option value="Praktik Ibadah">7. Praktik Ibadah</option>
+            <option value="Akhlaq">8. Akhlaq</option>
+            <option value="Adab/Tata Krama">9. Adab/Tata Krama</option>
+            <option value="Kemandirian">10. Kemandirian</option>
+            <option value="Hafalan Dalil-Dalil">11. Hafalan Dalil-Dalil</option>
+            <option value="Makna Al-Qur'an">12. Makna Al-Qur'an</option>
+            <option value="Makna Al-Hadits">13. Makna Al-Hadits</option>
+            <option value="Tajwid">14. Tajwid</option>
+          </select>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="window.closeModalAddProta()">Batal</button>

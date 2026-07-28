@@ -7779,11 +7779,10 @@
   window.openModalAddProta = function (kelasPreset) {
     document.getElementById('protaId').value = '';
     document.getElementById('protaTahun').value = new Date().getFullYear();
-    document.getElementById('protaKategori').value = '';
+    document.getElementById('protaKategori').selectedIndex = 0;
     document.getElementById('protaKelas').value = kelasPreset || '';
     document.getElementById('protaKelas').disabled = false;
-    document.getElementById('protaTarget').value = '';
-    document.getElementById('protaDeskripsi').value = '';
+    document.getElementById('protaTarget').selectedIndex = 0;
     document.getElementById('modalAddProta').classList.add('active');
   };
 
@@ -7836,15 +7835,9 @@
   window.saveProta = function () {
     const protaId = document.getElementById('protaId').value;
     const tahun = document.getElementById('protaTahun').value;
-    const kategori = document.getElementById('protaKategori').value.trim();
+    const kategori = document.getElementById('protaKategori').value;
     const kelas = document.getElementById('protaKelas').value;
-    const target = document.getElementById('protaTarget').value.trim();
-    const deskripsi = document.getElementById('protaDeskripsi').value.trim();
-
-    if (!kategori || !target) {
-      alert('Kategori dan target harus diisi');
-      return;
-    }
+    const target = document.getElementById('protaTarget').value;
 
     const kelasFilter = document.getElementById('kurikulumProtaKelas').value;
     window.showGlobalLoading_('Menyimpan...');
@@ -7864,9 +7857,14 @@
       });
 
     if (protaId) {
-      runner.serverUpdateProta(window.currentToken, protaId, target, deskripsi);
+      // deskripsi sengaja `undefined` (bukan '') -- form ini tidak lagi
+      // punya field Deskripsi, tapi kolomnya di sheet TETAP ADA (dipakai
+      // seed data, mis. "Jenjang Caberawit — Materi..."). Kirim '' akan
+      // MENIMPA/menghapus isi lama; serverUpdateProta hanya menimpa kalau
+      // argumen ini !== undefined.
+      runner.serverUpdateProta(window.currentToken, protaId, target, undefined);
     } else {
-      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, deskripsi);
+      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, '');
     }
   };
 
@@ -7876,7 +7874,6 @@
     document.getElementById('protaKelas').value = kelas || '';
     document.getElementById('protaKelas').disabled = true;
     document.getElementById('protaTarget').value = target;
-    document.getElementById('protaDeskripsi').value = deskripsi;
     document.getElementById('modalAddProta').classList.add('active');
   };
 
