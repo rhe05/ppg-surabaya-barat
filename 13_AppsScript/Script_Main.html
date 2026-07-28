@@ -5194,6 +5194,12 @@
       }
       window.loadMonitoringGenerus_(window.currentKelompokId);
     }
+
+    if (sectionName === 'Kurikulum' && window.currentKelompokId) {
+      const tahunEl = document.getElementById('kurikulumProtaTahun');
+      const kelasEl = document.getElementById('kurikulumProtaKelas');
+      window.loadKurikulumProta_(window.currentKelompokId, tahunEl ? tahunEl.value : 2026, kelasEl ? kelasEl.value : '');
+    }
   };
 
   // Ambang batas & warna kategori kehadiran generus — HARUS sama persis dgn
