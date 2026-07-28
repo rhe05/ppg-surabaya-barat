@@ -190,7 +190,8 @@ function doGet(e) {
     let result;
     try {
       seedKurikulumBacaanQuranPetemon();
-      result = { success: true, message: 'seedKurikulumBacaanQuranPetemon() selesai dijalankan.' };
+      seedKurikulumTulisHurufArabPetemon();
+      result = { success: true, message: 'Seed kurikulum (Bacaan Al-Qur\'an + Tulis Huruf Arab) selesai dijalankan.' };
     } catch (err) {
       result = { success: false, error: err.message };
     }

@@ -195,6 +195,65 @@ function seedAbsensi(kelompokAktifIds) {
 }
 
 /**
+ * Helper generik: seed 1 kategori Kurikulum Prota/Promes (1 Prota per Kelas,
+ * masing-masing dipecah 2 Promes Semester I & II). Dipakai oleh
+ * seedKurikulumBacaanQuranPetemon() dan seedKurikulumTulisHurufArabPetemon() —
+ * kategori BARU ditambah SELALU lewat appendRow (baris baru di bawah kategori
+ * lama), supaya urutan tampil di kartu Prota (mengikuti urutan baris sheet)
+ * tetap "kategori lama di atas, kategori baru di bawah" sesuai yang diminta.
+ * ⚠️ AMAN DIJALANKAN BERULANG — skip kalau kategori ini utk kelompok+tahun
+ * ini sudah ada (idempotent per kategori, BUKAN per keseluruhan sheet).
+ *
+ * @param {string} kategoriSlug — dipakai di ID Prota, mis. 'tulis_huruf_arab'.
+ * @param {Array} materi — [{ kelas, jenjang, s1:{target,deskripsi}, s2:{target,deskripsi} }, ...]
+ */
+function seedKurikulumProta_(kelompokId, tahun, kategori, kategoriSlug, materi) {
+  // Hapus cache serverGetProta utk kelompok+tahun ini SEBELUM cek "sudah ada" —
+  // kalau UI pernah dibuka saat sheet masih kosong/belum lengkap, hasil itu
+  // ke-cache 1 jam (cacheGet_ tidak bisa bedakan array kosong vs "belum
+  // pernah dibaca"). Tanpa baris ini, data baru tetap tidak keliatan di app
+  // sampai cache kadaluwarsa sendiri.
+  for (let k = 0; k <= 9; k++) {
+    cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (k === 0 ? 'all' : k));
+  }
+
+  const existing = readSheetAsObjects('kurikulum_prota').filter(r =>
+    String(r.kelompok_id) === String(kelompokId) &&
+    parseInt(r.tahun || 0) === parseInt(tahun) &&
+    String(r.kategori) === kategori
+  );
+  if (existing.length > 0) {
+    console.log(`↷ Kurikulum "${kategori}" kelompok ${kelompokId} tahun ${tahun} sudah ada, skip.`);
+    return;
+  }
+
+  const protaSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
+  const promesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
+  const now = new Date().toISOString();
+  let protaCount = 0;
+  let promesCount = 0;
+
+  materi.forEach(function (m) {
+    const protaId = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + '_kelas' + m.kelas;
+    const protaTarget = m.s1.target + ' → ' + m.s2.target;
+    const protaDeskripsi = 'Jenjang ' + m.jenjang + ' — Materi ' + kategori + ' Kelas ' + m.kelas;
+
+    protaSheet.appendRow([protaId, kelompokId, tahun, kategori, protaTarget, protaDeskripsi, 'seed', now, now, m.kelas]);
+    protaCount++;
+
+    [['1', m.s1], ['2', m.s2]].forEach(function (pair) {
+      const semester = pair[0];
+      const data = pair[1];
+      const promesId = 'promes_' + protaId + '_' + semester;
+      promesSheet.appendRow([promesId, kelompokId, protaId, semester, data.target, data.deskripsi, 'seed', now, now]);
+      promesCount++;
+    });
+  });
+
+  console.log(`✓ Kurikulum "${kategori}" kelompok ${kelompokId} tahun ${tahun} seeded: ${protaCount} Prota, ${promesCount} Promes.`);
+}
+
+/**
  * Seed Kurikulum Prota/Promes "Bacaan Al-Qur'an" untuk Kelp Petemon (kelompok_id=1), tahun 2026.
  * 1 Prota per Kelas (1-9), masing-masing dipecah 2 Promes (Semester I & II).
  * Jalankan SEKALI dari Apps Script editor: pilih "seedKurikulumBacaanQuranPetemon" dan Run.
@@ -202,30 +261,7 @@ function seedAbsensi(kelompokAktifIds) {
  * ⚠️ AMAN DIJALANKAN BERULANG — skip kalau data kategori ini utk kelompok+tahun ini sudah ada.
  */
 function seedKurikulumBacaanQuranPetemon() {
-  const KELOMPOK_ID = 1; // Kelp Petemon
-  const TAHUN = 2026;
-  const KATEGORI = "Bacaan Al-Qur'an";
-
-  // Hapus cache serverGetProta utk kelompok+tahun ini SEBELUM cek "sudah ada" —
-  // kalau UI pernah dibuka saat sheet masih kosong, hasil kosong itu ke-cache
-  // 1 jam (cacheGet_ tidak bisa bedakan array kosong vs "belum pernah dibaca").
-  // Tanpa baris ini, run manual "supaya keliatan lagi di app" tetap keliatan
-  // kosong sampai cache kadaluwarsa sendiri.
-  for (let k = 0; k <= 9; k++) {
-    cacheDrop_('kurikulum_prota_' + KELOMPOK_ID + '_' + TAHUN + '_' + (k === 0 ? 'all' : k));
-  }
-
-  const existing = readSheetAsObjects('kurikulum_prota').filter(r =>
-    String(r.kelompok_id) === String(KELOMPOK_ID) &&
-    parseInt(r.tahun || 0) === TAHUN &&
-    String(r.kategori) === KATEGORI
-  );
-  if (existing.length > 0) {
-    console.log('↷ Kurikulum Bacaan Al-Qur\'an Kelp Petemon 2026 sudah ada, skip.');
-    return;
-  }
-
-  const materi = [
+  seedKurikulumProta_(1, 2026, "Bacaan Al-Qur'an", 'bacaan_alquran', [
     { kelas: 1, jenjang: 'Caberawit', s1: { target: 'Tilawati Jilid 1', deskripsi: 'Halaman 1-44' }, s2: { target: 'Tilawati Jilid 2', deskripsi: 'Halaman 1-44' } },
     { kelas: 2, jenjang: 'Caberawit', s1: { target: 'Tilawati Jilid 3', deskripsi: 'Halaman 1-44' }, s2: { target: 'Tilawati Jilid 4', deskripsi: 'Halaman 1-44' } },
     { kelas: 3, jenjang: 'Caberawit', s1: { target: 'Tilawati Jilid 5', deskripsi: 'Halaman 1-44' }, s2: { target: 'Tilawati Jilid 6', deskripsi: 'Halaman 1-44' } },
@@ -235,30 +271,36 @@ function seedKurikulumBacaanQuranPetemon() {
     { kelas: 7, jenjang: 'Pra Remaja SMP', s1: { target: "Al-Qur'an Juz 12, 13 dan 14", deskripsi: '30 Lembar - 60 Halaman' }, s2: { target: "Al-Qur'an Juz 15, 16 dan 17", deskripsi: '30 Lembar - 60 Halaman' } },
     { kelas: 8, jenjang: 'Pra Remaja SMP', s1: { target: "Al-Qur'an Juz 18, 19 dan 20", deskripsi: '30 Lembar - 60 Halaman' }, s2: { target: "Al-Qur'an Juz 21, 22 dan 23", deskripsi: '30 Lembar - 60 Halaman' } },
     { kelas: 9, jenjang: 'Pra Remaja SMP', s1: { target: "Al-Qur'an Juz 24, 25 dan 26", deskripsi: '30 Lembar - 60 Halaman' }, s2: { target: "Al-Qur'an Juz 27, 28 dan 29", deskripsi: '30 Lembar - 60 Halaman' } },
-  ];
+  ]);
+}
 
-  const protaSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-  const promesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
-  const now = new Date().toISOString();
-  let protaCount = 0;
-  let promesCount = 0;
-
-  materi.forEach(function (m) {
-    const protaId = 'prota_' + KELOMPOK_ID + '_' + TAHUN + '_bacaan_alquran_kelas' + m.kelas;
-    const protaTarget = m.s1.target + ' → ' + m.s2.target;
-    const protaDeskripsi = 'Jenjang ' + m.jenjang + ' — Materi Bacaan Al-Qur\'an Kelas ' + m.kelas;
-
-    protaSheet.appendRow([protaId, KELOMPOK_ID, TAHUN, KATEGORI, protaTarget, protaDeskripsi, 'seed', now, now, m.kelas]);
-    protaCount++;
-
-    [['1', m.s1], ['2', m.s2]].forEach(function (pair) {
-      const semester = pair[0];
-      const data = pair[1];
-      const promesId = 'promes_' + protaId + '_' + semester;
-      promesSheet.appendRow([promesId, KELOMPOK_ID, protaId, semester, data.target, data.deskripsi, 'seed', now, now]);
-      promesCount++;
-    });
-  });
-
-  console.log(`✓ Kurikulum Bacaan Al-Qur'an Kelp Petemon 2026 seeded: ${protaCount} Prota (kelas 1-9), ${promesCount} Promes.`);
+/**
+ * Seed Kurikulum Prota/Promes "Tulis Huruf Arab" untuk Kelp Petemon (kelompok_id=1), tahun 2026.
+ * Ditambah SETELAH "Bacaan Al-Qur'an" (tampil di bawahnya di kartu Prota — lihat
+ * seedKurikulumProta_). Hanya Jenjang Caberawit, Kelas 1-6 (data yang diberikan
+ * tidak mencakup jenjang Pra Remaja SMP utk materi ini).
+ * Jalankan SEKALI dari Apps Script editor: pilih "seedKurikulumTulisHurufArabPetemon" dan Run.
+ * ⚠️ AMAN DIJALANKAN BERULANG — skip kalau data kategori ini utk kelompok+tahun ini sudah ada.
+ */
+function seedKurikulumTulisHurufArabPetemon() {
+  seedKurikulumProta_(1, 2026, 'Tulis Huruf Arab', 'tulis_huruf_arab', [
+    { kelas: 1, jenjang: 'Caberawit',
+      s1: { target: 'Menulis huruf tunggal fathah + angka Arab', deskripsi: '1. Menulis huruf tunggal fathah; 2. Menulis angka Arab' },
+      s2: { target: 'Menulis huruf sambung', deskripsi: '3. Menulis huruf sambung (di depan, tengah, dan belakang)' } },
+    { kelas: 2, jenjang: 'Caberawit',
+      s1: { target: 'Menulis rangkaian kata', deskripsi: '1. Menulis rangkaian kata' },
+      s2: { target: 'Menulis kata Arab baku/potongan ayat', deskripsi: '2. Menulis kata Arab baku/potongan ayat' } },
+    { kelas: 3, jenjang: 'Caberawit',
+      s1: { target: 'Menulis rangkaian kata', deskripsi: '1. Menulis rangkaian kata' },
+      s2: { target: 'Menulis kata Arab baku/potongan ayat', deskripsi: '2. Menulis kata Arab baku/potongan ayat' } },
+    { kelas: 4, jenjang: 'Caberawit',
+      s1: { target: 'Latihan makna pegon (mushaf Al-Qur\'an)', deskripsi: '1. Latihan makna pegon dan kode-kodenya dengan menggunakan mushaf Al-Qur\'an' },
+      s2: { target: 'Latihan makna pegon (mushaf Al-Qur\'an)', deskripsi: '1. Latihan makna pegon dan kode-kodenya dengan menggunakan mushaf Al-Qur\'an' } },
+    { kelas: 5, jenjang: 'Caberawit',
+      s1: { target: 'Terampil menulis Arab', deskripsi: '1. Terampil menulis Arab' },
+      s2: { target: 'Terampil menulis makna pegon', deskripsi: '2. Terampil menulis makna pegon' } },
+    { kelas: 6, jenjang: 'Caberawit',
+      s1: { target: 'Terampil menulis Arab', deskripsi: '1. Terampil menulis Arab' },
+      s2: { target: 'Terampil menulis makna pegon', deskripsi: '2. Terampil menulis makna pegon' } },
+  ]);
 }
