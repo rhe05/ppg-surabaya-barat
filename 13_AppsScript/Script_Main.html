@@ -7440,6 +7440,7 @@
           ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
         </div>
         <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-primary" onclick="window.openModalAddProbul('${promes.id}', 'Semester ${promes.semester}')">+ Tambah Bulanan</button>
           <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
           <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
         </div>
@@ -7498,6 +7499,7 @@
           ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
         </div>
         <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-primary" onclick="window.openModalAddProbul('${promes.id}', 'Semester ${promes.semester}')">+ Tambah Bulanan</button>
           <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
           <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
         </div>
@@ -7545,7 +7547,7 @@
           ${probul.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${probul.deskripsi}</div>` : ''}
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-sm btn-secondary" onclick="window.editProbul('${probul.id}', '${probul.target}', '${(probul.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.editProbul('${probul.id}', '${probul.promes_id}', '${window.escKurikulumAttr_(probul.target)}', '${window.escKurikulumAttr_(probul.deskripsi)}')">Edit</button>
           <button class="btn btn-sm btn-danger" onclick="window.deleteProbul('${probul.id}')">Hapus</button>
           <button class="btn btn-sm btn-primary" onclick="window.loadPencapaianSantri_('${window.currentKelompokId}', '${probul.id}')">Lihat Progres →</button>
         </div>
@@ -7649,9 +7651,14 @@
     document.getElementById('modalAddPromes').classList.remove('active');
   };
 
-  window.openModalAddProbul = function () {
+  window.openModalAddProbul = function (promesId, semesterLabel) {
+    if (!promesId) {
+      alert('Pilih semester terlebih dahulu (tab Tahunan → klik materi → "+ Tambah Bulanan" pada semester yang dituju).');
+      return;
+    }
     document.getElementById('probulId').value = '';
-    document.getElementById('probulPromesId').value = '';
+    document.getElementById('probulPromesId').value = promesId;
+    document.getElementById('probulSemesterLabel').textContent = semesterLabel || ('Semester ' + promesId);
     document.getElementById('probulBulan').value = new Date().getMonth() + 1;
     document.getElementById('probulKategori').value = '';
     document.getElementById('probulTarget').value = '';
@@ -7821,8 +7828,14 @@
       return;
     }
 
+    const probulId = document.getElementById('probulId').value;
+    if (!probulId && !promesId) {
+      alert('Semester tidak ditemukan, silakan tutup dan buka kembali form ini dari tab Tahunan.');
+      return;
+    }
+
     window.showGlobalLoading_('Menyimpan...');
-    google.script.run
+    const runner = google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) {
@@ -7835,12 +7848,19 @@
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         alert('Error: ' + err.message);
-      })
-      .serverAddProbul(window.currentToken, promesId, parseInt(bulan), kategori, target, deskripsi);
+      });
+
+    if (probulId) {
+      runner.serverUpdateProbul(window.currentToken, probulId, target, deskripsi);
+    } else {
+      runner.serverAddProbul(window.currentToken, promesId, parseInt(bulan), kategori, target, deskripsi);
+    }
   };
 
-  window.editProbul = function (probulId, target, deskripsi) {
+  window.editProbul = function (probulId, promesId, target, deskripsi) {
     document.getElementById('probulId').value = probulId;
+    document.getElementById('probulPromesId').value = promesId || '';
+    document.getElementById('probulSemesterLabel').textContent = 'Semester ' + (promesId || '-');
     document.getElementById('probulTarget').value = target;
     document.getElementById('probulDeskripsi').value = deskripsi;
     document.getElementById('modalAddProbul').classList.add('active');

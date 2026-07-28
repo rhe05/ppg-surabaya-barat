@@ -2320,8 +2320,8 @@
               <option value="11">November</option>
               <option value="12">Desember</option>
             </select>
-            <button class="btn btn-primary" onclick="window.openModalAddProbul()">+ Tambah Probul</button>
           </div>
+          <div style="font-size: 12.5px; color: var(--text-faint); margin-bottom: 12px;">Untuk menambah program bulanan, buka tab Tahunan &rarr; klik materi &rarr; pilih semester &rarr; "+ Tambah Bulanan".</div>
           <div id="kurikulumProbulList" style="display: flex; flex-direction: column; gap: 12px;">
             <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
           </div>
@@ -3465,6 +3465,10 @@
         </div>
         <input type="hidden" id="probulId">
         <input type="hidden" id="probulPromesId">
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <div id="probulSemesterLabel" style="font-size: 13px; color: var(--text-dim); padding: 6px 0;">-</div>
+        </div>
         <div class="form-group">
           <label class="form-label">Bulan</label>
           <select class="form-select" id="probulBulan">
