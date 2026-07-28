@@ -791,6 +791,57 @@ saja — harus ditelusuri sampai ke implementasi helper generik yang dipanggil.
 
 ---
 
+## #24 — Modul Kurikulum (Prota/Promes/Probul) 100% non-fungsional sejak dibuat — nama/signature helper salah (ditemukan 2026-07-28, saat menambah kolom `kelas`)
+
+**Gejala**: tidak ada laporan user — fitur Kurikulum (UI lengkap 4 tab: Tahunan/
+Semester/Bulanan/Pencapaian Santri sudah ada di `Markup_Screens.html`/
+`Script_Main.html` sejak entri sebelumnya) tampaknya belum pernah benar-benar
+dipakai. Ketahuan saat mau menambah kolom `kelas` ke Prota untuk data
+kurikulum Bacaan Al-Qur'an Kelp Petemon.
+
+**Akar masalah**: `Modul_MaintainKurikulum.gs` memanggil fungsi utility yang
+TIDAK ADA di `Modul_Utilities.gs` — sepertinya di-copy dari draf/design doc
+(`DESIGN_KURIKULUM.md`) tanpa disesuaikan ke konvensi asli file lain
+(`Modul_MaintainJadwalKBM.gs` dkk). Contoh: `getCurrentUser_(token)` (asli:
+`getCurrentUser(token)`, tanpa underscore), `validateUserAccess_(user, ...)`
+(asli: `validateUserAccess(token, ...)` — argumen pertama token, bukan objek
+user), `readSheetAsObjects_(...)`, `findRowByQuery_(sheet, field, value,
+mode)`, `updateRowByQuery_(sheet, field, value, row)` — semua nama/signature
+ini tidak ada; versi asli TANPA underscore dan pakai `sheetName` (string) +
+objek `query`. Setiap panggilan `serverGetProta`/`serverAddProta`/dst akan
+langsung `ReferenceError` begitu dipanggil dari client.
+
+**Bug kedua (independen) yang ikut ketemu**: `window.saveProta()` di
+`Script_Main.html` SELALU memanggil `serverAddProta` walau modal dibuka lewat
+`editProta()` (field `protaId` terisi) — klik "Edit" jadi diam-diam membuat
+Prota baru (duplikat), bukan mengubah yang lama.
+
+**Perbaikan**: tulis ulang seluruh `Modul_MaintainKurikulum.gs` memakai
+helper asli (`getCurrentUser`, `validateUserAccess(token,...)`,
+`readSheetAsObjects(sheetName)`, `appendRowToSheet`, `updateRowByQuery`,
+`deleteRowByQuery` — pola sama persis dengan `Modul_MaintainJadwalKBM.gs`).
+`saveProta()` sekarang cabang `protaId ? serverUpdateProta(...) :
+serverAddProta(...)`. Skema `kurikulum_prota` ditambah kolom `kelas`
+(opsional, kosong = berlaku semua kelas) — kolom baru SELALU ditaruh di
+AKHIR header (lihat pola `migrate*SchemaAddFields_` di `Setup_Database.gs`),
+bukan disisipkan di tengah, supaya urutan kolom sheet lama (dimigrasi) dan
+sheet baru (dibuat `createSheetIfNotExists`) tetap identik — `appendRow`
+menulis positional, jadi kalau urutan beda antara instalasi lama vs baru,
+data akan tertulis ke kolom yang salah.
+
+**Cara verifikasi**: setelah `setupDatabaseStructure()` dijalankan ulang
+(nambah kolom `kelas`), buka Kelp Petemon → Kurikulum → Tahunan, klik
+"+ Tambah Prota" lalu isi kategori+target — harus tersimpan tanpa error, lalu
+klik "Edit" pada card yang sama dan pastikan TIDAK muncul card duplikat.
+
+**Aturan permanen**: modul baru yang "pola sama seperti X" WAJIB dicek
+manual bahwa nama fungsi & signature yang dipanggil benar-benar ADA di
+`Modul_Utilities.gs` (`grep -n "^function " Modul_Utilities.gs`) — jangan
+percaya komentar "reuse pattern" begitu saja; `tools/check_local.js` HANYA
+mengecek sintaks, bukan apakah fungsi yang dipanggil benar-benar terdefinisi.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

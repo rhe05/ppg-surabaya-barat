@@ -2,36 +2,33 @@
  * Modul_MaintainKurikulum.gs — CRUD untuk Kurikulum (Prota/Promes/Probul + Pencapaian Santri)
  *
  * Sheets:
- * - kurikulum_prota: Program Tahunan
+ * - kurikulum_prota: Program Tahunan (per kelompok+tahun+kategori, opsional per kelas)
  * - kurikulum_promes: Program Semester
  * - kurikulum_probul: Program Bulanan
  * - kurikulum_pencapaian_santri: Tracking progress santri per materi
  *
- * Pattern: lock + cache + RBAC (same as Modul_MaintainJadwalKBM.gs)
+ * Pattern: lock + cache + RBAC (sama seperti Modul_MaintainJadwalKBM.gs)
  */
 
 /* ═══════════════════════════════════════════════════════════════════════════════
    PROTA (Program Tahunan) CRUD
    ═════════════════════════════════════════════════════════════════════════════════ */
 
-function serverGetProta(token, kelompokId, tahun) {
-  const user = getCurrentUser_(token);
-  if (!user || !validateUserAccess_(user, 'kelompok', kelompokId)) {
+function serverGetProta(token, kelompokId, tahun, kelas) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Akses ditolak' };
   }
 
   try {
-    const cacheKey = 'kurikulum_prota_' + kelompokId + '_' + tahun;
+    const cacheKey = 'kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (kelas || 'all');
     let data = cacheGet_(cacheKey);
     if (data) return { success: true, data: data };
 
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-    if (!sheet) return { success: true, data: [] };
-
-    const allRows = readSheetAsObjects_(sheet);
+    const allRows = readSheetAsObjects('kurikulum_prota');
     const filtered = allRows.filter(r =>
-      String(r.kelompok_id).trim() === String(kelompokId).trim() &&
-      parseInt(r.tahun || 0) === parseInt(tahun || 0)
+      String(r.kelompok_id) === String(kelompokId) &&
+      parseInt(r.tahun || 0) === parseInt(tahun || 0) &&
+      (!kelas || String(r.kelas || '') === String(kelas))
     );
 
     cachePut_(cacheKey, filtered, 3600);
@@ -41,9 +38,9 @@ function serverGetProta(token, kelompokId, tahun) {
   }
 }
 
-function serverAddProta(token, kelompokId, tahun, kategori, target, deskripsi) {
-  const user = getCurrentUser_(token);
-  if (!user || !validateUserAccess_(user, 'kelompok', kelompokId)) {
+function serverAddProta(token, kelompokId, tahun, kategori, kelas, target, deskripsi) {
+  const user = getCurrentUser(token);
+  if (!user || !validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Akses ditolak' };
   }
 
@@ -53,13 +50,14 @@ function serverAddProta(token, kelompokId, tahun, kategori, target, deskripsi) {
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-      const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategori.replace(/\s+/g, '_');
+      const kategoriSlug = String(kategori).trim().replace(/\s+/g, '_').toLowerCase();
+      const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + (kelas ? '_kelas' + kelas : '');
       const now = new Date().toISOString();
 
-      sheet.appendRow([id, kelompokId, tahun, kategori, target, deskripsi || '', user.id, now, now]);
+      appendRowToSheet('kurikulum_prota', [id, kelompokId, tahun, kategori, target, deskripsi || '', user.id, now, now, kelas || '']);
 
-      cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun);
+      cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (kelas || 'all'));
+      cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_all');
       return { success: true, id: id };
     });
   } catch (e) {
@@ -68,25 +66,25 @@ function serverAddProta(token, kelompokId, tahun, kategori, target, deskripsi) {
 }
 
 function serverUpdateProta(token, protaId, target, deskripsi) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-      const row = findRowByQuery_(sheet, 'id', protaId, 'exact');
+      const row = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
       if (!row) return { success: false, error: 'Prota tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      row.target = target || row.target;
-      row.deskripsi = deskripsi !== undefined ? deskripsi : row.deskripsi;
-      row.updated_at = new Date().toISOString();
-
-      updateRowByQuery_(sheet, 'id', protaId, row);
-      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun);
+      updateRowByQuery('kurikulum_prota', { id: protaId }, {
+        target: target || row.target,
+        deskripsi: deskripsi !== undefined ? deskripsi : row.deskripsi,
+        updated_at: new Date().toISOString()
+      });
+      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_' + (row.kelas || 'all'));
+      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_all');
 
       return { success: true };
     });
@@ -96,21 +94,21 @@ function serverUpdateProta(token, protaId, target, deskripsi) {
 }
 
 function serverDeleteProta(token, protaId) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-      const row = findRowByQuery_(sheet, 'id', protaId, 'exact');
+      const row = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
       if (!row) return { success: false, error: 'Prota tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      deleteRowByQuery_(sheet, 'id', protaId);
-      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun);
+      deleteRowByQuery('kurikulum_prota', { id: protaId });
+      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_' + (row.kelas || 'all'));
+      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_all');
 
       return { success: true };
     });
@@ -124,15 +122,14 @@ function serverDeleteProta(token, protaId) {
    ═════════════════════════════════════════════════════════════════════════════════ */
 
 function serverGetPromes(token, protaId) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-    const prota = findRowByQuery_(sheet, 'id', protaId, 'exact');
+    const prota = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
     if (!prota) return { success: false, error: 'Prota tidak ditemukan' };
 
-    if (!validateUserAccess_(user, 'kelompok', prota.kelompok_id)) {
+    if (!validateUserAccess(token, 'kelompok', prota.kelompok_id)) {
       return { success: false, error: 'Akses ditolak' };
     }
 
@@ -140,11 +137,8 @@ function serverGetPromes(token, protaId) {
     let data = cacheGet_(cacheKey);
     if (data) return { success: true, data: data };
 
-    const promesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
-    if (!promesSheet) return { success: true, data: [] };
-
-    const allRows = readSheetAsObjects_(promesSheet);
-    const filtered = allRows.filter(r => String(r.prota_id).trim() === String(protaId).trim());
+    const allRows = readSheetAsObjects('kurikulum_promes');
+    const filtered = allRows.filter(r => String(r.prota_id) === String(protaId));
 
     cachePut_(cacheKey, filtered, 3600);
     return { success: true, data: filtered };
@@ -154,7 +148,7 @@ function serverGetPromes(token, protaId) {
 }
 
 function serverAddPromes(token, protaId, semester, target, deskripsi) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   if (!semester || !target) {
@@ -163,19 +157,17 @@ function serverAddPromes(token, protaId, semester, target, deskripsi) {
 
   try {
     return withScriptLock_(function() {
-      const protaSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_prota');
-      const prota = findRowByQuery_(protaSheet, 'id', protaId, 'exact');
+      const prota = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
       if (!prota) return { success: false, error: 'Prota tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', prota.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', prota.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
       const id = 'promes_' + protaId + '_' + semester;
       const now = new Date().toISOString();
 
-      sheet.appendRow([id, prota.kelompok_id, protaId, semester, target, deskripsi || '', user.id, now, now]);
+      appendRowToSheet('kurikulum_promes', [id, prota.kelompok_id, protaId, semester, target, deskripsi || '', user.id, now, now]);
 
       cacheDrop_('kurikulum_promes_' + protaId);
       return { success: true, id: id };
@@ -186,24 +178,23 @@ function serverAddPromes(token, protaId, semester, target, deskripsi) {
 }
 
 function serverUpdatePromes(token, promesId, target, deskripsi) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
-      const row = findRowByQuery_(sheet, 'id', promesId, 'exact');
+      const row = readSheetAsObjects('kurikulum_promes').find(r => String(r.id) === String(promesId));
       if (!row) return { success: false, error: 'Promes tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      row.target = target || row.target;
-      row.deskripsi = deskripsi !== undefined ? deskripsi : row.deskripsi;
-      row.updated_at = new Date().toISOString();
-
-      updateRowByQuery_(sheet, 'id', promesId, row);
+      updateRowByQuery('kurikulum_promes', { id: promesId }, {
+        target: target || row.target,
+        deskripsi: deskripsi !== undefined ? deskripsi : row.deskripsi,
+        updated_at: new Date().toISOString()
+      });
       cacheDrop_('kurikulum_promes_' + row.prota_id);
 
       return { success: true };
@@ -214,20 +205,19 @@ function serverUpdatePromes(token, promesId, target, deskripsi) {
 }
 
 function serverDeletePromes(token, promesId) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
-      const row = findRowByQuery_(sheet, 'id', promesId, 'exact');
+      const row = readSheetAsObjects('kurikulum_promes').find(r => String(r.id) === String(promesId));
       if (!row) return { success: false, error: 'Promes tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      deleteRowByQuery_(sheet, 'id', promesId);
+      deleteRowByQuery('kurikulum_promes', { id: promesId });
       cacheDrop_('kurikulum_promes_' + row.prota_id);
 
       return { success: true };
@@ -242,8 +232,7 @@ function serverDeletePromes(token, promesId) {
    ═════════════════════════════════════════════════════════════════════════════════ */
 
 function serverGetProbul(token, kelompokId, tahun, bulan) {
-  const user = getCurrentUser_(token);
-  if (!user || !validateUserAccess_(user, 'kelompok', kelompokId)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Akses ditolak' };
   }
 
@@ -252,12 +241,9 @@ function serverGetProbul(token, kelompokId, tahun, bulan) {
     let data = cacheGet_(cacheKey);
     if (data) return { success: true, data: data };
 
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_probul');
-    if (!sheet) return { success: true, data: [] };
-
-    const allRows = readSheetAsObjects_(sheet);
+    const allRows = readSheetAsObjects('kurikulum_probul');
     const filtered = allRows.filter(r =>
-      String(r.kelompok_id).trim() === String(kelompokId).trim() &&
+      String(r.kelompok_id) === String(kelompokId) &&
       parseInt(r.tahun || 0) === parseInt(tahun || 0) &&
       parseInt(r.bulan || 0) === parseInt(bulan || 0)
     );
@@ -270,7 +256,7 @@ function serverGetProbul(token, kelompokId, tahun, bulan) {
 }
 
 function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   if (!bulan || !kategori || !target) {
@@ -279,21 +265,20 @@ function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
 
   try {
     return withScriptLock_(function() {
-      const promesSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_promes');
-      const promes = findRowByQuery_(promesSheet, 'id', promesId, 'exact');
+      const promes = readSheetAsObjects('kurikulum_promes').find(r => String(r.id) === String(promesId));
       if (!promes) return { success: false, error: 'Promes tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', promes.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', promes.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_probul');
       const id = 'probul_' + promesId + '_' + bulan;
       const now = new Date().toISOString();
+      const tahun = promes.tahun || new Date().getFullYear();
 
-      sheet.appendRow([id, promes.kelompok_id, promesId, promes.tahun || new Date().getFullYear(), bulan, kategori, target, deskripsi || '', user.id, now, now]);
+      appendRowToSheet('kurikulum_probul', [id, promes.kelompok_id, promesId, tahun, bulan, kategori, target, deskripsi || '', user.id, now, now]);
 
-      cacheDrop_('kurikulum_probul_' + promes.kelompok_id + '_' + (promes.tahun || new Date().getFullYear()) + '_' + bulan);
+      cacheDrop_('kurikulum_probul_' + promes.kelompok_id + '_' + tahun + '_' + bulan);
       return { success: true, id: id };
     });
   } catch (e) {
@@ -302,24 +287,23 @@ function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
 }
 
 function serverUpdateProbul(token, probulId, target, deskripsi) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_probul');
-      const row = findRowByQuery_(sheet, 'id', probulId, 'exact');
+      const row = readSheetAsObjects('kurikulum_probul').find(r => String(r.id) === String(probulId));
       if (!row) return { success: false, error: 'Probul tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      row.target = target || row.target;
-      row.deskripsi = deskripsi !== undefined ? deskripsi : row.deskripsi;
-      row.updated_at = new Date().toISOString();
-
-      updateRowByQuery_(sheet, 'id', probulId, row);
+      updateRowByQuery('kurikulum_probul', { id: probulId }, {
+        target: target || row.target,
+        deskripsi: deskripsi !== undefined ? deskripsi : row.deskripsi,
+        updated_at: new Date().toISOString()
+      });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
 
       return { success: true };
@@ -330,20 +314,19 @@ function serverUpdateProbul(token, probulId, target, deskripsi) {
 }
 
 function serverDeleteProbul(token, probulId) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_probul');
-      const row = findRowByQuery_(sheet, 'id', probulId, 'exact');
+      const row = readSheetAsObjects('kurikulum_probul').find(r => String(r.id) === String(probulId));
       if (!row) return { success: false, error: 'Probul tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      deleteRowByQuery_(sheet, 'id', probulId);
+      deleteRowByQuery('kurikulum_probul', { id: probulId });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
 
       return { success: true };
@@ -358,8 +341,7 @@ function serverDeleteProbul(token, probulId) {
    ═════════════════════════════════════════════════════════════════════════════════ */
 
 function serverGetPencapaianSantri(token, kelompokId, probulId) {
-  const user = getCurrentUser_(token);
-  if (!user || !validateUserAccess_(user, 'kelompok', kelompokId)) {
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Akses ditolak' };
   }
 
@@ -368,13 +350,10 @@ function serverGetPencapaianSantri(token, kelompokId, probulId) {
     let data = cacheGet_(cacheKey);
     if (data) return { success: true, data: data };
 
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_pencapaian_santri');
-    if (!sheet) return { success: true, data: [] };
-
-    const allRows = readSheetAsObjects_(sheet);
+    const allRows = readSheetAsObjects('kurikulum_pencapaian_santri');
     const filtered = allRows.filter(r =>
-      String(r.kelompok_id).trim() === String(kelompokId).trim() &&
-      String(r.probul_id).trim() === String(probulId).trim()
+      String(r.kelompok_id) === String(kelompokId) &&
+      String(r.probul_id) === String(probulId)
     );
 
     cachePut_(cacheKey, filtered, 3600);
@@ -385,29 +364,28 @@ function serverGetPencapaianSantri(token, kelompokId, probulId) {
 }
 
 function serverUpdatePencapaianSantri(token, pencapaianId, status, catatan) {
-  const user = getCurrentUser_(token);
+  const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
-  if (!['pending', 'in_progress', 'completed'].includes(status)) {
+  if (['pending', 'in_progress', 'completed'].indexOf(status) === -1) {
     return { success: false, error: 'Status harus: pending, in_progress, atau completed' };
   }
 
   try {
     return withScriptLock_(function() {
-      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_pencapaian_santri');
-      const row = findRowByQuery_(sheet, 'id', pencapaianId, 'exact');
+      const row = readSheetAsObjects('kurikulum_pencapaian_santri').find(r => String(r.id) === String(pencapaianId));
       if (!row) return { success: false, error: 'Pencapaian tidak ditemukan' };
 
-      if (!validateUserAccess_(user, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      row.status = status;
-      row.catatan_guru = catatan || row.catatan_guru || '';
-      row.tanggal_update = new Date().toISOString();
-      row.updated_by = user.id;
-
-      updateRowByQuery_(sheet, 'id', pencapaianId, row);
+      updateRowByQuery('kurikulum_pencapaian_santri', { id: pencapaianId }, {
+        status: status,
+        catatan_guru: catatan || row.catatan_guru || '',
+        tanggal_update: new Date().toISOString(),
+        updated_by: user.id
+      });
       cacheDrop_('kurikulum_pencapaian_' + row.probul_id);
 
       return { success: true };

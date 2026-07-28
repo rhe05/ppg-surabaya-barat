@@ -7283,11 +7283,12 @@
 
     if (tabName === 'prota') {
       const tahun = document.getElementById('kurikulumProtaTahun').value || 2026;
-      window.loadKurikulumProta_(window.currentKelompokId, tahun);
+      const kelas = document.getElementById('kurikulumProtaKelas').value;
+      window.loadKurikulumProta_(window.currentKelompokId, tahun, kelas);
     }
   };
 
-  window.loadKurikulumProta_ = function (kelompokId, tahun, onDone) {
+  window.loadKurikulumProta_ = function (kelompokId, tahun, kelas, onDone) {
     window.showGlobalLoading_('Memuat program tahunan...');
     google.script.run
       .withSuccessHandler(function (result) {
@@ -7304,7 +7305,7 @@
         window.hideGlobalLoading_();
         document.getElementById('kurikulumProtaList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Error: ' + err.message + '</div>';
       })
-      .serverGetProta(window.currentToken, kelompokId, parseInt(tahun) || 2026);
+      .serverGetProta(window.currentToken, kelompokId, parseInt(tahun) || 2026, kelas || '');
   };
 
   window.renderProtaList_ = function (data) {
@@ -7317,9 +7318,9 @@
     list.innerHTML = data.map(prota => `
       <div class="kurikulum-prota-card">
         <div class="kurikulum-prota-card-header">
-          <span class="kurikulum-prota-title">${prota.kategori || 'N/A'}</span>
+          <span class="kurikulum-prota-title">${prota.kategori || 'N/A'}${prota.kelas ? ' — Kelas ' + prota.kelas : ''}</span>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary" onclick="window.editProta('${prota.id}', '${prota.kategori}', '${prota.target}', '${(prota.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+            <button class="btn btn-sm btn-secondary" onclick="window.editProta('${prota.id}', '${prota.kategori}', '${prota.target}', '${(prota.deskripsi || '').replace(/'/g, '&#39;')}', '${prota.kelas || ''}')">Edit</button>
             <button class="btn btn-sm btn-danger" onclick="window.deleteProta('${prota.id}')">Hapus</button>
           </div>
         </div>
@@ -7508,6 +7509,8 @@
     document.getElementById('protaId').value = '';
     document.getElementById('protaTahun').value = new Date().getFullYear();
     document.getElementById('protaKategori').value = '';
+    document.getElementById('protaKelas').value = '';
+    document.getElementById('protaKelas').disabled = false;
     document.getElementById('protaTarget').value = '';
     document.getElementById('protaDeskripsi').value = '';
     document.getElementById('modalAddProta').classList.add('active');
@@ -7560,8 +7563,10 @@
      ═════════════════════════════════════════════════════════════════════════════════ */
 
   window.saveProta = function () {
+    const protaId = document.getElementById('protaId').value;
     const tahun = document.getElementById('protaTahun').value;
     const kategori = document.getElementById('protaKategori').value.trim();
+    const kelas = document.getElementById('protaKelas').value;
     const target = document.getElementById('protaTarget').value.trim();
     const deskripsi = document.getElementById('protaDeskripsi').value.trim();
 
@@ -7570,8 +7575,9 @@
       return;
     }
 
+    const kelasFilter = document.getElementById('kurikulumProtaKelas').value;
     window.showGlobalLoading_('Menyimpan...');
-    google.script.run
+    const runner = google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) {
@@ -7579,18 +7585,25 @@
           return;
         }
         window.closeModalAddProta();
-        window.loadKurikulumProta_(window.currentKelompokId, tahun);
+        window.loadKurikulumProta_(window.currentKelompokId, tahun, kelasFilter);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         alert('Error: ' + err.message);
-      })
-      .serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, target, deskripsi);
+      });
+
+    if (protaId) {
+      runner.serverUpdateProta(window.currentToken, protaId, target, deskripsi);
+    } else {
+      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, deskripsi);
+    }
   };
 
-  window.editProta = function (protaId, kategori, target, deskripsi) {
+  window.editProta = function (protaId, kategori, target, deskripsi, kelas) {
     document.getElementById('protaId').value = protaId;
     document.getElementById('protaKategori').value = kategori;
+    document.getElementById('protaKelas').value = kelas || '';
+    document.getElementById('protaKelas').disabled = true;
     document.getElementById('protaTarget').value = target;
     document.getElementById('protaDeskripsi').value = deskripsi;
     document.getElementById('modalAddProta').classList.add('active');
@@ -7606,7 +7619,7 @@
           alert('Error: ' + result.error);
           return;
         }
-        window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value);
+        window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value, document.getElementById('kurikulumProtaKelas').value);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();

@@ -2271,10 +2271,22 @@
         <!-- Tab: Prota (Tahunan) -->
         <div class="kurikulum-tab-content active" id="kurikulumTabProta" style="margin-bottom: 48px;">
           <div style="display: flex; gap: 8px; margin-bottom: 16px;">
-            <select class="form-select" id="kurikulumProtaTahun" style="max-width: 150px;" onchange="window.loadKurikulumProta_(window.currentKelompokId, this.value)">
+            <select class="form-select" id="kurikulumProtaTahun" style="max-width: 150px;" onchange="window.loadKurikulumProta_(window.currentKelompokId, this.value, document.getElementById('kurikulumProtaKelas').value)">
               <option value="2025">2025</option>
               <option value="2026" selected>2026</option>
               <option value="2027">2027</option>
+            </select>
+            <select class="form-select" id="kurikulumProtaKelas" style="max-width: 170px;" onchange="window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value, this.value)">
+              <option value="">Semua Kelas</option>
+              <option value="1">Kelas 1</option>
+              <option value="2">Kelas 2</option>
+              <option value="3">Kelas 3</option>
+              <option value="4">Kelas 4</option>
+              <option value="5">Kelas 5</option>
+              <option value="6">Kelas 6</option>
+              <option value="7">Kelas 7</option>
+              <option value="8">Kelas 8</option>
+              <option value="9">Kelas 9</option>
             </select>
             <button class="btn btn-primary" onclick="window.openModalAddProta()">+ Tambah Prota</button>
           </div>
@@ -3381,7 +3393,22 @@
         </div>
         <div class="form-group">
           <label class="form-label">Kategori</label>
-          <input type="text" class="form-input" id="protaKategori" placeholder="mis. Hafalan, Doa, Tajwid">
+          <input type="text" class="form-input" id="protaKategori" placeholder="mis. Hafalan, Doa, Tajwid, Bacaan Al-Qur'an">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kelas (opsional)</label>
+          <select class="form-select" id="protaKelas">
+            <option value="">Semua Kelas</option>
+            <option value="1">Kelas 1</option>
+            <option value="2">Kelas 2</option>
+            <option value="3">Kelas 3</option>
+            <option value="4">Kelas 4</option>
+            <option value="5">Kelas 5</option>
+            <option value="6">Kelas 6</option>
+            <option value="7">Kelas 7</option>
+            <option value="8">Kelas 8</option>
+            <option value="9">Kelas 9</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Target</label>
