@@ -439,6 +439,67 @@ function serverDeleteProbul(token, probulId) {
   }
 }
 
+/**
+ * Set (upsert) target Bulan 1-6 sekaligus utk 1 Promes — dipakai modal "Edit
+ * Target Bulanan" di tab Semester (laporan): admin pilih Kelas -> Semester ->
+ * Materi, isi 6 kolom Bulan, simpan sekali jalan (bukan 6x panggilan
+ * serverAddProbul/serverUpdateProbul terpisah). Baris yang sudah ada
+ * di-UPDATE, yang belum ada di-INSERT, kolom yang dikosongkan (target='')
+ * DIBIARKAN (tidak dihapus) supaya tidak ada penghapusan tak sengaja lewat
+ * form ini — pakai tombol Hapus di tab Bulanan kalau memang mau menghapus.
+ *
+ * @param {Object} bulanTargets — { "1": "Hal 1-9", "2": "...", ..., "6": "Evaluasi" }
+ */
+function serverSetProbulBulan(token, promesId, bulanTargets) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Akses ditolak' };
+
+  try {
+    return withScriptLock_(function() {
+      const promes = readSheetAsObjects('kurikulum_promes').find(r => String(r.id) === String(promesId));
+      if (!promes) return { success: false, error: 'Promes tidak ditemukan' };
+
+      if (!validateUserAccess(token, 'kelompok', promes.kelompok_id)) {
+        return { success: false, error: 'Akses ditolak' };
+      }
+
+      const prota = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(promes.prota_id));
+      // ⚠️ kurikulum_promes TIDAK punya kolom 'tahun' sendiri (bug lama di
+      // serverAddProbul memakai `promes.tahun` yang selalu undefined) — ambil
+      // dari Prota induknya, itu sumber kebenaran yang benar.
+      const tahun = (prota && prota.tahun) || new Date().getFullYear();
+      const kategori = (prota && prota.kategori) || '';
+
+      const existingProbul = readSheetAsObjects('kurikulum_probul').filter(r => String(r.promes_id) === String(promesId));
+      const now = new Date().toISOString();
+
+      for (let bulan = 1; bulan <= 6; bulan++) {
+        const target = String((bulanTargets && (bulanTargets[bulan] || bulanTargets[String(bulan)])) || '').trim();
+        const existing = existingProbul.find(function (r) { return parseInt(r.bulan) === bulan; });
+
+        if (existing) {
+          if (target) {
+            updateRowByQuery('kurikulum_probul', { id: existing.id }, { target: target, updated_at: now });
+          }
+        } else if (target) {
+          const id = 'probul_' + promesId + '_' + bulan;
+          appendRowToSheet('kurikulum_probul', [id, promes.kelompok_id, promesId, tahun, bulan, kategori, target, '', user.id, now, now]);
+        }
+      }
+
+      cacheDrop_('kurikulum_probul_bypromes_' + promesId);
+      cacheDrop_('kurikulum_fulltree_' + promes.kelompok_id + '_' + tahun);
+      for (let b = 1; b <= 6; b++) {
+        cacheDrop_('kurikulum_probul_' + promes.kelompok_id + '_' + tahun + '_' + b);
+      }
+
+      return { success: true };
+    });
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    PENCAPAIAN SANTRI (Progress Tracking) CRUD
    ═════════════════════════════════════════════════════════════════════════════════ */

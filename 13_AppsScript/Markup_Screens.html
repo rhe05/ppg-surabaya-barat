@@ -3510,6 +3510,62 @@
       </div>
     </div>
 
+    <!-- Modal Edit Target Bulanan (dipicu tombol "Edit" di tab Semester) -->
+    <div class="modal-overlay" id="modalEditProbulBulanan">
+      <div class="modal-content">
+        <div class="modal-header">
+          <span>Edit Target Bulanan</span>
+          <button class="modal-close-btn" onclick="window.closeModalEditProbulBulanan()">×</button>
+        </div>
+        <input type="hidden" id="probulBulananKelas">
+        <input type="hidden" id="probulBulananPromesId">
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <select class="form-select" id="probulBulananSemester" onchange="window.onProbulBulananSelectChange_()">
+            <option value="1">Semester I</option>
+            <option value="2">Semester II</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Materi</label>
+          <select class="form-select" id="probulBulananMateri" onchange="window.onProbulBulananSelectChange_()"></select>
+        </div>
+        <div id="probulBulananEmptyNote" style="display: none; font-size: 12.5px; color: var(--text-faint); margin-bottom: 12px;">
+          Materi ini belum punya Semester tersebut — tambahkan dulu lewat tab "Tahunan".
+        </div>
+        <div id="probulBulananFields">
+          <div class="form-group">
+            <label class="form-label">Bulan 1</label>
+            <input type="text" class="form-input" id="probulBulanan1" placeholder="mis. Hal 1-9">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bulan 2</label>
+            <input type="text" class="form-input" id="probulBulanan2">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bulan 3</label>
+            <input type="text" class="form-input" id="probulBulanan3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bulan 4</label>
+            <input type="text" class="form-input" id="probulBulanan4">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bulan 5</label>
+            <input type="text" class="form-input" id="probulBulanan5">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bulan 6</label>
+            <input type="text" class="form-input" id="probulBulanan6" placeholder="mis. Evaluasi">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="window.closeModalEditProbulBulanan()">Batal</button>
+          <button class="btn btn-primary" onclick="window.saveProbulBulanan()">Simpan</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Modal Edit Pencapaian Santri -->
     <div class="modal-overlay" id="modalEditPencapaian">
       <div class="modal-content">

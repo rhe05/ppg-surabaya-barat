@@ -7423,6 +7423,7 @@
           el.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Gagal: ' + result.error + '</div>';
           return;
         }
+        window.lastKurikulumSemesterTree_ = result.data;
         window.renderKurikulumSemesterReport_(el, result.data);
       })
       .withFailureHandler(function (err) {
@@ -7431,16 +7432,83 @@
       .serverGetKurikulumFullTree(window.currentToken, kelompokId, parseInt(tahun) || 2026);
   };
 
-  // Loncat ke tab Tahunan, sudah difilter ke Kelas tertentu -- dipakai tombol
-  // "Edit" di atas tiap kartu Kelas (tab Semester). Kelola materi (tambah/
-  // edit/hapus) tetap satu tempat (Tahunan), tab Semester ini murni laporan.
-  window.jumpToKurikulumKelasEdit_ = function (kelas) {
-    const protaTabBtn = document.querySelector('.kurikulum-tab-btn[data-tab="prota"]');
-    if (protaTabBtn) window.switchKurikulumTab_(protaTabBtn, 'prota');
-    const kelasEl = document.getElementById('kurikulumProtaKelas');
-    const tahunEl = document.getElementById('kurikulumProtaTahun');
-    if (kelasEl) kelasEl.value = kelas || '';
-    if (kelasEl && tahunEl) window.loadKurikulumProta_(window.currentKelompokId, tahunEl.value, kelasEl.value);
+  // Modal "Edit Target Bulanan" -- dipicu tombol "Edit" di tiap kartu Kelas
+  // (tab Semester). Admin pilih Semester + Materi, isi 6 kolom Bulan
+  // langsung di sini (TIDAK loncat ke tab Tahunan lagi) -- data materi utk
+  // Kelas ini diambil dari window.lastKurikulumSemesterTree_ (sudah ada di
+  // memori dari render laporan, tidak perlu fetch ulang).
+  window.openModalEditProbulBulanan = function (kelas) {
+    const kelasKey = kelas || '';
+    document.getElementById('probulBulananKelas').value = kelasKey;
+
+    const items = (window.lastKurikulumSemesterTree_ || []).filter(function (p) {
+      return (p.kelas ? String(p.kelas) : '') === kelasKey;
+    });
+    window.currentProbulBulananItems_ = items;
+
+    const materiSelect = document.getElementById('probulBulananMateri');
+    materiSelect.innerHTML = items.map(function (p) {
+      return `<option value="${p.id}">${window.escKurikulumAttr_(p.kategori)}</option>`;
+    }).join('');
+
+    document.getElementById('probulBulananSemester').value = '1';
+    window.onProbulBulananSelectChange_();
+    document.getElementById('modalEditProbulBulanan').classList.add('active');
+  };
+
+  window.closeModalEditProbulBulanan = function () {
+    document.getElementById('modalEditProbulBulanan').classList.remove('active');
+  };
+
+  window.onProbulBulananSelectChange_ = function () {
+    const protaId = document.getElementById('probulBulananMateri').value;
+    const semester = document.getElementById('probulBulananSemester').value;
+    const items = window.currentProbulBulananItems_ || [];
+    const prota = items.find(function (p) { return String(p.id) === String(protaId); });
+    const promes = prota ? (prota.promes || []).find(function (p) { return String(p.semester) === String(semester); }) : null;
+
+    document.getElementById('probulBulananPromesId').value = promes ? promes.id : '';
+    document.getElementById('probulBulananEmptyNote').style.display = promes ? 'none' : 'block';
+    document.getElementById('probulBulananFields').style.display = promes ? 'block' : 'none';
+
+    const byBulan = {};
+    if (promes && promes.probul) {
+      promes.probul.forEach(function (p) { byBulan[parseInt(p.bulan)] = p.target; });
+    }
+    for (let b = 1; b <= 6; b++) {
+      document.getElementById('probulBulanan' + b).value = byBulan[b] || '';
+    }
+  };
+
+  window.saveProbulBulanan = function () {
+    const promesId = document.getElementById('probulBulananPromesId').value;
+    if (!promesId) {
+      alert('Materi ini belum punya Semester yang dipilih.');
+      return;
+    }
+
+    const bulanValues = {};
+    for (let b = 1; b <= 6; b++) {
+      bulanValues[b] = document.getElementById('probulBulanan' + b).value.trim();
+    }
+
+    window.showGlobalLoading_('Menyimpan...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          alert('Error: ' + result.error);
+          return;
+        }
+        window.closeModalEditProbulBulanan();
+        const tahunEl = document.getElementById('kurikulumSemesterTahun');
+        window.loadKurikulumSemesterReport_(window.currentKelompokId, tahunEl ? tahunEl.value : 2026);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Error: ' + err.message);
+      })
+      .serverSetProbulBulan(window.currentToken, promesId, bulanValues);
   };
 
   // Tabel gabungan per Kelas+Semester: baris = materi (Bacaan Al-Qur'an, Tulis
@@ -7513,7 +7581,7 @@
         <div class="kurikulum-semester-kelas-block">
           <div class="kurikulum-semester-kelas-header">
             <span class="kurikulum-semester-kelas-title">${label}</span>
-            <button class="kurikulum-semester-edit-btn" onclick="window.jumpToKurikulumKelasEdit_('${kelasArg}')">✎ Edit</button>
+            <button class="kurikulum-semester-edit-btn" onclick="window.openModalEditProbulBulanan('${kelasArg}')">✎ Edit</button>
           </div>
           ${semesterSections || '<div class="kurikulum-semester-no-bulan">Belum ada semester.</div>'}
         </div>
