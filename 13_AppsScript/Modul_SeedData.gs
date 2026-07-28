@@ -304,3 +304,86 @@ function seedKurikulumTulisHurufArabPetemon() {
       s2: { target: 'Terampil menulis makna pegon', deskripsi: '2. Terampil menulis makna pegon' } },
   ]);
 }
+
+/**
+ * Seed Kurikulum Probul (Target Per Bulan) utk semua Promes "Bacaan Al-Qur'an"
+ * Kelp Petemon 2026 — dipakai tabel "Target Per Bulan" inline di rincian
+ * Semester (Kurikulum Tahunan). Mengikuti pola poster rujukan: Bulan 1-5 =
+ * pembagian rata halaman semester itu (5 bagian, sisa taruh di bagian
+ * terakhir), Bulan 6 = Evaluasi/Ujian (tanpa materi baru).
+ *
+ * ⚠️ WAJIB dijalankan SETELAH seedKurikulumBacaanQuranPetemon() (butuh
+ * Prota/Promes-nya sudah ada). Jalankan SEKALI dari Apps Script editor:
+ * pilih "seedKurikulumProbulBacaanQuranPetemon" dan Run.
+ * ⚠️ AMAN DIJALANKAN BERULANG — skip per-Promes yang Probul-nya sudah ada.
+ */
+function seedKurikulumProbulBacaanQuranPetemon() {
+  const KELOMPOK_ID = 1;
+  const TAHUN = 2026;
+  const KATEGORI = "Bacaan Al-Qur'an";
+
+  // Total halaman per Kelas+Semester (sumber: deskripsi Promes yang sama
+  // dipakai seedKurikulumBacaanQuranPetemon() — Tilawati selalu 44 halaman,
+  // sisanya sesuai lembar Al-Qur'an per Juz yang diberikan).
+  const halamanPerKelas = {
+    1: { 1: 44, 2: 44 },
+    2: { 1: 44, 2: 44 },
+    3: { 1: 44, 2: 44 },
+    4: { 1: 23, 2: 40 },
+    5: { 1: 40, 2: 40 },
+    6: { 1: 40, 2: 60 },
+    7: { 1: 60, 2: 60 },
+    8: { 1: 60, 2: 60 },
+    9: { 1: 60, 2: 60 },
+  };
+
+  const probulSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('kurikulum_probul');
+  const now = new Date().toISOString();
+  let count = 0;
+
+  Object.keys(halamanPerKelas).forEach(function (kelasStr) {
+    const kelas = parseInt(kelasStr, 10);
+    [1, 2].forEach(function (semester) {
+      const protaId = 'prota_' + KELOMPOK_ID + '_' + TAHUN + '_bacaan_alquran_kelas' + kelas;
+      const promesId = 'promes_' + protaId + '_' + semester;
+      const totalHalaman = halamanPerKelas[kelas][semester];
+
+      // Hapus cache SEBELUM cek "sudah ada" — sama alasannya seperti
+      // seedKurikulumProta_ (hasil kosong ke-cache 1 jam kalau UI pernah
+      // dibuka duluan sebelum data ini ada).
+      cacheDrop_('kurikulum_probul_bypromes_' + promesId);
+
+      const existing = readSheetAsObjects('kurikulum_probul').filter(r => String(r.promes_id) === String(promesId));
+      if (existing.length > 0) {
+        console.log(`↷ Probul utk ${promesId} sudah ada, skip.`);
+        return;
+      }
+
+      // Bagi rata 5 bagian (bulan 1-5): tiap bagian ceil(total/5) halaman,
+      // bagian terakhir menampung sisanya — cocok dgn contoh poster (mis.
+      // 44 halaman -> 9,9,9,9,8; 23 halaman -> 5,5,5,5,3).
+      const perBulan = Math.ceil(totalHalaman / 5);
+      let halamanTerpakai = 0;
+      for (let bulan = 1; bulan <= 5; bulan++) {
+        const mulai = halamanTerpakai + 1;
+        const jumlahBulanIni = (bulan === 5) ? (totalHalaman - halamanTerpakai) : perBulan;
+        const selesai = halamanTerpakai + jumlahBulanIni;
+        halamanTerpakai = selesai;
+
+        const target = (mulai === selesai) ? ('Hal. ' + mulai) : ('Hal. ' + mulai + ' - ' + selesai);
+        const deskripsi = (bulan <= 4) ? 'Penyampaian materi baru' : 'Penyelesaian target materi';
+        const id = 'probul_' + promesId + '_' + bulan;
+
+        probulSheet.appendRow([id, KELOMPOK_ID, promesId, TAHUN, bulan, KATEGORI, target, deskripsi, 'seed', now, now]);
+        count++;
+      }
+
+      // Bulan 6 = Evaluasi/Ujian, tidak ada materi baru.
+      const idEval = 'probul_' + promesId + '_6';
+      probulSheet.appendRow([idEval, KELOMPOK_ID, promesId, TAHUN, 6, KATEGORI, 'Evaluasi / Ujian', 'Evaluasi/Ujian Semester — tidak ada materi baru', 'seed', now, now]);
+      count++;
+    });
+  });
+
+  console.log(`✓ Kurikulum Probul "Bacaan Al-Qur'an" Kelp Petemon 2026 seeded: ${count} baris (9 Kelas x 2 Semester x 6 Bulan).`);
+}

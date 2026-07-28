@@ -255,6 +255,40 @@ function serverGetProbul(token, kelompokId, tahun, bulan) {
   }
 }
 
+/**
+ * Ambil semua Probul (target bulanan) milik 1 Promes, terurut bulan 1-6 —
+ * dipakai tabel "Target Per Bulan" inline di rincian Semester (Kurikulum
+ * Tahunan), berbeda dari serverGetProbul() yang scope-nya per BULAN lintas
+ * kelompok (dipakai tab "Bulanan").
+ */
+function serverGetProbulByPromes(token, promesId) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Akses ditolak' };
+
+  try {
+    const promes = readSheetAsObjects('kurikulum_promes').find(r => String(r.id) === String(promesId));
+    if (!promes) return { success: false, error: 'Promes tidak ditemukan' };
+
+    if (!validateUserAccess(token, 'kelompok', promes.kelompok_id)) {
+      return { success: false, error: 'Akses ditolak' };
+    }
+
+    const cacheKey = 'kurikulum_probul_bypromes_' + promesId;
+    let data = cacheGet_(cacheKey);
+    if (data) return { success: true, data: data };
+
+    const allRows = readSheetAsObjects('kurikulum_probul');
+    const filtered = allRows
+      .filter(r => String(r.promes_id) === String(promesId))
+      .sort((a, b) => parseInt(a.bulan || 0) - parseInt(b.bulan || 0));
+
+    cachePut_(cacheKey, filtered, 3600);
+    return { success: true, data: filtered };
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
 function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
@@ -279,6 +313,7 @@ function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
       appendRowToSheet('kurikulum_probul', [id, promes.kelompok_id, promesId, tahun, bulan, kategori, target, deskripsi || '', user.id, now, now]);
 
       cacheDrop_('kurikulum_probul_' + promes.kelompok_id + '_' + tahun + '_' + bulan);
+      cacheDrop_('kurikulum_probul_bypromes_' + promesId);
       return { success: true, id: id };
     });
   } catch (e) {
@@ -305,6 +340,7 @@ function serverUpdateProbul(token, probulId, target, deskripsi) {
         updated_at: new Date().toISOString()
       });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
+      cacheDrop_('kurikulum_probul_bypromes_' + row.promes_id);
 
       return { success: true };
     });
@@ -328,6 +364,7 @@ function serverDeleteProbul(token, probulId) {
 
       deleteRowByQuery('kurikulum_probul', { id: probulId });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
+      cacheDrop_('kurikulum_probul_bypromes_' + row.promes_id);
 
       return { success: true };
     });

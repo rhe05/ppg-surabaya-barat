@@ -2582,6 +2582,52 @@
       align-items: center;
     }
 
+    .kurikulum-promes-block {
+      margin-bottom: 4px;
+    }
+
+    /* Tabel ringkas "Target Per Bulan" per Semester (Bulan 1-5 = materi,
+       Bulan 6 = evaluasi/ujian) -- dirender inline di bawah tiap Semester. */
+    .kurikulum-probul-mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin: -4px 0 10px;
+    }
+
+    .kurikulum-probul-mini-table th {
+      text-align: left;
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+      font-weight: 700;
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kurikulum-probul-mini-table td {
+      padding: 6px 10px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .kurikulum-probul-mini-table td:first-child {
+      width: 52px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .kurikulum-probul-mini-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    .kurikulum-probul-eval-row td {
+      font-style: italic;
+      color: var(--text-faint);
+      background: var(--panel-2);
+    }
+
     .kurikulum-pencapaian-table {
       width: 100%;
       border-collapse: collapse;
