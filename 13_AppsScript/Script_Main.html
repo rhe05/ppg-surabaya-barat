@@ -7421,6 +7421,22 @@
       .serverGetKurikulumFullTree(window.currentToken, kelompokId, parseInt(tahun) || 2026);
   };
 
+  // Loncat ke tab Tahunan, sudah difilter ke Kelas tertentu -- dipakai tombol
+  // "Edit" di atas tiap kartu Kelas (tab Semester). Kelola materi (tambah/
+  // edit/hapus) tetap satu tempat (Tahunan), tab Semester ini murni laporan.
+  window.jumpToKurikulumKelasEdit_ = function (kelas) {
+    const protaTabBtn = document.querySelector('.kurikulum-tab-btn[data-tab="prota"]');
+    if (protaTabBtn) window.switchKurikulumTab_(protaTabBtn, 'prota');
+    const kelasEl = document.getElementById('kurikulumProtaKelas');
+    const tahunEl = document.getElementById('kurikulumProtaTahun');
+    if (kelasEl) kelasEl.value = kelas || '';
+    if (kelasEl && tahunEl) window.loadKurikulumProta_(window.currentKelompokId, tahunEl.value, kelasEl.value);
+  };
+
+  // Tabel gabungan per Kelas+Semester: baris = materi (Bacaan Al-Qur'an, Tulis
+  // Huruf Arab, dst — makin banyak nanti), kolom = Bulan 1-6 (1 header
+  // bersama, bukan diulang per materi) -- padat & rapi supaya tetap muat 1
+  // layar walau jumlah materi terus bertambah.
   window.renderKurikulumSemesterReport_ = function (containerEl, data) {
     if (!data || data.length === 0) {
       containerEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada program tahunan untuk tahun ini</div>';
@@ -7440,36 +7456,56 @@
     containerEl.innerHTML = kelasKeys.map(function (key) {
       const items = groups[key];
       const label = key === '__umum__' ? 'Umum (Semua Kelas)' : 'Kelas ' + key;
+      const kelasArg = key === '__umum__' ? '' : key;
 
-      const materiHtml = items.map(function (prota) {
-        const semesterHtml = (prota.promes && prota.promes.length > 0)
-          ? prota.promes.map(function (promes) {
-              const semesterLabel = String(promes.semester) === '2' ? 'II' : 'I';
-              const bulanTableHtml = (promes.probul && promes.probul.length > 0)
-                ? window.kurikulumProbulTableHtml_(promes.probul)
-                : `<div class="kurikulum-semester-no-bulan">Target: ${promes.target || '-'}${promes.deskripsi ? ' — ' + promes.deskripsi : ''}</div>`;
+      const semesterSections = ['1', '2'].map(function (semNum) {
+        const rows = items
+          .map(function (prota) {
+            const promes = (prota.promes || []).find(function (p) { return String(p.semester) === semNum; });
+            return promes ? { kategori: prota.kategori, promes: promes } : null;
+          })
+          .filter(Boolean);
 
-              return `
-                <div class="kurikulum-semester-sem-block">
-                  <div class="kurikulum-semester-sem-title">Semester ${semesterLabel}</div>
-                  ${bulanTableHtml}
-                </div>
-              `;
-            }).join('')
-          : '<div class="kurikulum-semester-no-bulan">Belum ada semester.</div>';
+        if (rows.length === 0) return '';
+
+        const bodyRows = rows.map(function (row) {
+          const probul = row.promes.probul || [];
+          if (probul.length === 0) {
+            return `
+              <tr>
+                <td>${row.kategori || 'N/A'}</td>
+                <td colspan="6" class="kurikulum-semester-fallback-cell">Target: ${row.promes.target || '-'}${row.promes.deskripsi ? ' — ' + row.promes.deskripsi : ''}</td>
+              </tr>
+            `;
+          }
+          const byBulan = {};
+          probul.forEach(function (p) { byBulan[parseInt(p.bulan)] = p.target; });
+          const cells = [1, 2, 3, 4, 5, 6].map(function (b) {
+            return `<td class="${b === 6 ? 'kurikulum-semester-eval-cell' : ''}">${byBulan[b] || '-'}</td>`;
+          }).join('');
+          return `<tr><td>${row.kategori || 'N/A'}</td>${cells}</tr>`;
+        }).join('');
 
         return `
-          <div class="kurikulum-semester-materi-block">
-            <div class="kurikulum-semester-materi-title">${prota.kategori || 'N/A'}</div>
-            ${semesterHtml}
+          <div class="kurikulum-semester-sem-block">
+            <div class="kurikulum-semester-sem-title">Semester ${semNum === '2' ? 'II' : 'I'}</div>
+            <div class="kurikulum-semester-table-wrap">
+              <table class="kurikulum-semester-merged-table">
+                <thead><tr><th>Materi</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr></thead>
+                <tbody>${bodyRows}</tbody>
+              </table>
+            </div>
           </div>
         `;
       }).join('');
 
       return `
         <div class="kurikulum-semester-kelas-block">
-          <div class="kurikulum-semester-kelas-title">${label}</div>
-          ${materiHtml}
+          <div class="kurikulum-semester-kelas-header">
+            <span class="kurikulum-semester-kelas-title">${label}</span>
+            <button class="kurikulum-semester-edit-btn" onclick="window.jumpToKurikulumKelasEdit_('${kelasArg}')">✎ Edit</button>
+          </div>
+          ${semesterSections || '<div class="kurikulum-semester-no-bulan">Belum ada semester.</div>'}
         </div>
       `;
     }).join('');
@@ -7544,25 +7580,6 @@
         </div>
       </div>
     `).join('');
-  };
-
-  // Daftar target bulanan (Bulan 1-5 materi, Bulan 6 evaluasi) -- kartu
-  // bertumpuk vertikal (bukan tabel), dipakai tab "Semester" (laporan
-  // penuh). Rincian bulanan sengaja TIDAK ditampilkan lagi di accordion
-  // Tahunan (materi cukup Target+Deskripsi ringkas di sana) -- kelola
-  // Probul (tambah/edit/hapus per bulan) tetap lewat tab "Bulanan".
-  window.kurikulumProbulTableHtml_ = function (data) {
-    if (!data || data.length === 0) return '';
-    return `
-      <div class="kurikulum-probul-stack">
-        ${data.map(p => `
-          <div class="kurikulum-probul-bulan-card${parseInt(p.bulan) === 6 ? ' kurikulum-probul-bulan-eval' : ''}">
-            <span class="kurikulum-probul-bulan-label">Bulan ${p.bulan}</span>
-            <span class="kurikulum-probul-bulan-target">${p.target || '-'}</span>
-          </div>
-        `).join('')}
-      </div>
-    `;
   };
 
   window.loadKurikulumProbul_ = function (kelompokId, bulan) {

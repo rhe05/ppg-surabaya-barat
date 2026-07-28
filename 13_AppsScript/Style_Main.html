@@ -2586,94 +2586,53 @@
       margin-bottom: 4px;
     }
 
-    /* Daftar "Target Per Bulan" per Semester (Bulan 1-5 = materi, Bulan 6 =
-       evaluasi/ujian) -- kartu berjejer horizontal (kiri ke kanan: Bulan 1
-       s/d Bulan 6), dirender di tab Semester. Scroll sendiri (overflow-x)
-       kalau space sempit -- BUKAN bikin halaman ikut melebar. */
-    .kurikulum-probul-stack {
-      display: flex;
-      flex-direction: row;
-      gap: 8px;
-      margin: 4px 0 10px;
-      overflow-x: auto;
-    }
-
-    .kurikulum-probul-bulan-card {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      padding: 10px 12px;
-      min-width: 88px;
-      flex-shrink: 0;
-      border-radius: var(--radius);
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      font-size: 12px;
-      text-align: center;
-    }
-
-    .kurikulum-probul-bulan-label {
-      font-size: 10px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      font-weight: 700;
-      color: var(--text-faint);
-    }
-
-    .kurikulum-probul-bulan-target {
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--text);
-    }
-
-    .kurikulum-probul-bulan-eval {
-      font-style: italic;
-    }
-
-    .kurikulum-probul-bulan-eval .kurikulum-probul-bulan-target {
-      color: var(--text-faint);
-    }
-
-    /* Tab Semester — laporan lengkap per Kelas (poster referensi): kartu per
-       Kelas, sub-bagian per materi, tabel horizontal Bulan 1-6 per Semester. */
+    /* Tab Semester — laporan lengkap per Kelas: kartu per Kelas, tabel
+       GABUNGAN per Semester (baris = materi, kolom = Bulan 1-6 bersama)
+       supaya tetap rapi & muat 1 layar walau materi terus bertambah. */
     .kurikulum-semester-kelas-block {
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
-      padding: 20px 22px;
+      padding: 18px 20px;
       margin-bottom: 16px;
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
     }
 
-    .kurikulum-semester-kelas-title {
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--text);
-      margin-bottom: 16px;
+    .kurikulum-semester-kelas-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
       padding-bottom: 10px;
       border-bottom: 2px solid var(--brass);
     }
 
-    .kurikulum-semester-materi-block {
-      margin-bottom: 20px;
+    .kurikulum-semester-kelas-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: -0.01em;
     }
 
-    .kurikulum-semester-materi-block:last-child {
-      margin-bottom: 0;
-    }
-
-    .kurikulum-semester-materi-title {
-      font-size: 12.5px;
-      font-weight: 700;
+    .kurikulum-semester-edit-btn {
+      background: none;
+      border: 1px solid var(--border);
       color: var(--brass);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 10px;
+      font-size: 11.5px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 999px;
+      transition: background 0.15s;
+    }
+
+    .kurikulum-semester-edit-btn:hover {
+      background: rgba(217, 119, 6, 0.1);
     }
 
     .kurikulum-semester-sem-block {
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     .kurikulum-semester-sem-block:last-child {
@@ -2681,10 +2640,64 @@
     }
 
     .kurikulum-semester-sem-title {
-      font-size: 12.5px;
+      font-size: 12px;
       font-weight: 700;
+      color: var(--brass);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 8px;
+    }
+
+    .kurikulum-semester-table-wrap {
+      overflow-x: auto;
+    }
+
+    .kurikulum-semester-merged-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+    }
+
+    .kurikulum-semester-merged-table th,
+    .kurikulum-semester-merged-table td {
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    .kurikulum-semester-merged-table thead th {
+      background: var(--panel-2);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+      font-weight: 700;
+    }
+
+    .kurikulum-semester-merged-table th:first-child,
+    .kurikulum-semester-merged-table td:first-child {
+      text-align: left;
+      font-weight: 600;
       color: var(--text);
-      margin-bottom: 6px;
+      white-space: normal;
+      min-width: 150px;
+      background: var(--panel-2);
+    }
+
+    .kurikulum-semester-merged-table tbody tr:nth-child(even) td:not(:first-child) {
+      background: var(--panel-2);
+    }
+
+    .kurikulum-semester-eval-cell {
+      font-style: italic;
+      color: var(--text-faint);
+    }
+
+    .kurikulum-semester-fallback-cell {
+      text-align: left;
+      white-space: normal;
+      color: var(--text-dim);
     }
 
     .kurikulum-semester-no-bulan {
