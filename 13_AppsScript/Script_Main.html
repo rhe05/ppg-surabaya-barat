@@ -7314,6 +7314,20 @@
       .serverGetProta(window.currentToken, kelompokId, parseInt(tahun) || 2026, kelas || '');
   };
 
+  // Escape apostrof jadi entity HTML supaya aman dipakai di dalam atribut
+  // onclick="..." (baik sebagai pembatas string HTML maupun string JS) --
+  // sebelumnya kategori/target TIDAK di-escape sama sekali, jadi kategori
+  // apa pun yang mengandung tanda kutip (mis. "Bacaan Al-Qur'an") membuat
+  // tombol Edit/Lihat Semester rusak (atribut onclick terpotong).
+  window.escKurikulumAttr_ = function (s) {
+    return String(s || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+  };
+
+  // Kartu di-kelompokkan per Kelas (bukan 1 kartu per kategori) supaya tetap
+  // ringkas walau kategori materi terus bertambah -- tiap Kelas jadi 1 kartu
+  // berisi daftar materi bernomor (mis. "1. Bacaan Al-Qur'an"), klik salah
+  // satu materi baru buka detail Semester-nya. Urutan materi dalam 1 Kelas
+  // mengikuti urutan baris di sheet (kategori lama tetap di atas).
   window.renderProtaList_ = function (data) {
     const list = document.getElementById('kurikulumProtaList');
     if (!data || data.length === 0) {
@@ -7321,20 +7335,46 @@
       return;
     }
 
-    list.innerHTML = data.map(prota => `
-      <div class="kurikulum-prota-card">
-        <div class="kurikulum-prota-card-header">
-          <span class="kurikulum-prota-title">${prota.kategori || 'N/A'}${prota.kelas ? ' — Kelas ' + prota.kelas : ''}</span>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm btn-secondary" onclick="window.editProta('${prota.id}', '${prota.kategori}', '${prota.target}', '${(prota.deskripsi || '').replace(/'/g, '&#39;')}', '${prota.kelas || ''}')">Edit</button>
-            <button class="btn btn-sm btn-danger" onclick="window.deleteProta('${prota.id}')">Hapus</button>
+    const groups = {};
+    data.forEach(function (prota) {
+      const key = prota.kelas ? String(prota.kelas) : '__umum__';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(prota);
+    });
+
+    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => parseInt(a) - parseInt(b));
+    if (groups.__umum__) kelasKeys.push('__umum__');
+
+    list.innerHTML = kelasKeys.map(function (key) {
+      const items = groups[key];
+      const label = key === '__umum__' ? 'Umum (Semua Kelas)' : 'Kelas ' + key;
+      const kelasArg = key === '__umum__' ? '' : key;
+
+      const materiHtml = items.map(function (prota, i) {
+        const kategoriEsc = window.escKurikulumAttr_(prota.kategori);
+        const targetEsc = window.escKurikulumAttr_(prota.target);
+        const deskripsiEsc = window.escKurikulumAttr_(prota.deskripsi);
+        return `
+          <div class="kurikulum-materi-item" onclick="window.expandProtaPromes('${prota.id}', '${kategoriEsc}')">
+            <span class="kurikulum-materi-label">${i + 1}. ${prota.kategori || 'N/A'}</span>
+            <span class="kurikulum-materi-actions">
+              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta('${prota.id}', '${kategoriEsc}', '${targetEsc}', '${deskripsiEsc}', '${prota.kelas || ''}')">✎</button>
+              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta('${prota.id}')">×</button>
+            </span>
           </div>
+        `;
+      }).join('');
+
+      return `
+        <div class="kurikulum-kelas-card">
+          <div class="kurikulum-kelas-header">
+            <span class="kurikulum-kelas-title">${label}</span>
+            <button class="kurikulum-kelas-add-btn" onclick="window.openModalAddProta('${kelasArg}')">+ Materi</button>
+          </div>
+          <div class="kurikulum-materi-list">${materiHtml}</div>
         </div>
-        <div class="kurikulum-prota-target">Target: ${prota.target || 'N/A'}</div>
-        ${prota.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">${prota.deskripsi}</div>` : ''}
-        <button class="btn btn-sm btn-primary" onclick="window.expandProtaPromes('${prota.id}', '${prota.kategori}')">Lihat Semester →</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   };
 
   window.expandProtaPromes = function (protaId, protaKategori) {
@@ -7511,11 +7551,11 @@
      KURIKULUM — Modal Functions
      ═════════════════════════════════════════════════════════════════════════════════ */
 
-  window.openModalAddProta = function () {
+  window.openModalAddProta = function (kelasPreset) {
     document.getElementById('protaId').value = '';
     document.getElementById('protaTahun').value = new Date().getFullYear();
     document.getElementById('protaKategori').value = '';
-    document.getElementById('protaKelas').value = '';
+    document.getElementById('protaKelas').value = kelasPreset || '';
     document.getElementById('protaKelas').disabled = false;
     document.getElementById('protaTarget').value = '';
     document.getElementById('protaDeskripsi').value = '';
