@@ -2544,6 +2544,33 @@
       color: #dc2626;
     }
 
+    /* Chevron kecil di depan nama materi — berputar 90° saat detail
+       semester-nya dibuka inline (lihat window.toggleMateriDetail_). */
+    .kurikulum-materi-chevron {
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--text-faint);
+      transition: transform 0.15s ease;
+    }
+
+    .kurikulum-materi-item.expanded .kurikulum-materi-chevron {
+      transform: rotate(90deg);
+      color: var(--brass);
+    }
+
+    .kurikulum-materi-item.expanded {
+      background: var(--panel-2);
+    }
+
+    /* Rincian Semester dibuka INLINE tepat di bawah nama materi yang diklik
+       (bukan pindah tab) -- garis aksen kiri menegaskan ini "anak" dari
+       materi di atasnya. */
+    .kurikulum-materi-detail {
+      margin: 2px 0 8px 10px;
+      padding-left: 12px;
+      border-left: 2px solid var(--brass);
+    }
+
     .kurikulum-protes-row {
       background: var(--panel-2);
       border: 1px solid var(--border);

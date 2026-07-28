@@ -7355,13 +7355,14 @@
         const targetEsc = window.escKurikulumAttr_(prota.target);
         const deskripsiEsc = window.escKurikulumAttr_(prota.deskripsi);
         return `
-          <div class="kurikulum-materi-item" onclick="window.expandProtaPromes('${prota.id}', '${kategoriEsc}')">
-            <span class="kurikulum-materi-label">${i + 1}. ${prota.kategori || 'N/A'}</span>
+          <div class="kurikulum-materi-item" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
+            <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span>${i + 1}. ${prota.kategori || 'N/A'}</span>
             <span class="kurikulum-materi-actions">
               <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta('${prota.id}', '${kategoriEsc}', '${targetEsc}', '${deskripsiEsc}', '${prota.kelas || ''}')">✎</button>
               <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta('${prota.id}')">×</button>
             </span>
           </div>
+          <div class="kurikulum-materi-detail" id="kurikulumMateriDetail_${prota.id}" style="display: none;"></div>
         `;
       }).join('');
 
@@ -7375,6 +7376,75 @@
         </div>
       `;
     }).join('');
+  };
+
+  // Klik nama materi (mis. "1. Bacaan Al-Qur'an") langsung membuka rinciannya
+  // INLINE tepat di bawah baris itu — tidak pindah tab, biar tetap kelihatan
+  // di kartu Kelas yang sama. Klik lagi menutupnya. Hasil di-cache di
+  // dataset.loaded supaya buka-tutup berulang tidak fetch ulang ke server;
+  // cache di-invalidasi (dataset.loaded dihapus) begitu ada Add/Edit/Hapus
+  // Semester lewat window.kurikulumRefreshMateriDetail_.
+  window.toggleMateriDetail_ = function (rowEl) {
+    const protaId = rowEl.dataset.protaId;
+    const detailEl = document.getElementById('kurikulumMateriDetail_' + protaId);
+    if (!detailEl) return;
+
+    const isOpen = detailEl.style.display !== 'none';
+    if (isOpen) {
+      detailEl.style.display = 'none';
+      rowEl.classList.remove('expanded');
+      return;
+    }
+
+    rowEl.classList.add('expanded');
+    detailEl.style.display = 'block';
+    if (detailEl.dataset.loaded === '1') return;
+    window.kurikulumRefreshMateriDetail_(protaId);
+  };
+
+  window.kurikulumRefreshMateriDetail_ = function (protaId) {
+    const detailEl = document.getElementById('kurikulumMateriDetail_' + protaId);
+    if (!detailEl) return;
+
+    detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--text-faint);">Memuat semester...</div>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
+          return;
+        }
+        window.renderPromesInline_(detailEl, result.data, protaId);
+        detailEl.dataset.loaded = '1';
+      })
+      .withFailureHandler(function (err) {
+        detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Error: ' + err.message + '</div>';
+      })
+      .serverGetPromes(window.currentToken, protaId);
+  };
+
+  window.renderPromesInline_ = function (containerEl, data, protaId) {
+    const addBtn = `<div style="padding: 6px 4px 8px;">
+      <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
+    </div>`;
+
+    if (!data || data.length === 0) {
+      containerEl.innerHTML = addBtn + '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
+      return;
+    }
+
+    containerEl.innerHTML = addBtn + data.map(promes => `
+      <div class="kurikulum-protes-row" onclick="event.stopPropagation();">
+        <div>
+          <div style="font-weight: 600;">Semester ${promes.semester}</div>
+          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
+          ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
+        </div>
+      </div>
+    `).join('');
   };
 
   window.expandProtaPromes = function (protaId, protaKategori) {
@@ -7428,8 +7498,8 @@
           ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
         </div>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${promes.semester}', '${promes.target}', '${(promes.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}')">Hapus</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
+          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
         </div>
       </div>
     `).join('');
@@ -7675,6 +7745,7 @@
   };
 
   window.savePromes = function () {
+    const promesId = document.getElementById('promesId').value;
     const protaId = document.getElementById('promesProtaId').value;
     const semester = document.getElementById('promesSemester').value;
     const target = document.getElementById('promesTarget').value.trim();
@@ -7686,7 +7757,7 @@
     }
 
     window.showGlobalLoading_('Menyimpan...');
-    google.script.run
+    const runner = google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) {
@@ -7694,24 +7765,31 @@
           return;
         }
         window.closeModalAddPromes();
-        window.loadPromesByProta_(protaId, '');
+        delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
+        window.kurikulumRefreshMateriDetail_(protaId);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         alert('Error: ' + err.message);
-      })
-      .serverAddPromes(window.currentToken, protaId, parseInt(semester), target, deskripsi);
+      });
+
+    if (promesId) {
+      runner.serverUpdatePromes(window.currentToken, promesId, target, deskripsi);
+    } else {
+      runner.serverAddPromes(window.currentToken, protaId, parseInt(semester), target, deskripsi);
+    }
   };
 
-  window.editPromes = function (promesId, semester, target, deskripsi) {
+  window.editPromes = function (promesId, protaId, semester, target, deskripsi) {
     document.getElementById('promesId').value = promesId;
+    document.getElementById('promesProtaId').value = protaId;
     document.getElementById('promesSemester').value = semester;
     document.getElementById('promesTarget').value = target;
     document.getElementById('promesDeskripsi').value = deskripsi;
     document.getElementById('modalAddPromes').classList.add('active');
   };
 
-  window.deletePromes = function (promesId) {
+  window.deletePromes = function (promesId, protaId) {
     if (!confirm('Hapus program semester ini?')) return;
     window.showGlobalLoading_('Menghapus...');
     google.script.run
@@ -7721,8 +7799,8 @@
           alert('Error: ' + result.error);
           return;
         }
-        window.closeModalAddPromes();
-        alert('Semester berhasil dihapus');
+        delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
+        window.kurikulumRefreshMateriDetail_(protaId);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
