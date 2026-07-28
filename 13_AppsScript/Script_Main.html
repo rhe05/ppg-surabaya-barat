@@ -7783,6 +7783,7 @@
     document.getElementById('protaKelas').value = kelasPreset || '';
     document.getElementById('protaKelas').disabled = false;
     document.getElementById('protaTarget').selectedIndex = 0;
+    document.getElementById('protaDeskripsi').value = '';
     document.getElementById('modalAddProta').classList.add('active');
   };
 
@@ -7838,6 +7839,7 @@
     const kategori = document.getElementById('protaKategori').value;
     const kelas = document.getElementById('protaKelas').value;
     const target = document.getElementById('protaTarget').value;
+    const deskripsi = document.getElementById('protaDeskripsi').value.trim();
 
     const kelasFilter = document.getElementById('kurikulumProtaKelas').value;
     window.showGlobalLoading_('Menyimpan...');
@@ -7857,14 +7859,9 @@
       });
 
     if (protaId) {
-      // deskripsi sengaja `undefined` (bukan '') -- form ini tidak lagi
-      // punya field Deskripsi, tapi kolomnya di sheet TETAP ADA (dipakai
-      // seed data, mis. "Jenjang Caberawit — Materi..."). Kirim '' akan
-      // MENIMPA/menghapus isi lama; serverUpdateProta hanya menimpa kalau
-      // argumen ini !== undefined.
-      runner.serverUpdateProta(window.currentToken, protaId, target, undefined);
+      runner.serverUpdateProta(window.currentToken, protaId, target, deskripsi);
     } else {
-      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, '');
+      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, deskripsi);
     }
   };
 
@@ -7874,6 +7871,7 @@
     document.getElementById('protaKelas').value = kelas || '';
     document.getElementById('protaKelas').disabled = true;
     document.getElementById('protaTarget').value = target;
+    document.getElementById('protaDeskripsi').value = deskripsi || '';
     document.getElementById('modalAddProta').classList.add('active');
   };
 
