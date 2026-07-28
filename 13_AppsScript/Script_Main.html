@@ -7546,25 +7546,22 @@
     `).join('');
   };
 
-  // Tabel ringkas "Bulan -> Target" (poster referensi: Bulan 1-5 materi,
-  // Bulan 6 evaluasi) -- HTML string, dipakai tab "Semester" (laporan penuh).
-  // Rincian bulanan sengaja TIDAK ditampilkan lagi di accordion Tahunan
-  // (materi cukup Target+Deskripsi ringkas di sana) -- kelola Probul
-  // (tambah/edit/hapus per bulan) tetap lewat tab "Bulanan" yang sudah ada.
+  // Daftar target bulanan (Bulan 1-5 materi, Bulan 6 evaluasi) -- kartu
+  // bertumpuk vertikal (bukan tabel), dipakai tab "Semester" (laporan
+  // penuh). Rincian bulanan sengaja TIDAK ditampilkan lagi di accordion
+  // Tahunan (materi cukup Target+Deskripsi ringkas di sana) -- kelola
+  // Probul (tambah/edit/hapus per bulan) tetap lewat tab "Bulanan".
   window.kurikulumProbulTableHtml_ = function (data) {
     if (!data || data.length === 0) return '';
     return `
-      <table class="kurikulum-probul-mini-table">
-        <thead><tr><th>Bulan</th><th>Target</th></tr></thead>
-        <tbody>
-          ${data.map(p => `
-            <tr class="${parseInt(p.bulan) === 6 ? 'kurikulum-probul-eval-row' : ''}">
-              <td>${p.bulan}</td>
-              <td>${p.target || '-'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
+      <div class="kurikulum-probul-stack">
+        ${data.map(p => `
+          <div class="kurikulum-probul-bulan-card${parseInt(p.bulan) === 6 ? ' kurikulum-probul-bulan-eval' : ''}">
+            <span class="kurikulum-probul-bulan-label">Bulan ${p.bulan}</span>
+            <span class="kurikulum-probul-bulan-target">${p.target || '-'}</span>
+          </div>
+        `).join('')}
+      </div>
     `;
   };
 
