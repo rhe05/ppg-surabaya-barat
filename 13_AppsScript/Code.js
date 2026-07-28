@@ -182,6 +182,23 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=seedkurikulum → jalankan seedKurikulumBacaanQuranPetemon() (Modul_SeedData.gs)
+  // lewat Web App, dipakai supaya seed data bisa dipicu tanpa perlu buka
+  // dropdown "select function" di editor Apps Script. Aman diulang (idempotent —
+  // fungsi ini sendiri skip kalau data kategori sudah ada).
+  if (e && e.parameter && e.parameter.diag === 'seedkurikulum') {
+    let result;
+    try {
+      seedKurikulumBacaanQuranPetemon();
+      result = { success: true, message: 'seedKurikulumBacaanQuranPetemon() selesai dijalankan.' };
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // ?diag=dashboardbundle → panggil serverGetDashboardBundle() langsung & lihat
   // hasil JSON-nya, dipakai memverifikasi struktur (kpi/desaBreakdown/
   // santriTeladan) setelah refactor tanpa perlu login browser (web app
