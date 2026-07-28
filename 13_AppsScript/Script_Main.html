@@ -7433,17 +7433,9 @@
         const semesterHtml = (prota.promes && prota.promes.length > 0)
           ? prota.promes.map(function (promes) {
               const semesterLabel = String(promes.semester) === '2' ? 'II' : 'I';
-              const bulanTableHtml = (promes.probul && promes.probul.length > 0) ? `
-                <div class="kurikulum-semester-bulan-table-wrap">
-                  <table class="kurikulum-semester-bulan-table">
-                    <thead><tr><th>Bulan</th>${promes.probul.map(p => `<th>${p.bulan}</th>`).join('')}</tr></thead>
-                    <tbody><tr>
-                      <td>Target</td>
-                      ${promes.probul.map(p => `<td class="${parseInt(p.bulan) === 6 ? 'kurikulum-semester-eval-cell' : ''}">${p.target || '-'}</td>`).join('')}
-                    </tr></tbody>
-                  </table>
-                </div>
-              ` : `<div class="kurikulum-semester-no-bulan">Target: ${promes.target || '-'}${promes.deskripsi ? ' — ' + promes.deskripsi : ''}</div>`;
+              const bulanTableHtml = (promes.probul && promes.probul.length > 0)
+                ? window.kurikulumProbulTableHtml_(promes.probul)
+                : `<div class="kurikulum-semester-no-bulan">Target: ${promes.target || '-'}${promes.deskripsi ? ' — ' + promes.deskripsi : ''}</div>`;
 
               return `
                 <div class="kurikulum-semester-sem-block">
@@ -7538,40 +7530,18 @@
             <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="window.deletePromes('${promes.id}', '${protaId}')">🗑</button>
           </div>
         </div>
-        <div class="kurikulum-probul-table-wrap" id="kurikulumProbulTable_${promes.id}" onclick="event.stopPropagation();"></div>
       </div>
     `).join('');
-
-    // Tabel "Target Per Bulan" per Semester dimuat terpisah (lazy, per Promes)
-    // supaya render awal Semester tetap cepat -- lihat window.loadKurikulumProbulByPromes_.
-    data.forEach(function (promes) {
-      window.loadKurikulumProbulByPromes_(promes.id);
-    });
   };
 
-  window.loadKurikulumProbulByPromes_ = function (promesId) {
-    const el = document.getElementById('kurikulumProbulTable_' + promesId);
-    if (!el) return;
-    el.innerHTML = '<div style="padding: 6px 4px; font-size: 11.5px; color: var(--text-faint);">Memuat target bulanan...</div>';
-    google.script.run
-      .withSuccessHandler(function (result) {
-        if (!result.success || !result.data || result.data.length === 0) {
-          el.innerHTML = '';
-          return;
-        }
-        window.renderKurikulumProbulTable_(el, result.data);
-      })
-      .withFailureHandler(function () {
-        el.innerHTML = '';
-      })
-      .serverGetProbulByPromes(window.currentToken, promesId);
-  };
-
-  // Tabel ringkas "Bulan -> Target" per Semester (poster referensi: Bulan 1-5
-  // materi, Bulan 6 evaluasi) -- read-only di sini; kelola Probul (tambah/
-  // edit/hapus per bulan) tetap lewat tab "Bulanan" yang sudah ada.
-  window.renderKurikulumProbulTable_ = function (containerEl, data) {
-    containerEl.innerHTML = `
+  // Tabel ringkas "Bulan -> Target" (poster referensi: Bulan 1-5 materi,
+  // Bulan 6 evaluasi) -- HTML string, dipakai tab "Semester" (laporan penuh).
+  // Rincian bulanan sengaja TIDAK ditampilkan lagi di accordion Tahunan
+  // (materi cukup Target+Deskripsi ringkas di sana) -- kelola Probul
+  // (tambah/edit/hapus per bulan) tetap lewat tab "Bulanan" yang sudah ada.
+  window.kurikulumProbulTableHtml_ = function (data) {
+    if (!data || data.length === 0) return '';
+    return `
       <table class="kurikulum-probul-mini-table">
         <thead><tr><th>Bulan</th><th>Target</th></tr></thead>
         <tbody>
