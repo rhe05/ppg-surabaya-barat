@@ -206,6 +206,15 @@ function seedKurikulumBacaanQuranPetemon() {
   const TAHUN = 2026;
   const KATEGORI = "Bacaan Al-Qur'an";
 
+  // Hapus cache serverGetProta utk kelompok+tahun ini SEBELUM cek "sudah ada" —
+  // kalau UI pernah dibuka saat sheet masih kosong, hasil kosong itu ke-cache
+  // 1 jam (cacheGet_ tidak bisa bedakan array kosong vs "belum pernah dibaca").
+  // Tanpa baris ini, run manual "supaya keliatan lagi di app" tetap keliatan
+  // kosong sampai cache kadaluwarsa sendiri.
+  for (let k = 0; k <= 9; k++) {
+    cacheDrop_('kurikulum_prota_' + KELOMPOK_ID + '_' + TAHUN + '_' + (k === 0 ? 'all' : k));
+  }
+
   const existing = readSheetAsObjects('kurikulum_prota').filter(r =>
     String(r.kelompok_id) === String(KELOMPOK_ID) &&
     parseInt(r.tahun || 0) === TAHUN &&
