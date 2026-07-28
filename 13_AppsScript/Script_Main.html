@@ -7634,16 +7634,12 @@
   };
 
   window.renderPromesInline_ = function (containerEl, data, protaId) {
-    const addBtn = `<div style="padding: 6px 4px 8px;">
-      <button class="btn btn-sm btn-primary" onclick="event.stopPropagation(); window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
-    </div>`;
-
     if (!data || data.length === 0) {
-      containerEl.innerHTML = addBtn + '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
+      containerEl.innerHTML = '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
       return;
     }
 
-    containerEl.innerHTML = addBtn + data.map(promes => `
+    containerEl.innerHTML = data.map(promes => `
       <div class="kurikulum-promes-block">
         <div class="kurikulum-protes-row" onclick="event.stopPropagation();">
           <div>
