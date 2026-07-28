@@ -191,8 +191,9 @@ function doGet(e) {
     try {
       seedKurikulumBacaanQuranPetemon();
       seedKurikulumTulisHurufArabPetemon();
+      seedKurikulumHafalanSuratPetemon();
       seedKurikulumProbulBacaanQuranPetemon();
-      result = { success: true, message: 'Seed kurikulum (Bacaan Al-Qur\'an + Tulis Huruf Arab + Probul Bacaan Al-Qur\'an) selesai dijalankan.' };
+      result = { success: true, message: 'Seed kurikulum (Bacaan Al-Qur\'an + Tulis Huruf Arab + Hafalan Surat + Probul Bacaan Al-Qur\'an) selesai dijalankan.' };
     } catch (err) {
       result = { success: false, error: err.message };
     }

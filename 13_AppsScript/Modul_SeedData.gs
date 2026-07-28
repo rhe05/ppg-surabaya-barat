@@ -306,6 +306,34 @@ function seedKurikulumTulisHurufArabPetemon() {
 }
 
 /**
+ * Seed Kurikulum Prota/Promes "Hafalan Surat-Surat Al-Qur'an" untuk Kelp
+ * Petemon (kelompok_id=1), tahun 2026. Jenjang Caberawit — HANYA Kelas
+ * PAUD-TK, 1, 2 (data yang diberikan tidak mencakup kelas lain utk materi
+ * ini). Kelas 'PAUD-TK' BUKAN angka (beda dari Kelas 1-9 kategori lain) —
+ * pastikan sudah ada opsi "PAUD-TK" di dropdown kelas (Markup_Screens.html)
+ * & sorting kelas di Script_Main.html sudah menangani nilai non-angka
+ * sebelum menjalankan seed ini.
+ * Tidak ada Probul (Target Per Bulan) utk materi ini — tab Semester akan
+ * fallback tampilkan Target+Deskripsi polos (perilaku bawaan yang sudah ada).
+ * Jalankan SEKALI dari Apps Script editor: pilih "seedKurikulumHafalanSuratPetemon" dan Run.
+ * ⚠️ AMAN DIJALANKAN BERULANG — skip kalau data kategori ini utk kelompok+tahun ini sudah ada.
+ */
+function seedKurikulumHafalanSuratPetemon() {
+  cacheDrop_('kurikulum_prota_1_2026_PAUD-TK');
+  seedKurikulumProta_(1, 2026, "Hafalan Surat-Surat Al-Qur'an", 'hafalan_surat', [
+    { kelas: 'PAUD-TK', jenjang: 'Caberawit',
+      s1: { target: 'Surat Al-Fatihah s/d Surat Al-Ikhlas', deskripsi: '4 Surat' },
+      s2: { target: 'Surat Al-Lahab s/d Al-Kafirun', deskripsi: '3 Surat' } },
+    { kelas: 1, jenjang: 'Caberawit',
+      s1: { target: 'Surat Al Kautsar s/d Surat Quraisyh', deskripsi: '3 Surat' },
+      s2: { target: 'Surat Al-Fiil s/d Surat Al-Asyr', deskripsi: '3 Surat' } },
+    { kelas: 2, jenjang: 'Caberawit',
+      s1: { target: "Surat At-Takatsur s/d Al-Qori'ah", deskripsi: '2 Surat' },
+      s2: { target: "Surat Al-A'diyat s/d Surat Al-Zalzalah", deskripsi: '2 Surat' } },
+  ]);
+}
+
+/**
  * Seed Kurikulum Probul (Target Per Bulan) utk semua Promes "Bacaan Al-Qur'an"
  * Kelp Petemon 2026 — dipakai tabel "Target Per Bulan" inline di rincian
  * Semester (Kurikulum Tahunan). Mengikuti pola poster rujukan: Bulan 1-5 =

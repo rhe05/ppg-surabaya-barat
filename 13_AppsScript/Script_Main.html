@@ -7340,6 +7340,16 @@
     return String(s || '').replace(/'/g, '&#39;').replace(/"/g, '&quot;');
   };
 
+  // Urutan kelas: PAUD-TK di depan Kelas 1 (jenjang paling awal), lalu
+  // Kelas 1-9 numerik. parseInt(a)-parseInt(b) polos gagal begitu ada kelas
+  // non-angka seperti 'PAUD-TK' (NaN) -- dipakai di renderProtaList_ &
+  // renderKurikulumSemesterReport_.
+  window.kurikulumKelasSortValue_ = function (kelas) {
+    if (kelas === 'PAUD-TK') return -1;
+    const n = parseInt(kelas, 10);
+    return isNaN(n) ? 999 : n;
+  };
+
   // Kartu di-kelompokkan per Kelas (bukan 1 kartu per kategori) supaya tetap
   // ringkas walau kategori materi terus bertambah -- tiap Kelas jadi 1 kartu
   // berisi daftar materi bernomor (mis. "1. Bacaan Al-Qur'an"), klik salah
@@ -7359,7 +7369,7 @@
       groups[key].push(prota);
     });
 
-    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => parseInt(a) - parseInt(b));
+    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => window.kurikulumKelasSortValue_(a) - window.kurikulumKelasSortValue_(b));
     if (groups.__umum__) kelasKeys.push('__umum__');
 
     list.innerHTML = kelasKeys.map(function (key) {
@@ -7450,7 +7460,7 @@
       groups[key].push(prota);
     });
 
-    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => parseInt(a) - parseInt(b));
+    const kelasKeys = Object.keys(groups).filter(k => k !== '__umum__').sort((a, b) => window.kurikulumKelasSortValue_(a) - window.kurikulumKelasSortValue_(b));
     if (groups.__umum__) kelasKeys.push('__umum__');
 
     containerEl.innerHTML = kelasKeys.map(function (key) {
