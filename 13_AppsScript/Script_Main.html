@@ -7439,9 +7439,9 @@
           <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
           ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
         </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
+        <div style="display: flex; gap: 4px;">
+          <button class="kurikulum-materi-icon-btn" title="Edit" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">✎</button>
+          <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="window.deletePromes('${promes.id}', '${protaId}')">🗑</button>
         </div>
       </div>
     `).join('');
