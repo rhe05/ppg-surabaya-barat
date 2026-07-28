@@ -7281,11 +7281,23 @@
 
   window.switchKurikulumTab_ = function (btn, tabName) {
     document.querySelectorAll('.kurikulum-tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.kurikulum-tab-content').forEach(c => c.classList.remove('active'));
+    // Tiap panel non-default (Semester/Bulanan/Pencapaian) punya inline
+    // style="display: none" di markup -- classList doang TIDAK CUKUP karena
+    // inline style SELALU menang atas rule .kurikulum-tab-content.active
+    // (tanpa !important), jadi panelnya tetap invisible walau class 'active'
+    // sudah ketambahan (ERROR_LOG.md #9, pola yang sama). Set .style.display
+    // eksplisit di sini supaya benar-benar kebuka.
+    document.querySelectorAll('.kurikulum-tab-content').forEach(c => {
+      c.classList.remove('active');
+      c.style.display = 'none';
+    });
 
     btn.classList.add('active');
     const tabEl = document.getElementById('kurikulumTab' + (tabName.charAt(0).toUpperCase() + tabName.slice(1)));
-    if (tabEl) tabEl.classList.add('active');
+    if (tabEl) {
+      tabEl.classList.add('active');
+      tabEl.style.display = 'block';
+    }
 
     if (tabName === 'prota') {
       const tahun = document.getElementById('kurikulumProtaTahun').value || 2026;

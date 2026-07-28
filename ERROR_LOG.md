@@ -842,6 +842,49 @@ mengecek sintaks, bukan apakah fungsi yang dipanggil benar-benar terdefinisi.
 
 ---
 
+## #25 — Tab Semester/Bulanan/Pencapaian Kurikulum tidak pernah kebuka saat diklik (pola sama dgn #9, ditemukan 2026-07-28)
+
+**Gejala**: user klik tab "Semester" (Kurikulum) — data sukses di-fetch
+(server merespons benar, HTML rincian ke-generate benar), tapi PANEL-nya
+sendiri tetap tidak kelihatan sama sekali. Dilaporkan sebagai "rincian belum
+tampil sesuai yang diharapkan".
+
+**Akar masalah**: `window.switchKurikulumTab_` (Script_Main.html) HANYA
+toggle class `active` (`classList.add('active')`) pada elemen tab-content.
+Tapi tiap panel non-default di markup (`kurikulumTabPromes`,
+`kurikulumTabProbul`, `kurikulumTabPencapaian`) punya inline
+`style="display: none"` bawaan. Inline style SELALU menang atas rule CSS
+manapun (`.kurikulum-tab-content.active { display: block; }`, TANPA
+`!important`) — jadi menambah class `active` sama sekali tidak berpengaruh,
+panel tetap `display:none` selamanya. Persis pola ERROR_LOG #9
+("`style.display=''` trap") tapi arah sebaliknya: di sini bukan `''` yang
+menghapus display custom, tapi TIDAK PERNAH ada kode yang mengubah
+`style.display` elemen tab-content sama sekali — classList doang tidak
+cukup ketika ada inline style yang bersaing.
+
+**Kenapa baru ketahuan sekarang**: tab "Pencapaian Santri" punya
+"pintu belakang" (`loadPencapaianSantri_` set `style.display='block'`
+manual saat dipanggil dari alur "Lihat Progres →" di tab Bulanan) sehingga
+KADANG terlihat bekerja lewat jalur itu. Tab "Bulanan" TIDAK punya pintu
+belakang sama sekali — berarti sejak modul ini dibuat, mengklik tab
+"Bulanan" secara langsung TIDAK PERNAH benar-benar menampilkan apa pun.
+
+**Perbaikan**: `switchKurikulumTab_` sekarang set `c.style.display = 'none'`
+utk semua tab-content saat reset, dan `tabEl.style.display = 'block'` utk
+tab yang dipilih — eksplisit, tidak mengandalkan class+CSS saja.
+
+**Cara verifikasi**: klik tab "Semester", "Bulanan", "Pencapaian Santri"
+langsung dari strip tab (BUKAN lewat jalur "Lihat Progres →") — panel harus
+kelihatan isinya, bukan kosong/putih.
+
+**Aturan permanen**: kalau ada elemen dengan inline `style="display: none"`
+di markup DAN logic tampil/sembunyi-nya HANYA mengandalkan `classList`, itu
+tidak akan pernah bekerja — inline style selalu menang. Toggle visibility
+lewat kombinasi ini WAJIB set `.style.display` eksplisit di kedua arah
+(bukan cuma salah satu), bukan cuma `classList.add/remove`.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
