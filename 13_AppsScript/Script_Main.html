@@ -7493,64 +7493,6 @@
     `;
   };
 
-  window.expandProtaPromes = function (protaId, protaKategori) {
-    document.getElementById('kurikulumTabPromes').style.display = 'block';
-    document.querySelectorAll('.kurikulum-tab-btn')[1].classList.add('active');
-    document.querySelectorAll('.kurikulum-tab-btn').forEach((b, i) => {
-      if (i !== 1) b.classList.remove('active');
-    });
-    window.loadPromesByProta_(protaId, protaKategori);
-  };
-
-  window.loadPromesByProta_ = function (protaId, protaKategori) {
-    window.showGlobalLoading_('Memuat program semester...');
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          document.getElementById('kurikulumPromesList').innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
-          return;
-        }
-        window.renderPromesList_(result.data, protaKategori, protaId);
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        document.getElementById('kurikulumPromesList').innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
-      })
-      .serverGetPromes(window.currentToken, protaId);
-  };
-
-  window.renderPromesList_ = function (data, protaKategori, protaId) {
-    const list = document.getElementById('kurikulumPromesList');
-    if (!data || data.length === 0) {
-      list.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-faint);">
-        Belum ada semester untuk ${protaKategori}
-        <div style="margin-top: 12px;">
-          <button class="btn btn-sm btn-primary" onclick="window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
-        </div>
-      </div>`;
-      return;
-    }
-
-    list.innerHTML = `
-      <div style="margin-bottom: 12px;">
-        <button class="btn btn-sm btn-primary" onclick="window.openModalAddPromes('${protaId}')">+ Tambah Semester</button>
-      </div>
-    ` + data.map(promes => `
-      <div class="kurikulum-protes-row">
-        <div>
-          <div style="font-weight: 600;">Semester ${promes.semester}</div>
-          <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
-          ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
-        </div>
-        <div style="display: flex; gap: 8px;">
-          <button class="btn btn-sm btn-secondary" onclick="window.editPromes('${promes.id}', '${protaId}', '${promes.semester}', '${window.escKurikulumAttr_(promes.target)}', '${window.escKurikulumAttr_(promes.deskripsi)}')">Edit</button>
-          <button class="btn btn-sm btn-danger" onclick="window.deletePromes('${promes.id}', '${protaId}')">Hapus</button>
-        </div>
-      </div>
-    `).join('');
-  };
-
   window.loadKurikulumProbul_ = function (kelompokId, bulan) {
     if (!bulan) {
       document.getElementById('kurikulumProbulList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
@@ -7606,9 +7548,9 @@
     }
 
     document.getElementById('kurikulumTabPencapaian').style.display = 'block';
-    document.querySelectorAll('.kurikulum-tab-btn')[3].classList.add('active');
+    document.querySelectorAll('.kurikulum-tab-btn')[2].classList.add('active');
     document.querySelectorAll('.kurikulum-tab-btn').forEach((b, i) => {
-      if (i !== 3) b.classList.remove('active');
+      if (i !== 2) b.classList.remove('active');
     });
 
     window.showGlobalLoading_('Memuat pencapaian santri...');
