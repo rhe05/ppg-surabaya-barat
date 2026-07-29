@@ -7381,7 +7381,7 @@
         return `
           <div class="kurikulum-materi-item" draggable="true" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
             <span class="kurikulum-materi-drag-handle" title="Geser urutan">⠿</span>
-            <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span><span class="kurikulum-materi-num">${i + 1}.</span> ${prota.kategori || 'N/A'}</span>
+            <span class="kurikulum-materi-label" title="${window.escKurikulumAttr_(prota.kategori || 'N/A')}"><span class="kurikulum-materi-chevron">›</span><span class="kurikulum-materi-num">${i + 1}.</span> ${prota.kategori || 'N/A'}</span>
             <span class="kurikulum-materi-actions">
               <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta(this.closest('.kurikulum-materi-item').dataset.protaId)">✎</button>
               <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta(this.closest('.kurikulum-materi-item').dataset.protaId)">×</button>
@@ -7749,8 +7749,8 @@
           <div class="kurikulum-protes-row">
             <div class="kurikulum-promes-sem-label">Semester ${sem === '2' ? 'II' : 'I'}</div>
             ${hasTarget
-              ? `<div style="font-size: 12px; color: var(--text-dim);">Target: ${window.escapeHtmlExport_(promes.target)}</div>` +
-                (promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${window.escapeHtmlExport_(promes.deskripsi)}</div>` : '')
+              ? `<div style="font-size: 12px; color: var(--text); font-weight: 500;">Target: ${window.escapeHtmlExport_(promes.target)}</div>` +
+                (promes.deskripsi ? `<div style="font-size: 12px; color: var(--text); margin-top: 4px;">${window.escapeHtmlExport_(promes.deskripsi)}</div>` : '')
               : '<div class="kurikulum-promes-empty" style="font-size: 12px;">Belum diisi</div>'}
           </div>
         </div>

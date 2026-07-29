@@ -2486,11 +2486,12 @@
     }
 
     .kurikulum-materi-item {
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 10px;
-      padding: 9px 10px;
+      padding: 9px 10px 9px 22px;
       border-radius: var(--radius);
       cursor: pointer;
       transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
@@ -2505,7 +2506,10 @@
        .kurikulum-materi-actions), grab saat dipegang, "diangkat" (bayangan +
        transparan) selama proses geser. */
     .kurikulum-materi-drag-handle {
-      flex-shrink: 0;
+      position: absolute;
+      left: 4px;
+      top: 50%;
+      transform: translateY(-50%);
       width: 16px;
       text-align: center;
       font-size: 14px;
@@ -2532,8 +2536,15 @@
 
     .kurikulum-materi-label {
       flex: 1;
-      font-size: 13px;
+      min-width: 0;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: left;
+      font-size: 12.5px;
       font-weight: 600;
+      letter-spacing: -0.005em;
       color: var(--text);
     }
 
