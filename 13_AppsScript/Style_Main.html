@@ -2586,6 +2586,58 @@
       margin-bottom: 4px;
     }
 
+    /* Daftar baris "Target" dinamis di modal Tambah/Edit Prota -- Enter di
+       baris terakhir menambah baris baru (window.protaTargetKeydown_). */
+    .prota-target-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .prota-target-line-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prota-target-line-num {
+      flex-shrink: 0;
+      width: 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-align: right;
+    }
+
+    .prota-target-line-row .prota-target-input {
+      flex: 1;
+    }
+
+    /* Tampilan daftar Target (per Prota) saat kartu materi di-expand --
+       bernomor otomatis + garis pemisah antar baris. */
+    .kurikulum-prota-target-list {
+      margin-bottom: 8px;
+    }
+
+    .kurikulum-prota-target-item {
+      display: flex;
+      gap: 8px;
+      padding: 6px 0;
+      font-size: 12.5px;
+      color: var(--text-dim);
+      border-bottom: 1px dashed var(--border);
+    }
+
+    .kurikulum-prota-target-item:last-child {
+      border-bottom: none;
+    }
+
+    .kurikulum-prota-target-num {
+      flex-shrink: 0;
+      font-weight: 600;
+      color: var(--brass);
+    }
+
     /* Tab Semester — laporan lengkap per Kelas: kartu per Kelas, tabel
        GABUNGAN per Semester (baris = materi, kolom = Bulan 1-6 bersama)
        supaya tetap rapi & muat 1 layar walau materi terus bertambah. */

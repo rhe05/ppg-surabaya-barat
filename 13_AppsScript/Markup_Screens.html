@@ -3408,7 +3408,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Kelas (opsional)</label>
-          <select class="form-select" id="protaKelas">
+          <select class="form-select" id="protaKelas" onchange="window.protaFilterKategoriOptions_(this.value, document.getElementById('protaId').value)">
             <option value="">Semua Kelas</option>
             <option value="PAUD-TK">Kelas PAUD-TK</option>
             <option value="1">Kelas 1</option>
@@ -3443,7 +3443,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Target</label>
-          <textarea class="form-input" id="protaDeskripsi" rows="2" placeholder="Catatan tambahan"></textarea>
+          <div class="prota-target-list" id="protaTargetList"></div>
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="window.closeModalAddProta()">Batal</button>

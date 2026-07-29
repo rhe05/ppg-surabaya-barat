@@ -116,6 +116,14 @@ function serverAddProta(token, kelompokId, tahun, kategori, kelas, target, deskr
 
   try {
     return withScriptLock_(function() {
+      const dup = readSheetAsObjects('kurikulum_prota').find(r =>
+        String(r.kelompok_id) === String(kelompokId) &&
+        parseInt(r.tahun || 0) === parseInt(tahun || 0) &&
+        String(r.kelas || '') === String(kelas || '') &&
+        String(r.kategori || '') === String(kategori)
+      );
+      if (dup) return { success: false, error: 'Materi "' + kategori + '" sudah ada untuk kelas ini' };
+
       const kategoriSlug = String(kategori).trim().replace(/\s+/g, '_').toLowerCase();
       const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + (kelas ? '_kelas' + kelas : '');
       const now = new Date().toISOString();

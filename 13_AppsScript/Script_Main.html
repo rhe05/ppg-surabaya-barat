@@ -7381,6 +7381,10 @@
         return `
           <div class="kurikulum-materi-item" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
             <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span>${i + 1}. ${prota.kategori || 'N/A'}</span>
+            <span class="kurikulum-materi-actions">
+              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta('${prota.id}')">✎</button>
+              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta('${prota.id}')">×</button>
+            </span>
           </div>
           <div class="kurikulum-materi-detail" id="kurikulumMateriDetail_${prota.id}" style="display: none;"></div>
         `;
@@ -7606,22 +7610,41 @@
     window.kurikulumRefreshMateriDetail_(protaId);
   };
 
+  // Baris "Target" milik Prota itu sendiri (bukan Promes) -- disimpan di
+  // kolom deskripsi sbg beberapa baris dipisah "\n" (lihat
+  // window.protaCollectTargetLines_). Ditampilkan bernomor otomatis +
+  // garis pemisah antar baris via CSS .kurikulum-prota-target-item.
+  window.kurikulumProtaTargetListHtml_ = function (prota) {
+    const lines = prota && prota.deskripsi
+      ? String(prota.deskripsi).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
+      : [];
+    if (!lines.length) return '';
+    return '<div class="kurikulum-prota-target-list">' + lines.map(function (line, i) {
+      return '<div class="kurikulum-prota-target-item"><span class="kurikulum-prota-target-num">' + (i + 1) + '.</span><span>' + window.escapeHtmlExport_(line) + '</span></div>';
+    }).join('') + '</div>';
+  };
+
   window.kurikulumRefreshMateriDetail_ = function (protaId) {
     const detailEl = document.getElementById('kurikulumMateriDetail_' + protaId);
     if (!detailEl) return;
 
-    detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--text-faint);">Memuat semester...</div>';
+    const prota = (window.lastProtaData || []).find(function (p) { return String(p.id) === String(protaId); });
+    const targetHtml = window.kurikulumProtaTargetListHtml_(prota);
+
+    detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--text-faint);">Memuat semester...</div>';
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) {
-          detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
+          detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
           return;
         }
-        window.renderPromesInline_(detailEl, result.data, protaId);
+        const promesWrap = document.createElement('div');
+        window.renderPromesInline_(promesWrap, result.data, protaId);
+        detailEl.innerHTML = targetHtml + promesWrap.innerHTML;
         detailEl.dataset.loaded = '1';
       })
       .withFailureHandler(function (err) {
-        detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Error: ' + err.message + '</div>';
+        detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Error: ' + err.message + '</div>';
       })
       .serverGetPromes(window.currentToken, protaId);
   };
@@ -7768,12 +7791,96 @@
     document.getElementById('protaKelas').value = kelasPreset || '';
     document.getElementById('protaKelas').disabled = false;
     document.getElementById('protaTarget').selectedIndex = 0;
-    document.getElementById('protaDeskripsi').value = '';
+    window.protaRenderTargetLines_(['']);
+    window.protaFilterKategoriOptions_(kelasPreset || '', '');
     document.getElementById('modalAddProta').classList.add('active');
   };
 
   window.closeModalAddProta = function () {
     document.getElementById('modalAddProta').classList.remove('active');
+  };
+
+  // Materi (kategori) yang sudah dipakai kelas yang sama (tahun berjalan di
+  // toolbar) tidak boleh dipilih lagi -- 1 kartu Kelas cuma boleh 1 baris
+  // per materi (tidak dobel). excludeProtaId dipakai saat mode Edit supaya
+  // materi milik baris yang sedang diedit tidak ikut diblokir.
+  window.protaFilterKategoriOptions_ = function (kelas, excludeProtaId) {
+    const sel = document.getElementById('protaKategori');
+    if (!sel) return;
+    const used = {};
+    (window.lastProtaData || []).forEach(function (p) {
+      if (String(p.kelas || '') === String(kelas || '') && String(p.id) !== String(excludeProtaId || '')) {
+        used[p.kategori] = true;
+      }
+    });
+    Array.from(sel.options).forEach(function (opt) {
+      opt.disabled = !!used[opt.value];
+    });
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].disabled) {
+      const firstFree = Array.from(sel.options).find(function (o) { return !o.disabled; });
+      if (firstFree) sel.value = firstFree.value;
+    }
+  };
+
+  // Daftar baris "Target" dinamis (modal Tambah/Edit Prota) -- Enter di
+  // baris mana pun menyisipkan baris baru tepat di bawahnya & bernomor
+  // ulang otomatis; Backspace di baris kosong (bukan satu-satunya) hapus
+  // baris itu.
+  window.protaRenderTargetLines_ = function (lines) {
+    const wrap = document.getElementById('protaTargetList');
+    if (!wrap) return;
+    const arr = (lines && lines.length) ? lines : [''];
+    wrap.innerHTML = arr.map(function (val, idx) {
+      return '<div class="prota-target-line-row">' +
+        '<span class="prota-target-line-num">' + (idx + 1) + '.</span>' +
+        '<input type="text" class="form-input prota-target-input" value="' + window.escKurikulumAttr_(val) + '" placeholder="Target ke-' + (idx + 1) + '" onkeydown="window.protaTargetKeydown_(event, this)">' +
+        '</div>';
+    }).join('');
+  };
+
+  window.protaRenumberTargetLines_ = function () {
+    const wrap = document.getElementById('protaTargetList');
+    if (!wrap) return;
+    Array.from(wrap.children).forEach(function (row, idx) {
+      const num = row.querySelector('.prota-target-line-num');
+      if (num) num.textContent = (idx + 1) + '.';
+      const input = row.querySelector('input');
+      if (input) input.placeholder = 'Target ke-' + (idx + 1);
+    });
+  };
+
+  window.protaTargetKeydown_ = function (e, inputEl) {
+    const wrap = document.getElementById('protaTargetList');
+    const row = inputEl.closest('.prota-target-line-row');
+    if (!wrap || !row) return;
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const newRow = document.createElement('div');
+      newRow.className = 'prota-target-line-row';
+      newRow.innerHTML = '<span class="prota-target-line-num"></span><input type="text" class="form-input prota-target-input" placeholder="" onkeydown="window.protaTargetKeydown_(event, this)">';
+      row.after(newRow);
+      window.protaRenumberTargetLines_();
+      newRow.querySelector('input').focus();
+    } else if (e.key === 'Backspace' && inputEl.value === '' && wrap.children.length > 1) {
+      e.preventDefault();
+      const prevRow = row.previousElementSibling;
+      row.remove();
+      window.protaRenumberTargetLines_();
+      if (prevRow) {
+        const prevInput = prevRow.querySelector('input');
+        prevInput.focus();
+        prevInput.setSelectionRange(prevInput.value.length, prevInput.value.length);
+      }
+    }
+  };
+
+  window.protaCollectTargetLines_ = function () {
+    const wrap = document.getElementById('protaTargetList');
+    if (!wrap) return [];
+    return Array.from(wrap.querySelectorAll('.prota-target-input'))
+      .map(function (i) { return i.value.trim(); })
+      .filter(function (v) { return v !== ''; });
   };
 
   window.openModalAddPromes = function (protaId) {
@@ -7824,7 +7931,7 @@
     const kategori = document.getElementById('protaKategori').value;
     const kelas = document.getElementById('protaKelas').value;
     const target = document.getElementById('protaTarget').value;
-    const deskripsi = document.getElementById('protaDeskripsi').value.trim();
+    const deskripsi = window.protaCollectTargetLines_().join('\n');
 
     const kelasFilter = document.getElementById('kurikulumProtaKelas').value;
     window.showGlobalLoading_('Menyimpan...');
@@ -7850,13 +7957,17 @@
     }
   };
 
-  window.editProta = function (protaId, kategori, target, deskripsi, kelas) {
-    document.getElementById('protaId').value = protaId;
-    document.getElementById('protaKategori').value = kategori;
-    document.getElementById('protaKelas').value = kelas || '';
+  window.editProta = function (protaId) {
+    const prota = (window.lastProtaData || []).find(function (p) { return String(p.id) === String(protaId); });
+    if (!prota) return;
+    document.getElementById('protaId').value = prota.id;
+    document.getElementById('protaKelas').value = prota.kelas || '';
     document.getElementById('protaKelas').disabled = true;
-    document.getElementById('protaTarget').value = target;
-    document.getElementById('protaDeskripsi').value = deskripsi || '';
+    window.protaFilterKategoriOptions_(prota.kelas || '', prota.id);
+    document.getElementById('protaKategori').value = prota.kategori;
+    document.getElementById('protaTarget').value = prota.target;
+    const lines = (prota.deskripsi || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+    window.protaRenderTargetLines_(lines);
     document.getElementById('modalAddProta').classList.add('active');
   };
 
