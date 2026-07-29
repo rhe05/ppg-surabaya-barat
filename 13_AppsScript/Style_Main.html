@@ -2669,6 +2669,87 @@
       margin-bottom: 8px;
     }
 
+    /* Daftar baris "Catatan" dinamis per Semester di modal Edit Materi --
+       Enter menambah baris baru bernomor (window.protaCatatanKeydown_). */
+    .prota-catatan-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .prota-catatan-line-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prota-catatan-line-num {
+      flex-shrink: 0;
+      width: 18px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-faint);
+      text-align: right;
+    }
+
+    .prota-catatan-line-row .prota-catatan-input {
+      flex: 1;
+    }
+
+    /* "Rincian Target" -- Catatan Semester ditampilkan sbg baris bernomor
+       rapi ala tabel (border antar baris + zebra stripe) begitu di-expand
+       di kartu materi, tapi tetap premium: rounded, warna brand di nomor. */
+    .kurikulum-promes-catatan {
+      margin-top: 8px;
+    }
+
+    .kurikulum-promes-catatan-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 5px;
+    }
+
+    .kurikulum-promes-catatan-list {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .kurikulum-promes-catatan-item {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      padding: 7px 10px;
+      font-size: 12px;
+      color: var(--text);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kurikulum-promes-catatan-item:last-child {
+      border-bottom: none;
+    }
+
+    .kurikulum-promes-catatan-item:nth-child(even) {
+      background: var(--panel-2);
+    }
+
+    .kurikulum-promes-catatan-num {
+      flex-shrink: 0;
+      width: 16px;
+      text-align: right;
+      font-weight: 700;
+      font-size: 11px;
+      color: var(--brass);
+    }
+
+    .kurikulum-promes-catatan-text {
+      flex: 1;
+    }
+
     /* Tab Semester — laporan lengkap per Kelas: kartu per Kelas, tabel
        GABUNGAN per Semester (baris = materi, kolom = Bulan 1-6 bersama)
        supaya tetap rapi & muat 1 layar walau materi terus bertambah. */
