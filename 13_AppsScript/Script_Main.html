@@ -7711,88 +7711,53 @@
     window.kurikulumRefreshMateriDetail_(protaId);
   };
 
-  // Baris "Target" milik Prota itu sendiri (bukan Promes) -- disimpan di
-  // kolom deskripsi sbg beberapa baris dipisah "\n" (lihat
-  // window.protaCollectTargetLines_). Ditampilkan bernomor otomatis +
-  // garis pemisah antar baris via CSS .kurikulum-prota-target-item.
-  window.kurikulumProtaTargetListHtml_ = function (prota) {
-    const lines = prota && prota.deskripsi
-      ? String(prota.deskripsi).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
-      : [];
-    if (!lines.length) return '';
-    return '<div class="kurikulum-prota-target-list">' + lines.map(function (line, i) {
-      return '<div class="kurikulum-prota-target-item"><span class="kurikulum-prota-target-num">' + (i + 1) + '.</span><span>' + window.escapeHtmlExport_(line) + '</span></div>';
-    }).join('') + '</div>';
-  };
-
   window.kurikulumRefreshMateriDetail_ = function (protaId) {
     const detailEl = document.getElementById('kurikulumMateriDetail_' + protaId);
     if (!detailEl) return;
 
-    const prota = (window.lastProtaData || []).find(function (p) { return String(p.id) === String(protaId); });
-    const targetHtml = window.kurikulumProtaTargetListHtml_(prota);
-
-    detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--text-faint);">Memuat semester...</div>';
+    detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--text-faint);">Memuat semester...</div>';
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) {
-          detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
+          detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
           return;
         }
-        // Cache Promes by id (bukan diselipkan mentah ke atribut onclick --
-        // target/deskripsi bebas berisi kutip/baris baru yg bisa memutus
-        // literal JS, sama seperti bug id Prota berapostrof yg pernah
-        // mematikan tombol Edit/Hapus materi).
-        window.lastPromesById_ = window.lastPromesById_ || {};
-        (result.data || []).forEach(function (p) {
-          window.lastPromesById_[p.id] = Object.assign({}, p, { prota_id: p.prota_id || protaId });
-        });
-        const promesWrap = document.createElement('div');
-        window.renderPromesInline_(promesWrap, result.data, protaId);
-        detailEl.innerHTML = targetHtml + promesWrap.innerHTML;
+        window.renderPromesInline_(detailEl, result.data);
         detailEl.dataset.loaded = '1';
       })
       .withFailureHandler(function (err) {
-        detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Error: ' + err.message + '</div>';
+        detailEl.innerHTML = '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Error: ' + err.message + '</div>';
       })
       .serverGetPromes(window.currentToken, protaId);
   };
 
-  // Semester (Promes) per materi -- sempat kehilangan tombol "+ Tambah
-  // Semester" (dihapus di commit bd52744), jadi TIDAK ADA cara sama sekali
-  // dari tab Tahunan utk mengisi Semester materi baru (kartu selalu kosong
-  // "Belum ada semester"). Dikembalikan di sini, plus Edit/Hapus per baris
-  // Semester -- max 2 baris (Semester I & II) per materi, tombol Tambah
-  // otomatis hilang begitu keduanya sudah terisi.
-  window.renderPromesInline_ = function (containerEl, data, protaId) {
-    const rows = data || [];
-    const usedSemesters = {};
-    rows.forEach(function (p) { usedSemesters[String(p.semester)] = true; });
-    const canAddMore = Object.keys(usedSemesters).length < 2;
+  // Setiap materi SELALU tampil 2 kartu (Semester I & II) -- dibuat
+  // otomatis bareng saat materi ditambah (serverAddProta), jadi di sini
+  // TINGGAL DITAMPILKAN apa adanya (read-only). Kalau baris Promes-nya
+  // ternyata belum ada (data lama sebelum perubahan ini), tetap tampilkan
+  // kartunya dgn placeholder "Belum diisi" -- isi/ubah HANYA lewat tombol
+  // aksi ✎ (Edit) di baris materi, bukan dari sini lagi.
+  window.renderPromesInline_ = function (containerEl, data) {
+    const bySemester = {};
+    (data || []).forEach(function (p) { bySemester[String(p.semester)] = p; });
 
-    const addBtnHtml = canAddMore
-      ? '<button class="kurikulum-promes-add-btn" data-prota-id="' + window.escKurikulumAttr_(protaId) + '" onclick="event.stopPropagation(); window.openModalAddPromes(this.dataset.protaId)">+ Tambah Semester</button>'
-      : '';
-
-    const listHtml = rows.length ? rows.map(function (promes) {
+    const cardsHtml = ['1', '2'].map(function (sem) {
+      const promes = bySemester[sem];
+      const hasTarget = promes && promes.target;
       return `
-        <div class="kurikulum-promes-block" data-promes-id="${window.escKurikulumAttr_(promes.id)}">
-          <div class="kurikulum-protes-row" onclick="event.stopPropagation();">
-            <div>
-              <div style="font-weight: 600;">Semester ${promes.semester}</div>
-              <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
-              ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
-            </div>
-            <div class="kurikulum-promes-actions">
-              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editPromes(this.closest('[data-promes-id]').dataset.promesId)">✎</button>
-              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deletePromes(this.closest('[data-promes-id]').dataset.promesId)">×</button>
-            </div>
+        <div class="kurikulum-promes-block">
+          <div class="kurikulum-protes-row">
+            <div class="kurikulum-promes-sem-label">Semester ${sem === '2' ? 'II' : 'I'}</div>
+            ${hasTarget
+              ? `<div style="font-size: 12px; color: var(--text-dim);">Target: ${window.escapeHtmlExport_(promes.target)}</div>` +
+                (promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${window.escapeHtmlExport_(promes.deskripsi)}</div>` : '')
+              : '<div class="kurikulum-promes-empty" style="font-size: 12px;">Belum diisi</div>'}
           </div>
         </div>
       `;
-    }).join('') : '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
+    }).join('');
 
-    containerEl.innerHTML = addBtnHtml + listHtml;
+    containerEl.innerHTML = cardsHtml;
   };
 
   window.loadKurikulumProbul_ = function (kelompokId, bulan) {
@@ -7911,14 +7876,18 @@
      KURIKULUM — Modal Functions
      ═════════════════════════════════════════════════════════════════════════════════ */
 
+  // Add: cuma Tahun + Kelas + Materi -- Target diisi belakangan lewat Edit
+  // (✎). Edit: field Kelas/Materi dikunci, muncul 2 blok Target Semester
+  // I/II (window.editProta ambil isinya via serverGetPromes dulu).
   window.openModalAddProta = function (kelasPreset) {
     document.getElementById('protaId').value = '';
+    document.getElementById('modalAddProtaTitle').textContent = 'Tambah Materi';
     document.getElementById('protaTahun').value = new Date().getFullYear();
     document.getElementById('protaKategori').selectedIndex = 0;
+    document.getElementById('protaKategori').disabled = false;
     document.getElementById('protaKelas').value = kelasPreset || '';
     document.getElementById('protaKelas').disabled = false;
-    document.getElementById('protaTarget').selectedIndex = 0;
-    window.protaRenderTargetLines_(['']);
+    document.getElementById('protaSemesterEditFields').style.display = 'none';
     window.protaFilterKategoriOptions_(kelasPreset || '', '');
     document.getElementById('modalAddProta').classList.add('active');
   };
@@ -7927,16 +7896,21 @@
     document.getElementById('modalAddProta').classList.remove('active');
   };
 
-  // Materi (kategori) yang sudah dipakai kelas yang sama (tahun berjalan di
-  // toolbar) tidak boleh dipilih lagi -- 1 kartu Kelas cuma boleh 1 baris
-  // per materi (tidak dobel). excludeProtaId dipakai saat mode Edit supaya
-  // materi milik baris yang sedang diedit tidak ikut diblokir.
+  // Materi (kategori) yang sudah dipakai kelas yang sama tidak boleh
+  // dipilih lagi -- 1 kartu Kelas cuma boleh 1 baris per materi (tidak
+  // dobel). Dilewati kalau Kelas = "Semua Kelas" (kosong) krn materi bisa
+  // saja sudah ada di SEBAGIAN kelas tapi belum di kelas lain -- server
+  // yang memutuskan per-kelas mana yang dilewati saat mode isi-semua.
   window.protaFilterKategoriOptions_ = function (kelas, excludeProtaId) {
     const sel = document.getElementById('protaKategori');
     if (!sel) return;
+    if (!kelas) {
+      Array.from(sel.options).forEach(function (opt) { opt.disabled = false; });
+      return;
+    }
     const used = {};
     (window.lastProtaData || []).forEach(function (p) {
-      if (String(p.kelas || '') === String(kelas || '') && String(p.id) !== String(excludeProtaId || '')) {
+      if (String(p.kelas || '') === String(kelas) && String(p.id) !== String(excludeProtaId || '')) {
         used[p.kategori] = true;
       }
     });
@@ -7947,86 +7921,6 @@
       const firstFree = Array.from(sel.options).find(function (o) { return !o.disabled; });
       if (firstFree) sel.value = firstFree.value;
     }
-  };
-
-  // Daftar baris "Target" dinamis (modal Tambah/Edit Prota) -- Enter di
-  // baris mana pun menyisipkan baris baru tepat di bawahnya & bernomor
-  // ulang otomatis; Backspace di baris kosong (bukan satu-satunya) hapus
-  // baris itu.
-  window.protaRenderTargetLines_ = function (lines) {
-    const wrap = document.getElementById('protaTargetList');
-    if (!wrap) return;
-    const arr = (lines && lines.length) ? lines : [''];
-    wrap.innerHTML = arr.map(function (val, idx) {
-      return '<div class="prota-target-line-row">' +
-        '<span class="prota-target-line-num">' + (idx + 1) + '.</span>' +
-        '<input type="text" class="form-input prota-target-input" value="' + window.escKurikulumAttr_(val) + '" placeholder="Target ke-' + (idx + 1) + '" onkeydown="window.protaTargetKeydown_(event, this)">' +
-        '</div>';
-    }).join('');
-  };
-
-  window.protaRenumberTargetLines_ = function () {
-    const wrap = document.getElementById('protaTargetList');
-    if (!wrap) return;
-    Array.from(wrap.children).forEach(function (row, idx) {
-      const num = row.querySelector('.prota-target-line-num');
-      if (num) num.textContent = (idx + 1) + '.';
-      const input = row.querySelector('input');
-      if (input) input.placeholder = 'Target ke-' + (idx + 1);
-    });
-  };
-
-  window.protaTargetKeydown_ = function (e, inputEl) {
-    const wrap = document.getElementById('protaTargetList');
-    const row = inputEl.closest('.prota-target-line-row');
-    if (!wrap || !row) return;
-
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const newRow = document.createElement('div');
-      newRow.className = 'prota-target-line-row';
-      newRow.innerHTML = '<span class="prota-target-line-num"></span><input type="text" class="form-input prota-target-input" placeholder="" onkeydown="window.protaTargetKeydown_(event, this)">';
-      row.after(newRow);
-      window.protaRenumberTargetLines_();
-      newRow.querySelector('input').focus();
-    } else if (e.key === 'Backspace' && inputEl.value === '' && wrap.children.length > 1) {
-      e.preventDefault();
-      const prevRow = row.previousElementSibling;
-      row.remove();
-      window.protaRenumberTargetLines_();
-      if (prevRow) {
-        const prevInput = prevRow.querySelector('input');
-        prevInput.focus();
-        prevInput.setSelectionRange(prevInput.value.length, prevInput.value.length);
-      }
-    }
-  };
-
-  window.protaCollectTargetLines_ = function () {
-    const wrap = document.getElementById('protaTargetList');
-    if (!wrap) return [];
-    return Array.from(wrap.querySelectorAll('.prota-target-input'))
-      .map(function (i) { return i.value.trim(); })
-      .filter(function (v) { return v !== ''; });
-  };
-
-  window.openModalAddPromes = function (protaId) {
-    document.getElementById('promesId').value = '';
-    document.getElementById('promesProtaId').value = protaId;
-
-    const existingSemesters = Object.keys(window.lastPromesById_ || {})
-      .map(function (id) { return window.lastPromesById_[id]; })
-      .filter(function (p) { return String(p.prota_id) === String(protaId); })
-      .map(function (p) { return String(p.semester); });
-    document.getElementById('promesSemester').value = existingSemesters.indexOf('1') === -1 ? '1' : '2';
-
-    document.getElementById('promesTarget').value = '';
-    document.getElementById('promesDeskripsi').value = '';
-    document.getElementById('modalAddPromes').classList.add('active');
-  };
-
-  window.closeModalAddPromes = function () {
-    document.getElementById('modalAddPromes').classList.remove('active');
   };
 
   window.openModalAddProbul = function () {
@@ -8061,13 +7955,43 @@
   window.saveProta = function () {
     const protaId = document.getElementById('protaId').value;
     const tahun = document.getElementById('protaTahun').value;
-    const kategori = document.getElementById('protaKategori').value;
     const kelas = document.getElementById('protaKelas').value;
-    const target = document.getElementById('protaTarget').value;
-    const deskripsi = window.protaCollectTargetLines_().join('\n');
 
     window.showGlobalLoading_('Menyimpan...');
-    const runner = google.script.run
+
+    if (protaId) {
+      // Edit: cuma update Target Semester I & II -- Kelas/Materi terkunci.
+      const sem1Target = document.getElementById('protaSem1Target').value.trim();
+      const sem1Deskripsi = document.getElementById('protaSem1Deskripsi').value.trim();
+      const sem2Target = document.getElementById('protaSem2Target').value.trim();
+      const sem2Deskripsi = document.getElementById('protaSem2Deskripsi').value.trim();
+
+      google.script.run
+        .withSuccessHandler(function (result) {
+          window.hideGlobalLoading_();
+          if (!result.success) {
+            alert('Error: ' + result.error);
+            return;
+          }
+          window.closeModalAddProta();
+          const detailEl = document.getElementById('kurikulumMateriDetail_' + protaId);
+          if (detailEl) {
+            delete detailEl.dataset.loaded;
+            if (detailEl.style.display !== 'none') window.kurikulumRefreshMateriDetail_(protaId);
+          }
+        })
+        .withFailureHandler(function (err) {
+          window.hideGlobalLoading_();
+          alert('Error: ' + err.message);
+        })
+        .serverUpdateProtaSemesters(window.currentToken, protaId, sem1Target, sem1Deskripsi, sem2Target, sem2Deskripsi);
+      return;
+    }
+
+    // Tambah: cuma Tahun + Kelas + Materi. Kelas kosong ("Semua Kelas")
+    // otomatis diisikan server ke semua Kelas sekaligus.
+    const kategori = document.getElementById('protaKategori').value;
+    google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) {
@@ -8076,10 +8000,8 @@
         }
         window.closeModalAddProta();
         // Sinkronkan filter toolbar Tahun/Kelas ke materi yang barusan
-        // disimpan -- sebelumnya reload di sini masih pakai filter Kelas
-        // TOOLBAR yang lama, jadi materi yang diinput ke Kelas berbeda dari
-        // filter aktif (mis. via tombol umum "+ Tambah Prota") tersimpan
-        // sukses tapi langsung "hilang" krn kefilter keluar dari tampilan.
+        // disimpan -- reload di sini pakai filter Kelas TOOLBAR yang lama
+        // pernah bikin materi baru "hilang" krn kefilter keluar tampilan.
         const tahunSel = document.getElementById('kurikulumProtaTahun');
         const kelasSel = document.getElementById('kurikulumProtaKelas');
         if (tahunSel) tahunSel.value = tahun;
@@ -8089,27 +8011,44 @@
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         alert('Error: ' + err.message);
-      });
-
-    if (protaId) {
-      runner.serverUpdateProta(window.currentToken, protaId, target, deskripsi);
-    } else {
-      runner.serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas, target, deskripsi);
-    }
+      })
+      .serverAddProta(window.currentToken, window.currentKelompokId, parseInt(tahun), kategori, kelas);
   };
 
   window.editProta = function (protaId) {
     const prota = (window.lastProtaData || []).find(function (p) { return String(p.id) === String(protaId); });
     if (!prota) return;
+
     document.getElementById('protaId').value = prota.id;
+    document.getElementById('modalAddProtaTitle').textContent = 'Edit Materi & Target Semester';
     document.getElementById('protaKelas').value = prota.kelas || '';
     document.getElementById('protaKelas').disabled = true;
-    window.protaFilterKategoriOptions_(prota.kelas || '', prota.id);
     document.getElementById('protaKategori').value = prota.kategori;
-    document.getElementById('protaTarget').value = prota.target;
-    const lines = (prota.deskripsi || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
-    window.protaRenderTargetLines_(lines);
+    document.getElementById('protaKategori').disabled = true;
+    document.getElementById('protaSem1Target').value = '';
+    document.getElementById('protaSem1Deskripsi').value = '';
+    document.getElementById('protaSem2Target').value = '';
+    document.getElementById('protaSem2Deskripsi').value = '';
+    document.getElementById('protaSemesterEditFields').style.display = 'block';
     document.getElementById('modalAddProta').classList.add('active');
+
+    window.showGlobalLoading_('Memuat target semester...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) return;
+        (result.data || []).forEach(function (p) {
+          if (String(p.semester) === '1') {
+            document.getElementById('protaSem1Target').value = p.target || '';
+            document.getElementById('protaSem1Deskripsi').value = p.deskripsi || '';
+          } else if (String(p.semester) === '2') {
+            document.getElementById('protaSem2Target').value = p.target || '';
+            document.getElementById('protaSem2Deskripsi').value = p.deskripsi || '';
+          }
+        });
+      })
+      .withFailureHandler(function () { window.hideGlobalLoading_(); })
+      .serverGetPromes(window.currentToken, protaId);
   };
 
   window.pendingDeleteProtaId_ = null;
@@ -8155,77 +8094,6 @@
         alert('Error: ' + err.message);
       })
       .serverDeleteProta(window.currentToken, protaId);
-  };
-
-  window.savePromes = function () {
-    const promesId = document.getElementById('promesId').value;
-    const protaId = document.getElementById('promesProtaId').value;
-    const semester = document.getElementById('promesSemester').value;
-    const target = document.getElementById('promesTarget').value.trim();
-    const deskripsi = document.getElementById('promesDeskripsi').value.trim();
-
-    if (!target) {
-      alert('Target harus diisi');
-      return;
-    }
-
-    window.showGlobalLoading_('Menyimpan...');
-    const runner = google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          alert('Error: ' + result.error);
-          return;
-        }
-        window.closeModalAddPromes();
-        delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
-        window.kurikulumRefreshMateriDetail_(protaId);
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        alert('Error: ' + err.message);
-      });
-
-    if (promesId) {
-      runner.serverUpdatePromes(window.currentToken, promesId, target, deskripsi);
-    } else {
-      runner.serverAddPromes(window.currentToken, protaId, parseInt(semester), target, deskripsi);
-    }
-  };
-
-  window.editPromes = function (promesId) {
-    const promes = (window.lastPromesById_ || {})[promesId];
-    if (!promes) return;
-    document.getElementById('promesId').value = promes.id;
-    document.getElementById('promesProtaId').value = promes.prota_id;
-    document.getElementById('promesSemester').value = promes.semester;
-    document.getElementById('promesTarget').value = promes.target;
-    document.getElementById('promesDeskripsi').value = promes.deskripsi || '';
-    document.getElementById('modalAddPromes').classList.add('active');
-  };
-
-  window.deletePromes = function (promesId) {
-    const promes = (window.lastPromesById_ || {})[promesId];
-    const protaId = promes ? promes.prota_id : null;
-    if (!confirm('Hapus program semester ini?')) return;
-    window.showGlobalLoading_('Menghapus...');
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          alert('Error: ' + result.error);
-          return;
-        }
-        if (protaId) {
-          delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
-          window.kurikulumRefreshMateriDetail_(protaId);
-        }
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        alert('Error: ' + err.message);
-      })
-      .serverDeletePromes(window.currentToken, promesId);
   };
 
   window.saveProbul = function () {

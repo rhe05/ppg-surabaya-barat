@@ -116,68 +116,112 @@ function serverGetProta(token, kelompokId, tahun, kelas) {
   }
 }
 
-function serverAddProta(token, kelompokId, tahun, kategori, kelas, target, deskripsi) {
+// Kelas resmi -- dipakai saat form Tambah Materi pilih "Semua Kelas": materi
+// diisikan ke SETIAP kelas ini sekaligus (baris Prota + sepasang Promes
+// kosong per kelas), bukan 1 baris "Umum" tergabung spt sebelumnya.
+const KURIKULUM_KELAS_LIST_ = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+/**
+ * Tambah materi (Prota) -- HANYA Tahun + Kelas + Materi (Target diisi
+ * belakangan lewat serverUpdateProtaSemesters via tombol Edit materi).
+ * kelas kosong = "Semua Kelas": expand ke KURIKULUM_KELAS_LIST_, kelas yang
+ * materinya sudah ada dilewati (bukan gagal total) supaya sisanya tetap
+ * ke-input. Tiap Prota baru langsung dapat sepasang Promes kosong (Semester
+ * I & II) supaya kartu Semester-nya SELALU ada 2, tidak pernah kosong total.
+ */
+function serverAddProta(token, kelompokId, tahun, kategori, kelas) {
   const user = getCurrentUser(token);
   if (!user || !validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Akses ditolak' };
   }
 
-  if (!tahun || !kategori || !target) {
-    return { success: false, error: 'Tahun, kategori, dan target harus diisi' };
+  if (!tahun || !kategori) {
+    return { success: false, error: 'Tahun dan materi harus diisi' };
   }
 
+  const targetKelasList = kelas ? [String(kelas)] : KURIKULUM_KELAS_LIST_;
+
   try {
-    return withScriptLock_(function() {
-      const dup = readSheetAsObjects('kurikulum_prota').find(r =>
-        String(r.kelompok_id) === String(kelompokId) &&
-        parseInt(r.tahun || 0) === parseInt(tahun || 0) &&
-        String(r.kelas || '') === String(kelas || '') &&
-        String(r.kategori || '') === String(kategori)
-      );
-      if (dup) return { success: false, error: 'Materi "' + kategori + '" sudah ada untuk kelas ini' };
-
-      const kategoriSlug = String(kategori).trim().replace(/\s+/g, '_').toLowerCase();
-      const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + (kelas ? '_kelas' + kelas : '');
+    return withScriptLock_(function () {
+      const existingRows = readSheetAsObjects('kurikulum_prota');
       const now = new Date().toISOString();
+      const kategoriSlug = String(kategori).trim().replace(/\s+/g, '_').toLowerCase();
+      let addedCount = 0;
 
-      // Materi baru selalu ditambah di urutan paling akhir kartu Kelas-nya.
-      const siblingUrutan = readSheetAsObjects('kurikulum_prota')
-        .filter(r => String(r.kelompok_id) === String(kelompokId) && parseInt(r.tahun || 0) === parseInt(tahun || 0) && String(r.kelas || '') === String(kelas || ''))
-        .map(r => parseInt(r.urutan, 10))
-        .filter(n => !isNaN(n));
-      const urutan = siblingUrutan.length ? Math.max.apply(null, siblingUrutan) + 1 : 1;
+      targetKelasList.forEach(function (kls) {
+        const dup = existingRows.find(r =>
+          String(r.kelompok_id) === String(kelompokId) &&
+          parseInt(r.tahun || 0) === parseInt(tahun || 0) &&
+          String(r.kelas || '') === String(kls) &&
+          String(r.kategori || '') === String(kategori)
+        );
+        if (dup) return;
 
-      appendRowToSheet('kurikulum_prota', [id, kelompokId, tahun, kategori, target, deskripsi || '', user.id, now, now, kelas || '', urutan]);
+        const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + '_kelas' + kls;
+        const siblingUrutan = existingRows
+          .filter(r => String(r.kelompok_id) === String(kelompokId) && parseInt(r.tahun || 0) === parseInt(tahun || 0) && String(r.kelas || '') === String(kls))
+          .map(r => parseInt(r.urutan, 10))
+          .filter(n => !isNaN(n));
+        const urutan = siblingUrutan.length ? Math.max.apply(null, siblingUrutan) + 1 : 1;
 
-      cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (kelas || 'all'));
+        appendRowToSheet('kurikulum_prota', [id, kelompokId, tahun, kategori, '', '', user.id, now, now, kls, urutan]);
+        appendRowToSheet('kurikulum_promes', ['promes_' + id + '_1', kelompokId, id, 1, '', '', user.id, now, now]);
+        appendRowToSheet('kurikulum_promes', ['promes_' + id + '_2', kelompokId, id, 2, '', '', user.id, now, now]);
+
+        existingRows.push({ kelompok_id: kelompokId, tahun: tahun, kelas: kls, kategori: kategori, urutan: urutan });
+        cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + kls);
+        addedCount++;
+      });
+
       cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_all');
-      return { success: true, id: id };
+      cacheDrop_('kurikulum_fulltree_' + kelompokId + '_' + tahun);
+
+      if (addedCount === 0) {
+        return { success: false, error: kelas ? 'Materi "' + kategori + '" sudah ada untuk kelas ini' : 'Materi "' + kategori + '" sudah ada di semua kelas' };
+      }
+      return { success: true, addedCount: addedCount };
     });
   } catch (e) {
     return { success: false, error: e.message };
   }
 }
 
-function serverUpdateProta(token, protaId, target, deskripsi) {
+/**
+ * Isi/ubah Target Semester I & II sebuah materi sekaligus dalam 1 panggilan
+ * -- dipicu tombol Edit (✎) per materi. Upsert: kalau baris Promes-nya
+ * ternyata belum ada (data lama sblm auto-create dipasang), dibuatkan baru.
+ */
+function serverUpdateProtaSemesters(token, protaId, sem1Target, sem1Deskripsi, sem2Target, sem2Deskripsi) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
   try {
-    return withScriptLock_(function() {
-      const row = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
-      if (!row) return { success: false, error: 'Prota tidak ditemukan' };
+    return withScriptLock_(function () {
+      const prota = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
+      if (!prota) return { success: false, error: 'Prota tidak ditemukan' };
 
-      if (!validateUserAccess(token, 'kelompok', row.kelompok_id)) {
+      if (!validateUserAccess(token, 'kelompok', prota.kelompok_id)) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      updateRowByQuery('kurikulum_prota', { id: protaId }, {
-        target: target || row.target,
-        deskripsi: deskripsi !== undefined ? deskripsi : row.deskripsi,
-        updated_at: new Date().toISOString()
+      const now = new Date().toISOString();
+      const existingPromes = readSheetAsObjects('kurikulum_promes').filter(r => String(r.prota_id) === String(protaId));
+      const inputs = [
+        { semester: 1, target: sem1Target || '', deskripsi: sem1Deskripsi || '' },
+        { semester: 2, target: sem2Target || '', deskripsi: sem2Deskripsi || '' }
+      ];
+
+      inputs.forEach(function (input) {
+        const existing = existingPromes.find(r => String(r.semester) === String(input.semester));
+        if (existing) {
+          updateRowByQuery('kurikulum_promes', { id: existing.id }, { target: input.target, deskripsi: input.deskripsi, updated_at: now });
+        } else {
+          appendRowToSheet('kurikulum_promes', ['promes_' + protaId + '_' + input.semester, prota.kelompok_id, protaId, input.semester, input.target, input.deskripsi, user.id, now, now]);
+        }
       });
-      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_' + (row.kelas || 'all'));
-      cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_all');
+
+      cacheDrop_('kurikulum_promes_' + protaId);
+      cacheDrop_('kurikulum_fulltree_' + prota.kelompok_id + '_' + prota.tahun);
 
       return { success: true };
     });
@@ -199,9 +243,22 @@ function serverDeleteProta(token, protaId) {
         return { success: false, error: 'Akses ditolak' };
       }
 
+      // Promes (Semester I & II) + Probul di bawahnya SELALU dibuat bareng
+      // Prota (bukan opsional lagi) -- hapus Prota harus ikut membersihkan
+      // turunannya biar tidak nyisa baris yatim di sheet.
+      const relatedPromes = readSheetAsObjects('kurikulum_promes').filter(r => String(r.prota_id) === String(protaId));
+      relatedPromes.forEach(function (promes) {
+        readSheetAsObjects('kurikulum_probul').filter(r => String(r.promes_id) === String(promes.id)).forEach(function (probul) {
+          deleteRowByQuery('kurikulum_probul', { id: probul.id });
+        });
+        deleteRowByQuery('kurikulum_promes', { id: promes.id });
+      });
+      if (relatedPromes.length) cacheDrop_('kurikulum_promes_' + protaId);
+
       deleteRowByQuery('kurikulum_prota', { id: protaId });
       cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_' + (row.kelas || 'all'));
       cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_all');
+      cacheDrop_('kurikulum_fulltree_' + row.kelompok_id + '_' + row.tahun);
 
       return { success: true };
     });

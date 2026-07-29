@@ -2619,87 +2619,43 @@
     }
 
     .kurikulum-promes-block {
+      margin-bottom: 8px;
+    }
+
+    .kurikulum-promes-block .kurikulum-protes-row {
+      display: block;
+    }
+
+    .kurikulum-promes-sem-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--brass);
       margin-bottom: 4px;
     }
 
-    /* "+ Tambah Semester" (kembali dipakai -- tanpa ini kartu Semester tiap
-       materi baru mustahil terisi, selalu kosong "Belum ada semester") +
-       Edit/Hapus per baris Semester. */
-    .kurikulum-promes-add-btn {
-      display: inline-block;
-      background: none;
-      border: 1px dashed var(--border);
-      color: var(--brass);
+    .kurikulum-promes-empty {
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    /* Blok "Target Semester I/II" di modal Edit Materi -- muncul cuma saat
+       Edit (klik ✎ di materi), tempat isi/ubah target kedua semester
+       sekaligus dalam 1 form yang sama. */
+    .kurikulum-sem-edit-block {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px;
+      margin-bottom: 12px;
+      background: var(--panel-2);
+    }
+
+    .kurikulum-sem-edit-title {
       font-size: 12px;
       font-weight: 700;
-      cursor: pointer;
-      padding: 6px 10px;
-      border-radius: var(--radius);
-      margin-bottom: 8px;
-      transition: background 0.15s, border-color 0.15s;
-    }
-
-    .kurikulum-promes-add-btn:hover {
-      background: rgba(217, 119, 6, 0.1);
-      border-color: var(--brass);
-    }
-
-    .kurikulum-promes-actions {
-      display: flex;
-      gap: 6px;
-      flex-shrink: 0;
-    }
-
-    /* Daftar baris "Target" dinamis di modal Tambah/Edit Prota -- Enter di
-       baris terakhir menambah baris baru (window.protaTargetKeydown_). */
-    .prota-target-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .prota-target-line-row {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .prota-target-line-num {
-      flex-shrink: 0;
-      width: 18px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--text-faint);
-      text-align: right;
-    }
-
-    .prota-target-line-row .prota-target-input {
-      flex: 1;
-    }
-
-    /* Tampilan daftar Target (per Prota) saat kartu materi di-expand --
-       bernomor otomatis + garis pemisah antar baris. */
-    .kurikulum-prota-target-list {
-      margin-bottom: 8px;
-    }
-
-    .kurikulum-prota-target-item {
-      display: flex;
-      gap: 8px;
-      padding: 6px 0;
-      font-size: 12.5px;
-      color: var(--text-dim);
-      border-bottom: 1px dashed var(--border);
-    }
-
-    .kurikulum-prota-target-item:last-child {
-      border-bottom: none;
-    }
-
-    .kurikulum-prota-target-num {
-      flex-shrink: 0;
-      font-weight: 600;
       color: var(--brass);
+      margin-bottom: 8px;
     }
 
     /* Tab Semester — laporan lengkap per Kelas: kartu per Kelas, tabel
