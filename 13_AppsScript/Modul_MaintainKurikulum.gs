@@ -294,9 +294,18 @@ function serverAddPromes(token, protaId, semester, target, deskripsi) {
         return { success: false, error: 'Akses ditolak' };
       }
 
-      const id = 'promes_' + protaId + '_' + semester;
+      // Upsert -- kalau UI klien sempat stale dan semester ini sudah pernah
+      // dibuat (mis. 2 tab dibuka bersamaan), timpa baris lama alih-alih
+      // menambah baris duplikat dgn id yang sama persis.
+      const dup = readSheetAsObjects('kurikulum_promes').find(r => String(r.prota_id) === String(protaId) && String(r.semester) === String(semester));
       const now = new Date().toISOString();
+      if (dup) {
+        updateRowByQuery('kurikulum_promes', { id: dup.id }, { target: target, deskripsi: deskripsi || '', updated_at: now });
+        cacheDrop_('kurikulum_promes_' + protaId);
+        return { success: true, id: dup.id };
+      }
 
+      const id = 'promes_' + protaId + '_' + semester;
       appendRowToSheet('kurikulum_promes', [id, prota.kelompok_id, protaId, semester, target, deskripsi || '', user.id, now, now]);
 
       cacheDrop_('kurikulum_promes_' + protaId);

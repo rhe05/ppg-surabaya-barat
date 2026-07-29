@@ -7739,6 +7739,14 @@
           detailEl.innerHTML = targetHtml + '<div style="padding: 10px 4px; font-size: 12px; color: var(--red);">Gagal: ' + result.error + '</div>';
           return;
         }
+        // Cache Promes by id (bukan diselipkan mentah ke atribut onclick --
+        // target/deskripsi bebas berisi kutip/baris baru yg bisa memutus
+        // literal JS, sama seperti bug id Prota berapostrof yg pernah
+        // mematikan tombol Edit/Hapus materi).
+        window.lastPromesById_ = window.lastPromesById_ || {};
+        (result.data || []).forEach(function (p) {
+          window.lastPromesById_[p.id] = Object.assign({}, p, { prota_id: p.prota_id || protaId });
+        });
         const promesWrap = document.createElement('div');
         window.renderPromesInline_(promesWrap, result.data, protaId);
         detailEl.innerHTML = targetHtml + promesWrap.innerHTML;
@@ -7750,23 +7758,41 @@
       .serverGetPromes(window.currentToken, protaId);
   };
 
+  // Semester (Promes) per materi -- sempat kehilangan tombol "+ Tambah
+  // Semester" (dihapus di commit bd52744), jadi TIDAK ADA cara sama sekali
+  // dari tab Tahunan utk mengisi Semester materi baru (kartu selalu kosong
+  // "Belum ada semester"). Dikembalikan di sini, plus Edit/Hapus per baris
+  // Semester -- max 2 baris (Semester I & II) per materi, tombol Tambah
+  // otomatis hilang begitu keduanya sudah terisi.
   window.renderPromesInline_ = function (containerEl, data, protaId) {
-    if (!data || data.length === 0) {
-      containerEl.innerHTML = '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
-      return;
-    }
+    const rows = data || [];
+    const usedSemesters = {};
+    rows.forEach(function (p) { usedSemesters[String(p.semester)] = true; });
+    const canAddMore = Object.keys(usedSemesters).length < 2;
 
-    containerEl.innerHTML = data.map(promes => `
-      <div class="kurikulum-promes-block">
-        <div class="kurikulum-protes-row" onclick="event.stopPropagation();">
-          <div>
-            <div style="font-weight: 600;">Semester ${promes.semester}</div>
-            <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
-            ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
+    const addBtnHtml = canAddMore
+      ? '<button class="kurikulum-promes-add-btn" data-prota-id="' + window.escKurikulumAttr_(protaId) + '" onclick="event.stopPropagation(); window.openModalAddPromes(this.dataset.protaId)">+ Tambah Semester</button>'
+      : '';
+
+    const listHtml = rows.length ? rows.map(function (promes) {
+      return `
+        <div class="kurikulum-promes-block" data-promes-id="${window.escKurikulumAttr_(promes.id)}">
+          <div class="kurikulum-protes-row" onclick="event.stopPropagation();">
+            <div>
+              <div style="font-weight: 600;">Semester ${promes.semester}</div>
+              <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${promes.target}</div>
+              ${promes.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${promes.deskripsi}</div>` : ''}
+            </div>
+            <div class="kurikulum-promes-actions">
+              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editPromes(this.closest('[data-promes-id]').dataset.promesId)">✎</button>
+              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deletePromes(this.closest('[data-promes-id]').dataset.promesId)">×</button>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('') : '<div style="padding: 0 4px 8px; font-size: 12.5px; color: var(--text-faint);">Belum ada semester untuk materi ini.</div>';
+
+    containerEl.innerHTML = addBtnHtml + listHtml;
   };
 
   window.loadKurikulumProbul_ = function (kelompokId, bulan) {
@@ -7987,7 +8013,13 @@
   window.openModalAddPromes = function (protaId) {
     document.getElementById('promesId').value = '';
     document.getElementById('promesProtaId').value = protaId;
-    document.getElementById('promesSemester').value = '1';
+
+    const existingSemesters = Object.keys(window.lastPromesById_ || {})
+      .map(function (id) { return window.lastPromesById_[id]; })
+      .filter(function (p) { return String(p.prota_id) === String(protaId); })
+      .map(function (p) { return String(p.semester); });
+    document.getElementById('promesSemester').value = existingSemesters.indexOf('1') === -1 ? '1' : '2';
+
     document.getElementById('promesTarget').value = '';
     document.getElementById('promesDeskripsi').value = '';
     document.getElementById('modalAddPromes').classList.add('active');
@@ -8161,16 +8193,20 @@
     }
   };
 
-  window.editPromes = function (promesId, protaId, semester, target, deskripsi) {
-    document.getElementById('promesId').value = promesId;
-    document.getElementById('promesProtaId').value = protaId;
-    document.getElementById('promesSemester').value = semester;
-    document.getElementById('promesTarget').value = target;
-    document.getElementById('promesDeskripsi').value = deskripsi;
+  window.editPromes = function (promesId) {
+    const promes = (window.lastPromesById_ || {})[promesId];
+    if (!promes) return;
+    document.getElementById('promesId').value = promes.id;
+    document.getElementById('promesProtaId').value = promes.prota_id;
+    document.getElementById('promesSemester').value = promes.semester;
+    document.getElementById('promesTarget').value = promes.target;
+    document.getElementById('promesDeskripsi').value = promes.deskripsi || '';
     document.getElementById('modalAddPromes').classList.add('active');
   };
 
-  window.deletePromes = function (promesId, protaId) {
+  window.deletePromes = function (promesId) {
+    const promes = (window.lastPromesById_ || {})[promesId];
+    const protaId = promes ? promes.prota_id : null;
     if (!confirm('Hapus program semester ini?')) return;
     window.showGlobalLoading_('Menghapus...');
     google.script.run
@@ -8180,8 +8216,10 @@
           alert('Error: ' + result.error);
           return;
         }
-        delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
-        window.kurikulumRefreshMateriDetail_(protaId);
+        if (protaId) {
+          delete document.getElementById('kurikulumMateriDetail_' + protaId).dataset.loaded;
+          window.kurikulumRefreshMateriDetail_(protaId);
+        }
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();

@@ -2622,6 +2622,34 @@
       margin-bottom: 4px;
     }
 
+    /* "+ Tambah Semester" (kembali dipakai -- tanpa ini kartu Semester tiap
+       materi baru mustahil terisi, selalu kosong "Belum ada semester") +
+       Edit/Hapus per baris Semester. */
+    .kurikulum-promes-add-btn {
+      display: inline-block;
+      background: none;
+      border: 1px dashed var(--border);
+      color: var(--brass);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .kurikulum-promes-add-btn:hover {
+      background: rgba(217, 119, 6, 0.1);
+      border-color: var(--brass);
+    }
+
+    .kurikulum-promes-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
     /* Daftar baris "Target" dinamis di modal Tambah/Edit Prota -- Enter di
        baris terakhir menambah baris baru (window.protaTargetKeydown_). */
     .prota-target-list {
