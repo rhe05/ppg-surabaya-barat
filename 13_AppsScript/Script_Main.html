@@ -8034,7 +8034,6 @@
     const target = document.getElementById('protaTarget').value;
     const deskripsi = window.protaCollectTargetLines_().join('\n');
 
-    const kelasFilter = document.getElementById('kurikulumProtaKelas').value;
     window.showGlobalLoading_('Menyimpan...');
     const runner = google.script.run
       .withSuccessHandler(function (result) {
@@ -8044,7 +8043,16 @@
           return;
         }
         window.closeModalAddProta();
-        window.loadKurikulumProta_(window.currentKelompokId, tahun, kelasFilter);
+        // Sinkronkan filter toolbar Tahun/Kelas ke materi yang barusan
+        // disimpan -- sebelumnya reload di sini masih pakai filter Kelas
+        // TOOLBAR yang lama, jadi materi yang diinput ke Kelas berbeda dari
+        // filter aktif (mis. via tombol umum "+ Tambah Prota") tersimpan
+        // sukses tapi langsung "hilang" krn kefilter keluar dari tampilan.
+        const tahunSel = document.getElementById('kurikulumProtaTahun');
+        const kelasSel = document.getElementById('kurikulumProtaKelas');
+        if (tahunSel) tahunSel.value = tahun;
+        if (kelasSel) kelasSel.value = kelas;
+        window.loadKurikulumProta_(window.currentKelompokId, tahun, kelas);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
