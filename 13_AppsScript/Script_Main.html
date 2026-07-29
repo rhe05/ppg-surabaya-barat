@@ -7971,20 +7971,46 @@
     document.getElementById('modalAddProta').classList.add('active');
   };
 
+  window.pendingDeleteProtaId_ = null;
+
   window.deleteProta = function (protaId) {
-    if (!confirm('Hapus program tahunan ini?')) return;
-    window.showGlobalLoading_('Menghapus...');
+    const prota = (window.lastProtaData || []).find(function (p) { return String(p.id) === String(protaId); });
+    window.pendingDeleteProtaId_ = protaId;
+    document.getElementById('protaDeleteNama').textContent = prota ? (prota.kategori || 'materi ini') : 'materi ini';
+    document.getElementById('modalDeleteProta').classList.add('active');
+  };
+
+  window.closeModalDeleteProta = function () {
+    document.getElementById('modalDeleteProta').classList.remove('active');
+    window.pendingDeleteProtaId_ = null;
+    window.setProtaDeleteLoading_(false);
+  };
+
+  window.setProtaDeleteLoading_ = function (isLoading) {
+    const confirmBtn = document.getElementById('protaDeleteConfirmBtn');
+    const cancelBtn = document.getElementById('protaDeleteCancelBtn');
+    confirmBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
+    confirmBtn.classList.toggle('is-loading', isLoading);
+  };
+
+  window.confirmDeleteProta = function () {
+    const protaId = window.pendingDeleteProtaId_;
+    if (!protaId) return;
+
+    window.setProtaDeleteLoading_(true);
     google.script.run
       .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
+        window.setProtaDeleteLoading_(false);
         if (!result.success) {
           alert('Error: ' + result.error);
           return;
         }
+        window.closeModalDeleteProta();
         window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value, document.getElementById('kurikulumProtaKelas').value);
       })
       .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
+        window.setProtaDeleteLoading_(false);
         alert('Error: ' + err.message);
       })
       .serverDeleteProta(window.currentToken, protaId);
