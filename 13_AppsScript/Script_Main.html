@@ -7382,8 +7382,8 @@
           <div class="kurikulum-materi-item" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
             <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span>${i + 1}. ${prota.kategori || 'N/A'}</span>
             <span class="kurikulum-materi-actions">
-              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta('${prota.id}')">✎</button>
-              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta('${prota.id}')">×</button>
+              <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta(this.closest('.kurikulum-materi-item').dataset.protaId)">✎</button>
+              <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta(this.closest('.kurikulum-materi-item').dataset.protaId)">×</button>
             </span>
           </div>
           <div class="kurikulum-materi-detail" id="kurikulumMateriDetail_${prota.id}" style="display: none;"></div>
