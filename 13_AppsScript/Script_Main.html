@@ -7379,8 +7379,9 @@
 
       const materiHtml = items.map(function (prota, i) {
         return `
-          <div class="kurikulum-materi-item" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
-            <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span>${i + 1}. ${prota.kategori || 'N/A'}</span>
+          <div class="kurikulum-materi-item" draggable="true" data-prota-id="${prota.id}" onclick="window.toggleMateriDetail_(this)">
+            <span class="kurikulum-materi-drag-handle" title="Geser urutan">⠿</span>
+            <span class="kurikulum-materi-label"><span class="kurikulum-materi-chevron">›</span><span class="kurikulum-materi-num">${i + 1}.</span> ${prota.kategori || 'N/A'}</span>
             <span class="kurikulum-materi-actions">
               <button class="kurikulum-materi-icon-btn" title="Edit" onclick="event.stopPropagation(); window.editProta(this.closest('.kurikulum-materi-item').dataset.protaId)">✎</button>
               <button class="kurikulum-materi-icon-btn kurikulum-materi-icon-danger" title="Hapus" onclick="event.stopPropagation(); window.deleteProta(this.closest('.kurikulum-materi-item').dataset.protaId)">×</button>
@@ -7396,10 +7397,110 @@
             <span class="kurikulum-kelas-title">${label}</span>
             <button class="kurikulum-kelas-add-btn" onclick="window.openModalAddProta('${kelasArg}')">+ Materi</button>
           </div>
-          <div class="kurikulum-materi-list">${materiHtml}</div>
+          <div class="kurikulum-materi-list" data-kelas-key="${window.escKurikulumAttr_(kelasArg)}">${materiHtml}</div>
         </div>
       `;
     }).join('');
+    window.initProtaDragDrop_();
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
+     DRAG & DROP reorder materi (tab Tahunan) -- geser 1 baris materi lewat
+     mouse (handle ⠿) utk ubah urutan tampil di dalam kartu Kelas-nya.
+     Delegated di #kurikulumProtaList (dibind SEKALI, bertahan lintas
+     render karena innerHTML diganti tapi listener menempel di container
+     luar) -- native HTML5 drag events (dragstart/dragover/drop/dragend)
+     semuanya bubbling jadi delegasi aman dipakai.
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.protaDraggedItem_ = null;
+
+  window.initProtaDragDrop_ = function () {
+    const container = document.getElementById('kurikulumProtaList');
+    if (!container || container.dataset.dragInit === '1') return;
+    container.dataset.dragInit = '1';
+
+    container.addEventListener('dragstart', function (e) {
+      const item = e.target.closest('.kurikulum-materi-item');
+      if (!item || e.target.closest('.kurikulum-materi-actions')) {
+        e.preventDefault();
+        return;
+      }
+      window.protaDraggedItem_ = item;
+      item.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', item.dataset.protaId);
+    });
+
+    container.addEventListener('dragover', function (e) {
+      const dragged = window.protaDraggedItem_;
+      if (!dragged) return;
+      const overItem = e.target.closest('.kurikulum-materi-item');
+      if (!overItem || overItem === dragged) return;
+
+      const list = overItem.closest('.kurikulum-materi-list');
+      if (!list || !list.contains(dragged)) return; // reorder cuma boleh dalam 1 kartu Kelas
+
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const draggedDetail = dragged.nextElementSibling;
+      const overDetail = overItem.nextElementSibling;
+      const rect = overItem.getBoundingClientRect();
+      const isAfter = (e.clientY - rect.top) > rect.height / 2;
+
+      if (isAfter) {
+        overDetail.after(dragged, draggedDetail);
+      } else {
+        overItem.before(dragged, draggedDetail);
+      }
+      window.protaRenumberVisibleList_(list);
+    });
+
+    container.addEventListener('drop', function (e) {
+      e.preventDefault();
+    });
+
+    container.addEventListener('dragend', function () {
+      const dragged = window.protaDraggedItem_;
+      if (dragged) {
+        dragged.classList.remove('dragging');
+        const list = dragged.closest('.kurikulum-materi-list');
+        if (list) window.protaPersistOrder_(list);
+      }
+      window.protaDraggedItem_ = null;
+    });
+  };
+
+  window.protaRenumberVisibleList_ = function (list) {
+    Array.from(list.querySelectorAll('.kurikulum-materi-item')).forEach(function (item, idx) {
+      const num = item.querySelector('.kurikulum-materi-num');
+      if (num) num.textContent = (idx + 1) + '.';
+    });
+  };
+
+  window.protaPersistOrder_ = function (list) {
+    const ids = Array.from(list.querySelectorAll('.kurikulum-materi-item')).map(function (el) { return el.dataset.protaId; });
+    if (!ids.length) return;
+    const kelasKey = list.dataset.kelasKey || '';
+
+    ids.forEach(function (id, idx) {
+      const p = (window.lastProtaData || []).find(function (x) { return String(x.id) === String(id); });
+      if (p) p.urutan = idx + 1;
+    });
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          alert('Gagal menyimpan urutan: ' + result.error);
+          window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value, document.getElementById('kurikulumProtaKelas').value);
+        }
+      })
+      .withFailureHandler(function (err) {
+        alert('Gagal menyimpan urutan: ' + (err && err.message ? err.message : err));
+        window.loadKurikulumProta_(window.currentKelompokId, document.getElementById('kurikulumProtaTahun').value, document.getElementById('kurikulumProtaKelas').value);
+      })
+      .serverReorderProta(window.currentToken, window.currentKelompokId, kelasKey, ids);
   };
 
   /* ═══════════════════════════════════════════════════════════════════════════════

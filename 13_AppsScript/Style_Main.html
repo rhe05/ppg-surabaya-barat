@@ -2493,17 +2493,53 @@
       padding: 9px 10px;
       border-radius: var(--radius);
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, box-shadow 0.15s, opacity 0.15s;
     }
 
     .kurikulum-materi-item:hover {
       background: var(--panel-2);
     }
 
+    /* Drag & drop reorder (window.initProtaDragDrop_) -- handle muncul cuma
+       saat baris disorot (mengikuti gaya "auto-hide" yang sama dgn
+       .kurikulum-materi-actions), grab saat dipegang, "diangkat" (bayangan +
+       transparan) selama proses geser. */
+    .kurikulum-materi-drag-handle {
+      flex-shrink: 0;
+      width: 16px;
+      text-align: center;
+      font-size: 14px;
+      line-height: 1;
+      color: var(--text-faint);
+      cursor: grab;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .kurikulum-materi-item:hover .kurikulum-materi-drag-handle {
+      opacity: 1;
+    }
+
+    .kurikulum-materi-drag-handle:active {
+      cursor: grabbing;
+    }
+
+    .kurikulum-materi-item.dragging {
+      opacity: 0.45;
+      background: var(--panel-2);
+      box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.28);
+    }
+
     .kurikulum-materi-label {
+      flex: 1;
       font-size: 13px;
       font-weight: 600;
       color: var(--text);
+    }
+
+    .kurikulum-materi-num {
+      color: var(--text-faint);
+      font-weight: 700;
     }
 
     .kurikulum-materi-actions {

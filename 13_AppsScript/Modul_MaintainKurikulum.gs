@@ -97,6 +97,18 @@ function serverGetProta(token, kelompokId, tahun, kelas) {
       (!kelas || String(r.kelas || '') === String(kelas))
     );
 
+    // Urutan tampil di kartu Kelas (drag & drop reorder) -- baris lama tanpa
+    // 'urutan' (belum pernah digeser) dianggap paling akhir, urut stabil
+    // berdasar created_at supaya tetap konsisten sebelum digeser manual.
+    filtered.sort(function (a, b) {
+      const ua = parseInt(a.urutan, 10);
+      const ub = parseInt(b.urutan, 10);
+      const va = isNaN(ua) ? Infinity : ua;
+      const vb = isNaN(ub) ? Infinity : ub;
+      if (va !== vb) return va - vb;
+      return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+    });
+
     cachePut_(cacheKey, filtered, 3600);
     return { success: true, data: filtered };
   } catch (e) {
@@ -128,7 +140,14 @@ function serverAddProta(token, kelompokId, tahun, kategori, kelas, target, deskr
       const id = 'prota_' + kelompokId + '_' + tahun + '_' + kategoriSlug + (kelas ? '_kelas' + kelas : '');
       const now = new Date().toISOString();
 
-      appendRowToSheet('kurikulum_prota', [id, kelompokId, tahun, kategori, target, deskripsi || '', user.id, now, now, kelas || '']);
+      // Materi baru selalu ditambah di urutan paling akhir kartu Kelas-nya.
+      const siblingUrutan = readSheetAsObjects('kurikulum_prota')
+        .filter(r => String(r.kelompok_id) === String(kelompokId) && parseInt(r.tahun || 0) === parseInt(tahun || 0) && String(r.kelas || '') === String(kelas || ''))
+        .map(r => parseInt(r.urutan, 10))
+        .filter(n => !isNaN(n));
+      const urutan = siblingUrutan.length ? Math.max.apply(null, siblingUrutan) + 1 : 1;
+
+      appendRowToSheet('kurikulum_prota', [id, kelompokId, tahun, kategori, target, deskripsi || '', user.id, now, now, kelas || '', urutan]);
 
       cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (kelas || 'all'));
       cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_all');
@@ -184,6 +203,43 @@ function serverDeleteProta(token, protaId) {
       cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_' + (row.kelas || 'all'));
       cacheDrop_('kurikulum_prota_' + row.kelompok_id + '_' + row.tahun + '_all');
 
+      return { success: true };
+    });
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
+ * Simpan urutan tampil materi hasil drag & drop di 1 kartu Kelas (tab
+ * Tahunan). orderedIds = seluruh id Prota pada kartu tsb, sudah dalam
+ * urutan baru dari client -- ditulis ulang jadi urutan 1..N.
+ */
+function serverReorderProta(token, kelompokId, kelas, orderedIds) {
+  const user = getCurrentUser(token);
+  if (!user || !validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Akses ditolak' };
+  }
+
+  if (!orderedIds || !orderedIds.length) {
+    return { success: false, error: 'Daftar urutan kosong' };
+  }
+
+  try {
+    return withScriptLock_(function () {
+      let tahun = null;
+      orderedIds.forEach(function (protaId, idx) {
+        const row = readSheetAsObjects('kurikulum_prota').find(r => String(r.id) === String(protaId));
+        if (!row) return;
+        if (String(row.kelompok_id) !== String(kelompokId) || String(row.kelas || '') !== String(kelas || '')) return;
+        tahun = row.tahun;
+        updateRowByQuery('kurikulum_prota', { id: protaId }, { urutan: idx + 1 });
+      });
+
+      if (tahun !== null) {
+        cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_' + (kelas || 'all'));
+        cacheDrop_('kurikulum_prota_' + kelompokId + '_' + tahun + '_all');
+      }
       return { success: true };
     });
   } catch (e) {

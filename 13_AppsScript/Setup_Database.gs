@@ -64,7 +64,7 @@ function setupDatabaseStructure() {
   createSheetIfNotExists(ss, 'jadwal_kategori_hari', ['id', 'kelompok_id', 'kategori', 'hari_aktif', 'diubah_oleh', 'diubah_pada']);
 
   // 14-17. KURIKULUM (Prota/Promes/Probul + Pencapaian Santri)
-  createSheetIfNotExists(ss, 'kurikulum_prota', ['id', 'kelompok_id', 'tahun', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at', 'kelas']);
+  createSheetIfNotExists(ss, 'kurikulum_prota', ['id', 'kelompok_id', 'tahun', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at', 'kelas', 'urutan']);
   createSheetIfNotExists(ss, 'kurikulum_promes', ['id', 'kelompok_id', 'prota_id', 'semester', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
   createSheetIfNotExists(ss, 'kurikulum_probul', ['id', 'kelompok_id', 'promes_id', 'tahun', 'bulan', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
   createSheetIfNotExists(ss, 'kurikulum_pencapaian_santri', ['id', 'kelompok_id', 'santri_id', 'probul_id', 'status', 'tanggal_update', 'catatan_guru', 'updated_by']);
@@ -237,15 +237,16 @@ function migrateUsersSchemaAddFields_(ss) {
 }
 
 /**
- * Migrasi sheet 'kurikulum_prota' yang SUDAH ADA: tambah kolom 'kelas' di akhir
- * (opsional per Prota — kosong berarti berlaku untuk semua kelas di kelompok itu).
+ * Migrasi sheet 'kurikulum_prota' yang SUDAH ADA: tambah kolom 'kelas' (opsional
+ * per Prota — kosong berarti berlaku untuk semua kelas di kelompok itu) dan
+ * 'urutan' (posisi tampil materi di dalam kartu Kelas — drag & drop reorder).
  * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
  */
 function migrateKurikulumProtaSchemaAddFields_(ss) {
   const sheet = ss.getSheetByName('kurikulum_prota');
   if (!sheet) return;
 
-  const newColumns = ['kelas'];
+  const newColumns = ['kelas', 'urutan'];
   const lastCol = sheet.getLastColumn();
   const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
 
