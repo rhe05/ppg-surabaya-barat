@@ -7737,17 +7737,17 @@
   // ternyata belum ada (data lama sebelum perubahan ini), tetap tampilkan
   // kartunya dgn placeholder "Belum diisi" -- isi/ubah HANYA lewat tombol
   // aksi ✎ (Edit) di baris materi, bukan dari sini lagi.
-  // Catatan (deskripsi) disimpan gabung "\n" per baris (lihat
-  // window.protaCatatanCollect_) -- ditampilkan di sini sbg "Rincian
-  // Target": baris bernomor rapi ala tabel (border + zebra) tapi tetap
-  // premium (rounded, warna brand), BUKAN paragraf polos lagi.
-  window.kurikulumPromesCatatanHtml_ = function (deskripsi) {
-    const lines = deskripsi
-      ? String(deskripsi).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
+  // Target & Catatan disimpan gabung "\n" per baris (lihat
+  // window.protaCatatanCollect_) -- keduanya ditampilkan di sini pakai
+  // widget tabel yang sama: baris bernomor rapi ala tabel (border + zebra)
+  // tapi tetap premium (rounded, warna brand), BUKAN paragraf polos lagi.
+  window.kurikulumPromesFieldTableHtml_ = function (title, text) {
+    const lines = text
+      ? String(text).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
       : [];
     if (!lines.length) return '';
     return '<div class="kurikulum-promes-catatan">' +
-      '<div class="kurikulum-promes-catatan-title">Rincian Target</div>' +
+      '<div class="kurikulum-promes-catatan-title">' + window.escapeHtmlExport_(title) + '</div>' +
       '<div class="kurikulum-promes-catatan-list">' +
       lines.map(function (line, i) {
         return '<div class="kurikulum-promes-catatan-item"><span class="kurikulum-promes-catatan-num">' + (i + 1) + '</span><span class="kurikulum-promes-catatan-text">' + window.escapeHtmlExport_(line) + '</span></div>';
@@ -7767,8 +7767,8 @@
           <div class="kurikulum-protes-row">
             <div class="kurikulum-promes-sem-label">Semester ${sem === '2' ? 'II' : 'I'}</div>
             ${hasTarget
-              ? `<div style="font-size: 12px; color: var(--text); font-weight: 500;">Target: ${window.escapeHtmlExport_(promes.target)}</div>` +
-                window.kurikulumPromesCatatanHtml_(promes.deskripsi)
+              ? window.kurikulumPromesFieldTableHtml_('Target', promes.target) +
+                window.kurikulumPromesFieldTableHtml_('Rincian Target', promes.deskripsi)
               : '<div class="kurikulum-promes-empty" style="font-size: 12px;">Belum diisi</div>'}
           </div>
         </div>
@@ -7970,30 +7970,34 @@
      KURIKULUM — Save/Delete Functions
      ═════════════════════════════════════════════════════════════════════════════════ */
 
-  // Daftar baris "Catatan" dinamis per Semester (modal Edit Materi) --
-  // dipakai utk protaSem1CatatanList & protaSem2CatatanList sekaligus lewat
-  // containerId. Enter di baris mana pun menyisipkan baris baru tepat di
-  // bawahnya & bernomor ulang otomatis; Backspace di baris kosong (bukan
-  // satu-satunya) hapus baris itu -- pola sama dgn Target Prota (sebelum
-  // dipindah ke sini).
+  // Daftar baris dinamis per Semester (modal Edit Materi) -- dipakai utk
+  // Target (protaSem1/2TargetList) MAUPUN Catatan (protaSem1/2CatatanList)
+  // lewat containerId yang sama (widget generik). Enter di baris mana pun
+  // menyisipkan baris baru tepat di bawahnya & bernomor ulang otomatis;
+  // Backspace di baris kosong (bukan satu-satunya) hapus baris itu. Label
+  // placeholder ("Target ke-1"/"Catatan ke-1") ikut attribute
+  // data-placeholder-prefix di kontainernya (default "Catatan" kalau tidak
+  // diset, spy pemanggilan lama tetap jalan tanpa ubahan markup).
   window.protaCatatanRenderLines_ = function (containerId, lines) {
     const wrap = document.getElementById(containerId);
     if (!wrap) return;
+    const prefix = wrap.dataset.placeholderPrefix || 'Catatan';
     const arr = (lines && lines.length) ? lines : [''];
     wrap.innerHTML = arr.map(function (val, idx) {
       return '<div class="prota-catatan-line-row">' +
         '<span class="prota-catatan-line-num">' + (idx + 1) + '.</span>' +
-        '<input type="text" class="form-input prota-catatan-input" value="' + window.escKurikulumAttr_(val) + '" placeholder="Catatan ke-' + (idx + 1) + '" onkeydown="window.protaCatatanKeydown_(event, this)">' +
+        '<input type="text" class="form-input prota-catatan-input" value="' + window.escKurikulumAttr_(val) + '" placeholder="' + prefix + ' ke-' + (idx + 1) + '" onkeydown="window.protaCatatanKeydown_(event, this)">' +
         '</div>';
     }).join('');
   };
 
   window.protaCatatanRenumber_ = function (wrap) {
+    const prefix = wrap.dataset.placeholderPrefix || 'Catatan';
     Array.from(wrap.children).forEach(function (row, idx) {
       const num = row.querySelector('.prota-catatan-line-num');
       if (num) num.textContent = (idx + 1) + '.';
       const input = row.querySelector('input');
-      if (input) input.placeholder = 'Catatan ke-' + (idx + 1);
+      if (input) input.placeholder = prefix + ' ke-' + (idx + 1);
     });
   };
 
@@ -8040,9 +8044,9 @@
 
     if (protaId) {
       // Edit: cuma update Target Semester I & II -- Kelas/Materi terkunci.
-      const sem1Target = document.getElementById('protaSem1Target').value.trim();
+      const sem1Target = window.protaCatatanCollect_('protaSem1TargetList').join('\n');
       const sem1Deskripsi = window.protaCatatanCollect_('protaSem1CatatanList').join('\n');
-      const sem2Target = document.getElementById('protaSem2Target').value.trim();
+      const sem2Target = window.protaCatatanCollect_('protaSem2TargetList').join('\n');
       const sem2Deskripsi = window.protaCatatanCollect_('protaSem2CatatanList').join('\n');
 
       google.script.run
@@ -8104,9 +8108,9 @@
     document.getElementById('protaKelas').disabled = true;
     document.getElementById('protaKategori').value = prota.kategori;
     document.getElementById('protaKategori').disabled = true;
-    document.getElementById('protaSem1Target').value = '';
+    window.protaCatatanRenderLines_('protaSem1TargetList', ['']);
     window.protaCatatanRenderLines_('protaSem1CatatanList', ['']);
-    document.getElementById('protaSem2Target').value = '';
+    window.protaCatatanRenderLines_('protaSem2TargetList', ['']);
     window.protaCatatanRenderLines_('protaSem2CatatanList', ['']);
     document.getElementById('protaSemesterEditFields').style.display = 'block';
     document.getElementById('modalAddProta').classList.add('active');
@@ -8117,12 +8121,14 @@
         window.hideGlobalLoading_();
         if (!result.success) return;
         (result.data || []).forEach(function (p) {
+          const targetLines = (p.target || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+          const catatanLines = (p.deskripsi || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
           if (String(p.semester) === '1') {
-            document.getElementById('protaSem1Target').value = p.target || '';
-            window.protaCatatanRenderLines_('protaSem1CatatanList', (p.deskripsi || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; }));
+            window.protaCatatanRenderLines_('protaSem1TargetList', targetLines);
+            window.protaCatatanRenderLines_('protaSem1CatatanList', catatanLines);
           } else if (String(p.semester) === '2') {
-            document.getElementById('protaSem2Target').value = p.target || '';
-            window.protaCatatanRenderLines_('protaSem2CatatanList', (p.deskripsi || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; }));
+            window.protaCatatanRenderLines_('protaSem2TargetList', targetLines);
+            window.protaCatatanRenderLines_('protaSem2CatatanList', catatanLines);
           }
         });
       })
