@@ -222,3 +222,43 @@ function serverGetKehadiranGenerusKategori(token, kelompokId, year, month) {
 
   return { success: true, data: result, tahun: year, bulan: month };
 }
+
+/**
+ * GET daftar absensi mentah (per santri per tanggal) bulan berjalan — buat
+ * tabel "Detail Kehadiran" (toggle) & Ekspor di kartu Kehadiran Generus.
+ * @returns {Object} { success, data: [{nama, kelas, tanggal, status}] }
+ */
+function serverGetKehadiranGenerusDetailList(token, kelompokId, year, month) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  const santriMap = {};
+  readSheetAsObjects(SHEET_NAMES.SANTRI)
+    .filter(function (s) { return s.kelompok_id == kelompokId; })
+    .forEach(function (s) {
+      santriMap[String(s.id)] = { nama: s.nama, kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi' };
+    });
+  const santriIds = Object.keys(santriMap);
+
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+    const tgl = tanggalKeString_(a.tanggal);
+    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+  });
+
+  const data = monthAbsensi.map(function (a) {
+    const s = santriMap[String(a.santri_id)];
+    return { nama: s.nama, kelas: s.kelas, tanggal: tanggalKeString_(a.tanggal), status: a.status };
+  });
+
+  data.sort(function (a, b) {
+    if (a.tanggal !== b.tanggal) return a.tanggal < b.tanggal ? 1 : -1;
+    return a.nama.localeCompare(b.nama);
+  });
+
+  return { success: true, data: data };
+}

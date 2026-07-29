@@ -2246,11 +2246,99 @@
           <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
         </div>
 
-        <!-- ═══ KEHADIRAN GENERUS (% per kategori Jadwal KBM, bulan berjalan) ═══ -->
-        <div class="dash-section-title">Kehadiran Generus</div>
+        <!-- ═══ KEHADIRAN GENERUS (% per kelas KBM, bulan berjalan) ═══ -->
+        <div class="dash-section-title" id="kehadiranGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
+          <span>Kehadiran Generus</span>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporKehadiranGenerus()">
+              <span>Ekspor</span>
+            </button>
+            <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-toggle-precise" id="kgDetailToggleBtn" onclick="window.toggleKgDetailTable_()" aria-label="Detail Kehadiran" title="Detail Kehadiran">
+              <svg class="guru-dash-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="4" y1="5" x2="20" y2="5"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="4" y1="19" x2="20" y2="19"/></svg>
+              <span>Kehadiran</span>
+            </button>
+            <button class="btn btn-primary guru-dash-add-precise" onclick="window.openModalInputKehadiranGenerus()">+ Kehadiran</button>
+          </div>
+        </div>
 
-        <div class="jadwal-kat-grid" id="kgKategoriGrid">
+        <div class="guru-dash-kpi-row" id="kgKategoriGrid">
           <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
+        </div>
+
+        <div class="data-table-wrapper guru-kelp-table-wrapper" id="kgDetailWrapper" style="display: none; margin-bottom: 20px;">
+          <div class="guru-kelp-table-toolbar">
+            <select class="guru-kelp-filter-select" id="kgDetailKelasFilter" onchange="window.renderKgDetailTable_()">
+              <option value="all">Semua Kelas</option>
+            </select>
+          </div>
+          <div class="gk-table-scroll">
+            <table class="data-table guru-kelp-premium-table">
+              <thead><tr><th>Nama Santri</th><th>Kelas Ngaji</th><th>Tanggal</th></tr></thead>
+              <tbody id="kgDetailTableBody">
+                <tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Modal Ekspor Kehadiran Generus -->
+        <div class="modal-overlay" id="modalEksporKehadiranGenerus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Ekspor Kehadiran Generus</span>
+              <button class="modal-close-btn" onclick="window.closeModalEksporKehadiranGenerus()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Format</label>
+              <div style="display: flex; gap: 20px; margin-top: 8px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporKehadiranGenerusFormat" value="excel" checked> Excel
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-weight: normal;">
+                  <input type="radio" name="eksporKehadiranGenerusFormat" value="pdf"> PDF
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalEksporKehadiranGenerus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.confirmEksporKehadiranGenerus()">Unduh</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Tambah/Input Kehadiran Generus (override manual admin) -->
+        <div class="modal-overlay" id="modalInputKehadiranGenerus">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Tambah Kehadiran</span>
+              <button class="modal-close-btn" onclick="window.closeModalInputKehadiranGenerus()">×</button>
+            </div>
+
+            <div class="guru-kelp-row-2">
+              <div class="form-group">
+                <label class="form-label">Tanggal</label>
+                <input type="date" class="form-input" id="ikgTanggal" onchange="window.loadIkgForm_()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Kelas</label>
+                <select class="form-select" id="ikgKelasSelect" onchange="window.loadIkgForm_()"></select>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Kehadiran Santri</label>
+              <div id="ikgSantriList" style="margin-top: 8px; max-height: 320px; overflow-y: auto;">
+                <div style="text-align: center; padding: 20px; color: var(--text-faint);">Pilih tanggal &amp; kelas.</div>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalInputKehadiranGenerus()">Batal</button>
+              <button class="btn btn-primary" onclick="window.saveIkgForm_()">Simpan</button>
+            </div>
+          </div>
         </div>
 
         </div>

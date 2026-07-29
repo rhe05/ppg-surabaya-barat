@@ -3971,14 +3971,19 @@
     window.renderDataTable_(cols, list, 'santriDashTableHead', 'kdSantriTableBody', 'Tidak ada data generus.');
   };
 
-  /* ═════ KEHADIRAN GENERUS (% per kategori Jadwal KBM, tab Operasional) ═════
+  /* ═════ KEHADIRAN GENERUS (% per kelas KBM, tab Operasional) ═════
      Sumber: serverGetKehadiranGenerusKategori (Modul_Monitoring.gs) — kelas
      dikelompokkan lewat jadwal_kbm.kategori (BUKAN santri.jenjang_saat_ini,
-     beda dari tab Monitoring terpisah). Pola interaksi sama seperti Jadwal
-     KBM: 1 kartu per kategori, klik = expand jadi pill row kelas, klik
-     kelas = tampil detail. */
-  window.kgKatCollapsed_ = window.kgKatCollapsed_ || {};
-  window.kgKelasSelected_ = window.kgKelasSelected_ || {};
+     beda dari tab Monitoring terpisah). Kartu gaya KPI (sama seperti Data
+     Guru/Data Generus) — flat per kelas, diurutkan sesuai KG_KELAS_ORDER_,
+     tanpa collapse/expand kategori. */
+  window.KG_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', '4', 'Pra Remaja', 'Remaja SMA', 'Muda Mudi'];
+
+  window.kgKelasSortIndex_ = function (nama) {
+    const idx = window.KG_KELAS_ORDER_.findIndex(function (o) { return o.toLowerCase() === String(nama || '').trim().toLowerCase(); });
+    return idx === -1 ? window.KG_KELAS_ORDER_.length : idx;
+  };
+
   window.lastKehadiranGenerusData_ = [];
 
   window.loadKelompokDashboardAbsen_ = function (kelompokId) {
@@ -3995,90 +4000,253 @@
   window.renderKehadiranGenerusGrid_ = function (data) {
     const grid = document.getElementById('kgKategoriGrid');
     grid.innerHTML = '';
-    const ic = window.JADWAL_ICONS_;
 
-    // Kalau ada satu kategori sedang dibuka, kategori lain disembunyikan
-    // total (pola sama persis dgn Jadwal KBM di atas).
-    const expandedKat = data.find(function (d) { return window.kgKatCollapsed_[d.kategori] === false; });
+    const flatList = [];
+    (data || []).forEach(function (kat) { (kat.kelasList || []).forEach(function (k) { flatList.push(k); }); });
+    flatList.sort(function (a, b) {
+      const ra = window.kgKelasSortIndex_(a.kelas);
+      const rb = window.kgKelasSortIndex_(b.kelas);
+      if (ra !== rb) return ra - rb;
+      return String(a.kelas).localeCompare(String(b.kelas));
+    });
 
-    data.forEach(function (d) {
-      if (expandedKat && d.kategori !== expandedKat.kategori) return;
+    if (flatList.length === 0) {
+      grid.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Belum ada kelas (atur di Jadwal KBM).</div>';
+      return;
+    }
 
-      const selectedKelas = window.kgKelasSelected_[d.kategori];
-      const selectedInfo = d.kelasList.find(function (k) { return k.kelas === selectedKelas; });
-
-      const pillRowHtml = d.kelasList.length === 0
-        ? '<div class="jadwal-kat-empty">Belum ada kelas di kategori ini (atur di Jadwal KBM).</div>'
-        : '<div class="jadwal-kelas-pill-row">' + d.kelasList.map(function (k) {
-            return `<button type="button" class="jadwal-kelas-pill${k.kelas === selectedKelas ? ' active' : ''}" onclick="window.toggleKgKelasSelect_('${d.kategori}', ${JSON.stringify(k.kelas)})">
-              ${k.kelas}<span class="kg-pill-pct kg-warna-${k.warna}">${k.adaData ? k.avgPct + '%' : '–'}</span>
-            </button>`;
-          }).join('') + '</div>';
-
-      const bodyHtml = pillRowHtml + (selectedInfo ? window.renderKgKelasDetailHtml_(selectedInfo) : '');
-      const isCollapsed = window.kgKatCollapsed_[d.kategori] !== false;
-
+    flatList.forEach(function (k) {
       const card = document.createElement('div');
-      card.className = 'jadwal-kat-card kg-kat-card' + (isCollapsed ? ' collapsed' : ' jadwal-kat-full');
+      card.className = 'guru-dash-kpi-card kg-simple-card';
       card.innerHTML = `
-        <button type="button" class="jadwal-kat-header" onclick="window.toggleKgKatCollapse_('${d.kategori}')">
-          <span class="kg-kat-head-left">
-            <span class="kg-kat-pct kg-warna-${d.warna}">${d.avgPct !== null ? d.avgPct + '%' : '–'}</span>
-            <span class="jadwal-kat-title">${d.kategori}</span>
-          </span>
-          <span class="jadwal-kat-header-right">
-            <span class="jadwal-kat-count">${d.jumlahKelas} kelas &middot; ${d.jumlahSantri} santri</span>
-            ${ic.caret}
-          </span>
-        </button>
-        <div class="jadwal-kat-body">${bodyHtml}</div>
+        <div class="guru-dash-kpi-label">${k.kelas}</div>
+        <div class="guru-dash-kpi-value-row">
+          <span class="guru-dash-kpi-value kg-warna-${k.warna}">${k.adaData ? k.avgPct + '%' : '–'}</span>
+        </div>
       `;
       grid.appendChild(card);
     });
   };
 
-  window.toggleKgKatCollapse_ = function (kategori) {
-    const isCollapsed = window.kgKatCollapsed_[kategori] !== false;
-    (window.lastKehadiranGenerusData_ || []).forEach(function (d) { window.kgKatCollapsed_[d.kategori] = true; });
-    window.kgKatCollapsed_[kategori] = isCollapsed ? false : true;
-    window.renderKehadiranGenerusGrid_(window.lastKehadiranGenerusData_ || []);
+  /* ── Tabel Detail Kehadiran (toggle "Kehadiran" di header) ──
+     Nama Santri · Kelas Ngaji · Tanggal (status Hadir/Izin/Sakit/Alpa
+     tampil di bawah tanggal), filter per kelas. */
+  window.lastKgDetailData_ = [];
+
+  window.toggleKgDetailTable_ = function () {
+    const wrapper = document.getElementById('kgDetailWrapper');
+    const btn = document.getElementById('kgDetailToggleBtn');
+    const isOpening = wrapper.style.display === 'none';
+    wrapper.style.display = isOpening ? 'block' : 'none';
+    btn.classList.toggle('active-state', isOpening);
+    if (isOpening) window.loadKgDetailTable_();
   };
 
-  window.toggleKgKelasSelect_ = function (kategori, kelas) {
-    window.kgKelasSelected_[kategori] = window.kgKelasSelected_[kategori] === kelas ? null : kelas;
-    window.renderKehadiranGenerusGrid_(window.lastKehadiranGenerusData_ || []);
+  window.loadKgDetailTable_ = function () {
+    const now = new Date();
+    const body = document.getElementById('kgDetailTableBody');
+    body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || !result.success) {
+          body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</td></tr>';
+          return;
+        }
+        window.lastKgDetailData_ = result.data;
+        window.populateKgDetailKelasFilter_(result.data);
+        window.renderKgDetailTable_();
+      })
+      .withFailureHandler(function (err) {
+        body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + err + '</td></tr>';
+      })
+      .serverGetKehadiranGenerusDetailList(window.currentToken, window.currentKelompokId, now.getFullYear(), now.getMonth() + 1);
   };
 
-  window.renderKgKelasDetailHtml_ = function (k) {
-    const ic = window.JADWAL_ICONS_;
-    return `
-      <div class="jadwal-detail-panel">
-        <div class="jadwal-detail-header">
-          <span class="jadwal-santri-title">Kehadiran Kelas ${k.kelas} &mdash; Bulan Ini</span>
-        </div>
-        <div class="jadwal-info-row">
-          <div class="jadwal-info-card">
-            <div class="jadwal-info-label">% Kehadiran</div>
-            <div class="jadwal-info-value kg-warna-${k.warna}">${k.adaData ? k.avgPct + '%' : 'Belum ada data'}</div>
-          </div>
-          <div class="jadwal-info-card">
-            <div class="jadwal-info-label">${ic.santri} Total Santri</div>
-            <div class="jadwal-info-value">${k.jumlahSantri} Santri</div>
-          </div>
-          <div class="jadwal-info-card">
-            <div class="jadwal-info-label">${ic.guru} Guru</div>
-            <div class="jadwal-info-value">${window.namaPanggilanGuru_(k.namaGuru)}</div>
-          </div>
-          <div class="jadwal-info-card">
-            <div class="jadwal-info-label">${ic.ruangan} Ruangan &amp; Jam</div>
-            <div class="jadwal-info-value-row">
-              <span class="jadwal-info-value">${k.ruangan || '–'}</span>
-              <span class="jadwal-info-subvalue">${k.jamMulai && k.jamSelesai ? k.jamMulai + ' - ' + k.jamSelesai : ''}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+  window.populateKgDetailKelasFilter_ = function (data) {
+    const sel = document.getElementById('kgDetailKelasFilter');
+    const current = sel.value || 'all';
+    const kelasSet = {};
+    (data || []).forEach(function (d) { kelasSet[d.kelas] = true; });
+    const kelasList = Object.keys(kelasSet).sort(function (a, b) {
+      const ra = window.kgKelasSortIndex_(a);
+      const rb = window.kgKelasSortIndex_(b);
+      if (ra !== rb) return ra - rb;
+      return a.localeCompare(b);
+    });
+    sel.innerHTML = '<option value="all">Semua Kelas</option>' + kelasList.map(function (k) {
+      return `<option value="${k}">${k}</option>`;
+    }).join('');
+    sel.value = kelasList.indexOf(current) !== -1 || current === 'all' ? current : 'all';
+  };
+
+  window.KG_STATUS_LABEL_ = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' };
+  window.KG_STATUS_WARNA_ = { hadir: 'hijau-tua', izin: 'kuning', sakit: 'kuning', alpa: 'merah' };
+
+  window.renderKgDetailTable_ = function () {
+    const kelasFilter = document.getElementById('kgDetailKelasFilter').value;
+    const body = document.getElementById('kgDetailTableBody');
+    const data = (window.lastKgDetailData_ || []).filter(function (d) { return kelasFilter === 'all' || d.kelas === kelasFilter; });
+
+    if (data.length === 0) {
+      body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Tidak ada data kehadiran.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = data.map(function (d) {
+      const label = window.KG_STATUS_LABEL_[d.status] || d.status;
+      const warna = window.KG_STATUS_WARNA_[d.status] || 'abu';
+      return `<tr>
+        <td>${d.nama}</td>
+        <td>${d.kelas}</td>
+        <td>${d.tanggal}<div class="kg-detail-status kg-warna-${warna}">${label}</div></td>
+      </tr>`;
+    }).join('');
+  };
+
+  /* ── Modal Ekspor Kehadiran Generus ── */
+  window.openModalEksporKehadiranGenerus = function () {
+    document.getElementById('modalEksporKehadiranGenerus').classList.add('active');
+  };
+
+  window.closeModalEksporKehadiranGenerus = function () {
+    document.getElementById('modalEksporKehadiranGenerus').classList.remove('active');
+  };
+
+  window.confirmEksporKehadiranGenerus = function () {
+    const format = document.querySelector('input[name="eksporKehadiranGenerusFormat"]:checked')?.value || 'excel';
+    const now = new Date();
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || !result.success) {
+          alert('Gagal mengambil data: ' + ((result && result.error) || 'respons tidak valid.'));
+          return;
+        }
+        const headers = ['Nama Santri', 'Kelas Ngaji', 'Tanggal', 'Status'];
+        const rows = result.data.map(function (d) {
+          return [d.nama, d.kelas, d.tanggal, window.KG_STATUS_LABEL_[d.status] || d.status];
+        });
+
+        if (format === 'pdf') {
+          window.printPdfList_('Kehadiran Generus — Bulan Ini', headers, rows);
+          window.closeModalEksporKehadiranGenerus();
+          return;
+        }
+        window.runXlsxExport_('Kehadiran Generus', headers, rows, window.closeModalEksporKehadiranGenerus);
+      })
+      .withFailureHandler(function (err) { alert('Gagal mengambil data: ' + err); })
+      .serverGetKehadiranGenerusDetailList(window.currentToken, window.currentKelompokId, now.getFullYear(), now.getMonth() + 1);
+  };
+
+  /* ── Modal Tambah Kehadiran (input/override manual admin) ──
+     Reuse serverGetAbsensiForm/serverSaveAbsensiDaily (dipakai juga di Input
+     Absen guru). WAJIB merge dgn seluruh santri kelompok saat simpan —
+     serverSaveAbsensiDaily menghapus SEMUA absensi kelompok pada tanggal itu
+     lalu insert ulang persis list yang dikirim, jadi kirim sebagian kelas
+     saja akan menghapus data kelas lain di tanggal yang sama. */
+  window.lastIkgFormData_ = [];
+
+  window.openModalInputKehadiranGenerus = function () {
+    document.getElementById('modalInputKehadiranGenerus').classList.add('active');
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('ikgTanggal').value = todayStr;
+    window.populateIkgKelasSelect_();
+    window.loadIkgForm_();
+  };
+
+  window.closeModalInputKehadiranGenerus = function () {
+    document.getElementById('modalInputKehadiranGenerus').classList.remove('active');
+  };
+
+  window.populateIkgKelasSelect_ = function () {
+    const sel = document.getElementById('ikgKelasSelect');
+    const kelasSet = {};
+    (window.lastSantriListData || []).forEach(function (s) {
+      const k = String(s.kelas_ngaji || '').trim();
+      if (k) kelasSet[k] = true;
+    });
+    const kelasList = Object.keys(kelasSet).sort(function (a, b) {
+      const ra = window.kgKelasSortIndex_(a);
+      const rb = window.kgKelasSortIndex_(b);
+      if (ra !== rb) return ra - rb;
+      return a.localeCompare(b);
+    });
+    sel.innerHTML = kelasList.map(function (k) { return `<option value="${k}">${k}</option>`; }).join('');
+  };
+
+  window.loadIkgForm_ = function () {
+    const tanggal = document.getElementById('ikgTanggal').value;
+    const kelas = document.getElementById('ikgKelasSelect').value;
+    const body = document.getElementById('ikgSantriList');
+    if (!tanggal || !kelas) {
+      body.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-faint);">Pilih tanggal &amp; kelas.</div>';
+      return;
+    }
+    body.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-faint);">Memuat...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || !result.success) {
+          body.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</div>';
+          return;
+        }
+        window.lastIkgFormData_ = result.data;
+        const santriMap = {};
+        (window.lastSantriListData || []).forEach(function (s) { santriMap[String(s.id)] = s; });
+
+        const filtered = result.data.filter(function (s) {
+          const santri = santriMap[String(s.santri_id)];
+          return santri && String(santri.kelas_ngaji || '').trim().toLowerCase() === kelas.toLowerCase();
+        });
+
+        if (filtered.length === 0) {
+          body.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--text-faint);">Tidak ada santri di kelas ini.</div>';
+          return;
+        }
+
+        body.innerHTML = filtered.map(function (s) {
+          return `<div class="ikg-santri-row" data-santri-id="${s.santri_id}">
+            <span class="ikg-santri-nama">${s.nama}</span>
+            <select class="form-select ikg-status-select">
+              <option value="hadir"${s.status === 'hadir' ? ' selected' : ''}>Hadir</option>
+              <option value="izin"${s.status === 'izin' ? ' selected' : ''}>Izin</option>
+              <option value="sakit"${s.status === 'sakit' ? ' selected' : ''}>Sakit</option>
+              <option value="alpa"${s.status === 'alpa' ? ' selected' : ''}>Alpa</option>
+            </select>
+          </div>`;
+        }).join('');
+      })
+      .withFailureHandler(function (err) {
+        body.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--red);">Gagal memuat: ' + err + '</div>';
+      })
+      .serverGetAbsensiForm(window.currentToken, window.currentKelompokId, tanggal);
+  };
+
+  window.saveIkgForm_ = function () {
+    const tanggal = document.getElementById('ikgTanggal').value;
+    if (!tanggal) { alert('Pilih tanggal.'); return; }
+
+    const editedMap = {};
+    document.querySelectorAll('#ikgSantriList .ikg-santri-row').forEach(function (row) {
+      editedMap[row.dataset.santriId] = row.querySelector('.ikg-status-select').value;
+    });
+
+    const merged = (window.lastIkgFormData_ || []).map(function (s) {
+      return { santri_id: s.santri_id, status: editedMap[s.santri_id] || s.status };
+    });
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || !result.success) {
+          alert((result && result.error) || 'Gagal menyimpan.');
+          return;
+        }
+        window.closeModalInputKehadiranGenerus();
+        window.loadKelompokDashboardAbsen_(window.currentKelompokId);
+        if (document.getElementById('kgDetailWrapper').style.display !== 'none') window.loadKgDetailTable_();
+      })
+      .withFailureHandler(function (err) { alert('Gagal menyimpan: ' + err); })
+      .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, merged);
   };
 
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {
