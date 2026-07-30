@@ -4367,12 +4367,38 @@
       const warna = kg ? kg.warna : 'abu';
       return `<span class="lps-kelas-chip">${k} <b class="kg-warna-${warna}">${pctLabel}</b></span>`;
     }).join('');
+
+    window.populateLpsKelasSelect_();
   };
 
-  /* Dipicu KHUSUS dari interaksi user di select Guru (bukan dari
+  /* Filter Kelas — cuma muncul kalau guru terpilih pegang >1 kelas (kalau
+     cuma 1 kelas tidak ada yang perlu dipilih, disembunyikan). "Semua
+     Kelas" (value kosong) = gabungan semua kelas guru itu, pola lama. */
+  window.populateLpsKelasSelect_ = function () {
+    const kelasSel = document.getElementById('lpsKelasSelect');
+    if (!kelasSel) return;
+    const guruId = document.getElementById('lpsGuruSelect').value;
+    const g = window.lpsKelasByGuru_[guruId];
+    const kelasList = g ? g.kelas : [];
+
+    if (kelasList.length <= 1) {
+      kelasSel.style.display = 'none';
+      kelasSel.innerHTML = '<option value="">Semua Kelas</option>';
+      kelasSel.value = '';
+      return;
+    }
+
+    const current = kelasSel.value;
+    kelasSel.innerHTML = '<option value="">Semua Kelas (' + kelasList.length + ' kelas)</option>'
+      + kelasList.map(function (k) { return `<option value="${k}">${k}</option>`; }).join('');
+    kelasSel.value = kelasList.indexOf(current) !== -1 ? current : '';
+    kelasSel.style.display = '';
+  };
+
+  /* Dipicu KHUSUS dari interaksi user di select Guru/Kelas (bukan dari
      populateLpsGuruSelect_ saat refresh data latar belakang) — ganti guru
-     langsung load ulang laporan otomatis, tanpa perlu klik "Buat Laporan"
-     lagi, supaya perpindahan antar guru terasa instan. */
+     ATAU kelas langsung load ulang laporan otomatis, tanpa perlu klik
+     "Buat Laporan" lagi, supaya perpindahan terasa instan. */
   window.onLpsGuruSelectInput_ = function () {
     window.onLpsGuruChange_();
     const guruId = document.getElementById('lpsGuruSelect').value;
@@ -4381,6 +4407,7 @@
 
   window.loadLaporanPerkembanganSantri_ = function () {
     const guruId = document.getElementById('lpsGuruSelect').value;
+    const kelasFilter = document.getElementById('lpsKelasSelect').value;
     const bulan = Number(document.getElementById('lpsBulan').value);
     const tahun = Number(document.getElementById('lpsTahun').value);
     const result = document.getElementById('laporanPerkembanganResult');
@@ -4403,7 +4430,7 @@
       .withFailureHandler(function (err) {
         result.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--red);">Gagal memuat: ' + err + '</div>';
       })
-      .serverGetLaporanPerkembanganSantri(window.currentToken, window.currentKelompokId, guruId, tahun, bulan);
+      .serverGetLaporanPerkembanganSantri(window.currentToken, window.currentKelompokId, guruId, tahun, bulan, kelasFilter);
   };
 
   window.lpsMetricCardHtml_ = function (label, hex, value, subtext) {

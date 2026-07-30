@@ -179,12 +179,15 @@ function serverGetAbsensiSummary(token, kelompokId) {
  * SCOPED ke satu kelompok — Firestore langsung utk Kelp Petemon), BUKAN
  * `readSheetAsObjects()` generik (scan seluruh sheet semua kelompok). Pola
  * sama dgn Modul_Monitoring.gs.
+ * @param {string} [kelasFilter] - kalau diisi, laporan cuma hitung SATU kelas
+ *   itu (kosong/undefined = gabungan semua kelas guru, pola lama). Dipakai
+ *   saat satu guru pegang >1 kelas biar datanya tidak tumpuk jadi satu.
  * @returns {Object} { success, data: { guru, kelompok, periode,
  *   kelasInfo: [{kelas, jamMulai, jamSelesai, ruangan}], metrics:
  *   {totalSantri, totalHadir, totalIzin, totalAlfa, totalSakit, hadirPercent},
  *   santriDetail: [{nama, hariAktif, hadir, izin, alfa, sakit, persenHadir, status}] } }
  */
-function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, month) {
+function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, month, kelasFilter) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
   if (!validateUserAccess(token, 'kelompok', kelompokId)) {
@@ -202,9 +205,13 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
 
   const kelompok = readSheetAsObjects(SHEET_NAMES.KELOMPOK).find(function (k) { return String(k.id) === String(kelompokId); });
 
-  const jadwalGuru = tables.jadwal_kbm.filter(function (j) {
+  const kelasFilterLower = String(kelasFilter || '').trim().toLowerCase();
+  let jadwalGuru = tables.jadwal_kbm.filter(function (j) {
     return String(j.guru_id) === String(guruId) && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
   });
+  if (kelasFilterLower) {
+    jadwalGuru = jadwalGuru.filter(function (j) { return String(j.kelas).trim().toLowerCase() === kelasFilterLower; });
+  }
   const kelasInfo = jadwalGuru.map(function (j) {
     return {
       kelas: String(j.kelas).trim(),
