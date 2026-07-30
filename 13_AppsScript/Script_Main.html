@@ -4296,40 +4296,53 @@
 
   /* Sumber pilihan Guru = guru yang PUNYA kelas aktif di Jadwal KBM (tab
      Operasional), bukan seluruh roster Data Guru — supaya tidak bisa pilih
-     guru yang laporannya pasti kosong. Dibangun ulang tiap buka tab Laporan
-     (bukan sekali-cache) supaya ikut kelas terbaru kalau Jadwal KBM baru
-     diedit di sesi yang sama. */
+     guru yang laporannya pasti kosong. Dikelompokkan per KATEGORI (Cabe
+     Rawit/Pra Remaja SMP/Remaja SMA/Muda-Mudi) via <optgroup>, PERSIS
+     kartu kategori di Jadwal KBM — guru diambil langsung dari situ, bukan
+     Data Guru. Dibangun ulang tiap buka tab Laporan (bukan sekali-cache)
+     supaya ikut kelas terbaru kalau Jadwal KBM baru diedit di sesi yg sama. */
   window.lpsKelasByGuru_ = {};
 
   window.populateLpsGuruSelect_ = function () {
     const sel = document.getElementById('lpsGuruSelect');
     const current = sel.value;
 
-    const kelasByGuru = {};
+    const byKategori = {}; // kategori -> { guruId -> {nama, kelas:[]} }
+    const kelasByGuruAll = {}; // guruId -> {nama, kelas:[]} gabungan semua kategori (utk info panel & konteks laporan)
     (window.lastJadwalListData || []).forEach(function (j) {
       if (!j.guru_id || (j.status || 'Aktif') !== 'Aktif') return;
-      if (!kelasByGuru[j.guru_id]) kelasByGuru[j.guru_id] = { nama: j.guru_nama, kelas: [] };
-      if (j.kelas && kelasByGuru[j.guru_id].kelas.indexOf(j.kelas) === -1) kelasByGuru[j.guru_id].kelas.push(j.kelas);
-    });
-    window.lpsKelasByGuru_ = kelasByGuru;
+      const kat = j.kategori || 'Lainnya';
+      if (!byKategori[kat]) byKategori[kat] = {};
+      if (!byKategori[kat][j.guru_id]) byKategori[kat][j.guru_id] = { nama: j.guru_nama, kelas: [] };
+      if (j.kelas && byKategori[kat][j.guru_id].kelas.indexOf(j.kelas) === -1) byKategori[kat][j.guru_id].kelas.push(j.kelas);
 
-    const guruIds = Object.keys(kelasByGuru).sort(function (a, b) {
-      return String(kelasByGuru[a].nama).localeCompare(String(kelasByGuru[b].nama));
+      if (!kelasByGuruAll[j.guru_id]) kelasByGuruAll[j.guru_id] = { nama: j.guru_nama, kelas: [] };
+      if (j.kelas && kelasByGuruAll[j.guru_id].kelas.indexOf(j.kelas) === -1) kelasByGuruAll[j.guru_id].kelas.push(j.kelas);
     });
+    window.lpsKelasByGuru_ = kelasByGuruAll;
 
-    if (guruIds.length === 0) {
+    const urutanKategori = (window.KATEGORI_JADWAL_UI_ || []).filter(function (k) { return byKategori[k]; })
+      .concat(Object.keys(byKategori).filter(function (k) { return (window.KATEGORI_JADWAL_UI_ || []).indexOf(k) === -1; }));
+
+    if (urutanKategori.length === 0) {
       sel.innerHTML = '<option value="">-- Belum ada guru dgn kelas aktif di Jadwal KBM --</option>';
       sel.value = '';
       window.onLpsGuruChange_();
       return;
     }
 
-    sel.innerHTML = '<option value="">-- Pilih Guru --</option>' + guruIds.map(function (id) {
-      const g = kelasByGuru[id];
-      const kelasLabel = g.kelas.length > 0 ? ' — ' + g.kelas.join(', ') : '';
-      return `<option value="${id}">${g.nama}${kelasLabel}</option>`;
+    sel.innerHTML = '<option value="">-- Pilih Guru --</option>' + urutanKategori.map(function (kat) {
+      const guruMap = byKategori[kat];
+      const guruIds = Object.keys(guruMap).sort(function (a, b) { return String(guruMap[a].nama).localeCompare(String(guruMap[b].nama)); });
+      const optionsHtml = guruIds.map(function (id) {
+        const g = guruMap[id];
+        const kelasLabel = g.kelas.length > 0 ? ' — ' + g.kelas.join(', ') : '';
+        return `<option value="${id}">${g.nama}${kelasLabel}</option>`;
+      }).join('');
+      return `<optgroup label="${kat}">${optionsHtml}</optgroup>`;
     }).join('');
-    sel.value = guruIds.indexOf(current) !== -1 ? current : '';
+
+    sel.value = kelasByGuruAll[current] ? current : '';
     window.onLpsGuruChange_();
   };
 
