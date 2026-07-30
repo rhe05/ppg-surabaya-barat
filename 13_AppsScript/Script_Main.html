@@ -4286,6 +4286,148 @@
       .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, merged);
   };
 
+  /* ═════ LAPORAN PERKEMBANGAN SANTRI — Section A: Kehadiran (tab Laporan) ═════
+     Admin pilih Guru + periode, server hitung kehadiran santri milik guru
+     tsb (via kelas yang dipegang di Jadwal KBM). 4 kartu metrik + tabel
+     detail per santri, lalu bisa diunduh sbg PDF (browser print, pola sama
+     printStrukturPengurusPdf_). */
+  window.LPS_STATUS_WARNA_HEX_ = { Hadir: '#1baf7a', Izin: '#c98500', Alfa: '#d03b3b', Sakit: '#3987e5', 'Belum Ada Data': '#94a3b8' };
+  window.lastLaporanPerkembanganData_ = null;
+
+  window.populateLpsGuruSelect_ = function () {
+    const sel = document.getElementById('lpsGuruSelect');
+    if (sel.dataset.populated === '1') return;
+    const current = sel.value;
+    const guru = (window.lastGuruListData || []).slice().sort(function (a, b) { return String(a.nama).localeCompare(String(b.nama)); });
+    sel.innerHTML = '<option value="">-- Pilih Guru --</option>' + guru.map(function (g) {
+      return `<option value="${g.id}">${g.nama}</option>`;
+    }).join('');
+    sel.value = current || '';
+    sel.dataset.populated = '1';
+  };
+
+  window.loadLaporanPerkembanganSantri_ = function () {
+    const guruId = document.getElementById('lpsGuruSelect').value;
+    const bulan = Number(document.getElementById('lpsBulan').value);
+    const tahun = Number(document.getElementById('lpsTahun').value);
+    const result = document.getElementById('laporanPerkembanganResult');
+
+    if (!guruId) { alert('Pilih guru terlebih dahulu.'); return; }
+
+    result.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--text-faint);">Memuat...</div>';
+    document.getElementById('lpsUnduhBtn').disabled = true;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.success) {
+          result.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--red);">' + ((res && res.error) || 'Gagal memuat laporan.') + '</div>';
+          return;
+        }
+        window.lastLaporanPerkembanganData_ = res.data;
+        window.renderLaporanPerkembanganSantri_(res.data);
+        document.getElementById('lpsUnduhBtn').disabled = false;
+      })
+      .withFailureHandler(function (err) {
+        result.innerHTML = '<div style="text-align: center; padding: 60px 20px; color: var(--red);">Gagal memuat: ' + err + '</div>';
+      })
+      .serverGetLaporanPerkembanganSantri(window.currentToken, window.currentKelompokId, guruId, tahun, bulan);
+  };
+
+  window.lpsMetricCardHtml_ = function (label, hex, value, subtext) {
+    return `
+      <div class="lps-metric-card" style="border-top-color: ${hex};">
+        <div class="lps-metric-label">${label}</div>
+        <div class="lps-metric-value" style="color: ${hex};">${value}</div>
+        <div class="lps-metric-subtext">${subtext}</div>
+      </div>
+    `;
+  };
+
+  window.lpsBuildBodyHtml_ = function (data) {
+    const m = data.metrics;
+    const avgHadirSantri = (m.hadirPercent / 100 * m.totalSantri).toFixed(1);
+    const pct = function (n) { return m.totalSantri > 0 ? Math.round((n / m.totalSantri) * 100) : 0; };
+
+    const cardsHtml = window.lpsMetricCardHtml_('Kehadiran', window.LPS_STATUS_WARNA_HEX_.Hadir, m.hadirPercent + '%', avgHadirSantri + ' / ' + m.totalSantri + ' santri')
+      + window.lpsMetricCardHtml_('Izin', window.LPS_STATUS_WARNA_HEX_.Izin, m.totalIzin, pct(m.totalIzin) + '% santri')
+      + window.lpsMetricCardHtml_('Alfa', window.LPS_STATUS_WARNA_HEX_.Alfa, m.totalAlfa, pct(m.totalAlfa) + '% santri')
+      + window.lpsMetricCardHtml_('Sakit', window.LPS_STATUS_WARNA_HEX_.Sakit, m.totalSakit, pct(m.totalSakit) + '% santri');
+
+    const rowsHtml = data.santriDetail.map(function (s) {
+      const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94a3b8';
+      return `<tr>
+        <td>${s.nama}</td>
+        <td>${s.hariAktif}</td>
+        <td>${s.persenHadir !== null ? s.persenHadir + '%' : '—'}</td>
+        <td><span class="lps-status-badge" style="background: ${hex};">${s.status}</span></td>
+      </tr>`;
+    }).join('');
+
+    return `
+      <div class="lps-header">
+        <div>
+          <div class="lps-header-title">Laporan Perkembangan Santri</div>
+          <div class="lps-header-periode">${data.periode}</div>
+        </div>
+        <div class="lps-header-badges">
+          <span class="lps-badge">${data.guru}</span>
+          <span class="lps-badge">${data.kelompok}</span>
+        </div>
+      </div>
+      <div class="lps-metric-grid">${cardsHtml}</div>
+      <div class="lps-detail-table-wrap">
+        <table class="lps-detail-table">
+          <thead><tr><th>Nama</th><th>Hari Aktif</th><th>Kehadiran</th><th>Status</th></tr></thead>
+          <tbody>${rowsHtml || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Belum ada santri di kelas guru ini.</td></tr>'}</tbody>
+        </table>
+      </div>
+    `;
+  };
+
+  window.renderLaporanPerkembanganSantri_ = function (data) {
+    document.getElementById('laporanPerkembanganResult').innerHTML = '<div class="lps-report">' + window.lpsBuildBodyHtml_(data) + '</div>';
+  };
+
+  window.unduhLaporanPerkembanganSantriPdf_ = function () {
+    const data = window.lastLaporanPerkembanganData_;
+    if (!data) return;
+
+    const bodyHtml = window.lpsBuildBodyHtml_(data);
+    const win = window.open('', '_blank');
+    win.document.write(`
+      <html>
+        <head>
+          <title>Laporan Perkembangan Santri — ${window.escapeHtmlExport_(data.guru)}</title>
+          <style>
+            @page { size: A4; margin: 0.5in; }
+            * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { font-family: Arial, sans-serif; color: #0F172A; margin: 0; padding: 0; font-size: 12px; }
+            .lps-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+            .lps-header-title { font-size: 20px; font-weight: 800; }
+            .lps-header-periode { font-size: 13px; color: #64748B; margin-top: 4px; }
+            .lps-header-badges { display: flex; gap: 8px; }
+            .lps-badge { background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 700; }
+            .lps-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; page-break-inside: avoid; }
+            .lps-metric-card { background: #fff; border: 0.5px solid #CBD5E1; border-radius: 12px; border-top: 3px solid #000; padding: 16px; page-break-inside: avoid; }
+            .lps-metric-label { font-size: 12px; text-transform: uppercase; color: #64748B; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 8px; }
+            .lps-metric-value { font-size: 32px; font-weight: 800; line-height: 1; }
+            .lps-metric-subtext { font-size: 13px; color: #64748B; margin-top: 6px; }
+            .lps-detail-table-wrap { page-break-before: always; }
+            .lps-detail-table { width: 100%; max-width: 2000px; border-collapse: collapse; }
+            .lps-detail-table th, .lps-detail-table td { border: 1px solid #E2E8F0; padding: 8px 10px; font-size: 11px; text-align: left; word-wrap: break-word; }
+            .lps-detail-table th { background: #F8FAFC; }
+            .lps-status-badge { display: inline-block; color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+          </style>
+        </head>
+        <body>
+          ${bodyHtml}
+          <script>window.onload = function () { window.print(); };<\/script>
+        </body>
+      </html>
+    `);
+    win.document.close();
+  };
+
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {
     // Kegagalan WAJIB terlihat: sebelumnya error ditelan diam-diam (return kosong)
     // sehingga UI berhenti di "Memuat..." tanpa petunjuk apa pun.
@@ -5404,6 +5546,11 @@
       const tahunEl = document.getElementById('kurikulumProtaTahun');
       const kelasEl = document.getElementById('kurikulumProtaKelas');
       window.loadKurikulumProta_(window.currentKelompokId, tahunEl ? tahunEl.value : 2026, kelasEl ? kelasEl.value : '');
+    }
+
+    if (sectionName === 'Laporan' && window.currentKelompokId) {
+      window.kgInitFilterSelect_('lpsBulan', 'lpsTahun');
+      window.populateLpsGuruSelect_();
     }
   };
 

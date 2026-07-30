@@ -3131,6 +3131,128 @@
       justify-content: center;
     }
 
+    /* ═════ Laporan Perkembangan Santri (tab Laporan) — kartu metrik flat + tabel detail ═════ */
+    .lps-toolbar {
+      flex-wrap: wrap;
+    }
+
+    .lps-report {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+    }
+
+    .lps-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .lps-header-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: var(--text);
+    }
+
+    .lps-header-periode {
+      font-size: 13px;
+      color: var(--text-faint);
+      margin-top: 4px;
+    }
+
+    .lps-header-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .lps-badge {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .lps-metric-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .lps-metric-card {
+      background: var(--panel);
+      border: 0.5px solid var(--border);
+      border-top: 3px solid var(--text-faint);
+      border-radius: 12px;
+      padding: 18px 16px;
+    }
+
+    .lps-metric-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-faint);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .lps-metric-value {
+      font-size: 32px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .lps-metric-subtext {
+      font-size: 13px;
+      color: var(--text-faint);
+      margin-top: 6px;
+    }
+
+    .lps-detail-table-wrap {
+      overflow-x: auto;
+    }
+
+    .lps-detail-table {
+      width: 100%;
+      max-width: 2000px;
+      border-collapse: collapse;
+    }
+
+    .lps-detail-table th,
+    .lps-detail-table td {
+      border: 1px solid var(--border);
+      padding: 9px 12px;
+      font-size: 12px;
+      text-align: left;
+      word-wrap: break-word;
+    }
+
+    .lps-detail-table th {
+      background: var(--panel-2);
+      font-weight: 700;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+    }
+
+    .lps-status-badge {
+      display: inline-block;
+      color: #fff;
+      font-size: 10.5px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+    }
+
     /* ═════ Matrix Detail Kehadiran (santri × hari efektif) — sticky header + kolom nama/kelas ═════ */
     .kg-matrix-scroll {
       max-height: 560px;
