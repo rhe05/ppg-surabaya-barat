@@ -4,6 +4,16 @@
  * Modul ini MENGOLAH data itu jadi rata-rata kehadiran per kelas_ngaji, lalu
  * per jenjang (rata-rata dari rata-rata kelas, bukan rata-rata gabungan semua
  * santri — supaya kelas kecil tidak "tenggelam" oleh kelas besar).
+ *
+ * ⚠️ PERF (2026-07-30): fungsi Kehadiran Generus (`serverGetKehadiranGenerusKategori`/
+ * `Matrix`/`DetailList`, dipakai tab Operasional & Laporan) baca guru/jadwal_kbm/
+ * santri/absensi lewat `iaReadKelompokTablesParallel_`/`iaReadKelompokTable_`/
+ * `iaReadAbsensiKelompok_` (Modul_InputAbsen.gs) — SCOPED ke satu kelompok saja
+ * (Firestore langsung utk Kelp Petemon via `FIRESTORE_KELOMPOK_TABLES_`, Sheets
+ * terfilter utk kelompok lain). JANGAN kembalikan ke `readSheetAsObjects()`
+ * generik di fungsi-fungsi ini — itu scan SELURUH sheet semua kelompok dulu baru
+ * dibuang, boros baca & boros kuota Firestore. `serverGetMonitoringGenerus` di
+ * bawah SENGAJA tidak diubah (tab Monitoring terpisah, di luar fokus ini).
  */
 
 const MONITORING_JENJANG_LIST_ = ['Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
@@ -140,13 +150,20 @@ function serverGetKehadiranGenerusKategori(token, kelompokId, year, month) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
+  // Baca guru/jadwal_kbm/santri KELOMPOK INI SAJA (Firestore langsung utk
+  // Kelp Petemon, Sheets terfilter utk kelompok lain) — HINDARI
+  // readSheetAsObjects() generik yg scan SELURUH sheet semua kelompok lalu
+  // buang sisanya (boros baca + boros kuota Firestore, lihat catatan perf
+  // di Modul_InputAbsen.gs / iaReadKelompokTablesParallel_).
+  const tables = iaReadKelompokTablesParallel_(['guru', 'jadwal_kbm', 'santri'], kelompokId);
+
   const guruMap = {};
-  readSheetAsObjects(SHEET_NAMES.GURU).forEach(function (g) { guruMap[g.id] = g.nama; });
+  tables.guru.forEach(function (g) { guruMap[g.id] = g.nama; });
 
   // kelas (lowercase) -> {kategori, kelasAsli, ruangan, jamMulai, jamSelesai, namaGuru}
   const kelasInfoMap = {};
-  readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)
-    .filter(function (j) { return j.kelompok_id == kelompokId && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== ''; })
+  tables.jadwal_kbm
+    .filter(function (j) { return (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== ''; })
     .forEach(function (j) {
       const key = String(j.kelas).trim().toLowerCase();
       if (!kelasInfoMap[key]) {
@@ -158,14 +175,14 @@ function serverGetKehadiranGenerusKategori(token, kelompokId, year, month) {
       }
     });
 
-  const santriList = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == kelompokId; });
+  const santriList = tables.santri;
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
-  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+    return tgl >= monthStart && tgl <= monthEnd;
   });
   const statsBySantri = {};
   monthAbsensi.forEach(function (a) {
@@ -236,18 +253,16 @@ function serverGetKehadiranGenerusDetailList(token, kelompokId, year, month) {
   }
 
   const santriMap = {};
-  readSheetAsObjects(SHEET_NAMES.SANTRI)
-    .filter(function (s) { return s.kelompok_id == kelompokId; })
-    .forEach(function (s) {
-      santriMap[String(s.id)] = { nama: s.nama, kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi' };
-    });
+  iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId).forEach(function (s) {
+    santriMap[String(s.id)] = { nama: s.nama, kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi' };
+  });
   const santriIds = Object.keys(santriMap);
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
-  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+    return tgl >= monthStart && tgl <= monthEnd;
   });
 
   const data = monthAbsensi.map(function (a) {
@@ -277,7 +292,7 @@ function serverGetKehadiranGenerusMatrix(token, kelompokId, year, month) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const santriList = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == kelompokId; });
+  const santriList = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId);
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
   const daysInMonth = new Date(year, month, 0).getDate();
@@ -291,9 +306,9 @@ function serverGetKehadiranGenerusMatrix(token, kelompokId, year, month) {
 
   const monthStart = dates.length > 0 ? dates[0] : `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = dates.length > 0 ? dates[dates.length - 1] : monthStart;
-  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+    return tgl >= monthStart && tgl <= monthEnd;
   });
 
   const statusMap = {};

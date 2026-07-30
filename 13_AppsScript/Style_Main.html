@@ -3173,13 +3173,9 @@
       padding: 24px;
     }
 
-    .lps-header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-bottom: 20px;
+    .lps-header-center {
+      text-align: center;
+      margin-bottom: 22px;
     }
 
     .lps-header-title {
@@ -3194,20 +3190,24 @@
       margin-top: 4px;
     }
 
-    .lps-header-badges {
+    .lps-info-block {
       display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
+      flex-direction: column;
+      gap: 5px;
+      margin-bottom: 24px;
+      text-align: left;
     }
 
-    .lps-badge {
-      background: var(--panel-2);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      padding: 5px 12px;
-      font-size: 11.5px;
-      font-weight: 700;
+    .lps-info-row {
+      font-size: 12.5px;
       color: var(--text);
+    }
+
+    .lps-info-key {
+      display: inline-block;
+      min-width: 92px;
+      font-weight: 700;
+      color: var(--text-faint);
     }
 
     .lps-metric-grid {

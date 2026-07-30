@@ -4426,16 +4426,25 @@
       </tr>`;
     }).join('');
 
+    const kelasInfo = data.kelasInfo || [];
+    const kelasLabel = kelasInfo.length > 0 ? kelasInfo.map(function (k) { return k.kelas; }).join(', ') : '—';
+    const jadwalLabel = kelasInfo.length === 0 ? '—'
+      : kelasInfo.length === 1 ? (kelasInfo[0].jamMulai && kelasInfo[0].jamSelesai ? kelasInfo[0].jamMulai + ' - ' + kelasInfo[0].jamSelesai : '—')
+      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.jamMulai && k.jamSelesai ? k.jamMulai + ' - ' + k.jamSelesai : '—'); }).join('; ');
+    const ruanganLabel = kelasInfo.length === 0 ? '—'
+      : kelasInfo.length === 1 ? (kelasInfo[0].ruangan || '—')
+      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.ruangan || '—'); }).join('; ');
+
     return `
-      <div class="lps-header">
-        <div>
-          <div class="lps-header-title">Laporan Perkembangan Santri</div>
-          <div class="lps-header-periode">${data.periode}</div>
-        </div>
-        <div class="lps-header-badges">
-          <span class="lps-badge">${data.guru}</span>
-          <span class="lps-badge">${data.kelompok}</span>
-        </div>
+      <div class="lps-header-center">
+        <div class="lps-header-title">Laporan Perkembangan Santri</div>
+        <div class="lps-header-periode">${data.periode} — ${data.kelompok}</div>
+      </div>
+      <div class="lps-info-block">
+        <div class="lps-info-row"><span class="lps-info-key">Guru</span><span>: ${data.guru}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Kelas</span><span>: ${kelasLabel}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Jadwal KBM</span><span>: ${jadwalLabel}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Ruangan</span><span>: ${ruanganLabel}</span></div>
       </div>
       <div class="lps-metric-grid">${cardsHtml}</div>
       <div class="lps-detail-table-wrap">
@@ -4465,11 +4474,12 @@
             @page { size: A4; margin: 0.5in; }
             * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             body { font-family: Arial, sans-serif; color: #0F172A; margin: 0; padding: 0; font-size: 12px; }
-            .lps-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+            .lps-header-center { text-align: center; margin-bottom: 22px; }
             .lps-header-title { font-size: 20px; font-weight: 800; }
             .lps-header-periode { font-size: 13px; color: #64748B; margin-top: 4px; }
-            .lps-header-badges { display: flex; gap: 8px; }
-            .lps-badge { background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 700; }
+            .lps-info-block { display: flex; flex-direction: column; gap: 5px; margin-bottom: 24px; text-align: left; }
+            .lps-info-row { font-size: 12.5px; }
+            .lps-info-key { display: inline-block; min-width: 92px; font-weight: 700; color: #64748B; }
             .lps-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; page-break-inside: avoid; }
             .lps-metric-card { background: #fff; border: 0.5px solid #CBD5E1; border-radius: 12px; border-top: 3px solid #000; padding: 16px; page-break-inside: avoid; }
             .lps-metric-label { font-size: 12px; text-transform: uppercase; color: #64748B; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 8px; }

@@ -174,7 +174,13 @@ function serverGetAbsensiSummary(token, kelompokId) {
  * Status per-santri: 'Hadir' jika %hadir >= 80, lalu 'Izin' jika ada hari
  * izin, lalu 'Alfa' jika ada hari alfa, sisanya 'Sakit' (atau 'Belum Ada
  * Data' jika belum ada rekap absensi bulan itu).
- * @returns {Object} { success, data: { guru, kelompok, periode, metrics:
+ * ⚠️ PERF (2026-07-30): baca guru/jadwal_kbm/santri/absensi lewat
+ * `iaReadKelompokTablesParallel_`/`iaReadAbsensiKelompok_` (Modul_InputAbsen.gs,
+ * SCOPED ke satu kelompok — Firestore langsung utk Kelp Petemon), BUKAN
+ * `readSheetAsObjects()` generik (scan seluruh sheet semua kelompok). Pola
+ * sama dgn Modul_Monitoring.gs.
+ * @returns {Object} { success, data: { guru, kelompok, periode,
+ *   kelasInfo: [{kelas, jamMulai, jamSelesai, ruangan}], metrics:
  *   {totalSantri, totalHadir, totalIzin, totalAlfa, totalSakit, hadirPercent},
  *   santriDetail: [{nama, hariAktif, hadir, izin, alfa, sakit, persenHadir, status}] } }
  */
@@ -185,28 +191,40 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const guru = readSheetAsObjects(SHEET_NAMES.GURU).find(function (g) { return String(g.id) === String(guruId); });
+  // Baca guru/jadwal_kbm/santri KELOMPOK INI SAJA (Firestore langsung utk Kelp
+  // Petemon, Sheets terfilter utk kelompok lain) — HINDARI readSheetAsObjects()
+  // generik yg scan SELURUH sheet semua kelompok (lihat catatan perf sama di
+  // Modul_Monitoring.gs / iaReadKelompokTablesParallel_, Modul_InputAbsen.gs).
+  const tables = iaReadKelompokTablesParallel_(['guru', 'jadwal_kbm', 'santri'], kelompokId);
+
+  const guru = tables.guru.find(function (g) { return String(g.id) === String(guruId); });
   if (!guru) return { success: false, error: 'Guru tidak ditemukan.' };
 
   const kelompok = readSheetAsObjects(SHEET_NAMES.KELOMPOK).find(function (k) { return String(k.id) === String(kelompokId); });
 
-  const kelasGuru = readSheetAsObjects(SHEET_NAMES.JADWAL_KBM)
-    .filter(function (j) {
-      return j.kelompok_id == kelompokId && String(j.guru_id) === String(guruId)
-        && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
-    })
-    .map(function (j) { return String(j.kelas).trim().toLowerCase(); });
+  const jadwalGuru = tables.jadwal_kbm.filter(function (j) {
+    return String(j.guru_id) === String(guruId) && (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
+  });
+  const kelasInfo = jadwalGuru.map(function (j) {
+    return {
+      kelas: String(j.kelas).trim(),
+      jamMulai: jamKeString_(j.jam_mulai),
+      jamSelesai: jamKeString_(j.jam_selesai),
+      ruangan: j.ruangan ? String(j.ruangan) : '',
+    };
+  });
+  const kelasGuru = kelasInfo.map(function (k) { return k.kelas.toLowerCase(); });
 
-  const santriList = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) {
-    return s.kelompok_id == kelompokId && kelasGuru.indexOf(String(s.kelas_ngaji || '').trim().toLowerCase()) !== -1;
+  const santriList = tables.santri.filter(function (s) {
+    return kelasGuru.indexOf(String(s.kelas_ngaji || '').trim().toLowerCase()) !== -1;
   });
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
-  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+    return tgl >= monthStart && tgl <= monthEnd;
   });
 
   const statsBySantri = {};
@@ -258,6 +276,7 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
       guru: guru.nama,
       kelompok: kelompok ? kelompok.nama : '',
       periode: bulanNama + ' ' + year,
+      kelasInfo: kelasInfo,
       metrics: {
         totalSantri: totalSantri,
         totalHadir: totalHadirSantri,
