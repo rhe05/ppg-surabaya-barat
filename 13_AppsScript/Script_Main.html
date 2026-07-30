@@ -3977,7 +3977,7 @@
      beda dari tab Monitoring terpisah). Kartu gaya KPI (sama seperti Data
      Guru/Data Generus) — flat per kelas, diurutkan sesuai KG_KELAS_ORDER_,
      tanpa collapse/expand kategori. */
-  window.KG_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', '4', 'Pra Remaja', 'Remaja SMA', 'Muda Mudi'];
+  window.KG_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', '4', 'Pra Remaja', 'Remaja SMA'];
 
   window.kgKelasSortIndex_ = function (nama) {
     const idx = window.KG_KELAS_ORDER_.findIndex(function (o) { return o.toLowerCase() === String(nama || '').trim().toLowerCase(); });
@@ -3986,15 +3986,29 @@
 
   window.lastKehadiranGenerusData_ = [];
 
+  // Filter bulan/tahun kartu (dropdown di header, sebelah tombol Ekspor) —
+  // default bulan berjalan sekali saat pertama kali load, sesudahnya user bebas geser.
+  window.kgInitFilterSelect_ = function (bulanId, tahunId) {
+    const bulanEl = document.getElementById(bulanId);
+    const tahunEl = document.getElementById(tahunId);
+    if (bulanEl && !bulanEl.dataset.inited) {
+      const now = new Date();
+      bulanEl.value = String(now.getMonth() + 1);
+      tahunEl.value = String(now.getFullYear());
+      bulanEl.dataset.inited = '1';
+    }
+    return { year: Number(tahunEl.value), month: Number(bulanEl.value) };
+  };
+
   window.loadKelompokDashboardAbsen_ = function (kelompokId) {
-    const now = new Date();
+    const period = window.kgInitFilterSelect_('kgFilterBulan', 'kgFilterTahun');
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
         window.lastKehadiranGenerusData_ = result.data;
         window.renderKehadiranGenerusGrid_(result.data);
       })
-      .serverGetKehadiranGenerusKategori(window.currentToken, kelompokId, now.getFullYear(), now.getMonth() + 1);
+      .serverGetKehadiranGenerusKategori(window.currentToken, kelompokId, period.year, period.month);
   };
 
   window.renderKehadiranGenerusGrid_ = function (data) {
@@ -4029,9 +4043,12 @@
   };
 
   /* ── Tabel Detail Kehadiran (toggle "Kehadiran" di header) ──
-     Nama Santri · Kelas Ngaji · Tanggal (status Hadir/Izin/Sakit/Alpa
-     tampil di bawah tanggal), filter per kelas. */
+     Matrix premium: baris = santri, kolom = tiap hari efektif (Senin-Jumat)
+     bulan pilihan (~20 kolom/bulan, Sabtu/Minggu libur jadi tidak ditampilkan).
+     Filter kelas + filter bulan/tahun sendiri (independen dari filter kartu). */
   window.lastKgDetailData_ = [];
+  window.lastKgDetailDates_ = [];
+  window.KG_HARI_PENDEK_ = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
 
   window.toggleKgDetailTable_ = function () {
     const wrapper = document.getElementById('kgDetailWrapper');
@@ -4043,23 +4060,24 @@
   };
 
   window.loadKgDetailTable_ = function () {
-    const now = new Date();
+    const period = window.kgInitFilterSelect_('kgDetailBulan', 'kgDetailTahun');
     const body = document.getElementById('kgDetailTableBody');
-    body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>';
+    body.innerHTML = '<tr><td style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>';
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result || !result.success) {
-          body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</td></tr>';
+          body.innerHTML = '<tr><td style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</td></tr>';
           return;
         }
         window.lastKgDetailData_ = result.data;
+        window.lastKgDetailDates_ = result.dates;
         window.populateKgDetailKelasFilter_(result.data);
         window.renderKgDetailTable_();
       })
       .withFailureHandler(function (err) {
-        body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + err + '</td></tr>';
+        body.innerHTML = '<tr><td style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat: ' + err + '</td></tr>';
       })
-      .serverGetKehadiranGenerusDetailList(window.currentToken, window.currentKelompokId, now.getFullYear(), now.getMonth() + 1);
+      .serverGetKehadiranGenerusMatrix(window.currentToken, window.currentKelompokId, period.year, period.month);
   };
 
   window.populateKgDetailKelasFilter_ = function (data) {
@@ -4080,30 +4098,47 @@
   };
 
   window.KG_STATUS_LABEL_ = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' };
+  window.KG_STATUS_HURUF_ = { hadir: 'H', izin: 'I', sakit: 'S', alpa: 'A' };
   window.KG_STATUS_WARNA_ = { hadir: 'hijau-tua', izin: 'kuning', sakit: 'kuning', alpa: 'merah' };
 
   window.renderKgDetailTable_ = function () {
     const kelasFilter = document.getElementById('kgDetailKelasFilter').value;
+    const head = document.getElementById('kgDetailTableHead');
     const body = document.getElementById('kgDetailTableBody');
-    const data = (window.lastKgDetailData_ || []).filter(function (d) { return kelasFilter === 'all' || d.kelas === kelasFilter; });
+    const dates = window.lastKgDetailDates_ || [];
+    const rows = (window.lastKgDetailData_ || []).filter(function (d) { return kelasFilter === 'all' || d.kelas === kelasFilter; });
 
-    if (data.length === 0) {
-      body.innerHTML = '<tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Tidak ada data kehadiran.</td></tr>';
+    head.innerHTML = '<tr>'
+      + '<th class="kg-matrix-sticky kg-matrix-nama">Nama Santri</th>'
+      + '<th class="kg-matrix-sticky kg-matrix-kelas">Kelas Ngaji</th>'
+      + dates.map(function (tgl) {
+          const d = new Date(tgl + 'T00:00:00');
+          return `<th class="kg-matrix-date-head">${d.getDate()}<span class="kg-matrix-dow">${window.KG_HARI_PENDEK_[d.getDay()]}</span></th>`;
+        }).join('')
+      + '</tr>';
+
+    if (rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="' + (2 + dates.length) + '" style="text-align: center; padding: 24px; color: var(--text-faint);">Tidak ada data santri.</td></tr>';
       return;
     }
 
-    body.innerHTML = data.map(function (d) {
-      const label = window.KG_STATUS_LABEL_[d.status] || d.status;
-      const warna = window.KG_STATUS_WARNA_[d.status] || 'abu';
+    body.innerHTML = rows.map(function (r) {
+      const cells = dates.map(function (tgl) {
+        const status = r.statusByDate ? r.statusByDate[tgl] : null;
+        if (!status) return '<td>—</td>';
+        const huruf = window.KG_STATUS_HURUF_[status] || '?';
+        const warna = window.KG_STATUS_WARNA_[status] || 'abu';
+        return `<td><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.KG_STATUS_LABEL_[status] || status}">${huruf}</span></td>`;
+      }).join('');
       return `<tr>
-        <td>${d.nama}</td>
-        <td>${d.kelas}</td>
-        <td>${d.tanggal}<div class="kg-detail-status kg-warna-${warna}">${label}</div></td>
+        <td class="kg-matrix-sticky kg-matrix-nama">${r.nama}</td>
+        <td class="kg-matrix-sticky kg-matrix-kelas">${r.kelas}</td>
+        ${cells}
       </tr>`;
     }).join('');
   };
 
-  /* ── Modal Ekspor Kehadiran Generus ── */
+  /* ── Modal Ekspor Kehadiran Generus (ikut filter bulan/tahun kartu) ── */
   window.openModalEksporKehadiranGenerus = function () {
     document.getElementById('modalEksporKehadiranGenerus').classList.add('active');
   };
@@ -4114,7 +4149,8 @@
 
   window.confirmEksporKehadiranGenerus = function () {
     const format = document.querySelector('input[name="eksporKehadiranGenerusFormat"]:checked')?.value || 'excel';
-    const now = new Date();
+    const period = window.kgInitFilterSelect_('kgFilterBulan', 'kgFilterTahun');
+    const bulanLabel = document.getElementById('kgFilterBulan').selectedOptions[0].textContent;
 
     google.script.run
       .withSuccessHandler(function (result) {
@@ -4126,16 +4162,17 @@
         const rows = result.data.map(function (d) {
           return [d.nama, d.kelas, d.tanggal, window.KG_STATUS_LABEL_[d.status] || d.status];
         });
+        const judul = 'Kehadiran Generus — ' + bulanLabel + ' ' + period.year;
 
         if (format === 'pdf') {
-          window.printPdfList_('Kehadiran Generus — Bulan Ini', headers, rows);
+          window.printPdfList_(judul, headers, rows);
           window.closeModalEksporKehadiranGenerus();
           return;
         }
-        window.runXlsxExport_('Kehadiran Generus', headers, rows, window.closeModalEksporKehadiranGenerus);
+        window.runXlsxExport_('Kehadiran Generus ' + bulanLabel + ' ' + period.year, headers, rows, window.closeModalEksporKehadiranGenerus);
       })
       .withFailureHandler(function (err) { alert('Gagal mengambil data: ' + err); })
-      .serverGetKehadiranGenerusDetailList(window.currentToken, window.currentKelompokId, now.getFullYear(), now.getMonth() + 1);
+      .serverGetKehadiranGenerusDetailList(window.currentToken, window.currentKelompokId, period.year, period.month);
   };
 
   /* ── Modal Tambah Kehadiran (input/override manual admin) ──

@@ -262,3 +262,60 @@ function serverGetKehadiranGenerusDetailList(token, kelompokId, year, month) {
 
   return { success: true, data: data };
 }
+
+/**
+ * GET matrix kehadiran (santri × hari efektif) untuk tabel "Detail Kehadiran"
+ * premium (toggle di kartu Kehadiran Generus). Kolom dibatasi hari efektif
+ * Senin-Jumat saja (Sabtu/Minggu libur, ~20 kolom/bulan).
+ * @returns {Object} { success, dates: ['YYYY-MM-DD', ...] (weekday only),
+ *   data: [{id, nama, kelas, statusByDate: {tanggal: status}}] }
+ */
+function serverGetKehadiranGenerusMatrix(token, kelompokId, year, month) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  const santriList = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(function (s) { return s.kelompok_id == kelompokId; });
+  const santriIds = santriList.map(function (s) { return String(s.id); });
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dates = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month - 1, d).getDay(); // 0=Minggu, 6=Sabtu
+    if (dow !== 0 && dow !== 6) {
+      dates.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+  }
+
+  const monthStart = dates.length > 0 ? dates[0] : `${year}-${String(month).padStart(2, '0')}-01`;
+  const monthEnd = dates.length > 0 ? dates[dates.length - 1] : monthStart;
+  const monthAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(function (a) {
+    const tgl = tanggalKeString_(a.tanggal);
+    return tgl >= monthStart && tgl <= monthEnd && santriIds.indexOf(String(a.santri_id)) !== -1;
+  });
+
+  const statusMap = {};
+  monthAbsensi.forEach(function (a) {
+    const id = String(a.santri_id);
+    if (!statusMap[id]) statusMap[id] = {};
+    statusMap[id][tanggalKeString_(a.tanggal)] = a.status;
+  });
+
+  const rows = santriList.map(function (s) {
+    return {
+      id: s.id,
+      nama: s.nama,
+      kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi',
+      statusByDate: statusMap[String(s.id)] || {},
+    };
+  });
+
+  rows.sort(function (a, b) {
+    if (a.kelas !== b.kelas) return a.kelas.localeCompare(b.kelas);
+    return a.nama.localeCompare(b.nama);
+  });
+
+  return { success: true, dates: dates, data: rows };
+}

@@ -2246,10 +2246,29 @@
           <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
         </div>
 
-        <!-- ═══ KEHADIRAN GENERUS (% per kelas KBM, bulan berjalan) ═══ -->
-        <div class="dash-section-title" id="kehadiranGenerusTitle" style="display: flex; align-items: center; justify-content: space-between;">
+        <!-- ═══ KEHADIRAN GENERUS (% per kelas KBM, per bulan pilihan) ═══ -->
+        <div class="dash-section-title" id="kehadiranGenerusTitle" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
           <span>Kehadiran Generus</span>
-          <div style="display: flex; align-items: center; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+            <select class="form-select" id="kgFilterBulan" style="max-width: 150px;" onchange="window.loadKelompokDashboardAbsen_(window.currentKelompokId)">
+              <option value="1">Januari</option>
+              <option value="2">Februari</option>
+              <option value="3">Maret</option>
+              <option value="4">April</option>
+              <option value="5">Mei</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">Agustus</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+            <select class="form-select" id="kgFilterTahun" style="max-width: 110px;" onchange="window.loadKelompokDashboardAbsen_(window.currentKelompokId)">
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
             <button type="button" class="guru-dash-toggle-table guru-dash-header-btn guru-dash-add-precise" onclick="window.openModalEksporKehadiranGenerus()">
               <span>Ekspor</span>
             </button>
@@ -2270,10 +2289,29 @@
             <select class="guru-kelp-filter-select" id="kgDetailKelasFilter" onchange="window.renderKgDetailTable_()">
               <option value="all">Semua Kelas</option>
             </select>
+            <select class="guru-kelp-filter-select" id="kgDetailBulan" style="max-width: 150px;" onchange="window.loadKgDetailTable_()">
+              <option value="1">Januari</option>
+              <option value="2">Februari</option>
+              <option value="3">Maret</option>
+              <option value="4">April</option>
+              <option value="5">Mei</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">Agustus</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+            <select class="guru-kelp-filter-select" id="kgDetailTahun" style="max-width: 110px;" onchange="window.loadKgDetailTable_()">
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
           </div>
-          <div class="gk-table-scroll">
-            <table class="data-table guru-kelp-premium-table">
-              <thead><tr><th>Nama Santri</th><th>Kelas Ngaji</th><th>Tanggal</th></tr></thead>
+          <div class="gk-table-scroll kg-matrix-scroll">
+            <table class="data-table guru-kelp-premium-table kg-matrix-table">
+              <thead id="kgDetailTableHead"></thead>
               <tbody id="kgDetailTableBody">
                 <tr><td colspan="3" style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>
               </tbody>

@@ -3131,11 +3131,100 @@
       justify-content: center;
     }
 
-    .kg-detail-status {
-      font-size: 11.5px;
+    /* ═════ Matrix Detail Kehadiran (santri × hari efektif) — sticky header + kolom nama/kelas ═════ */
+    .kg-matrix-scroll {
+      max-height: 560px;
+      overflow: auto;
+    }
+
+    .kg-matrix-table {
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .kg-matrix-table th,
+    .kg-matrix-table td {
+      white-space: nowrap;
+      text-align: center;
+      padding: 8px 10px;
+    }
+
+    .kg-matrix-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: var(--panel-2);
+      font-size: 11px;
       font-weight: 700;
+      color: var(--text-faint);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kg-matrix-date-head {
+      min-width: 44px;
+    }
+
+    .kg-matrix-dow {
+      display: block;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--text-faint);
       margin-top: 2px;
     }
+
+    .kg-matrix-sticky {
+      position: sticky;
+      left: 0;
+      background: var(--panel);
+      text-align: left;
+      z-index: 1;
+    }
+
+    .kg-matrix-table thead th.kg-matrix-sticky {
+      z-index: 4;
+      background: var(--panel-2);
+    }
+
+    .kg-matrix-nama {
+      left: 0;
+      min-width: 160px;
+      font-weight: 600;
+    }
+
+    .kg-matrix-kelas {
+      left: 160px;
+      min-width: 110px;
+      border-right: 1px solid var(--border);
+    }
+
+    .kg-matrix-table tbody tr:nth-child(even) .kg-matrix-sticky {
+      background: var(--panel-2);
+    }
+
+    .kg-matrix-table tbody tr:hover td {
+      background: rgba(217, 119, 6, 0.06);
+    }
+
+    .kg-matrix-table tbody tr:hover .kg-matrix-sticky {
+      background: rgba(217, 119, 6, 0.1);
+    }
+
+    .kg-matrix-cell-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 22px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .kg-matrix-badge-hijau-tua { background: #15803d; }
+    .kg-matrix-badge-kuning { background: #a16207; }
+    .kg-matrix-badge-merah { background: #dc2626; }
+    .kg-matrix-badge-abu { background: var(--text-faint); }
 
     .ikg-santri-row {
       display: flex;
