@@ -4626,48 +4626,56 @@
       }
     }
 
-    content.push({ text: 'Laporan Perkembangan Santri', fontSize: 18, bold: true, alignment: 'center' });
-    content.push({ text: data.periode + ' — ' + data.kelompok, fontSize: 11, color: '#000000', alignment: 'center', margin: [0, 2, 0, 20] });
+    // ⚠️ 2026-07-30: nilai fontSize/warna di bawah SENGAJA disamakan literal
+    // dgn CSS layar (.lps-header-title/.lps-info-row/.lps-metric-*/
+    // .lps-detail-table di Style_Main.html) — kalau CSS itu diubah, samakan
+    // juga di sini supaya PDF tetap match tampilan web. `--text-faint`
+    // (#94A3B8) dan `--panel-2` (#F9FAFB) adalah warna resmi tema, JANGAN
+    // pakai hex lain (mis. #64748B/#F8FAFC) walau kelihatan mirip.
+    const LPS_PDF_FAINT_ = '#94A3B8';
+    const LPS_PDF_PANEL2_ = '#F9FAFB';
+    const LPS_PDF_BORDER_ = '#E2E8F0';
+
+    content.push({ text: 'Laporan Perkembangan Santri', fontSize: 19, bold: true, alignment: 'center' });
+    content.push({ text: data.periode + ' — ' + data.kelompok, fontSize: 13, color: '#000000', alignment: 'center', margin: [0, 4, 0, 22] });
 
     // 2 kolom: kiri Guru+Kelas, kanan Jadwal KBM+Ruangan — urutan sengaja
     // sama persis dgn versi layar (lpsBuildBodyHtml_) biar konsisten.
     content.push({
-      fontSize: 10.5,
-      margin: [0, 0, 0, 20],
+      fontSize: 12.5,
+      margin: [0, 0, 0, 24],
       columns: [
         {
           width: '*',
           stack: [
             { text: [{ text: 'Guru  : ', bold: true, color: '#000000' }, 'Kak ' + data.guru] },
-            { text: [{ text: 'Kelas : ', bold: true, color: '#000000' }, info.kelasLabel], margin: [0, 4, 0, 0] },
+            { text: [{ text: 'Kelas : ', bold: true, color: '#000000' }, info.kelasLabel], margin: [0, 6, 0, 0] },
           ],
         },
         {
           width: '*',
           stack: [
             { text: [{ text: 'Jadwal KBM : ', bold: true, color: '#000000' }, info.jadwalLabel] },
-            { text: [{ text: 'Ruangan    : ', bold: true, color: '#000000' }, info.ruanganLabel], margin: [0, 4, 0, 0] },
+            { text: [{ text: 'Ruangan    : ', bold: true, color: '#000000' }, info.ruanganLabel], margin: [0, 6, 0, 0] },
           ],
         },
       ],
     });
 
     const metricDefs = [
-      { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir, barColor: '#34d399' },
-      { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin, barColor: '#fbbf24' },
-      { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa, barColor: '#f87171' },
-      { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit, barColor: '#60a5fa' },
+      { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir },
+      { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin },
+      { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa },
+      { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit },
     ];
     content.push({
-      // ⚠️ 2026-07-30: versi sebelumnya pakai `canvas rect` lepas di dalam
-      // `columns` sbg garis atas kartu — kadang tidak ikut ter-render di PDF
-      // hasil download (viewer-dependent). Diganti pakai `table` 1-sel per
-      // kartu dgn `layout` kustom: border ATAS tebal warna terang (barColor)
-      // + border tipis abu di 3 sisi lain — teknik BAKU pdfmake utk "kartu
-      // dgn aksen warna atas" yg render-nya konsisten di semua PDF viewer
-      // (beda dari canvas bebas yg posisinya bisa meleset di dalam flex
-      // column). Nilai/label tetap pakai mc.color asli (lebih gelap, demi
-      // kontras baca), cuma GARISnya yg pakai barColor terang.
+      // Kartu = `table` 1-sel per metrik dgn `layout` kustom (border ATAS
+      // tebal warna status asli + border tipis abu di 3 sisi lain) — teknik
+      // BAKU pdfmake utk "kartu dgn aksen warna atas" yg render-nya konsisten
+      // di semua PDF viewer (canvas rect lepas TERBUKTI kadang tidak ikut
+      // ter-render, lihat riwayat perubahan). Ukuran font & warna faint
+      // disamakan persis dgn `.lps-metric-label`/`.lps-metric-value`/
+      // `.lps-metric-subtext` di layar.
       columns: metricDefs.map(function (mc) {
         return {
           width: '*',
@@ -4676,50 +4684,62 @@
             widths: ['*'],
             body: [[{
               stack: [
-                { text: mc.label, fontSize: 8, bold: true, color: '#64748B', margin: [0, 4, 0, 4] },
-                { text: mc.value, fontSize: 22, bold: true, color: mc.color },
-                { text: mc.sub, fontSize: 8, color: '#64748B', margin: [0, 3, 0, 4] },
+                { text: mc.label, fontSize: 9, bold: true, color: LPS_PDF_FAINT_, margin: [0, 5, 0, 7] },
+                { text: mc.value, fontSize: 26, bold: true, color: mc.color },
+                { text: mc.sub, fontSize: 9.5, color: LPS_PDF_FAINT_, margin: [0, 5, 0, 5] },
               ],
             }]],
           },
           layout: {
-            hLineWidth: function (i) { return i === 0 ? 4 : 1; },
-            vLineWidth: function () { return 1; },
-            hLineColor: function (i) { return i === 0 ? mc.barColor : '#E2E8F0'; },
-            vLineColor: function () { return '#E2E8F0'; },
-            paddingLeft: function () { return 10; },
-            paddingRight: function () { return 10; },
-            paddingTop: function () { return 4; },
-            paddingBottom: function () { return 4; },
+            hLineWidth: function (i) { return i === 0 ? 3 : 0.5; },
+            vLineWidth: function () { return 0.5; },
+            hLineColor: function (i) { return i === 0 ? mc.color : LPS_PDF_BORDER_; },
+            vLineColor: function () { return LPS_PDF_BORDER_; },
+            paddingLeft: function () { return 12; },
+            paddingRight: function () { return 12; },
+            paddingTop: function () { return 3; },
+            paddingBottom: function () { return 3; },
           },
         };
       }),
-      margin: [0, 0, 0, 22],
+      margin: [0, 0, 0, 24],
     });
 
+    // Header tabel di-uppercase manual (pdfmake tak dukung CSS text-transform)
+    // supaya visualnya sama dgn `.lps-detail-table th { text-transform:
+    // uppercase }` di layar. Kolom Status dikasih fillColor solid = warna
+    // status (pengganti pill `.lps-status-badge` yg pakai border-radius —
+    // pdfmake tak dukung rounded corner per-sel tabel).
     content.push({
       table: {
         headerRows: 1,
         widths: ['*', 'auto', 'auto', 'auto'],
         body: [[
-          { text: 'Nama', bold: true, fontSize: 9 },
-          { text: 'Hari Aktif', bold: true, fontSize: 9 },
-          { text: 'Kehadiran', bold: true, fontSize: 9 },
-          { text: 'Status', bold: true, fontSize: 9 },
+          { text: 'NAMA', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'HARI AKTIF', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'KEHADIRAN', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'STATUS', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
         ]].concat(data.santriDetail.map(function (s) {
-          const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94a3b8';
+          const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94A3B8';
           return [
-            { text: s.nama, fontSize: 9 },
-            { text: String(s.hariAktif), fontSize: 9 },
-            { text: s.persenHadir !== null ? s.persenHadir + '%' : '—', fontSize: 9 },
-            { text: s.status, fontSize: 9, bold: true, color: hex },
+            { text: s.nama, fontSize: 12 },
+            { text: String(s.hariAktif), fontSize: 12 },
+            { text: s.persenHadir !== null ? s.persenHadir + '%' : '—', fontSize: 12 },
+            { text: s.status, fontSize: 10.5, bold: true, color: '#FFFFFF', fillColor: hex, alignment: 'center' },
           ];
         })),
       },
       layout: {
-        fillColor: function (rowIndex) { return rowIndex === 0 ? '#F8FAFC' : null; },
-        hLineColor: function () { return '#E2E8F0'; },
-        vLineColor: function () { return '#E2E8F0'; },
+        fillColor: function (rowIndex, node, columnIndex) {
+          if (columnIndex === 3 && rowIndex > 0) return null; // kolom Status pakai fillColor per-baris di atas, bukan header band
+          return rowIndex === 0 ? LPS_PDF_PANEL2_ : null;
+        },
+        hLineColor: function () { return LPS_PDF_BORDER_; },
+        vLineColor: function () { return LPS_PDF_BORDER_; },
+        paddingTop: function () { return 7; },
+        paddingBottom: function () { return 7; },
+        paddingLeft: function () { return 10; },
+        paddingRight: function () { return 10; },
       },
     });
 
