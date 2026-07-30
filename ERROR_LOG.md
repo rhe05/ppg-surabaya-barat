@@ -885,6 +885,46 @@ lewat kombinasi ini WAJIB set `.style.display` eksplisit di kedua arah
 
 ---
 
+## #26 — Tombol "Simpan" Kop Surat "tidak berfungsi" — payload logo PNG terlalu besar bikin google.script.run gagal DIAM-DIAM (2026-07-30)
+
+**Gejala**: user upload logo lalu klik "Simpan" di modal Kop Surat (Laporan
+Perkembangan Santri, Kelp Petemon) — tidak ada alert error, modal tidak
+tertutup, tidak ada perubahan apapun. Persis seperti tombol tidak
+terhubung ke apa-apa.
+
+**Akar masalah**: `window.onKsLogoFileChange_` (Script_Main.html) me-resize
+dimensi logo ke maks 480px via `<canvas>` tapi meng-ekspornya sbg
+`canvas.toDataURL('image/png')` — PNG *lossless*, jadi utk logo dgn banyak
+warna/gradien/detail foto, base64-nya bisa tetap tembus 1-2 MB walau
+dimensinya sudah kecil. Payload sebesar itu dikirim sbg argumen
+`serverSaveKopSurat` lewat `google.script.run` — dan `google.script.run`
+Apps Script diketahui bisa gagal DIAM-DIAM (baik `withSuccessHandler`
+maupun `withFailureHandler` sama sekali tidak terpanggil) kalau payload-nya
+kegedean, bukan melempar error yang bisa ditangkap. Efeknya: tombol Simpan
+kelihatan seperti tidak terhubung ke fungsi apapun.
+
+**Perbaikan**: `onKsLogoFileChange_` sekarang ekspor `image/jpeg` (bukan
+PNG) dgn `quality` diturunkan bertahap (0.85 → turun 0.15 tiap langkah,
+minimal 0.3) sampai panjang base64 di bawah `window.KS_MAX_LOGO_BASE64_LEN_`
+(~350rb karakter) — kanvas diberi dasar putih dulu sebelum `drawImage`
+supaya area transparan PNG asli tidak jadi hitam di JPEG. `saveKopSurat_`
+juga dibungkus try/catch + tombol Simpan di-disable & ganti teks
+"Menyimpan..." selama proses, supaya kalaupun ada kegagalan lain di masa
+depan, user tetap dapat sinyal visual (bukan diam total lagi).
+
+**Cara verifikasi**: buka modal Kop Surat, upload logo resolusi besar
+(>1MB, banyak warna), klik Simpan — harus ada perubahan tombol jadi
+"Menyimpan..." lalu modal tertutup (sukses) TANPA harus menunggu lama atau
+macet diam.
+
+**Aturan permanen**: kalau ada fitur upload gambar → base64 → dikirim lewat
+`google.script.run`, JANGAN cuma resize dimensi via `<canvas>` — WAJIB juga
+cap ukuran base64 hasil akhir (kompres via JPEG quality atau turunkan
+dimensi lebih lanjut) sebelum dikirim. `google.script.run` tidak bisa
+diandalkan melempar error yang jelas kalau payloadnya kegedean.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

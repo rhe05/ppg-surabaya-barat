@@ -4678,6 +4678,13 @@
       .serverGetKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_);
   };
 
+  /* Batas aman base64 logo (~350rb karakter). Logo PNG lossless dari foto/
+     logo detail bisa gampang tembus 1-2 MB base64 — payload sebesar itu bisa
+     bikin google.script.run gagal TANPA memicu success/failure handler sama
+     sekali (RPC-nya diam, tombol Simpan kelihatan "tidak berfungsi"). JPEG +
+     quality diturunkan bertahap sampai muat di bawah batas ini. */
+  window.KS_MAX_LOGO_BASE64_LEN_ = 350000;
+
   window.onKsLogoFileChange_ = function (input) {
     const file = input.files[0];
     if (!file) return;
@@ -4693,38 +4700,66 @@
         }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        window.lastKopSuratLogoBase64_ = canvas.toDataURL('image/png');
+        const ctx = canvas.getContext('2d');
+        // JPEG tidak dukung transparansi — kasih dasar putih dulu supaya area
+        // transparan pada logo PNG tidak berubah hitam saat di-export sbg JPEG.
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        let quality = 0.85;
+        let base64 = canvas.toDataURL('image/jpeg', quality);
+        while (base64.length > window.KS_MAX_LOGO_BASE64_LEN_ && quality > 0.3) {
+          quality -= 0.15;
+          base64 = canvas.toDataURL('image/jpeg', quality);
+        }
+
+        window.lastKopSuratLogoBase64_ = base64;
         const preview = document.getElementById('ksLogoPreview');
-        preview.src = window.lastKopSuratLogoBase64_;
+        preview.src = base64;
         preview.style.display = 'block';
       };
+      img.onerror = function () { alert('Gagal membaca gambar. Coba file JPG/PNG lain.'); };
       img.src = e.target.result;
     };
+    reader.onerror = function () { alert('Gagal membaca file.'); };
     reader.readAsDataURL(file);
   };
 
   window.saveKopSurat_ = function () {
-    const data = {
-      logoBase64: window.lastKopSuratLogoBase64_ || '',
-      pakaiGaris: document.getElementById('ksGaris').checked,
-    };
-    ['B1', 'B2', 'B3'].forEach(function (P) {
-      const p = P.toLowerCase();
-      data[p + 'Teks'] = document.getElementById('ks' + P + 'Teks').value.trim();
-      data[p + 'Font'] = document.getElementById('ks' + P + 'Font').value;
-      data[p + 'Bold'] = document.getElementById('ks' + P + 'Bold').checked;
-      data[p + 'Ukuran'] = Number(document.getElementById('ks' + P + 'Ukuran').value) || 10;
-      data[p + 'Warna'] = document.getElementById('ks' + P + 'Warna').value;
-      data[p + 'Align'] = document.getElementById('ks' + P + 'Align').value;
-    });
-    google.script.run
-      .withSuccessHandler(function (res) {
-        if (!res || !res.success) { alert((res && res.error) || 'Gagal menyimpan.'); return; }
-        window.closeModalKopSurat_();
-      })
-      .withFailureHandler(function (err) { alert('Gagal menyimpan: ' + err); })
-      .serverSaveKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_, data);
+    const btn = document.querySelector('#modalKopSurat .btn-primary');
+    try {
+      const data = {
+        logoBase64: window.lastKopSuratLogoBase64_ || '',
+        pakaiGaris: document.getElementById('ksGaris').checked,
+      };
+      ['B1', 'B2', 'B3'].forEach(function (P) {
+        const p = P.toLowerCase();
+        data[p + 'Teks'] = document.getElementById('ks' + P + 'Teks').value.trim();
+        data[p + 'Font'] = document.getElementById('ks' + P + 'Font').value;
+        data[p + 'Bold'] = document.getElementById('ks' + P + 'Bold').checked;
+        data[p + 'Ukuran'] = Number(document.getElementById('ks' + P + 'Ukuran').value) || 10;
+        data[p + 'Warna'] = document.getElementById('ks' + P + 'Warna').value;
+        data[p + 'Align'] = document.getElementById('ks' + P + 'Align').value;
+      });
+
+      if (btn) { btn.disabled = true; btn.textContent = 'Menyimpan...'; }
+
+      google.script.run
+        .withSuccessHandler(function (res) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
+          if (!res || !res.success) { alert((res && res.error) || 'Gagal menyimpan.'); return; }
+          window.closeModalKopSurat_();
+        })
+        .withFailureHandler(function (err) {
+          if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
+          alert('Gagal menyimpan: ' + (err && err.message ? err.message : err));
+        })
+        .serverSaveKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_, data);
+    } catch (e) {
+      if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
+      alert('Gagal menyimpan (client): ' + e.message);
+    }
   };
 
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {
