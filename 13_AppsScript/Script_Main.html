@@ -4547,13 +4547,19 @@
           alignment: kop[p + '_align'] || 'left',
         };
       });
+      const garisWarna = kop.b1_warna || '#0F172A';
+      // Garis ATAS (opsional, "Tambah Garis Kop Surat") — digambar SEBELUM
+      // logo+teks, warna ikut Baris 1 sama seperti garis pemisah bawah.
+      if (kop.garis_atas) {
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 482, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 10] });
+      }
       const kopColumns = [];
-      if (kop.logo_base64) kopColumns.push({ image: kop.logo_base64, width: 48, height: 48 });
+      // Logo diperbesar (dari 48pt) supaya proporsional dgn tumpukan 3 baris teks di kop.
+      if (kop.logo_base64) kopColumns.push({ image: kop.logo_base64, width: 80 });
       if (kopStack.length > 0) kopColumns.push({ stack: kopStack, width: '*', margin: [kop.logo_base64 ? 10 : 0, 2, 0, 0] });
       content.push({ columns: kopColumns, margin: [0, 0, 0, kop.pakai_garis ? 8 : 16] });
       if (kop.pakai_garis) {
-        const garisWarna = (kop.b1_warna) || '#0F172A';
-        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 16] });
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 482, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 16] });
       }
     }
 
@@ -4621,7 +4627,10 @@
 
     const docDefinition = {
       pageSize: 'A4',
-      pageMargins: [40, 40, 40, 40],
+      // [left, top, right, bottom] dlm pt (1cm ≈ 28.35pt): kiri/kanan 2cm
+      // (≈56.7pt), atas 1.5cm (≈42.5pt) — kop surat lebih naik & rapat ke
+      // batas kertas dibanding margin 40pt seragam sebelumnya.
+      pageMargins: [56.7, 42.5, 56.7, 40],
       defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0F172A' },
       content: content,
     };
@@ -4674,6 +4683,7 @@
         });
 
         document.getElementById('ksGaris').checked = d ? !!d.pakai_garis : true;
+        document.getElementById('ksGarisAtas').checked = d ? !!d.garis_atas : false;
       })
       .serverGetKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_);
   };
@@ -4732,6 +4742,7 @@
       const data = {
         logoBase64: window.lastKopSuratLogoBase64_ || '',
         pakaiGaris: document.getElementById('ksGaris').checked,
+        garisAtas: document.getElementById('ksGarisAtas').checked,
       };
       ['B1', 'B2', 'B3'].forEach(function (P) {
         const p = P.toLowerCase();

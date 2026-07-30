@@ -43,7 +43,7 @@ function serverGetKopSurat(token, kelompokId, kategoriSlug) {
 
 /**
  * SAVE (upsert) konfigurasi kop surat.
- * @param {Object} data - {logoBase64, pakaiGaris,
+ * @param {Object} data - {logoBase64, pakaiGaris, garisAtas,
  *   b1Teks,b1Font,b1Bold,b1Ukuran,b1Warna,b1Align, b2Teks,..., b3Teks,...}
  */
 function serverSaveKopSurat(token, kelompokId, kategoriSlug, data) {
@@ -56,6 +56,7 @@ function serverSaveKopSurat(token, kelompokId, kategoriSlug, data) {
   const fields = {
     logo_base64: data.logoBase64 || '',
     pakai_garis: !!data.pakaiGaris,
+    garis_atas: !!data.garisAtas,
     diubah_oleh: user.id,
     diubah_pada: new Date().toISOString(),
   };
