@@ -2379,6 +2379,42 @@
           </div>
         </div>
 
+        <!-- Modal Edit 1 Sel — klik sel santri×tanggal di tabel Detail Kehadiran (CRUD cepat) -->
+        <div class="modal-overlay" id="modalKgEditCell">
+          <div class="modal-content" style="max-width: 380px;">
+            <div class="modal-header">
+              <span>Edit Kehadiran</span>
+              <button class="modal-close-btn" onclick="window.closeModalKgEditCell_()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Santri</label>
+              <div id="kgEditCellNama" style="font-weight: 700; font-size: 14px;"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Tanggal</label>
+              <div id="kgEditCellTanggal" style="font-weight: 700; font-size: 14px;"></div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Status</label>
+              <select class="form-select" id="kgEditCellStatus">
+                <option value="hadir">Hadir</option>
+                <option value="izin">Izin</option>
+                <option value="sakit">Sakit</option>
+                <option value="alpa">Alpa</option>
+                <option value="">— Kosongkan (hapus data) —</option>
+              </select>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalKgEditCell_()">Batal</button>
+              <button class="btn btn-primary" onclick="window.saveKgEditCell_()">Simpan</button>
+            </div>
+          </div>
+        </div>
+
         </div>
 
         <div class="kelp-section-panel" id="kelpPanelKurikulum">

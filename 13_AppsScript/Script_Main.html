@@ -4124,11 +4124,12 @@
 
     body.innerHTML = rows.map(function (r) {
       const cells = dates.map(function (tgl) {
-        const status = r.statusByDate ? r.statusByDate[tgl] : null;
-        if (!status) return '<td>—</td>';
+        const status = (r.statusByDate ? r.statusByDate[tgl] : null) || '';
+        const args = `${r.id}, ${JSON.stringify(r.nama)}, ${JSON.stringify(tgl)}, ${JSON.stringify(status)}`;
+        if (!status) return `<td class="kg-matrix-cell-editable" onclick="window.openModalKgEditCell_(${args})">—</td>`;
         const huruf = window.KG_STATUS_HURUF_[status] || '?';
         const warna = window.KG_STATUS_WARNA_[status] || 'abu';
-        return `<td><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.KG_STATUS_LABEL_[status] || status}">${huruf}</span></td>`;
+        return `<td class="kg-matrix-cell-editable" onclick="window.openModalKgEditCell_(${args})"><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.KG_STATUS_LABEL_[status] || status} — klik utk edit">${huruf}</span></td>`;
       }).join('');
       return `<tr>
         <td class="kg-matrix-sticky kg-matrix-nama">${r.nama}</td>
@@ -4136,6 +4137,44 @@
         ${cells}
       </tr>`;
     }).join('');
+  };
+
+  /* ═════ CRUD 1 sel Detail Kehadiran (admin klik sel santri×tanggal utk
+     edit/hapus langsung) ═════ Backend serverSetAbsensiSatuSantri HANYA
+     sentuh 1 baris (santri_id+tanggal) — BEDA dari serverSaveAbsensiDaily
+     yang hapus-total+insert-ulang SEMUA santri kelompok pada 1 tanggal,
+     jadi aman dipanggil per-sel tanpa risiko menimpa data santri lain. */
+  window.kgEditCellCtx_ = null;
+
+  window.openModalKgEditCell_ = function (santriId, nama, tanggal, status) {
+    window.kgEditCellCtx_ = { santriId: santriId, tanggal: tanggal };
+    document.getElementById('kgEditCellNama').textContent = nama;
+    document.getElementById('kgEditCellTanggal').textContent = tanggal;
+    document.getElementById('kgEditCellStatus').value = status || '';
+    document.getElementById('modalKgEditCell').classList.add('active');
+  };
+
+  window.closeModalKgEditCell_ = function () {
+    document.getElementById('modalKgEditCell').classList.remove('active');
+    window.kgEditCellCtx_ = null;
+  };
+
+  window.saveKgEditCell_ = function () {
+    const ctx = window.kgEditCellCtx_;
+    if (!ctx) return;
+    const status = document.getElementById('kgEditCellStatus').value;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.success) { alert((res && res.error) || 'Gagal menyimpan.'); return; }
+        window.closeModalKgEditCell_();
+        // Reload matrix Detail Kehadiran + kartu % Kehadiran Generus — dua-duanya
+        // dihitung dari data absensi yang baru saja berubah.
+        window.loadKgDetailTable_();
+        window.loadKelompokDashboardAbsen_(window.currentKelompokId);
+      })
+      .withFailureHandler(function (err) { alert('Gagal menyimpan: ' + err); })
+      .serverSetAbsensiSatuSantri(window.currentToken, window.currentKelompokId, ctx.santriId, ctx.tanggal, status);
   };
 
   /* ── Modal Ekspor Kehadiran Generus (ikut filter bulan/tahun kartu) ── */

@@ -122,6 +122,76 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
 }
 
 /**
+ * SET/UPDATE/HAPUS SATU record absensi (1 santri, 1 tanggal) — dipakai
+ * fitur edit-langsung per-sel di tabel "Detail Kehadiran" (Kehadiran
+ * Generus, tab Operasional Kelp). BEDA dari serverSaveAbsensiDaily di atas
+ * (yang hapus-total lalu insert-ulang SEMUA santri kelompok pada 1
+ * tanggal) — di sini HANYA menyentuh 1 baris (santri_id+tanggal), aman
+ * dipanggil berkali-kali dari klik sel tanpa risiko menimpa data santri
+ * lain di tanggal yang sama.
+ * @param {string} status - 'hadir'/'izin'/'sakit'/'alpa', atau '' (kosong) utk hapus record.
+ */
+function serverSetAbsensiSatuSantri(token, kelompokId, santriId, tanggal, status) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (!validateUserAccess(token, 'kelompok', kelompokId)) {
+    return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
+  }
+
+  if (!tanggal || !tanggal.match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const santri = readSheetAsObjects(SHEET_NAMES.SANTRI).find(function (s) {
+    return String(s.id) === String(santriId) && s.kelompok_id == kelompokId;
+  });
+  if (!santri) return { success: false, error: 'Santri tidak ditemukan di Kelompok ini.' };
+
+  const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
+  const path = 'kelompok/' + kelompokId + '/absensi';
+
+  try {
+    return withScriptLock_(function () {
+      const existing = (onFirestore ? firestoreListCollection_(path) : readSheetAsObjects(SHEET_NAMES.ABSENSI))
+        .find(function (a) { return String(a.santri_id) === String(santriId) && tanggalKeString_(a.tanggal) === tanggal; });
+
+      if (!status) {
+        if (existing) {
+          if (onFirestore) firestoreDeleteDoc_(path, String(existing.id));
+          else deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id });
+        }
+        logAudit('absensi', santriId + '_' + tanggal, 'delete', user.id, 'Hapus via Detail Kehadiran');
+        return { success: true, status: '' };
+      }
+
+      if (existing) {
+        if (onFirestore) firestoreUpdateDoc_(path, String(existing.id), { status: status });
+        else updateRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id }, { status: status });
+      } else if (onFirestore) {
+        const id = firestoreGenerateIdInPath_(path);
+        firestoreCreateDoc_(path, String(id), {
+          id: id,
+          santri_id: santriId,
+          tanggal: tanggal,
+          status: status,
+          dicatat_oleh: user.id,
+          kelompok_id: String(kelompokId),
+        });
+      } else {
+        const id = generateId(SHEET_NAMES.ABSENSI);
+        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, tanggal, status, user.id]);
+      }
+
+      logAudit('absensi', santriId + '_' + tanggal, existing ? 'update' : 'create', user.id, 'status=' + status + ' via Detail Kehadiran');
+      return { success: true, status: status };
+    });
+  } catch (e) {
+    return { success: false, error: e.message };
+  }
+}
+
+/**
  * BULK IMPORT absensi dari CSV/array data.
  * Format: [
  *   {nama_santri, tanggal, status},
