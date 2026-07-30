@@ -4294,16 +4294,66 @@
   window.LPS_STATUS_WARNA_HEX_ = { Hadir: '#1baf7a', Izin: '#c98500', Alfa: '#d03b3b', Sakit: '#3987e5', 'Belum Ada Data': '#94a3b8' };
   window.lastLaporanPerkembanganData_ = null;
 
+  /* Sumber pilihan Guru = guru yang PUNYA kelas aktif di Jadwal KBM (tab
+     Operasional), bukan seluruh roster Data Guru — supaya tidak bisa pilih
+     guru yang laporannya pasti kosong. Dibangun ulang tiap buka tab Laporan
+     (bukan sekali-cache) supaya ikut kelas terbaru kalau Jadwal KBM baru
+     diedit di sesi yang sama. */
+  window.lpsKelasByGuru_ = {};
+
   window.populateLpsGuruSelect_ = function () {
     const sel = document.getElementById('lpsGuruSelect');
-    if (sel.dataset.populated === '1') return;
     const current = sel.value;
-    const guru = (window.lastGuruListData || []).slice().sort(function (a, b) { return String(a.nama).localeCompare(String(b.nama)); });
-    sel.innerHTML = '<option value="">-- Pilih Guru --</option>' + guru.map(function (g) {
-      return `<option value="${g.id}">${g.nama}</option>`;
+
+    const kelasByGuru = {};
+    (window.lastJadwalListData || []).forEach(function (j) {
+      if (!j.guru_id || (j.status || 'Aktif') !== 'Aktif') return;
+      if (!kelasByGuru[j.guru_id]) kelasByGuru[j.guru_id] = { nama: j.guru_nama, kelas: [] };
+      if (j.kelas && kelasByGuru[j.guru_id].kelas.indexOf(j.kelas) === -1) kelasByGuru[j.guru_id].kelas.push(j.kelas);
+    });
+    window.lpsKelasByGuru_ = kelasByGuru;
+
+    const guruIds = Object.keys(kelasByGuru).sort(function (a, b) {
+      return String(kelasByGuru[a].nama).localeCompare(String(kelasByGuru[b].nama));
+    });
+
+    if (guruIds.length === 0) {
+      sel.innerHTML = '<option value="">-- Belum ada guru dgn kelas aktif di Jadwal KBM --</option>';
+      sel.value = '';
+      window.onLpsGuruChange_();
+      return;
+    }
+
+    sel.innerHTML = '<option value="">-- Pilih Guru --</option>' + guruIds.map(function (id) {
+      const g = kelasByGuru[id];
+      const kelasLabel = g.kelas.length > 0 ? ' — ' + g.kelas.join(', ') : '';
+      return `<option value="${id}">${g.nama}${kelasLabel}</option>`;
     }).join('');
-    sel.value = current || '';
-    sel.dataset.populated = '1';
+    sel.value = guruIds.indexOf(current) !== -1 ? current : '';
+    window.onLpsGuruChange_();
+  };
+
+  /* Info bantu di bawah select Guru: kelas yang diampu (dari Jadwal KBM) +
+     % kehadiran kelas itu bulan berjalan (dari kartu Kehadiran Generus di
+     tab Operasional) — cross-check cepat sebelum klik "Buat Laporan". */
+  window.onLpsGuruChange_ = function () {
+    const info = document.getElementById('lpsGuruInfo');
+    if (!info) return;
+    const guruId = document.getElementById('lpsGuruSelect').value;
+    const g = window.lpsKelasByGuru_[guruId];
+    if (!guruId || !g) { info.innerHTML = ''; return; }
+
+    const kehadiranByKelas = {};
+    (window.lastKehadiranGenerusData_ || []).forEach(function (kat) {
+      (kat.kelasList || []).forEach(function (k) { kehadiranByKelas[String(k.kelas).trim().toLowerCase()] = k; });
+    });
+
+    info.innerHTML = '<span class="lps-info-label">Kelas (Jadwal KBM):</span>' + g.kelas.map(function (k) {
+      const kg = kehadiranByKelas[k.trim().toLowerCase()];
+      const pctLabel = kg && kg.adaData ? kg.avgPct + '%' : (kg ? '—' : 'blm di Kehadiran Generus');
+      const warna = kg ? kg.warna : 'abu';
+      return `<span class="lps-kelas-chip">${k} <b class="kg-warna-${warna}">${pctLabel}</b></span>`;
+    }).join('');
   };
 
   window.loadLaporanPerkembanganSantri_ = function () {

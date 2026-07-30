@@ -2513,7 +2513,7 @@
           </div>
 
           <div class="guru-kelp-table-toolbar lps-toolbar">
-            <select class="guru-kelp-filter-select" id="lpsGuruSelect">
+            <select class="guru-kelp-filter-select" id="lpsGuruSelect" onchange="window.onLpsGuruChange_()">
               <option value="">-- Pilih Guru --</option>
             </select>
             <select class="guru-kelp-filter-select" id="lpsBulan" style="max-width: 150px;">
@@ -2538,6 +2538,8 @@
             <button type="button" class="btn btn-primary" onclick="window.loadLaporanPerkembanganSantri_()">Buat Laporan</button>
             <button type="button" class="btn btn-secondary" id="lpsUnduhBtn" onclick="window.unduhLaporanPerkembanganSantriPdf_()" disabled>Unduh PDF</button>
           </div>
+
+          <div id="lpsGuruInfo" class="lps-guru-info"></div>
 
           <div id="laporanPerkembanganResult" style="margin-top: 20px;">
             <div style="text-align: center; padding: 60px 20px; color: var(--text-faint); font-size: 12.5px;">
