@@ -4743,6 +4743,14 @@
         }
         window.lastJadwalListData = result.data;
         window.renderJadwalKBMList_(result.data);
+        // Select Guru di tab Laporan dibangun DARI data ini (window.lastJadwalListData) —
+        // sinkronkan ulang di sini, JANGAN cuma di switchKelpSectionTab_. Kalau tidak,
+        // admin yang buka tab Laporan SEBELUM request jadwal ini selesai (race condition
+        // wajar krn dipanggil paralel dari loadKelompokDashboard) akan terjebak lihat
+        // "Belum ada guru..." selamanya walau datanya sudah datang belakangan.
+        if (typeof window.populateLpsGuruSelect_ === 'function' && document.getElementById('lpsGuruSelect')) {
+          window.populateLpsGuruSelect_();
+        }
       })
       .withFailureHandler(function (err) {
         showJadwalError(err && err.message ? err.message : String(err));
