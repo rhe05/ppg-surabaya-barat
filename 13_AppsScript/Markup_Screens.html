@@ -2566,26 +2566,73 @@
               </div>
             </div>
 
-            <div class="form-group">
-              <label class="form-label">Baris 1 (mis. nama TPQ/lembaga)</label>
-              <input type="text" class="form-input" id="ksBaris1" placeholder="TPQ Ruang Ngaji — Bidang Cabe Rawit">
+            <div class="ks-baris-block">
+              <label class="form-label">Baris 1 — Nama TPQ/TPA</label>
+              <input type="text" class="form-input" id="ksB1Teks" placeholder="TPQ Ruang Ngaji">
+              <div class="ks-baris-controls">
+                <select class="form-select" id="ksB1Font" title="Jenis font">
+                  <option value="Roboto">Roboto</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times">Times New Roman</option>
+                  <option value="Courier">Courier</option>
+                </select>
+                <input type="number" class="form-input ks-size-input" id="ksB1Ukuran" value="14" min="6" max="36" title="Ukuran font">
+                <input type="color" class="form-input ks-color-input" id="ksB1Warna" value="#0F172A" title="Warna font">
+                <select class="form-select" id="ksB1Align" title="Tata letak">
+                  <option value="left">Kiri</option>
+                  <option value="center">Tengah</option>
+                  <option value="right">Kanan</option>
+                </select>
+                <label class="ks-bold-label"><input type="checkbox" id="ksB1Bold" checked> Bold</label>
+              </div>
+            </div>
+
+            <div class="ks-baris-block">
+              <label class="form-label">Baris 2 — Nomor Izin Operasional</label>
+              <input type="text" class="form-input" id="ksB2Teks" placeholder="No. Izin Operasional: 421.9/xxx/2026">
+              <div class="ks-baris-controls">
+                <select class="form-select" id="ksB2Font" title="Jenis font">
+                  <option value="Roboto">Roboto</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times">Times New Roman</option>
+                  <option value="Courier">Courier</option>
+                </select>
+                <input type="number" class="form-input ks-size-input" id="ksB2Ukuran" value="10" min="6" max="36" title="Ukuran font">
+                <input type="color" class="form-input ks-color-input" id="ksB2Warna" value="#0F172A" title="Warna font">
+                <select class="form-select" id="ksB2Align" title="Tata letak">
+                  <option value="left">Kiri</option>
+                  <option value="center">Tengah</option>
+                  <option value="right">Kanan</option>
+                </select>
+                <label class="ks-bold-label"><input type="checkbox" id="ksB2Bold"> Bold</label>
+              </div>
+            </div>
+
+            <div class="ks-baris-block">
+              <label class="form-label">Baris 3 — Alamat</label>
+              <input type="text" class="form-input" id="ksB3Teks" placeholder="Jl. ..., Surabaya">
+              <div class="ks-baris-controls">
+                <select class="form-select" id="ksB3Font" title="Jenis font">
+                  <option value="Roboto">Roboto</option>
+                  <option value="Helvetica">Helvetica</option>
+                  <option value="Times">Times New Roman</option>
+                  <option value="Courier">Courier</option>
+                </select>
+                <input type="number" class="form-input ks-size-input" id="ksB3Ukuran" value="10" min="6" max="36" title="Ukuran font">
+                <input type="color" class="form-input ks-color-input" id="ksB3Warna" value="#0F172A" title="Warna font">
+                <select class="form-select" id="ksB3Align" title="Tata letak">
+                  <option value="left">Kiri</option>
+                  <option value="center">Tengah</option>
+                  <option value="right">Kanan</option>
+                </select>
+                <label class="ks-bold-label"><input type="checkbox" id="ksB3Bold"> Bold</label>
+              </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Baris 2 (mis. alamat/keterangan)</label>
-              <input type="text" class="form-input" id="ksBaris2" placeholder="Kelp. Petemon — Ds. Petemon">
-            </div>
-
-            <div class="guru-kelp-row-2">
-              <div class="form-group">
-                <label class="form-label">Warna Kop Surat</label>
-                <input type="color" class="form-input ks-color-input" id="ksWarna" value="#0F172A">
-              </div>
-              <div class="form-group" style="display: flex; align-items: flex-end;">
-                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
-                  <input type="checkbox" id="ksGaris" checked> Tampilkan garis pemisah
-                </label>
-              </div>
+              <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                <input type="checkbox" id="ksGaris" checked> Tampilkan garis pemisah (warna ikut Baris 1)
+              </label>
             </div>
 
             <div class="modal-footer">

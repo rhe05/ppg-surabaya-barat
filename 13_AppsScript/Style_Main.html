@@ -3236,8 +3236,51 @@
 
     .ks-color-input {
       padding: 4px;
-      height: 40px;
+      height: 38px;
+      width: 48px;
+      flex-shrink: 0;
       cursor: pointer;
+    }
+
+    #modalKopSurat .modal-content {
+      max-width: 640px;
+    }
+
+    .ks-baris-block {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md, 10px);
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+
+    .ks-baris-block .form-input {
+      margin-bottom: 10px;
+    }
+
+    .ks-baris-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .ks-baris-controls .form-select {
+      flex: 1 1 110px;
+      min-width: 100px;
+    }
+
+    .ks-size-input {
+      width: 64px;
+      flex-shrink: 0;
+    }
+
+    .ks-bold-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: normal;
+      font-size: 13px;
+      white-space: nowrap;
     }
 
     .lps-metric-card {

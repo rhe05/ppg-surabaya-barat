@@ -4474,6 +4474,22 @@
      render laporan biasa, supaya read Firestore sehemat mungkin. */
   window.KOP_SURAT_KATEGORI_ = 'cabe-rawit';
 
+  /** 4 font yg BENAR-BENAR bisa dirender pdfmake tanpa vfs tambahan — Roboto
+      dari vfs_fonts.js CDN yg sudah dimuat (Index.html), 3 lainnya via nama
+      font standar bawaan pdfkit (tidak perlu embed). Daftar dropdown font di
+      modal Kop Surat (Markup_Screens.html) HARUS sama persis dgn ini. */
+  window.KS_PDF_FONTS_ = ['Roboto', 'Helvetica', 'Times', 'Courier'];
+  window.lpsEnsurePdfFonts_ = function () {
+    if (window.lpsPdfFontsSet_) return;
+    pdfMake.fonts = {
+      Roboto: { normal: 'Roboto-Regular.ttf', bold: 'Roboto-Medium.ttf', italics: 'Roboto-Italic.ttf', bolditalics: 'Roboto-MediumItalic.ttf' },
+      Helvetica: { normal: 'Helvetica', bold: 'Helvetica-Bold', italics: 'Helvetica-Oblique', bolditalics: 'Helvetica-BoldOblique' },
+      Times: { normal: 'Times-Roman', bold: 'Times-Bold', italics: 'Times-Italic', bolditalics: 'Times-BoldItalic' },
+      Courier: { normal: 'Courier', bold: 'Courier-Bold', italics: 'Courier-Oblique', bolditalics: 'Courier-BoldOblique' },
+    };
+    window.lpsPdfFontsSet_ = true;
+  };
+
   /** Kategori Jadwal KBM (Cabe Rawit/Pra Remaja SMP/dst) dari kelas yang
       diampu guru pada laporan ini — dicocokkan via window.lastJadwalListData
       (sudah dimuat dashboard, tidak perlu round-trip server baru). */
@@ -4514,19 +4530,30 @@
 
     const content = [];
 
-    // Kop surat (opsional): logo di kiri, 2 baris teks di kanan, warna & garis
-    // pemisah semuanya ikut yg diatur admin lewat modal "Kop Surat".
-    if (kop && (kop.logo_base64 || kop.baris1 || kop.baris2)) {
-      const warna = kop.warna || '#0F172A';
-      const kopStack = [];
-      if (kop.baris1) kopStack.push({ text: kop.baris1, fontSize: 14, bold: true, color: warna });
-      if (kop.baris2) kopStack.push({ text: kop.baris2, fontSize: 10, color: warna });
+    // Kop surat (opsional): logo di kiri, 3 baris teks di kanan — tiap baris
+    // punya font/bold/ukuran/warna/tata-letak sendiri, diatur admin lewat
+    // modal "Kop Surat". window.KS_PDF_FONTS_ daftar font yg BENAR-BENAR bisa
+    // dirender pdfmake tanpa vfs tambahan (14 font standar bawaan pdfkit).
+    window.lpsEnsurePdfFonts_();
+    const adaBarisKop = kop && ['b1', 'b2', 'b3'].some(function (p) { return kop[p + '_teks']; });
+    if (kop && (kop.logo_base64 || adaBarisKop)) {
+      const kopStack = ['b1', 'b2', 'b3'].filter(function (p) { return kop[p + '_teks']; }).map(function (p) {
+        return {
+          text: kop[p + '_teks'],
+          font: window.KS_PDF_FONTS_.indexOf(kop[p + '_font']) !== -1 ? kop[p + '_font'] : 'Roboto',
+          bold: !!kop[p + '_bold'],
+          fontSize: Number(kop[p + '_ukuran']) || 10,
+          color: kop[p + '_warna'] || '#0F172A',
+          alignment: kop[p + '_align'] || 'left',
+        };
+      });
       const kopColumns = [];
       if (kop.logo_base64) kopColumns.push({ image: kop.logo_base64, width: 48, height: 48 });
-      if (kopStack.length > 0) kopColumns.push({ stack: kopStack, margin: [kop.logo_base64 ? 10 : 0, 2, 0, 0] });
+      if (kopStack.length > 0) kopColumns.push({ stack: kopStack, width: '*', margin: [kop.logo_base64 ? 10 : 0, 2, 0, 0] });
       content.push({ columns: kopColumns, margin: [0, 0, 0, kop.pakai_garis ? 8 : 16] });
       if (kop.pakai_garis) {
-        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: warna }], margin: [0, 0, 0, 16] });
+        const garisWarna = (kop.b1_warna) || '#0F172A';
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 16] });
       }
     }
 
@@ -4595,7 +4622,7 @@
     const docDefinition = {
       pageSize: 'A4',
       pageMargins: [40, 40, 40, 40],
-      defaultStyle: { fontSize: 10, color: '#0F172A' },
+      defaultStyle: { font: 'Roboto', fontSize: 10, color: '#0F172A' },
       content: content,
     };
 
@@ -4618,6 +4645,14 @@
     document.getElementById('modalKopSurat').classList.remove('active');
   };
 
+  /* Default tipografi per baris kalau belum pernah disimpan — HARUS sama
+     persis dgn atribut default di markup modal (Markup_Screens.html). */
+  window.KS_BARIS_DEFAULTS_ = {
+    b1: { font: 'Roboto', bold: true, ukuran: 14, warna: '#0F172A', align: 'left' },
+    b2: { font: 'Roboto', bold: false, ukuran: 10, warna: '#0F172A', align: 'left' },
+    b3: { font: 'Roboto', bold: false, ukuran: 10, warna: '#0F172A', align: 'left' },
+  };
+
   window.loadKopSuratForm_ = function () {
     google.script.run
       .withSuccessHandler(function (res) {
@@ -4626,9 +4661,18 @@
         const preview = document.getElementById('ksLogoPreview');
         preview.src = window.lastKopSuratLogoBase64_;
         preview.style.display = window.lastKopSuratLogoBase64_ ? 'block' : 'none';
-        document.getElementById('ksBaris1').value = d ? (d.baris1 || '') : '';
-        document.getElementById('ksBaris2').value = d ? (d.baris2 || '') : '';
-        document.getElementById('ksWarna').value = (d && d.warna) || '#0F172A';
+
+        ['b1', 'b2', 'b3'].forEach(function (p) {
+          const def = window.KS_BARIS_DEFAULTS_[p];
+          const idPrefix = 'ks' + p.charAt(0).toUpperCase() + p.slice(1);
+          document.getElementById(idPrefix + 'Teks').value = d ? (d[p + '_teks'] || '') : '';
+          document.getElementById(idPrefix + 'Font').value = d ? (d[p + '_font'] || def.font) : def.font;
+          document.getElementById(idPrefix + 'Bold').checked = d ? !!d[p + '_bold'] : def.bold;
+          document.getElementById(idPrefix + 'Ukuran').value = d ? (d[p + '_ukuran'] || def.ukuran) : def.ukuran;
+          document.getElementById(idPrefix + 'Warna').value = d ? (d[p + '_warna'] || def.warna) : def.warna;
+          document.getElementById(idPrefix + 'Align').value = d ? (d[p + '_align'] || def.align) : def.align;
+        });
+
         document.getElementById('ksGaris').checked = d ? !!d.pakai_garis : true;
       })
       .serverGetKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_);
@@ -4663,11 +4707,17 @@
   window.saveKopSurat_ = function () {
     const data = {
       logoBase64: window.lastKopSuratLogoBase64_ || '',
-      baris1: document.getElementById('ksBaris1').value.trim(),
-      baris2: document.getElementById('ksBaris2').value.trim(),
-      warna: document.getElementById('ksWarna').value,
       pakaiGaris: document.getElementById('ksGaris').checked,
     };
+    ['B1', 'B2', 'B3'].forEach(function (P) {
+      const p = P.toLowerCase();
+      data[p + 'Teks'] = document.getElementById('ks' + P + 'Teks').value.trim();
+      data[p + 'Font'] = document.getElementById('ks' + P + 'Font').value;
+      data[p + 'Bold'] = document.getElementById('ks' + P + 'Bold').checked;
+      data[p + 'Ukuran'] = Number(document.getElementById('ks' + P + 'Ukuran').value) || 10;
+      data[p + 'Warna'] = document.getElementById('ks' + P + 'Warna').value;
+      data[p + 'Align'] = document.getElementById('ks' + P + 'Align').value;
+    });
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res || !res.success) { alert((res && res.error) || 'Gagal menyimpan.'); return; }
