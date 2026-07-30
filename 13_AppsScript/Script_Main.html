@@ -4426,14 +4426,7 @@
       </tr>`;
     }).join('');
 
-    const kelasInfo = data.kelasInfo || [];
-    const kelasLabel = kelasInfo.length > 0 ? kelasInfo.map(function (k) { return k.kelas; }).join(', ') : '—';
-    const jadwalLabel = kelasInfo.length === 0 ? '—'
-      : kelasInfo.length === 1 ? (kelasInfo[0].jamMulai && kelasInfo[0].jamSelesai ? kelasInfo[0].jamMulai + ' - ' + kelasInfo[0].jamSelesai : '—')
-      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.jamMulai && k.jamSelesai ? k.jamMulai + ' - ' + k.jamSelesai : '—'); }).join('; ');
-    const ruanganLabel = kelasInfo.length === 0 ? '—'
-      : kelasInfo.length === 1 ? (kelasInfo[0].ruangan || '—')
-      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.ruangan || '—'); }).join('; ');
+    const info = window.lpsFormatKelasInfo_(data.kelasInfo);
 
     return `
       <div class="lps-header-center">
@@ -4442,9 +4435,9 @@
       </div>
       <div class="lps-info-block">
         <div class="lps-info-row"><span class="lps-info-key">Guru</span><span>: ${data.guru}</span></div>
-        <div class="lps-info-row"><span class="lps-info-key">Kelas</span><span>: ${kelasLabel}</span></div>
-        <div class="lps-info-row"><span class="lps-info-key">Jadwal KBM</span><span>: ${jadwalLabel}</span></div>
-        <div class="lps-info-row"><span class="lps-info-key">Ruangan</span><span>: ${ruanganLabel}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Kelas</span><span>: ${info.kelasLabel}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Jadwal KBM</span><span>: ${info.jadwalLabel}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Ruangan</span><span>: ${info.ruanganLabel}</span></div>
       </div>
       <div class="lps-metric-grid">${cardsHtml}</div>
       <div class="lps-detail-table-wrap">
@@ -4456,49 +4449,232 @@
     `;
   };
 
+  /* Dipakai baik preview layar (lpsBuildBodyHtml_) maupun PDF pdfmake —
+     JANGAN duplikasi logic format label kelas/jadwal/ruangan di dua tempat. */
+  window.lpsFormatKelasInfo_ = function (kelasInfoRaw) {
+    const kelasInfo = kelasInfoRaw || [];
+    const kelasLabel = kelasInfo.length > 0 ? kelasInfo.map(function (k) { return k.kelas; }).join(', ') : '—';
+    const jadwalLabel = kelasInfo.length === 0 ? '—'
+      : kelasInfo.length === 1 ? (kelasInfo[0].jamMulai && kelasInfo[0].jamSelesai ? kelasInfo[0].jamMulai + ' - ' + kelasInfo[0].jamSelesai : '—')
+      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.jamMulai && k.jamSelesai ? k.jamMulai + ' - ' + k.jamSelesai : '—'); }).join('; ');
+    const ruanganLabel = kelasInfo.length === 0 ? '—'
+      : kelasInfo.length === 1 ? (kelasInfo[0].ruangan || '—')
+      : kelasInfo.map(function (k) { return k.kelas + ': ' + (k.ruangan || '—'); }).join('; ');
+    return { kelasLabel: kelasLabel, jadwalLabel: jadwalLabel, ruanganLabel: ruanganLabel };
+  };
+
   window.renderLaporanPerkembanganSantri_ = function (data) {
     document.getElementById('laporanPerkembanganResult').innerHTML = '<div class="lps-report">' + window.lpsBuildBodyHtml_(data) + '</div>';
+  };
+
+  /* ═════ Unduh PDF — pdfmake (100% client-side, TIDAK ada proses PDF di
+     server) ═════ Kop surat (logo+teks+warna+garis, lihat Modul_KopSurat.gs)
+     HANYA diambil dari Firestore saat tombol Unduh diklik DAN santri guru ini
+     ada di kategori Cabe Rawit (window.KOP_SURAT_KATEGORI_, MVP) — bukan saat
+     render laporan biasa, supaya read Firestore sehemat mungkin. */
+  window.KOP_SURAT_KATEGORI_ = 'cabe-rawit';
+
+  /** Kategori Jadwal KBM (Cabe Rawit/Pra Remaja SMP/dst) dari kelas yang
+      diampu guru pada laporan ini — dicocokkan via window.lastJadwalListData
+      (sudah dimuat dashboard, tidak perlu round-trip server baru). */
+  window.lpsGuruKategoriList_ = function (data) {
+    const kelasSet = {};
+    (data.kelasInfo || []).forEach(function (k) { kelasSet[String(k.kelas).trim().toLowerCase()] = true; });
+    const katSet = {};
+    (window.lastJadwalListData || []).forEach(function (j) {
+      if (kelasSet[String(j.kelas || '').trim().toLowerCase()]) katSet[j.kategori] = true;
+    });
+    return Object.keys(katSet);
   };
 
   window.unduhLaporanPerkembanganSantriPdf_ = function () {
     const data = window.lastLaporanPerkembanganData_;
     if (!data) return;
 
-    const bodyHtml = window.lpsBuildBodyHtml_(data);
-    const win = window.open('', '_blank');
-    win.document.write(`
-      <html>
-        <head>
-          <title>Laporan Perkembangan Santri — ${window.escapeHtmlExport_(data.guru)}</title>
-          <style>
-            @page { size: A4; margin: 0.5in; }
-            * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            body { font-family: Arial, sans-serif; color: #0F172A; margin: 0; padding: 0; font-size: 12px; }
-            .lps-header-center { text-align: center; margin-bottom: 22px; }
-            .lps-header-title { font-size: 20px; font-weight: 800; }
-            .lps-header-periode { font-size: 13px; color: #64748B; margin-top: 4px; }
-            .lps-info-block { display: flex; flex-direction: column; gap: 5px; margin-bottom: 24px; text-align: left; }
-            .lps-info-row { font-size: 12.5px; }
-            .lps-info-key { display: inline-block; min-width: 92px; font-weight: 700; color: #64748B; }
-            .lps-metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; page-break-inside: avoid; }
-            .lps-metric-card { background: #fff; border: 0.5px solid #CBD5E1; border-radius: 12px; border-top: 3px solid #000; padding: 16px; page-break-inside: avoid; }
-            .lps-metric-label { font-size: 12px; text-transform: uppercase; color: #64748B; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 8px; }
-            .lps-metric-value { font-size: 32px; font-weight: 800; line-height: 1; }
-            .lps-metric-subtext { font-size: 13px; color: #64748B; margin-top: 6px; }
-            .lps-detail-table-wrap { page-break-before: always; }
-            .lps-detail-table { width: 100%; max-width: 2000px; border-collapse: collapse; }
-            .lps-detail-table th, .lps-detail-table td { border: 1px solid #E2E8F0; padding: 8px 10px; font-size: 11px; text-align: left; word-wrap: break-word; }
-            .lps-detail-table th { background: #F8FAFC; }
-            .lps-status-badge { display: inline-block; color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
-          </style>
-        </head>
-        <body>
-          ${bodyHtml}
-          <script>window.onload = function () { window.print(); };<\/script>
-        </body>
-      </html>
-    `);
-    win.document.close();
+    const pakaiKopSurat = window.lpsGuruKategoriList_(data).indexOf('Cabe Rawit') !== -1;
+    if (!pakaiKopSurat) {
+      window.lpsBuildAndDownloadPdf_(data, null);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(function (res) { window.lpsBuildAndDownloadPdf_(data, (res && res.success) ? res.data : null); })
+      .withFailureHandler(function () { window.lpsBuildAndDownloadPdf_(data, null); })
+      .serverGetKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_);
+  };
+
+  /** Susun docDefinition pdfmake & langsung trigger unduh — tidak ada
+      round-trip ke server sama sekali di sini, semua dari data yg sudah ada
+      di memori klien (data laporan + kop, kalau ada). */
+  window.lpsBuildAndDownloadPdf_ = function (data, kop) {
+    const m = data.metrics;
+    const pct = function (n) { return m.totalSantri > 0 ? Math.round((n / m.totalSantri) * 100) : 0; };
+    const avgHadirSantri = (m.hadirPercent / 100 * m.totalSantri).toFixed(1);
+    const info = window.lpsFormatKelasInfo_(data.kelasInfo);
+
+    const content = [];
+
+    // Kop surat (opsional): logo di kiri, 2 baris teks di kanan, warna & garis
+    // pemisah semuanya ikut yg diatur admin lewat modal "Kop Surat".
+    if (kop && (kop.logo_base64 || kop.baris1 || kop.baris2)) {
+      const warna = kop.warna || '#0F172A';
+      const kopStack = [];
+      if (kop.baris1) kopStack.push({ text: kop.baris1, fontSize: 14, bold: true, color: warna });
+      if (kop.baris2) kopStack.push({ text: kop.baris2, fontSize: 10, color: warna });
+      const kopColumns = [];
+      if (kop.logo_base64) kopColumns.push({ image: kop.logo_base64, width: 48, height: 48 });
+      if (kopStack.length > 0) kopColumns.push({ stack: kopStack, margin: [kop.logo_base64 ? 10 : 0, 2, 0, 0] });
+      content.push({ columns: kopColumns, margin: [0, 0, 0, kop.pakai_garis ? 8 : 16] });
+      if (kop.pakai_garis) {
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 1.5, lineColor: warna }], margin: [0, 0, 0, 16] });
+      }
+    }
+
+    content.push({ text: 'Laporan Perkembangan Santri', fontSize: 18, bold: true, alignment: 'center' });
+    content.push({ text: data.periode + ' — ' + data.kelompok, fontSize: 11, color: '#64748B', alignment: 'center', margin: [0, 2, 0, 20] });
+
+    content.push({
+      fontSize: 10.5,
+      margin: [0, 0, 0, 20],
+      stack: [
+        { text: [{ text: 'Guru       : ', bold: true, color: '#64748B' }, data.guru] },
+        { text: [{ text: 'Kelas      : ', bold: true, color: '#64748B' }, info.kelasLabel] },
+        { text: [{ text: 'Jadwal KBM : ', bold: true, color: '#64748B' }, info.jadwalLabel] },
+        { text: [{ text: 'Ruangan    : ', bold: true, color: '#64748B' }, info.ruanganLabel] },
+      ],
+    });
+
+    const metricDefs = [
+      { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir },
+      { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin },
+      { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa },
+      { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit },
+    ];
+    content.push({
+      columns: metricDefs.map(function (mc) {
+        return {
+          width: '*',
+          margin: [0, 0, 8, 0],
+          stack: [
+            { canvas: [{ type: 'rect', x: 0, y: 0, w: 90, h: 3, color: mc.color }] },
+            { text: mc.label, fontSize: 8, bold: true, color: '#64748B', margin: [0, 6, 0, 4] },
+            { text: mc.value, fontSize: 22, bold: true, color: mc.color },
+            { text: mc.sub, fontSize: 8, color: '#64748B', margin: [0, 3, 0, 0] },
+          ],
+        };
+      }),
+      margin: [0, 0, 0, 22],
+    });
+
+    content.push({
+      table: {
+        headerRows: 1,
+        widths: ['*', 'auto', 'auto', 'auto'],
+        body: [[
+          { text: 'Nama', bold: true, fontSize: 9 },
+          { text: 'Hari Aktif', bold: true, fontSize: 9 },
+          { text: 'Kehadiran', bold: true, fontSize: 9 },
+          { text: 'Status', bold: true, fontSize: 9 },
+        ]].concat(data.santriDetail.map(function (s) {
+          const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94a3b8';
+          return [
+            { text: s.nama, fontSize: 9 },
+            { text: String(s.hariAktif), fontSize: 9 },
+            { text: s.persenHadir !== null ? s.persenHadir + '%' : '—', fontSize: 9 },
+            { text: s.status, fontSize: 9, bold: true, color: hex },
+          ];
+        })),
+      },
+      layout: {
+        fillColor: function (rowIndex) { return rowIndex === 0 ? '#F8FAFC' : null; },
+        hLineColor: function () { return '#E2E8F0'; },
+        vLineColor: function () { return '#E2E8F0'; },
+      },
+    });
+
+    const docDefinition = {
+      pageSize: 'A4',
+      pageMargins: [40, 40, 40, 40],
+      defaultStyle: { fontSize: 10, color: '#0F172A' },
+      content: content,
+    };
+
+    const filename = 'Laporan_' + String(data.guru).replace(/\s+/g, '_') + '_' + String(data.periode).replace(/\s+/g, '_') + '.pdf';
+    pdfMake.createPdf(docDefinition).download(filename);
+  };
+
+  /* ═════ Modal Kop Surat (input logo + teks + warna + garis) ═════
+     Logo di-resize di browser (canvas, sisi terpanjang maks 480px) sebelum
+     jadi base64 — supaya file PDF tetap ringan & dokumen Firestore (limit
+     1 MiB) aman, tanpa mengorbankan ketajaman krn logo tampil kecil di kop. */
+  window.lastKopSuratLogoBase64_ = '';
+
+  window.openModalKopSurat_ = function () {
+    document.getElementById('modalKopSurat').classList.add('active');
+    window.loadKopSuratForm_();
+  };
+
+  window.closeModalKopSurat_ = function () {
+    document.getElementById('modalKopSurat').classList.remove('active');
+  };
+
+  window.loadKopSuratForm_ = function () {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        const d = (res && res.success) ? res.data : null;
+        window.lastKopSuratLogoBase64_ = d ? (d.logo_base64 || '') : '';
+        const preview = document.getElementById('ksLogoPreview');
+        preview.src = window.lastKopSuratLogoBase64_;
+        preview.style.display = window.lastKopSuratLogoBase64_ ? 'block' : 'none';
+        document.getElementById('ksBaris1').value = d ? (d.baris1 || '') : '';
+        document.getElementById('ksBaris2').value = d ? (d.baris2 || '') : '';
+        document.getElementById('ksWarna').value = (d && d.warna) || '#0F172A';
+        document.getElementById('ksGaris').checked = d ? !!d.pakai_garis : true;
+      })
+      .serverGetKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_);
+  };
+
+  window.onKsLogoFileChange_ = function (input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const img = new Image();
+      img.onload = function () {
+        const maxSide = 480;
+        let w = img.width, h = img.height;
+        if (w > maxSide || h > maxSide) {
+          if (w >= h) { h = Math.round(h * maxSide / w); w = maxSide; }
+          else { w = Math.round(w * maxSide / h); h = maxSide; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        window.lastKopSuratLogoBase64_ = canvas.toDataURL('image/png');
+        const preview = document.getElementById('ksLogoPreview');
+        preview.src = window.lastKopSuratLogoBase64_;
+        preview.style.display = 'block';
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  window.saveKopSurat_ = function () {
+    const data = {
+      logoBase64: window.lastKopSuratLogoBase64_ || '',
+      baris1: document.getElementById('ksBaris1').value.trim(),
+      baris2: document.getElementById('ksBaris2').value.trim(),
+      warna: document.getElementById('ksWarna').value,
+      pakaiGaris: document.getElementById('ksGaris').checked,
+    };
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res || !res.success) { alert((res && res.error) || 'Gagal menyimpan.'); return; }
+        window.closeModalKopSurat_();
+      })
+      .withFailureHandler(function (err) { alert('Gagal menyimpan: ' + err); })
+      .serverSaveKopSurat(window.currentToken, window.currentKelompokId, window.KOP_SURAT_KATEGORI_, data);
   };
 
   window.loadKelompokDashboardJadwal_ = function (kelompokId) {

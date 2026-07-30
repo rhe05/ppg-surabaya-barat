@@ -2537,6 +2537,7 @@
             </select>
             <button type="button" class="btn btn-primary" onclick="window.loadLaporanPerkembanganSantri_()">Buat Laporan</button>
             <button type="button" class="btn btn-secondary" id="lpsUnduhBtn" onclick="window.unduhLaporanPerkembanganSantriPdf_()" disabled>Unduh PDF</button>
+            <button type="button" class="btn btn-secondary" onclick="window.openModalKopSurat_()">Kop Surat</button>
           </div>
 
           <div id="lpsGuruInfo" class="lps-guru-info"></div>
@@ -2544,6 +2545,52 @@
           <div id="laporanPerkembanganResult" style="margin-top: 20px;">
             <div style="text-align: center; padding: 60px 20px; color: var(--text-faint); font-size: 12.5px;">
               Pilih guru &amp; periode, lalu klik "Buat Laporan".
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Kop Surat (letterhead PDF Laporan Perkembangan Santri) —
+             MVP: khusus kategori Cabe Rawit dulu (window.KOP_SURAT_KATEGORI_). -->
+        <div class="modal-overlay" id="modalKopSurat">
+          <div class="modal-content">
+            <div class="modal-header">
+              <span>Kop Surat — Cabe Rawit</span>
+              <button class="modal-close-btn" onclick="window.closeModalKopSurat_()">×</button>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Logo</label>
+              <div class="ks-logo-row">
+                <img id="ksLogoPreview" class="ks-logo-preview" style="display: none;" alt="Preview logo">
+                <input type="file" accept="image/*" id="ksLogoFile" onchange="window.onKsLogoFileChange_(this)">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Baris 1 (mis. nama TPQ/lembaga)</label>
+              <input type="text" class="form-input" id="ksBaris1" placeholder="TPQ Ruang Ngaji — Bidang Cabe Rawit">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Baris 2 (mis. alamat/keterangan)</label>
+              <input type="text" class="form-input" id="ksBaris2" placeholder="Kelp. Petemon — Ds. Petemon">
+            </div>
+
+            <div class="guru-kelp-row-2">
+              <div class="form-group">
+                <label class="form-label">Warna Kop Surat</label>
+                <input type="color" class="form-input ks-color-input" id="ksWarna" value="#0F172A">
+              </div>
+              <div class="form-group" style="display: flex; align-items: flex-end;">
+                <label style="display: flex; align-items: center; gap: 8px; font-weight: normal;">
+                  <input type="checkbox" id="ksGaris" checked> Tampilkan garis pemisah
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-secondary" onclick="window.closeModalKopSurat_()">Batal</button>
+              <button class="btn btn-primary" onclick="window.saveKopSurat_()">Simpan</button>
             </div>
           </div>
         </div>
