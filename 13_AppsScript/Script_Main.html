@@ -4369,6 +4369,16 @@
     }).join('');
   };
 
+  /* Dipicu KHUSUS dari interaksi user di select Guru (bukan dari
+     populateLpsGuruSelect_ saat refresh data latar belakang) — ganti guru
+     langsung load ulang laporan otomatis, tanpa perlu klik "Buat Laporan"
+     lagi, supaya perpindahan antar guru terasa instan. */
+  window.onLpsGuruSelectInput_ = function () {
+    window.onLpsGuruChange_();
+    const guruId = document.getElementById('lpsGuruSelect').value;
+    if (guruId) window.loadLaporanPerkembanganSantri_();
+  };
+
   window.loadLaporanPerkembanganSantri_ = function () {
     const guruId = document.getElementById('lpsGuruSelect').value;
     const bulan = Number(document.getElementById('lpsBulan').value);
@@ -4428,16 +4438,20 @@
 
     const info = window.lpsFormatKelasInfo_(data.kelasInfo);
 
+    // Urutan DOM sengaja Guru→Jadwal KBM→Kelas→Ruangan (bukan Guru→Kelas→
+    // Jadwal→Ruangan) supaya grid 2-kolom (.lps-info-block) menghasilkan
+    // pasangan baris yang benar: baris 1 = Guru|Jadwal KBM, baris 2 =
+    // Kelas|Ruangan (grid auto-flow row-by-row kiri→kanan).
     return `
       <div class="lps-header-center">
         <div class="lps-header-title">Laporan Perkembangan Santri</div>
         <div class="lps-header-periode">${data.periode} — ${data.kelompok}</div>
       </div>
       <div class="lps-info-block">
-        <div class="lps-info-row"><span class="lps-info-key">Guru</span><span>: ${data.guru}</span></div>
+        <div class="lps-info-row"><span class="lps-info-key">Guru</span><span>: Kak ${data.guru}</span></div>
+        <div class="lps-info-row lps-info-row-right"><span class="lps-info-key">Jadwal KBM</span><span>: ${info.jadwalLabel}</span></div>
         <div class="lps-info-row"><span class="lps-info-key">Kelas</span><span>: ${info.kelasLabel}</span></div>
-        <div class="lps-info-row"><span class="lps-info-key">Jadwal KBM</span><span>: ${info.jadwalLabel}</span></div>
-        <div class="lps-info-row"><span class="lps-info-key">Ruangan</span><span>: ${info.ruanganLabel}</span></div>
+        <div class="lps-info-row lps-info-row-right"><span class="lps-info-key">Ruangan</span><span>: ${info.ruanganLabel}</span></div>
       </div>
       <div class="lps-metric-grid">${cardsHtml}</div>
       <div class="lps-detail-table-wrap">
@@ -4565,32 +4579,47 @@
     }
 
     content.push({ text: 'Laporan Perkembangan Santri', fontSize: 18, bold: true, alignment: 'center' });
-    content.push({ text: data.periode + ' — ' + data.kelompok, fontSize: 11, color: '#64748B', alignment: 'center', margin: [0, 2, 0, 20] });
+    content.push({ text: data.periode + ' — ' + data.kelompok, fontSize: 11, color: '#000000', alignment: 'center', margin: [0, 2, 0, 20] });
 
+    // 2 kolom: kiri Guru+Kelas, kanan Jadwal KBM+Ruangan — urutan sengaja
+    // sama persis dgn versi layar (lpsBuildBodyHtml_) biar konsisten.
     content.push({
       fontSize: 10.5,
       margin: [0, 0, 0, 20],
-      stack: [
-        { text: [{ text: 'Guru       : ', bold: true, color: '#64748B' }, data.guru] },
-        { text: [{ text: 'Kelas      : ', bold: true, color: '#64748B' }, info.kelasLabel] },
-        { text: [{ text: 'Jadwal KBM : ', bold: true, color: '#64748B' }, info.jadwalLabel] },
-        { text: [{ text: 'Ruangan    : ', bold: true, color: '#64748B' }, info.ruanganLabel] },
+      columns: [
+        {
+          width: '*',
+          stack: [
+            { text: [{ text: 'Guru  : ', bold: true, color: '#000000' }, 'Kak ' + data.guru] },
+            { text: [{ text: 'Kelas : ', bold: true, color: '#000000' }, info.kelasLabel], margin: [0, 4, 0, 0] },
+          ],
+        },
+        {
+          width: '*',
+          stack: [
+            { text: [{ text: 'Jadwal KBM : ', bold: true, color: '#000000' }, info.jadwalLabel] },
+            { text: [{ text: 'Ruangan    : ', bold: true, color: '#000000' }, info.ruanganLabel], margin: [0, 4, 0, 0] },
+          ],
+        },
       ],
     });
 
     const metricDefs = [
-      { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir },
-      { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin },
-      { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa },
-      { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit },
+      { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir, barColor: '#34d399' },
+      { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin, barColor: '#fbbf24' },
+      { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa, barColor: '#f87171' },
+      { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit, barColor: '#60a5fa' },
     ];
     content.push({
       columns: metricDefs.map(function (mc) {
         return {
           width: '*',
           margin: [0, 0, 8, 0],
+          // Garis atas kartu dipertebal (3pt → 5pt) & dipakai warna terang
+          // (barColor, bukan mc.color yg lebih gelap) supaya kelihatan jelas
+          // di hasil download — nilai/angka tetap pakai mc.color asli.
           stack: [
-            { canvas: [{ type: 'rect', x: 0, y: 0, w: 90, h: 3, color: mc.color }] },
+            { canvas: [{ type: 'rect', x: 0, y: 0, w: 100, h: 5, color: mc.barColor }] },
             { text: mc.label, fontSize: 8, bold: true, color: '#64748B', margin: [0, 6, 0, 4] },
             { text: mc.value, fontSize: 22, bold: true, color: mc.color },
             { text: mc.sub, fontSize: 8, color: '#64748B', margin: [0, 3, 0, 0] },

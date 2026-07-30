@@ -3186,14 +3186,15 @@
 
     .lps-header-periode {
       font-size: 13px;
-      color: var(--text-faint);
+      color: #000;
       margin-top: 4px;
     }
 
     .lps-info-block {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      row-gap: 6px;
+      column-gap: 24px;
       margin-bottom: 24px;
       text-align: left;
     }
@@ -3203,11 +3204,15 @@
       color: var(--text);
     }
 
+    .lps-info-row-right {
+      justify-self: end;
+    }
+
     .lps-info-key {
       display: inline-block;
       min-width: 92px;
       font-weight: 700;
-      color: var(--text-faint);
+      color: #000;
     }
 
     .lps-metric-grid {
