@@ -4548,17 +4548,18 @@
         };
       });
       const garisWarna = kop.b1_warna || '#0F172A';
-      // Garis ATAS (opsional, "Tambah Garis Kop Surat") — digambar SEBELUM
-      // logo+teks, warna ikut Baris 1 sama seperti garis pemisah bawah.
-      if (kop.garis_atas) {
-        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 482, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 10] });
-      }
       const kopColumns = [];
       // Logo diperbesar (dari 48pt) supaya proporsional dgn tumpukan 3 baris teks di kop.
       if (kop.logo_base64) kopColumns.push({ image: kop.logo_base64, width: 80 });
       if (kopStack.length > 0) kopColumns.push({ stack: kopStack, width: '*', margin: [kop.logo_base64 ? 10 : 0, 2, 0, 0] });
-      content.push({ columns: kopColumns, margin: [0, 0, 0, kop.pakai_garis ? 8 : 16] });
+      content.push({ columns: kopColumns, margin: [0, 0, 0, (kop.pakai_garis || kop.garis_atas) ? 8 : 16] });
+      // Kedua garis (existing "garis pemisah" + "Tambah Garis Kop Surat")
+      // SAMA-SAMA di BAWAH logo/teks — bukan salah satunya di atas — cukup
+      // ditumpuk berurutan, warna ikut Baris 1.
       if (kop.pakai_garis) {
+        content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 482, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, kop.garis_atas ? 6 : 16] });
+      }
+      if (kop.garis_atas) {
         content.push({ canvas: [{ type: 'line', x1: 0, y1: 0, x2: 482, y2: 0, lineWidth: 1.5, lineColor: garisWarna }], margin: [0, 0, 0, 16] });
       }
     }
