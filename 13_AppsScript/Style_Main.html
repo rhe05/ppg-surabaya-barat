@@ -3166,6 +3166,28 @@
       font-weight: 800;
     }
 
+    .lps-kelas-chip-btn {
+      font-family: inherit;
+      font-size: inherit;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+    }
+
+    .lps-kelas-chip-btn:hover {
+      border-color: var(--brass);
+      transform: translateY(-1px);
+    }
+
+    .lps-kelas-chip-btn.active {
+      background: var(--brass);
+      border-color: var(--brass);
+      color: #fff;
+    }
+
+    .lps-kelas-chip-btn.active b {
+      color: #fff !important;
+    }
+
     .lps-report {
       background: var(--panel);
       border: 1px solid var(--border);

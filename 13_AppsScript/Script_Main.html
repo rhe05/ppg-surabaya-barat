@@ -4361,14 +4361,31 @@
       (kat.kelasList || []).forEach(function (k) { kehadiranByKelas[String(k.kelas).trim().toLowerCase()] = k; });
     });
 
+    // Chip Kelas (Jadwal KBM) ini DIAKTIFKAN jadi tombol filter (2026-07-30)
+    // — klik satu kelas langsung ganti #lpsKelasSelect ke kelas itu &
+    // reload laporan (metrik + info KBM di dalam laporan ikut kelas yg
+    // diklik), bukan sekadar info bantu pasif lagi.
+    const kelasAktif = document.getElementById('lpsKelasSelect') ? document.getElementById('lpsKelasSelect').value : '';
     info.innerHTML = '<span class="lps-info-label">Kelas (Jadwal KBM):</span>' + g.kelas.map(function (k) {
       const kg = kehadiranByKelas[k.trim().toLowerCase()];
       const pctLabel = kg && kg.adaData ? kg.avgPct + '%' : (kg ? '—' : 'blm di Kehadiran Generus');
       const warna = kg ? kg.warna : 'abu';
-      return `<span class="lps-kelas-chip">${k} <b class="kg-warna-${warna}">${pctLabel}</b></span>`;
+      const isActive = kelasAktif && kelasAktif.trim().toLowerCase() === k.trim().toLowerCase();
+      return `<button type="button" class="lps-kelas-chip lps-kelas-chip-btn${isActive ? ' active' : ''}" onclick="window.selectLpsKelasChip_(${JSON.stringify(k)})">${k} <b class="kg-warna-${warna}">${pctLabel}</b></button>`;
     }).join('');
 
     window.populateLpsKelasSelect_();
+  };
+
+  /* Klik chip kelas di #lpsGuruInfo — set filter yg sama dipakai
+     #lpsKelasSelect lalu reload laporan instan. Klik chip yang SAMA lagi =
+     toggle balik ke "Semua Kelas" (gabungan). */
+  window.selectLpsKelasChip_ = function (kelas) {
+    const sel = document.getElementById('lpsKelasSelect');
+    if (!sel) return;
+    sel.value = sel.value === kelas ? '' : kelas;
+    window.onLpsGuruChange_();
+    window.loadLaporanPerkembanganSantri_();
   };
 
   /* Filter Kelas — cuma muncul kalau guru terpilih pegang >1 kelas (kalau
