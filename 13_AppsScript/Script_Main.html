@@ -4611,19 +4611,39 @@
       { label: 'SAKIT', value: String(m.totalSakit), sub: pct(m.totalSakit) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Sakit, barColor: '#60a5fa' },
     ];
     content.push({
+      // ⚠️ 2026-07-30: versi sebelumnya pakai `canvas rect` lepas di dalam
+      // `columns` sbg garis atas kartu — kadang tidak ikut ter-render di PDF
+      // hasil download (viewer-dependent). Diganti pakai `table` 1-sel per
+      // kartu dgn `layout` kustom: border ATAS tebal warna terang (barColor)
+      // + border tipis abu di 3 sisi lain — teknik BAKU pdfmake utk "kartu
+      // dgn aksen warna atas" yg render-nya konsisten di semua PDF viewer
+      // (beda dari canvas bebas yg posisinya bisa meleset di dalam flex
+      // column). Nilai/label tetap pakai mc.color asli (lebih gelap, demi
+      // kontras baca), cuma GARISnya yg pakai barColor terang.
       columns: metricDefs.map(function (mc) {
         return {
           width: '*',
           margin: [0, 0, 8, 0],
-          // Garis atas kartu dipertebal (3pt → 5pt) & dipakai warna terang
-          // (barColor, bukan mc.color yg lebih gelap) supaya kelihatan jelas
-          // di hasil download — nilai/angka tetap pakai mc.color asli.
-          stack: [
-            { canvas: [{ type: 'rect', x: 0, y: 0, w: 100, h: 5, color: mc.barColor }] },
-            { text: mc.label, fontSize: 8, bold: true, color: '#64748B', margin: [0, 6, 0, 4] },
-            { text: mc.value, fontSize: 22, bold: true, color: mc.color },
-            { text: mc.sub, fontSize: 8, color: '#64748B', margin: [0, 3, 0, 0] },
-          ],
+          table: {
+            widths: ['*'],
+            body: [[{
+              stack: [
+                { text: mc.label, fontSize: 8, bold: true, color: '#64748B', margin: [0, 4, 0, 4] },
+                { text: mc.value, fontSize: 22, bold: true, color: mc.color },
+                { text: mc.sub, fontSize: 8, color: '#64748B', margin: [0, 3, 0, 4] },
+              ],
+            }]],
+          },
+          layout: {
+            hLineWidth: function (i) { return i === 0 ? 4 : 1; },
+            vLineWidth: function () { return 1; },
+            hLineColor: function (i) { return i === 0 ? mc.barColor : '#E2E8F0'; },
+            vLineColor: function () { return '#E2E8F0'; },
+            paddingLeft: function () { return 10; },
+            paddingRight: function () { return 10; },
+            paddingTop: function () { return 4; },
+            paddingBottom: function () { return 4; },
+          },
         };
       }),
       margin: [0, 0, 0, 22],
