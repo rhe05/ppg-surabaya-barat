@@ -1079,6 +1079,9 @@
       } else if (result.code === 'future' || result.code === 'belum-waktu') {
         btn.textContent = 'Simpan Absen';
         window.iaShowStatusModal_('warning', result.code === 'future' ? 'Belum Bisa Disimpan' : 'Sesi Belum Dimulai', result.error);
+      } else if (result.code === 'guru-izin') {
+        btn.textContent = 'Simpan Absen';
+        window.iaShowStatusModal_('warning', 'Sedang Mengajukan Izin', result.error);
       } else {
         btn.textContent = 'Simpan Absen';
         iaShowToast_(result.error, 'error');
@@ -1351,24 +1354,27 @@
     const btn = document.getElementById('iaIzinSubmitBtn');
     btn.disabled = true;
     btn.textContent = 'Mengirim...';
+    window.showGlobalLoading_('Mengirim izin...');
 
     google.script.run
       .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
         btn.disabled = false;
         btn.textContent = 'Kirim Izin';
-        msg.style.display = 'block';
-        msg.style.color = result.success ? 'var(--sage)' : 'var(--red)';
-        msg.textContent = result.success ? result.message : result.error;
         if (result.success) {
-          setTimeout(window.closeModalGuruIzin_, 1200);
+          window.closeModalGuruIzin_();
+          window.iaShowStatusModal_('success', 'Izin Berhasil Diajukan', result.message);
+        } else {
+          window.closeModalGuruIzin_();
+          window.iaShowStatusModal_('warning', 'Gagal Mengajukan Izin', result.error);
         }
       })
       .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
         btn.disabled = false;
         btn.textContent = 'Kirim Izin';
-        msg.style.display = 'block';
-        msg.style.color = 'var(--red)';
-        msg.textContent = 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err);
+        window.closeModalGuruIzin_();
+        window.iaShowStatusModal_('warning', 'Gagal Mengajukan Izin', 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
       })
       .serverSubmitGuruIzin(window.currentToken, payload);
   };

@@ -470,6 +470,23 @@ function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relev
 }
 
 /**
+ * Cek apakah guru sedang mengajukan Izin/Cuti yang mencakup tanggal tsb
+ * (guru_izin TIDAK ADA approval — self-declared, jadi begitu diajukan
+ * langsung berlaku). Dipakai serverSaveAbsensiKelas supaya guru yang lagi
+ * izin tidak bisa input absen di tanggal yang sama.
+ * @returns {Object|null} baris guru_izin yang cocok, atau null kalau tidak izin.
+ */
+function iaCekGuruSedangIzin_(guruId, tanggal) {
+  const izinAktif = readSheetAsObjects(SHEET_NAMES.GURU_IZIN).find(function (r) {
+    if (r.guru_id != guruId) return false;
+    const mulai = tanggalKeString_(r.tanggal_mulai);
+    const selesai = tanggalKeString_(r.tanggal_selesai) || mulai;
+    return tanggal >= mulai && tanggal <= selesai;
+  });
+  return izinAktif || null;
+}
+
+/**
  * SAVE absensi satu kelas pada satu tanggal. Hanya menghapus/menulis ulang
  * baris absensi milik santri DI KELAS INI (bukan seluruh Kelompok) supaya
  * tidak menimpa input kelas lain di tanggal yang sama.
@@ -487,6 +504,15 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   const waktuCheck = iaValidateWaktuAbsen_(ctx.kelompokId, kelas, tanggal);
   if (!waktuCheck.valid) {
     return { success: false, error: waktuCheck.error, code: waktuCheck.code };
+  }
+
+  const izinAktif = iaCekGuruSedangIzin_(ctx.user.guruId, tanggal);
+  if (izinAktif) {
+    return {
+      success: false,
+      error: `Anda sedang mengajukan ${izinAktif.jenis === 'cuti' ? 'Cuti' : 'Izin'} pada tanggal ini, tidak bisa input absen. Hubungi Admin Kelompok kalau ini keliru.`,
+      code: 'guru-izin',
+    };
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
