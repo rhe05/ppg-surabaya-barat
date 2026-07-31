@@ -1051,10 +1051,12 @@
 
     btn.disabled = true;
     btn.textContent = 'Menyimpan...';
+    window.showGlobalLoading_('Menyimpan absen...');
 
     const absensiList = window.iaState_.list.map(function (s) { return { santri_id: s.santri_id, status: s.status }; });
 
     const onSaveResult = function (result) {
+      window.hideGlobalLoading_();
       btn.disabled = false;
       if (result.success) {
         btn.textContent = 'Simpan Absen';
@@ -1083,6 +1085,7 @@
       }
     };
     const onSaveFailure = function () {
+      window.hideGlobalLoading_();
       btn.disabled = false;
       btn.textContent = 'Simpan Absen';
       iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
