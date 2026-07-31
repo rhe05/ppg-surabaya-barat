@@ -1020,7 +1020,7 @@
       btn.disabled = false;
       if (result.success) {
         btn.textContent = 'Simpan Absen';
-        iaShowToast_('✓ ' + result.message, 'success');
+        window.iaShowStatusModal_('success', 'Absen Berhasil Disimpan', result.message);
         // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
         // absen baru saja disimpan — paksa reload sekali berikutnya kali
         // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
