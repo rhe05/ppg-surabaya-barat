@@ -4578,11 +4578,28 @@
     }
 
     .ia-greeting-date {
-      color: rgba(255,255,255,0.88);
-      font-size: 12.5px;
-      font-weight: 600;
-      margin-top: 2px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
       letter-spacing: 0.01em;
+      margin-top: 7px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.14);
+      border: 1.5px solid rgba(255,209,102,0.85);
+      box-shadow: 0 0 0 3px rgba(255,209,102,0.14);
+    }
+
+    .ia-greeting-date::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      background: #FFD166;
     }
 
     .ia-hamburger-btn {
@@ -4682,7 +4699,7 @@
       color: rgba(255,255,255,0.88);
       font-size: 12.5px;
       font-weight: 600;
-      margin-top: 2px;
+      margin-top: 3px;
       letter-spacing: 0.01em;
     }
 
