@@ -596,6 +596,7 @@
     window.iaState_.activeView = 'dashboard';
     document.getElementById('iaDashboardView').style.display = 'block';
     document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
     window.iaLoadDashboardSummary_();
@@ -605,6 +606,7 @@
     window.iaState_.activeView = 'kelas';
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
+    document.getElementById('iaKelasRow').style.display = 'flex';
     if (skipLoad) return;
     if (window.iaState_.kelasLoadedKey === iaKelasCacheKey_()) return;
     window.iaLoadKelasList_();
