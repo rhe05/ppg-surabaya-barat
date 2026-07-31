@@ -1189,10 +1189,13 @@
           wrap.innerHTML = '<div style="padding:10px 0; color:var(--text-faint); font-size:13px;">Belum ada quote. Quote default akan tampil sampai Anda menambah quote pertama.</div>';
           return;
         }
-        wrap.innerHTML = result.data.map(function (q) {
+        wrap.innerHTML = result.data.map(function (q, idx) {
           return `
             <div class="ia-incoming-item" style="display:flex; align-items:center; gap:10px; justify-content:space-between;">
-              <div style="font-size:13px; color:var(--text); flex:1;">${window.escapeHtmlExport_ ? window.escapeHtmlExport_(q.teks) : q.teks}</div>
+              <div style="font-size:13px; color:var(--text); flex:1; display:flex; gap:8px;">
+                <span style="flex-shrink:0; font-weight:700; color:var(--text-faint);">${idx + 1}.</span>
+                <span>${window.escapeHtmlExport_ ? window.escapeHtmlExport_(q.teks) : q.teks}</span>
+              </div>
               <button type="button" class="ia-icon-btn" style="width:32px; height:32px; flex-shrink:0; color:var(--red);" onclick="window.iaDeleteQuote_(${q.id})" title="Hapus quote">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M19 6l-1 14c0 1-1 2-2 2H8c-1 0-2-1-2-2L5 6"/></svg>
               </button>
