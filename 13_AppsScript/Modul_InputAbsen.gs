@@ -1005,6 +1005,16 @@ function serverSubmitGuruIzin(token, payload) {
     return { success: false, error: 'Ketik alasan izin Anda.' };
   }
 
+  const sudahAdaIzin = readSheetAsObjects(SHEET_NAMES.GURU_IZIN).some(function (r) {
+    if (r.guru_id != ctx.user.guruId) return false;
+    const mulaiE = tanggalKeString_(r.tanggal_mulai);
+    const selesaiE = tanggalKeString_(r.tanggal_selesai) || mulaiE;
+    return mulaiE <= tanggalSelesai && selesaiE >= tanggalMulai;
+  });
+  if (sudahAdaIzin) {
+    return { success: false, error: 'Anda sudah mengajukan izin untuk tanggal tersebut. Tidak bisa mengajukan izin dobel di tanggal yang sama.', code: 'sudah-izin' };
+  }
+
   let newId;
   withScriptLock_(function () {
     newId = generateId(SHEET_NAMES.GURU_IZIN);

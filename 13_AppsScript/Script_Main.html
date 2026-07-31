@@ -1299,6 +1299,10 @@
   window.iaOpenGuruIzin_ = function () {
     window.iaIzinState_ = { jenis: 'harian', alasan: 'sakit' };
 
+    const submitBtn = document.getElementById('iaIzinSubmitBtn');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Kirim Izin';
+
     document.getElementById('iaIzinJenisHarian').classList.add('active');
     document.getElementById('iaIzinJenisCuti').classList.remove('active');
     document.getElementById('iaIzinAlasanSakit').classList.add('active');
@@ -1386,12 +1390,19 @@
     google.script.run
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
-        btn.disabled = false;
-        btn.textContent = 'Kirim Izin';
         if (result.success) {
+          btn.disabled = false;
+          btn.textContent = 'Kirim Izin';
           window.closeModalGuruIzin_();
           window.iaShowStatusModal_('success', 'Izin Berhasil Diajukan', 'Setiap pertemuan adalah kesempatan untuk menanam "Amal Jariyah". Jika memang harus izin, semoga Allah Paring Barokah.');
+        } else if (result.code === 'sudah-izin') {
+          // Tetap disabled (JANGAN dikembalikan ke 'Kirim Izin') supaya guru
+          // tidak bisa coba kirim ulang & bikin baris dobel di guru_izin.
+          btn.textContent = 'Sudah Diajukan';
+          window.iaShowStatusModal_('warning', 'Sudah Mengajukan Izin', result.error);
         } else {
+          btn.disabled = false;
+          btn.textContent = 'Kirim Izin';
           window.closeModalGuruIzin_();
           window.iaShowStatusModal_('warning', 'Gagal Mengajukan Izin', result.error);
         }
