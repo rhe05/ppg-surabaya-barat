@@ -462,6 +462,7 @@
     document.getElementById('iaMenuDashboardBtn').style.display = 'flex';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'flex';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'flex';
+    document.getElementById('iaMenuLaporanBtn').style.display = 'flex';
     document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'none';
     document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
     iaSetTanggal_(iaToday_());
@@ -481,6 +482,7 @@
     document.getElementById('iaMenuDashboardBtn').style.display = 'none';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'none';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
+    document.getElementById('iaMenuLaporanBtn').style.display = 'none';
     document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'flex';
     document.getElementById('iaMenuExitLabel').textContent = 'Kembali ke Dashboard';
     window.iaLoadQuoteHariIni_();
@@ -623,6 +625,7 @@
     window.iaState_.activeView = 'dashboard';
     document.getElementById('iaDashboardView').style.display = 'block';
     document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
@@ -632,11 +635,115 @@
   window.iaShowKelasView_ = function (skipLoad) {
     window.iaState_.activeView = 'kelas';
     document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
     if (skipLoad) return;
     if (window.iaState_.kelasLoadedKey === iaKelasCacheKey_()) return;
     window.iaLoadKelasList_();
+  };
+
+  /* ─── Laporan (Unduh PDF) — reuse serverGetLaporanPerkembanganSantri &
+     window.unduhLaporanPerkembanganSantriPdf_ dari fitur desktop "Laporan
+     Perkembangan Santri" (Dashboard Kelompok > tab Laporan), guru mobile
+     otomatis terhubung ke guru_id & kelompok_id miliknya sendiri (tanpa
+     pilih guru manual seperti versi desktop). "Untuk sementara ini" cuma
+     filter Bulan/Tahun + tombol Unduh PDF, TANPA preview tabel — sesuai
+     instruksi, jangan tambah fitur lain. */
+
+  window.iaMenuGoLaporan_ = function () {
+    window.iaCloseMenu_();
+    window.iaShowLaporanView_();
+  };
+
+  window.iaShowLaporanView_ = function () {
+    window.iaState_.activeView = 'laporan';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'block';
+    window.iaPopulateLaporanFilters_();
+    window.iaUpdateLaporanNote_();
+  };
+
+  const IA_LAPORAN_NAMA_BULAN_ = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  window.iaPopulateLaporanFilters_ = function () {
+    const bulanSel = document.getElementById('iaLaporanBulan');
+    const tahunSel = document.getElementById('iaLaporanTahun');
+    const now = new Date();
+    const curYear = now.getFullYear();
+
+    if (bulanSel.options.length === 0) {
+      bulanSel.innerHTML = IA_LAPORAN_NAMA_BULAN_.map(function (nm, idx) { return `<option value="${idx + 1}">${nm}</option>`; }).join('');
+      bulanSel.value = String(now.getMonth() + 1);
+      bulanSel.onchange = window.iaUpdateLaporanNote_;
+    }
+    if (tahunSel.options.length === 0) {
+      tahunSel.innerHTML = [curYear - 1, curYear].map(function (y) { return `<option value="${y}">${y}</option>`; }).join('');
+      tahunSel.value = String(curYear);
+      tahunSel.onchange = window.iaUpdateLaporanNote_;
+    }
+  };
+
+  /* Guru hanya boleh unduh laporan 1 bulan tsb mulai H-1 sebelum akhir bulan
+     itu (mis. Juli 31 hari → baru bisa tgl 30/31), TANPA batasan lagi kalau
+     bulannya sudah lewat sama sekali (otomatis "eligible" krn tanggal
+     hari ini pasti >= H-1 bulan yang sudah lampau). Bulan depan otomatis
+     ikut tertolak formula yang sama (hari ini masih jauh di bawah H-1-nya). */
+  window.iaLaporanCekEligible_ = function (bulan, tahun) {
+    const lastDay = new Date(tahun, bulan, 0).getDate();
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    const h1Str = tahun + '-' + pad(bulan) + '-' + pad(lastDay - 1);
+    const todayStr = iaToday_();
+    return { eligible: todayStr >= h1Str, lastDay: lastDay };
+  };
+
+  window.iaUpdateLaporanNote_ = function () {
+    const bulan = Number(document.getElementById('iaLaporanBulan').value);
+    const tahun = Number(document.getElementById('iaLaporanTahun').value);
+    const cek = window.iaLaporanCekEligible_(bulan, tahun);
+    const note = document.getElementById('iaLaporanNote');
+    if (cek.eligible) {
+      note.classList.remove('show');
+      return;
+    }
+    note.innerHTML = `⏳ Laporan ${IA_LAPORAN_NAMA_BULAN_[bulan - 1]} ${tahun} baru bisa diunduh mulai tanggal ${cek.lastDay - 1} atau ${cek.lastDay} ${IA_LAPORAN_NAMA_BULAN_[bulan - 1]} (H-1 sebelum akhir bulan).`;
+    note.classList.add('show');
+  };
+
+  window.iaLaporanUnduhPdf_ = function () {
+    const bulan = Number(document.getElementById('iaLaporanBulan').value);
+    const tahun = Number(document.getElementById('iaLaporanTahun').value);
+    const cek = window.iaLaporanCekEligible_(bulan, tahun);
+    if (!cek.eligible) {
+      window.iaShowStatusModal_('warning', 'Laporan Belum Bisa Diunduh',
+        `Laporan ${IA_LAPORAN_NAMA_BULAN_[bulan - 1]} ${tahun} baru bisa diunduh mulai tanggal ${cek.lastDay - 1} atau ${cek.lastDay} ${IA_LAPORAN_NAMA_BULAN_[bulan - 1]} (H-1 sebelum akhir bulan).`);
+      return;
+    }
+
+    const btn = document.getElementById('iaLaporanUnduhBtn');
+    btn.disabled = true;
+    window.showGlobalLoading_('Menyiapkan laporan...');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        window.hideGlobalLoading_();
+        btn.disabled = false;
+        if (!res || !res.success) {
+          window.iaShowStatusModal_('warning', 'Gagal Membuat Laporan', (res && res.error) || 'Gagal memuat data laporan.');
+          return;
+        }
+        window.lastLaporanPerkembanganData_ = res.data;
+        window.unduhLaporanPerkembanganSantriPdf_();
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        btn.disabled = false;
+        window.iaShowStatusModal_('warning', 'Gagal Membuat Laporan', 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverGetLaporanPerkembanganSantri(window.currentToken, window.iaState_.kelompokId, window.currentUser.guruId, tahun, bulan, '');
   };
 
   /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */

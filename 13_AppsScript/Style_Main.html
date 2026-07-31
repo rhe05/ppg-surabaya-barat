@@ -5418,6 +5418,78 @@
       border: 1.5px solid var(--border);
     }
 
+    /* ═════ LAPORAN (Input Absen guru — Unduh PDF, hyper premium) ═════ */
+    .ia-laporan-view {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 18px;
+    }
+
+    .ia-laporan-card {
+      background: var(--panel);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-subtle);
+      padding: 28px 22px 24px;
+      text-align: center;
+    }
+
+    .ia-laporan-card-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 58px;
+      height: 58px;
+      margin: 0 auto 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--sage), var(--brand-green));
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(5, 150, 105, 0.28);
+    }
+
+    .ia-laporan-card-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .ia-laporan-card-desc {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.55;
+      margin-bottom: 22px;
+    }
+
+    .ia-laporan-filter-row {
+      display: flex;
+      gap: 10px;
+      text-align: left;
+      margin-bottom: 14px;
+    }
+
+    .ia-laporan-filter-field {
+      flex: 1;
+    }
+
+    .ia-laporan-note {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: #B45309;
+      background: rgba(255,209,102,0.14);
+      border: 1px solid rgba(217,119,6,0.3);
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+
+    .ia-laporan-note.show { display: flex; }
+
     .ia-toast {
       position: absolute;
       left: 50%;

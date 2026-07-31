@@ -336,6 +336,12 @@ function validateUserAccess(token, resourceType, resourceId) {
     return resourceType === 'kelompok' && user.scopeId === resourceId;
   }
 
+  // Guru bisa akses Kelompoknya sendiri saja (dipakai fitur mobile Input
+  // Absen > Laporan > Unduh PDF, reuse serverGetLaporanPerkembanganSantri)
+  if (user.role === 'guru' && user.scopeType === 'kelompok') {
+    return resourceType === 'kelompok' && user.scopeId === resourceId;
+  }
+
   return false;
 }
 
