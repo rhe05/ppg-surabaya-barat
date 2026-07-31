@@ -462,9 +462,11 @@
     document.getElementById('iaMenuDashboardBtn').style.display = 'flex';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'flex';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'flex';
+    document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'none';
     document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
     iaSetTanggal_(iaToday_());
     window.iaLoadBell_();
+    window.iaLoadQuoteHariIni_();
     window.iaShowDashboardView_();
   };
 
@@ -479,7 +481,9 @@
     document.getElementById('iaMenuDashboardBtn').style.display = 'none';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'none';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
+    document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'flex';
     document.getElementById('iaMenuExitLabel').textContent = 'Kembali ke Dashboard';
+    window.iaLoadQuoteHariIni_();
 
     iaSetTanggal_(iaToday_());
     document.getElementById('iaEmptyState').style.display = 'flex';
@@ -551,6 +555,11 @@
   window.iaMenuOpenMintaAkses_ = function () {
     window.iaCloseMenu_();
     window.openModalMintaAkses_();
+  };
+
+  window.iaMenuOpenKelolaQuote_ = function () {
+    window.iaCloseMenu_();
+    window.openModalKelolaQuote_();
   };
 
   window.iaMenuExit_ = function () {
@@ -951,17 +960,44 @@
 
   /* ─── Popup status Simpan Absen (hyper premium) ─── */
 
+  const QUOTE_HARIAN_FALLBACK_ = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
+
+  /* Prefetch quote hari ini sekali saat screen Input Absen dibuka (guru & admin
+     override) — dipakai instan di popup sukses Simpan Absen, tidak perlu
+     round-trip tambahan saat baru saja klik Simpan. */
+  window.iaLoadQuoteHariIni_ = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.iaState_.quoteHariIni = (result && result.success && result.data && result.data.teks) || QUOTE_HARIAN_FALLBACK_;
+      })
+      .withFailureHandler(function () { window.iaState_.quoteHariIni = QUOTE_HARIAN_FALLBACK_; })
+      .serverGetQuoteHariIni(window.currentToken);
+  };
+
   const IA_STATUS_MODAL_ICONS_ = {
     success: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
     warning: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>',
   };
 
-  window.iaShowStatusModal_ = function (tone, title, message) {
+  window.iaShowStatusModal_ = function (tone, title, message, quote) {
     const modal = document.getElementById('iaStatusModal');
     modal.className = 'ia-status-modal tone-' + tone;
     document.getElementById('iaStatusModalIcon').innerHTML = IA_STATUS_MODAL_ICONS_[tone] || IA_STATUS_MODAL_ICONS_.warning;
     document.getElementById('iaStatusModalTitle').textContent = title;
-    document.getElementById('iaStatusModalMessage').textContent = message;
+
+    const messageEl = document.getElementById('iaStatusModalMessage');
+    const quoteEl = document.getElementById('iaStatusModalQuote');
+    if (quote) {
+      messageEl.style.display = 'none';
+      messageEl.textContent = '';
+      document.getElementById('iaStatusModalQuoteText').textContent = '“' + quote + '”';
+      quoteEl.style.display = 'block';
+    } else {
+      quoteEl.style.display = 'none';
+      messageEl.textContent = message;
+      messageEl.style.display = 'block';
+    }
+
     document.getElementById('iaStatusModalOverlay').style.display = 'flex';
   };
 
@@ -1020,7 +1056,7 @@
       btn.disabled = false;
       if (result.success) {
         btn.textContent = 'Simpan Absen';
-        window.iaShowStatusModal_('success', 'Absen Berhasil Disimpan', result.message);
+        window.iaShowStatusModal_('success', 'Alhamdulillah, Absen Berhasil Disimpan', result.message, window.iaState_.quoteHariIni || QUOTE_HARIAN_FALLBACK_);
         // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
         // absen baru saja disimpan — paksa reload sekali berikutnya kali
         // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
@@ -1119,6 +1155,100 @@
         }
       })
       .serverRequestAksesKelas(window.currentToken, kelas, tanggal, keterangan);
+  };
+
+  /* ─── Kelola Quote (Admin PPG, khusus mode override Input Absen) ─── */
+
+  window.openModalKelolaQuote_ = function () {
+    document.getElementById('kelolaQuoteInput').value = '';
+    document.getElementById('kelolaQuoteMsg').style.display = 'none';
+    document.getElementById('modalKelolaQuote').classList.add('active');
+    window.iaLoadQuoteList_();
+  };
+
+  window.closeModalKelolaQuote_ = function () {
+    document.getElementById('modalKelolaQuote').classList.remove('active');
+  };
+
+  window.iaLoadQuoteList_ = function () {
+    const wrap = document.getElementById('kelolaQuoteList');
+    wrap.innerHTML = '<div style="padding:10px 0; color:var(--text-faint); font-size:13px;">Memuat...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          wrap.innerHTML = '<div style="padding:10px 0; color:var(--red); font-size:13px;">' + result.error + '</div>';
+          return;
+        }
+        if (result.data.length === 0) {
+          wrap.innerHTML = '<div style="padding:10px 0; color:var(--text-faint); font-size:13px;">Belum ada quote. Quote default akan tampil sampai Anda menambah quote pertama.</div>';
+          return;
+        }
+        wrap.innerHTML = result.data.map(function (q) {
+          return `
+            <div class="ia-incoming-item" style="display:flex; align-items:center; gap:10px; justify-content:space-between;">
+              <div style="font-size:13px; color:var(--text); flex:1;">${window.escapeHtmlExport_ ? window.escapeHtmlExport_(q.teks) : q.teks}</div>
+              <button type="button" class="ia-icon-btn" style="width:32px; height:32px; flex-shrink:0; color:var(--red);" onclick="window.iaDeleteQuote_(${q.id})" title="Hapus quote">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M19 6l-1 14c0 1-1 2-2 2H8c-1 0-2-1-2-2L5 6"/></svg>
+              </button>
+            </div>
+          `;
+        }).join('');
+      })
+      .withFailureHandler(function (err) {
+        wrap.innerHTML = '<div style="padding:10px 0; color:var(--red); font-size:13px;">Gagal memuat: ' + (err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetQuoteList(window.currentToken);
+  };
+
+  window.iaAddQuote_ = function () {
+    const input = document.getElementById('kelolaQuoteInput');
+    const msg = document.getElementById('kelolaQuoteMsg');
+    const teks = input.value.trim();
+    if (!teks) {
+      msg.style.display = 'block';
+      msg.style.color = 'var(--red)';
+      msg.textContent = 'Ketik dulu teks quote-nya.';
+      return;
+    }
+
+    const btn = document.getElementById('kelolaQuoteAddBtn');
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Tambah Quote';
+        msg.style.display = 'block';
+        msg.style.color = result.success ? 'var(--sage)' : 'var(--red)';
+        msg.textContent = result.success ? result.message : result.error;
+        if (result.success) {
+          input.value = '';
+          window.iaLoadQuoteList_();
+        }
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Tambah Quote';
+        msg.style.display = 'block';
+        msg.style.color = 'var(--red)';
+        msg.textContent = 'Gagal menyimpan. Coba lagi.';
+      })
+      .serverAddQuote(window.currentToken, teks);
+  };
+
+  window.iaDeleteQuote_ = function (id) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          window.iaLoadQuoteList_();
+        } else {
+          iaShowToast_(result.error, 'error');
+        }
+      })
+      .withFailureHandler(function () { iaShowToast_('Gagal menghapus. Coba lagi.', 'error'); })
+      .serverDeleteQuote(window.currentToken, id);
   };
 
   /* ─── Guru Izin (Izin Harian / Cuti) ─── */

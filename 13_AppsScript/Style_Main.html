@@ -5255,6 +5255,7 @@
     }
 
     .ia-status-modal {
+      position: relative;
       width: 100%;
       max-width: 340px;
       background: var(--panel);
@@ -5263,6 +5264,28 @@
       text-align: center;
       box-shadow: 0 24px 48px rgba(0,0,0,0.28);
       animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .ia-status-modal-x {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 50%;
+      background: var(--panel-2, rgba(100,116,139,0.1));
+      color: var(--text-dim);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+    }
+
+    .ia-status-modal-x:active {
+      transform: scale(0.9);
+      background: var(--border);
     }
 
     @keyframes iaStatusModalPop {
@@ -5306,6 +5329,44 @@
       color: var(--text-dim);
       line-height: 1.55;
       margin-bottom: 24px;
+    }
+
+    .ia-status-modal-quote {
+      background: linear-gradient(160deg, rgba(255,209,102,0.14), rgba(5,150,105,0.06));
+      border: 1px solid rgba(255,209,102,0.4);
+      border-radius: 16px;
+      padding: 16px 16px 14px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .ia-status-modal-quote-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: #B45309;
+      margin-bottom: 8px;
+    }
+
+    .ia-status-modal-quote-label::before,
+    .ia-status-modal-quote-label::after {
+      content: '';
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #FFD166;
+    }
+
+    .ia-status-modal-quote-text {
+      font-size: 13.5px;
+      font-weight: 600;
+      font-style: italic;
+      color: var(--text);
+      line-height: 1.55;
     }
 
     .ia-status-modal-btn {

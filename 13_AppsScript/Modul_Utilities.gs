@@ -32,6 +32,7 @@ const SHEET_NAMES = {
   PENGURUS_KELP: 'pengurus_kelp',
   AKSES_KELAS_REQUEST: 'akses_kelas_request',
   GURU_IZIN: 'guru_izin',
+  QUOTE_HARIAN: 'quote_harian',
 };
 
 /**

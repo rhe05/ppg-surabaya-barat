@@ -75,7 +75,10 @@ function setupDatabaseStructure() {
   // 19. GURU IZIN (guru mengajukan izin harian / cuti dari layar Input Absen)
   createSheetIfNotExists(ss, 'guru_izin', ['id', 'kelompok_id', 'guru_id', 'nama_guru', 'jenis', 'tanggal_mulai', 'tanggal_selesai', 'alasan_kategori', 'alasan_detail', 'dibuat_pada']);
 
-  console.log('✅ Semua 23 sheet berhasil dibuat atau sudah ada.');
+  // 20. QUOTE HARIAN (pool quote Admin PPG, tampil di popup sukses Simpan Absen — rotasi harian, lihat Modul_QuoteHarian.gs)
+  createSheetIfNotExists(ss, 'quote_harian', ['id', 'teks', 'dibuat_oleh', 'dibuat_pada']);
+
+  console.log('✅ Semua 24 sheet berhasil dibuat atau sudah ada.');
 
   // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman'/'users' yang sudah ada (aman dijalankan berulang)
   migrateGuruSchemaAddFields_(ss);
