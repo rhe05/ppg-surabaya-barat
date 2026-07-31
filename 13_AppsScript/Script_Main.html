@@ -813,6 +813,7 @@
           window.iaRenderKelasInfoCard_(chosenKelas);
           document.getElementById('iaEmptyState').style.display = 'none';
           window.iaState_.list = result.formData;
+          window.iaState_.sudahTersimpan = !!result.formSudahTersimpan;
           window.iaRenderSantriList_();
         } else {
           window.iaSelectKelas_(chosenKelas, chosenChip);
@@ -867,6 +868,7 @@
         return;
       }
       window.iaState_.list = result.data;
+      window.iaState_.sudahTersimpan = !!result.sudahTersimpan;
       window.iaRenderSantriList_();
     };
 
@@ -916,6 +918,18 @@
     document.getElementById('iaProgressWrap').style.display = 'block';
     document.getElementById('iaBottomBar').style.display = 'block';
     window.iaUpdateProgress_();
+    window.iaUpdateSaveBtnState_();
+  };
+
+  /* Tampilan tombol Simpan Absen mengikuti status tersimpan — dikunci
+     (label "✓ Absen Tersimpan", abu-abu) kalau kelas+tanggal aktif SUDAH
+     ada data absen (guru mode saja, mode admin selalu bebas simpan ulang). */
+  window.iaUpdateSaveBtnState_ = function () {
+    const btn = document.getElementById('iaSaveBtn');
+    if (!btn) return;
+    const locked = window.iaState_.mode !== 'admin' && !!window.iaState_.sudahTersimpan;
+    btn.classList.toggle('ia-save-btn-locked', locked);
+    btn.textContent = locked ? '✓ Absen Tersimpan' : 'Simpan Absen';
   };
 
   window.iaSetStatus_ = function (santriId, status, btnEl) {
@@ -935,10 +949,68 @@
     document.getElementById('iaProgressFill').style.width = (list.length ? (hadir / list.length * 100) : 0) + '%';
   };
 
+  /* ─── Popup status Simpan Absen (hyper premium) ─── */
+
+  const IA_STATUS_MODAL_ICONS_ = {
+    success: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',
+    warning: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>',
+  };
+
+  window.iaShowStatusModal_ = function (tone, title, message) {
+    const modal = document.getElementById('iaStatusModal');
+    modal.className = 'ia-status-modal tone-' + tone;
+    document.getElementById('iaStatusModalIcon').innerHTML = IA_STATUS_MODAL_ICONS_[tone] || IA_STATUS_MODAL_ICONS_.warning;
+    document.getElementById('iaStatusModalTitle').textContent = title;
+    document.getElementById('iaStatusModalMessage').textContent = message;
+    document.getElementById('iaStatusModalOverlay').style.display = 'flex';
+  };
+
+  window.iaCloseStatusModal_ = function () {
+    document.getElementById('iaStatusModalOverlay').style.display = 'none';
+  };
+
+  /* Cek waktu simpan absen di klien (feedback instan, tanpa round-trip) —
+     tanggal masa depan ATAU hari ini sebelum jam_mulai sesi = ditolak;
+     tanggal yang sudah lewat SELALU boleh kapan saja. Server (Modul_InputAbsen.gs
+     iaValidateWaktuAbsen_) menegakkan aturan yang SAMA sebagai sumber kebenaran
+     (klien cuma optimasi UX, jangan andalkan ini sebagai satu-satunya penjaga). */
+  window.iaCekWaktuAbsen_ = function (tanggal, kelas) {
+    const todayStr = iaToday_();
+    if (tanggal > todayStr) {
+      return { valid: false, title: 'Belum Bisa Disimpan', message: 'Tidak bisa menyimpan absen untuk tanggal yang akan datang. Pilih tanggal hari ini atau tanggal yang sudah berlalu.' };
+    }
+    if (tanggal === todayStr) {
+      const meta = (window.iaState_.kelasMeta || {})[String(kelas || '').toLowerCase()];
+      const jamMulai = meta && meta.jamMulai;
+      if (jamMulai) {
+        const now = new Date();
+        const nowHHMM = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+        if (nowHHMM < jamMulai) {
+          return { valid: false, title: 'Sesi Belum Dimulai', message: `Sesi ngaji kelas ini baru mulai jam ${jamMulai}. Absen belum bisa disimpan sebelum sesi berlangsung.` };
+        }
+      }
+    }
+    return { valid: true };
+  };
+
   window.saveInputAbsen_ = function () {
     const kelas = window.iaState_.kelas;
     const tanggal = document.getElementById('iaTanggal').value;
     const btn = document.getElementById('iaSaveBtn');
+    const isAdmin = window.iaState_.mode === 'admin';
+
+    if (!isAdmin) {
+      if (window.iaState_.sudahTersimpan) {
+        window.iaShowStatusModal_('success', 'Absen Sudah Tersimpan', `Absen kelas "${kelas}" untuk tanggal ini sudah tersimpan sebelumnya. Hubungi Admin Kelompok kalau perlu koreksi data.`);
+        return;
+      }
+      const waktuCheck = window.iaCekWaktuAbsen_(tanggal, kelas);
+      if (!waktuCheck.valid) {
+        window.iaShowStatusModal_('warning', waktuCheck.title, waktuCheck.message);
+        return;
+      }
+    }
+
     btn.disabled = true;
     btn.textContent = 'Menyimpan...';
 
@@ -946,14 +1018,26 @@
 
     const onSaveResult = function (result) {
       btn.disabled = false;
-      btn.textContent = 'Simpan Absen';
       if (result.success) {
+        btn.textContent = 'Simpan Absen';
         iaShowToast_('✓ ' + result.message, 'success');
         // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
         // absen baru saja disimpan — paksa reload sekali berikutnya kali
         // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
         window.iaState_.dashboardLoadedKey = null;
+        if (!isAdmin) {
+          window.iaState_.sudahTersimpan = true;
+          window.iaUpdateSaveBtnState_();
+        }
+      } else if (result.code === 'sudah-tersimpan') {
+        window.iaState_.sudahTersimpan = true;
+        window.iaUpdateSaveBtnState_();
+        window.iaShowStatusModal_('success', 'Absen Sudah Tersimpan', result.error);
+      } else if (result.code === 'future' || result.code === 'belum-waktu') {
+        btn.textContent = 'Simpan Absen';
+        window.iaShowStatusModal_('warning', result.code === 'future' ? 'Belum Bisa Disimpan' : 'Sesi Belum Dimulai', result.error);
       } else {
+        btn.textContent = 'Simpan Absen';
         iaShowToast_(result.error, 'error');
       }
     };
@@ -963,7 +1047,7 @@
       iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
     };
 
-    if (window.iaState_.mode === 'admin') {
+    if (isAdmin) {
       google.script.run
         .withSuccessHandler(onSaveResult)
         .withFailureHandler(onSaveFailure)

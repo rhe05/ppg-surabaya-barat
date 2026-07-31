@@ -288,6 +288,16 @@
   </div>
 
   <div class="ia-toast" id="iaToast"></div>
+
+  <!-- Popup status Simpan Absen (sudah tersimpan / belum waktunya) -->
+  <div class="ia-status-modal-overlay" id="iaStatusModalOverlay" style="display:none;">
+    <div class="ia-status-modal" id="iaStatusModal">
+      <div class="ia-status-modal-icon" id="iaStatusModalIcon"></div>
+      <div class="ia-status-modal-title" id="iaStatusModalTitle"></div>
+      <div class="ia-status-modal-message" id="iaStatusModalMessage"></div>
+      <button type="button" class="ia-status-modal-btn" id="iaStatusModalBtn" onclick="window.iaCloseStatusModal_()">Mengerti</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Minta Akses Kelas Lain -->

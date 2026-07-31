@@ -5236,6 +5236,102 @@
     .ia-save-btn:active { transform: scale(0.98); }
     .ia-save-btn:disabled { opacity: 0.6; }
 
+    .ia-save-btn.ia-save-btn-locked {
+      background: linear-gradient(135deg, #94A3B8, #64748B);
+      box-shadow: 0 4px 12px rgba(100, 116, 139, 0.25);
+    }
+
+    /* ═════ POPUP STATUS SIMPAN ABSEN (hyper premium) ═════ */
+    .ia-status-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(3px);
+    }
+
+    .ia-status-modal {
+      width: 100%;
+      max-width: 340px;
+      background: var(--panel);
+      border-radius: 24px;
+      padding: 32px 26px 26px;
+      text-align: center;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.28);
+      animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes iaStatusModalPop {
+      from { opacity: 0; transform: scale(0.92) translateY(10px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .ia-status-modal-icon {
+      width: 64px;
+      height: 64px;
+      margin: 0 auto 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ia-status-modal-icon svg { width: 30px; height: 30px; }
+
+    .ia-status-modal.tone-success .ia-status-modal-icon {
+      background: rgba(5, 150, 105, 0.12);
+      color: var(--brand-green);
+      box-shadow: 0 0 0 6px rgba(5, 150, 105, 0.06);
+    }
+
+    .ia-status-modal.tone-warning .ia-status-modal-icon {
+      background: rgba(217, 119, 6, 0.12);
+      color: #D97706;
+      box-shadow: 0 0 0 6px rgba(217, 119, 6, 0.08);
+    }
+
+    .ia-status-modal-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .ia-status-modal-message {
+      font-size: 13.5px;
+      color: var(--text-dim);
+      line-height: 1.55;
+      margin-bottom: 24px;
+    }
+
+    .ia-status-modal-btn {
+      width: 100%;
+      border: none;
+      padding: 13px;
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .ia-status-modal-btn:active { transform: scale(0.97); }
+
+    .ia-status-modal.tone-success .ia-status-modal-btn {
+      background: linear-gradient(135deg, var(--sage), var(--brand-green));
+      box-shadow: 0 6px 16px rgba(5, 150, 105, 0.28);
+    }
+
+    .ia-status-modal.tone-warning .ia-status-modal-btn {
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      box-shadow: 0 6px 16px rgba(217, 119, 6, 0.28);
+    }
+
     .ia-toast {
       position: absolute;
       left: 50%;

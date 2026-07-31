@@ -206,6 +206,36 @@ function canGuruAccessKelas_(kelompokId, guruId, kelas, tanggal) {
 }
 
 /**
+ * Cek apakah guru boleh MENYIMPAN absen kelas tsb pada tanggal tsb SEKARANG:
+ * tanggal masa depan selalu ditolak; tanggal hari ini ditolak kalau jam
+ * sekarang masih sebelum jam_mulai sesi kelas itu (sesi belum berlangsung);
+ * tanggal yang sudah lewat SELALU boleh kapan saja (guru menyusulkan absen
+ * hari sebelumnya). Dipanggil HANYA dari serverSaveAbsensiKelas (guru) —
+ * mode Admin PPG (serverSaveAbsensiKelasAdmin) sengaja tidak dibatasi, itu
+ * jalur override yang memang bebas.
+ */
+function iaValidateWaktuAbsen_(kelompokId, kelas, tanggal) {
+  const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  const now = new Date();
+  const todayStr = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+
+  if (tanggal > todayStr) {
+    return { valid: false, code: 'future', error: 'Tidak bisa menyimpan absen untuk tanggal yang akan datang.' };
+  }
+  if (tanggal === todayStr) {
+    const info = getKelasSessionInfo_(kelompokId, kelas);
+    const jamMulai = info && info.jamMulai;
+    if (jamMulai) {
+      const nowHHMM = Utilities.formatDate(now, tz, 'HH:mm');
+      if (nowHHMM < jamMulai) {
+        return { valid: false, code: 'belum-waktu', error: `Sesi ngaji kelas ini baru mulai jam ${jamMulai}. Absen belum bisa disimpan sebelum sesi berlangsung.` };
+      }
+    }
+  }
+  return { valid: true };
+}
+
+/**
  * GET data awal screen Input Absen: profil guru, daftar kelas milik sendiri,
  * dan jumlah permintaan akses masuk yang masih pending (badge notifikasi).
  */
@@ -288,6 +318,7 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
   // readSheetAsObjects generik — lihat ERROR_LOG.md #23).
   let formKelas = null;
   let formData = null;
+  let formSudahTersimpan = false;
   if (list.length > 0) {
     let idx = -1;
     if (preferKelas) {
@@ -297,14 +328,16 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     formKelas = list[idx].kelas;
     const kelasLower = formKelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
+    const santriKelasIds = santriKelas.map(function (s) { return String(s.id); });
     const absensiExisting = iaReadAbsensiKelompok_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }))
       .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
+    formSudahTersimpan = absensiExisting.some(function (a) { return santriKelasIds.indexOf(String(a.santri_id)) !== -1; });
   }
 
-  return { success: true, data: list, formKelas: formKelas, formData: formData };
+  return { success: true, data: list, formKelas: formKelas, formData: formData, formSudahTersimpan: formSudahTersimpan };
 }
 
 /**
@@ -334,7 +367,7 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
     return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' };
   });
 
-  return { success: true, data: formData };
+  return { success: true, data: formData, sudahTersimpan: absensiExisting.length > 0 };
 }
 
 /**
@@ -451,10 +484,22 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
     return { success: false, error: 'Anda belum memiliki akses ke kelas ini pada tanggal tersebut.' };
   }
 
+  const waktuCheck = iaValidateWaktuAbsen_(ctx.kelompokId, kelas, tanggal);
+  if (!waktuCheck.valid) {
+    return { success: false, error: waktuCheck.error, code: waktuCheck.code };
+  }
+
   const kelasLower = String(kelas).trim().toLowerCase();
   const santriIdsKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, ctx.kelompokId)
     .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
+
+  const santriIdsKelasSet = santriIdsKelas.map(function (id) { return String(id); });
+  const sudahTersimpan = iaReadAbsensiKelompok_(ctx.kelompokId, santriIdsKelas)
+    .some(function (a) { return santriIdsKelasSet.indexOf(String(a.santri_id)) !== -1 && tanggalKeString_(a.tanggal) === tanggal; });
+  if (sudahTersimpan) {
+    return { success: false, error: `Absen kelas "${kelas}" tanggal ini sudah tersimpan sebelumnya.`, code: 'sudah-tersimpan' };
+  }
 
   let count = 0;
   withScriptLock_(function () {
