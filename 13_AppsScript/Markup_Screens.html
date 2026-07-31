@@ -311,6 +311,21 @@
       <button type="button" class="ia-status-modal-btn" id="iaStatusModalBtn" onclick="window.iaCloseStatusModal_()">Mengerti</button>
     </div>
   </div>
+
+  <!-- Popup konfirmasi izin ke-2 dst dalam bulan yang sama -->
+  <div class="ia-status-modal-overlay" id="iaIzinConfirmOverlay" style="display:none;">
+    <div class="ia-status-modal tone-warning">
+      <div class="ia-status-modal-icon">
+        <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+      </div>
+      <div class="ia-status-modal-title">Konfirmasi Izin Mengajar</div>
+      <div class="ia-status-modal-message" id="iaIzinConfirmMessage"></div>
+      <div class="ia-status-modal-actions">
+        <button type="button" class="ia-status-modal-btn ia-status-modal-btn-secondary" onclick="window.iaCancelIzinConfirm_()">Kembali</button>
+        <button type="button" class="ia-status-modal-btn" onclick="window.iaConfirmIzinProceed_()">Ya, Ajukan Izin</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- Modal Minta Akses Kelas Lain -->

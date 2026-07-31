@@ -956,6 +956,25 @@ function serverGetGuruIzinAlasanSuggestions(token) {
 }
 
 /**
+ * GET jumlah pengajuan izin guru ini di BULAN INI (berdasar tanggal_mulai) —
+ * dipakai popup konfirmasi "Konfirmasi Izin Mengajar" sebelum tombol menu
+ * "Guru Izin" membuka form (muncul mulai izin ke-2 dst, bukan izin pertama).
+ */
+function serverGetGuruIzinCountBulanIni(token) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
+  const bulanIni = Utilities.formatDate(new Date(), tz, 'yyyy-MM');
+
+  const count = readSheetAsObjects(SHEET_NAMES.GURU_IZIN).filter(function (r) {
+    return r.guru_id == ctx.user.guruId && tanggalKeString_(r.tanggal_mulai).indexOf(bulanIni) === 0;
+  }).length;
+
+  return { success: true, data: { count: count } };
+}
+
+/**
  * SUBMIT pengajuan izin guru (Izin Harian / Cuti).
  * @param {Object} payload - { jenis, tanggalMulai, tanggalSelesai, alasanKategori, alasanDetail }
  */

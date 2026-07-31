@@ -549,6 +549,33 @@
 
   window.iaMenuOpenGuruIzin_ = function () {
     window.iaCloseMenu_();
+    google.script.run
+      .withSuccessHandler(function (result) {
+        const count = (result && result.success && result.data && result.data.count) || 0;
+        if (count >= 1) {
+          window.iaShowIzinConfirm_(count);
+        } else {
+          window.iaOpenGuruIzin_();
+        }
+      })
+      .withFailureHandler(function () { window.iaOpenGuruIzin_(); })
+      .serverGetGuruIzinCountBulanIni(window.currentToken);
+  };
+
+  /* Popup konfirmasi sebelum buka form Guru Izin — HANYA muncul mulai
+     pengajuan ke-2 dst dalam bulan yang sama, izin pertama langsung buka form. */
+  window.iaShowIzinConfirm_ = function (count) {
+    document.getElementById('iaIzinConfirmMessage').innerHTML =
+      `📅 Bulan ini Jenengan telah mengajukan izin sebanyak ${count} kali.<br><br>Apakah Jenengan yakin ingin mengajukan izin untuk hari ini?`;
+    document.getElementById('iaIzinConfirmOverlay').style.display = 'flex';
+  };
+
+  window.iaCancelIzinConfirm_ = function () {
+    document.getElementById('iaIzinConfirmOverlay').style.display = 'none';
+  };
+
+  window.iaConfirmIzinProceed_ = function () {
+    document.getElementById('iaIzinConfirmOverlay').style.display = 'none';
     window.iaOpenGuruIzin_();
   };
 
