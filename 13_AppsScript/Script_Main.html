@@ -1062,8 +1062,11 @@
         // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
         window.iaState_.dashboardLoadedKey = null;
         if (!isAdmin) {
-          window.iaState_.sudahTersimpan = true;
-          window.iaUpdateSaveBtnState_();
+          // Setelah berhasil simpan (tanggal apa pun — hari ini ATAU tanggal
+          // lampau yang disusulkan), tampilan tanggal SELALU balik ke hari
+          // ini biar guru tidak "nyangkut" di tanggal lampau tanpa sadar.
+          iaSetTanggal_(iaToday_());
+          window.iaOnTanggalChange_();
         }
       } else if (result.code === 'sudah-tersimpan') {
         window.iaState_.sudahTersimpan = true;

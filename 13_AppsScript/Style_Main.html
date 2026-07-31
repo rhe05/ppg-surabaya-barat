@@ -4577,16 +4577,24 @@
       padding: 16px 18px 20px;
     }
 
+    .ia-header-hero-right {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      flex-shrink: 0;
+    }
+
     .ia-greeting-date {
       display: inline-flex;
       align-items: center;
       gap: 6px;
       color: #fff;
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 700;
       letter-spacing: 0.01em;
-      margin-top: 7px;
-      padding: 4px 12px;
+      white-space: nowrap;
+      padding: 4px 11px;
       border-radius: 999px;
       background: rgba(255,255,255,0.14);
       border: 1.5px solid rgba(255,209,102,0.85);
@@ -4696,11 +4704,18 @@
     }
 
     .ia-greeting-kelas {
-      color: rgba(255,255,255,0.88);
-      font-size: 12.5px;
+      display: inline-block;
+      max-width: 100%;
+      color: #fff;
+      font-size: 12px;
       font-weight: 600;
-      margin-top: 3px;
+      line-height: 1.45;
       letter-spacing: 0.01em;
+      margin-top: 8px;
+      padding: 5px 12px;
+      border-radius: 14px;
+      background: rgba(255,255,255,0.16);
+      border: 1px solid rgba(255,255,255,0.32);
     }
 
     .ia-icon-btn {
