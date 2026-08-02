@@ -2723,6 +2723,104 @@
       flex: 1;
     }
 
+    /* Tab Bulanan — kartu Program Bulanan premium (step 4 refactor tampilan,
+       desktop-only utk sekarang). Class BARU, sengaja terpisah dari
+       .kurikulum-protes-row generik (dipakai list Tahunan lain) supaya
+       perubahan di sini tidak ikut mengubah tampilan tab lain. */
+    .kurikulum-probul-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -12px rgba(15, 23, 42, 0.1);
+    }
+
+    .kurikulum-probul-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .kurikulum-probul-eyebrow {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--brass);
+    }
+
+    .kurikulum-probul-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      margin-top: 4px;
+    }
+
+    .kurikulum-probul-target {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .kurikulum-probul-target strong {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .kurikulum-probul-deskripsi {
+      font-size: 12.5px;
+      color: var(--text-faint);
+      margin-top: 4px;
+      line-height: 1.5;
+    }
+
+    .kurikulum-probul-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .kurikulum-probul-weeks-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      padding-top: 16px;
+      margin-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .kurikulum-probul-weeks {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .kurikulum-probul-week {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md, 10px);
+      padding: 10px 12px;
+      text-align: center;
+    }
+
+    .kurikulum-probul-week-label {
+      font-size: 11px;
+      color: var(--text-faint);
+      font-weight: 600;
+    }
+
+    .kurikulum-probul-week-value {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 4px;
+    }
+
     /* Tab Semester — laporan lengkap per Kelas: kartu per Kelas, tabel
        GABUNGAN per Semester (baris = materi, kolom = Bulan 1-6 bersama)
        supaya tetap rapi & muat 1 layar walau materi terus bertambah. */

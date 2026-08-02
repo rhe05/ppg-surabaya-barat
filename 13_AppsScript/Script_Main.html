@@ -9985,25 +9985,26 @@
     }
 
     list.innerHTML = data.map(probul => `
-      <div class="kurikulum-protes-row" style="flex-direction: column; align-items: stretch; gap: 12px;">
-        <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+      <div class="kurikulum-probul-card">
+        <div class="kurikulum-probul-card-top">
           <div>
-            <div style="font-size: 12px; color: var(--text-faint);">Bulan Ke ${probul.bulan || '-'}</div>
-            <div style="font-weight: 600; margin-top: 2px;">${probul.kategori || 'N/A'}</div>
-            <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">Target: ${probul.target}</div>
-            ${probul.deskripsi ? `<div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">${probul.deskripsi}</div>` : ''}
+            <div class="kurikulum-probul-eyebrow">Bulan Ke ${probul.bulan || '-'}</div>
+            <div class="kurikulum-probul-title">${probul.kategori || 'N/A'}</div>
+            <div class="kurikulum-probul-target"><strong>Target:</strong> ${probul.target}</div>
+            ${probul.deskripsi ? `<div class="kurikulum-probul-deskripsi">${probul.deskripsi}</div>` : ''}
           </div>
-          <div style="display: flex; gap: 8px; flex-shrink: 0;">
+          <div class="kurikulum-probul-actions">
             <button class="btn btn-sm btn-secondary" onclick="window.editProbul('${probul.id}', '${probul.target}', '${(probul.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
             <button class="btn btn-sm btn-danger" onclick="window.deleteProbul('${probul.id}')">Hapus</button>
             <button class="btn btn-sm btn-primary" onclick="window.loadPencapaianSantri_('${window.currentKelompokId}', '${probul.id}')">Lihat Progres →</button>
           </div>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+        <div class="kurikulum-probul-weeks-label">Progres Mingguan</div>
+        <div class="kurikulum-probul-weeks">
           ${[1, 2, 3, 4].map(w => `
-            <div style="border: 1px solid var(--border); border-radius: var(--radius-md); padding: 8px 10px; text-align: center;">
-              <div style="font-size: 11px; color: var(--text-faint); font-weight: 600;">Minggu Ke ${w}</div>
-              <div style="font-size: 12px; color: var(--text-dim); margin-top: 4px;">&nbsp;</div>
+            <div class="kurikulum-probul-week">
+              <div class="kurikulum-probul-week-label">Minggu Ke ${w}</div>
+              <div class="kurikulum-probul-week-value">&nbsp;</div>
             </div>
           `).join('')}
         </div>
