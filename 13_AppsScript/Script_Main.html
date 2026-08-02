@@ -728,6 +728,8 @@
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'flex';
+    document.getElementById('iaHeaderRoot').classList.add('jr-active');
+    document.getElementById('iaHeaderHero').classList.add('jr-active');
   };
 
   window.iaJurnalOpenGate_ = function () {
@@ -849,7 +851,7 @@
 
   window.iaJurnalRenderInfoCard_ = function (kelas) {
     const meta = (window.iaJurnalState_.kelasMeta || {})[kelas.toLowerCase()];
-    const el = document.getElementById('iaJurnalInfo');
+    const el = document.getElementById('iaGreetingKelasInfo');
     if (!meta) { el.style.display = 'none'; return; }
     const parts = ['Kelas ' + meta.kelas];
     if (meta.ruangan) parts.push(meta.ruangan);
@@ -862,7 +864,7 @@
     document.getElementById('iaJurnalEmptyState').style.display = 'flex';
     document.getElementById('iaJurnalForm').style.display = 'none';
     document.getElementById('iaJurnalBottomBar').style.display = 'none';
-    document.getElementById('iaJurnalInfo').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
   };
 
   window.iaJurnalFillForm_ = function (kelas, formData, tersimpan) {
@@ -1063,6 +1065,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active');
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
     window.iaLoadDashboardSummary_();
   };
@@ -1074,6 +1078,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active');
     if (skipLoad) return;
     if (window.iaState_.kelasLoadedKey === iaKelasCacheKey_()) return;
     window.iaLoadKelasList_();
@@ -1099,6 +1105,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active');
     document.getElementById('iaLaporanView').style.display = 'block';
     window.iaPopulateLaporanFilters_();
     window.iaUpdateLaporanNote_();
