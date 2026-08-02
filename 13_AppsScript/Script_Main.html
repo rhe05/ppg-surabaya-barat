@@ -9361,6 +9361,11 @@
       const tahun = document.getElementById('kurikulumSemesterTahun').value || 2026;
       window.loadKurikulumSemesterReport_(window.currentKelompokId, tahun);
     }
+
+    if (tabName === 'probul') {
+      const bulan = document.getElementById('kurikulumProbulBulan').value;
+      window.loadKurikulumProbul_(window.currentKelompokId, bulan);
+    }
   };
 
   window.loadKurikulumProta_ = function (kelompokId, tahun, kelas, onDone) {
