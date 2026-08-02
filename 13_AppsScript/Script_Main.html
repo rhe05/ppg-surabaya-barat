@@ -9384,8 +9384,7 @@
     }
 
     if (tabName === 'probul') {
-      const bulan = document.getElementById('kurikulumProbulBulan').value;
-      window.loadKurikulumProbul_(window.currentKelompokId, bulan);
+      window.loadKurikulumProbul_(window.currentKelompokId);
     }
   };
 
@@ -9856,26 +9855,44 @@
     containerEl.innerHTML = cardsHtml;
   };
 
-  // Kelas WAJIB dipilih dulu (ERROR_LOG #28: filter Bulan sendirian tidak
-  // cukup, program bulanan ada di banyak kelas sekaligus). Fetch pakai
-  // serverGetKurikulumFullTree yang SAMA dipakai tab Semester (1 panggilan,
-  // nested Prota->Promes->Probul, sudah punya `kelas` per Prota) -- BUKAN
-  // serverGetProbul (flat, tidak ada info kelas sama sekali) -- supaya tidak
-  // perlu endpoint/kolom baru di backend cuma utk filter kelas ini.
-  window.loadKurikulumProbul_ = function (kelompokId, bulan) {
+  window.KURIKULUM_PROBUL_KELAS_LABEL_ = {
+    'PAUD-TK': 'Kelas PAUD-TK', '1': 'Kelas 1', '2': 'Kelas 2', '3': 'Kelas 3',
+    '4': 'Kelas 4', '5': 'Kelas 5', '6': 'Kelas 6', '7': 'Kelas 7', '8': 'Kelas 8', '9': 'Kelas 9'
+  };
+
+  // Kelas + Semester WAJIB dipilih dulu (ERROR_LOG #28: filter Bulan
+  // sendirian tidak cukup, program bulanan ada di banyak kelas sekaligus --
+  // dan tanpa filter Semester, "Bulan Ke 3" Semester I & II bisa tercampur
+  // jadi satu list karena keduanya sama-sama posisi relatif 1-6). Fetch
+  // pakai serverGetKurikulumFullTree yang SAMA dipakai tab Semester (1
+  // panggilan, nested Prota->Promes->Probul, sudah punya `kelas` per Prota
+  // & `semester` per Promes) -- BUKAN serverGetProbul (flat, tidak ada info
+  // kelas/semester sama sekali) -- supaya tidak perlu endpoint/kolom
+  // backend baru cuma utk filter ini.
+  window.loadKurikulumProbul_ = function (kelompokId) {
     const listEl = document.getElementById('kurikulumProbulList');
+    const infoEl = document.getElementById('kurikulumProbulInfo');
     const kelas = document.getElementById('kurikulumProbulKelas').value;
+    const semester = document.getElementById('kurikulumProbulSemester').value;
+    const bulan = document.getElementById('kurikulumProbulBulan').value;
+    const tahun = new Date().getFullYear();
 
     if (!kelas) {
+      infoEl.style.display = 'none';
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>';
       return;
     }
+
+    document.getElementById('kurikulumProbulInfoKelas').textContent = window.KURIKULUM_PROBUL_KELAS_LABEL_[kelas] || ('Kelas ' + kelas);
+    document.getElementById('kurikulumProbulInfoSemester').textContent = 'Semester ' + (semester === '2' ? 'II' : 'I');
+    document.getElementById('kurikulumProbulInfoTahun').textContent = 'Tahun Ajaran ' + tahun;
+    infoEl.style.display = 'block';
+
     if (!bulan) {
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
       return;
     }
 
-    const tahun = new Date().getFullYear();
     window.showGlobalLoading_('Memuat program bulanan...');
     google.script.run
       .withSuccessHandler(function (result) {
@@ -9885,7 +9902,7 @@
           return;
         }
         window.lastKurikulumProbulTree_ = result.data;
-        const items = window.kurikulumFilterProbulByKelasBulan_(result.data, kelas, bulan);
+        const items = window.kurikulumFilterProbul_(result.data, kelas, semester, bulan);
         window.lastProbulData = items;
         window.renderProbulList_(items);
       })
@@ -9896,11 +9913,12 @@
       .serverGetKurikulumFullTree(window.currentToken, kelompokId, tahun);
   };
 
-  window.kurikulumFilterProbulByKelasBulan_ = function (tree, kelas, bulan) {
+  window.kurikulumFilterProbul_ = function (tree, kelas, semester, bulan) {
     const out = [];
     (tree || []).forEach(function (prota) {
       if (String(prota.kelas || '') !== String(kelas)) return;
       (prota.promes || []).forEach(function (promes) {
+        if (String(promes.semester || '') !== String(semester)) return;
         (promes.probul || []).forEach(function (p) {
           if (parseInt(p.bulan) === parseInt(bulan)) out.push(p);
         });
@@ -10319,7 +10337,7 @@
           return;
         }
         window.closeModalAddProbul();
-        window.loadKurikulumProbul_(window.currentKelompokId, bulan);
+        window.loadKurikulumProbul_(window.currentKelompokId);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
@@ -10345,7 +10363,7 @@
           alert('Error: ' + result.error);
           return;
         }
-        window.loadKurikulumProbul_(window.currentKelompokId, document.getElementById('kurikulumProbulBulan').value);
+        window.loadKurikulumProbul_(window.currentKelompokId);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();

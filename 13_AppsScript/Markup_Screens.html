@@ -2868,7 +2868,7 @@
         <!-- Tab: Probul (Bulanan) -->
         <div class="kurikulum-tab-content" id="kurikulumTabProbul" style="margin-bottom: 48px; display: none;">
           <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
-            <select class="form-select" id="kurikulumProbulKelas" style="max-width: 170px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId, document.getElementById('kurikulumProbulBulan').value)">
+            <select class="form-select" id="kurikulumProbulKelas" style="max-width: 170px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId)">
               <option value="">-- Pilih Kelas --</option>
               <option value="PAUD-TK">Kelas PAUD-TK</option>
               <option value="1">Kelas 1</option>
@@ -2881,7 +2881,11 @@
               <option value="8">Kelas 8</option>
               <option value="9">Kelas 9</option>
             </select>
-            <select class="form-select" id="kurikulumProbulBulan" style="max-width: 150px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId, this.value)">
+            <select class="form-select" id="kurikulumProbulSemester" style="max-width: 140px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId)">
+              <option value="1" selected>Semester I</option>
+              <option value="2">Semester II</option>
+            </select>
+            <select class="form-select" id="kurikulumProbulBulan" style="max-width: 150px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId)">
               <option value="">-- Pilih Bulan --</option>
               <option value="1" selected>Bulan Ke 1</option>
               <option value="2">Bulan Ke 2</option>
@@ -2892,8 +2896,15 @@
             </select>
             <button class="btn btn-primary" onclick="window.openModalAddProbul()">+ Tambah Probul</button>
           </div>
+          <div id="kurikulumProbulInfo" style="display: none; margin-bottom: 18px; padding: 14px 18px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius-lg);">
+            <div id="kurikulumProbulInfoKelas" style="font-size: 17px; font-weight: 800; color: var(--text);"></div>
+            <div style="display: flex; gap: 14px; margin-top: 4px; font-size: 12.5px; color: var(--text-dim);">
+              <span id="kurikulumProbulInfoSemester"></span>
+              <span id="kurikulumProbulInfoTahun"></span>
+            </div>
+          </div>
           <div id="kurikulumProbulList" style="display: flex; flex-direction: column; gap: 12px;">
-            <div style="text-align: center; padding: 40px; color: var(--text-faint);">Memuat...</div>
+            <div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>
           </div>
         </div>
 
