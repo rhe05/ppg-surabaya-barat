@@ -470,6 +470,31 @@
     window.iaLoadBell_();
     window.iaLoadQuoteHariIni_();
     window.iaShowDashboardView_();
+    window.iaPrefetchGateData_();
+  };
+
+  /* ─── Prefetch diam-diam daftar kelas Input Absen & Input Jurnal, dipanggil
+     saat app dibuka (initInputAbsen_) & tiap ganti tanggal (iaOnTanggalChange_)
+     — supaya waktu guru betulan klik menu "Input Absen"/"Input Jurnal", popup
+     pilih kelas TIDAK perlu nunggu google.script.run lagi (data sudah ada),
+     tampil instan (<1 detik). Dipakai oleh iaOpenKelasGate_/iaJurnalOpenGate_
+     — HANYA dipakai kalau belum pernah pilih kelas sesi ini (lihat guard
+     `!window.iaState_.kelas`/`!window.iaJurnalState_.kelas` di sana), jadi
+     tidak berisiko menampilkan data basi setelah guru menyimpan sesuatu. */
+  window.iaPrefetchGateData_ = function () {
+    if (window.iaState_.mode !== 'guru') return;
+    const tanggal = document.getElementById('iaTanggal').value;
+    if (!tanggal) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) { window.iaKelasGatePrefetch_ = { tanggal: tanggal, result: result }; })
+      .withFailureHandler(function () { /* diam saja — gate jatuh balik ke fetch biasa */ })
+      .serverGetKelasAbsenList(window.currentToken, tanggal, null);
+
+    google.script.run
+      .withSuccessHandler(function (result) { window.iaJurnalGatePrefetch_ = { tanggal: tanggal, result: result }; })
+      .withFailureHandler(function () { /* diam saja */ })
+      .serverGetJurnalKelasList(window.currentToken, tanggal, null);
   };
 
   /* Admin PPG: bebas pilih Kelompok > Kelas mana pun (dipanggil dari sidebar). */
@@ -564,6 +589,18 @@
      round-trip kedua. */
 
   window.iaOpenKelasGate_ = function () {
+    const tanggal = document.getElementById('iaTanggal').value;
+
+    // Fast path: data sudah di-prefetch diam-diam (iaPrefetchGateData_) saat
+    // app dibuka/ganti tanggal — kalau masih cocok tanggalnya & belum pernah
+    // pilih kelas sesi ini, langsung render TANPA google.script.run sama
+    // sekali (instan, <1 detik). Kalau tidak cocok, jatuh ke fetch biasa.
+    const prefetch = window.iaKelasGatePrefetch_;
+    if (!window.iaState_.kelas && prefetch && prefetch.tanggal === tanggal) {
+      window.iaKelasGateHandleResult_(prefetch.result);
+      return;
+    }
+
     const overlay = document.getElementById('iaKelasGateOverlay');
     const loadingEl = document.getElementById('iaKelasGateLoading');
     const listEl = document.getElementById('iaKelasGateList');
@@ -576,29 +613,31 @@
     document.getElementById('iaKelasGateMasukBtn').disabled = true;
     window.iaKelasGateSelected_ = null;
 
-    const tanggal = document.getElementById('iaTanggal').value;
-
-    const onResult = function (result) {
-      if (!result.success || !result.data || result.data.length === 0) {
-        window.iaCloseKelasGate_();
-        window.iaShowKelasView_();
-        return;
-      }
-      if (result.data.length === 1) {
-        window.iaCloseKelasGate_();
-        window.iaEnterKelasFromGateData_(result, result.data[0].kelas);
-        return;
-      }
-      window.iaKelasGateResult_ = result;
-      window.iaRenderKelasGateCards_(result.data);
-    };
-
     const onFail = function (err) {
       window.iaCloseKelasGate_();
       iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
     };
 
-    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetKelasAbsenList(window.currentToken, tanggal, window.iaState_.kelas);
+    google.script.run.withSuccessHandler(window.iaKelasGateHandleResult_).withFailureHandler(onFail).serverGetKelasAbsenList(window.currentToken, tanggal, window.iaState_.kelas);
+  };
+
+  window.iaKelasGateHandleResult_ = function (result) {
+    if (!result.success || !result.data || result.data.length === 0) {
+      window.iaCloseKelasGate_();
+      window.iaShowKelasView_();
+      return;
+    }
+    if (result.data.length === 1) {
+      window.iaCloseKelasGate_();
+      window.iaEnterKelasFromGateData_(result, result.data[0].kelas);
+      return;
+    }
+    document.getElementById('iaKelasGateOverlay').style.display = 'flex';
+    document.getElementById('iaKelasGateLoading').style.display = 'none';
+    document.getElementById('iaKelasGateMasukBtn').disabled = true;
+    window.iaKelasGateSelected_ = null;
+    window.iaKelasGateResult_ = result;
+    window.iaRenderKelasGateCards_(result.data);
   };
 
   window.iaRenderKelasGateCards_ = function (data) {
@@ -692,6 +731,17 @@
   };
 
   window.iaJurnalOpenGate_ = function () {
+    const tanggal = document.getElementById('iaTanggal').value;
+
+    // Fast path: sama seperti iaOpenKelasGate_ — pakai data prefetch diam-diam
+    // kalau masih cocok tanggalnya & belum pernah pilih kelas sesi ini, biar
+    // tampil instan tanpa google.script.run.
+    const prefetch = window.iaJurnalGatePrefetch_;
+    if (!window.iaJurnalState_.kelas && prefetch && prefetch.tanggal === tanggal) {
+      window.iaJurnalGateHandleResult_(prefetch.result);
+      return;
+    }
+
     const overlay = document.getElementById('iaJurnalKelasGateOverlay');
     const loadingEl = document.getElementById('iaJurnalGateLoading');
     const listEl = document.getElementById('iaJurnalGateList');
@@ -704,30 +754,32 @@
     document.getElementById('iaJurnalGateMasukBtn').disabled = true;
     window.iaJurnalGateSelected_ = null;
 
-    const tanggal = document.getElementById('iaTanggal').value;
-
-    const onResult = function (result) {
-      if (!result.success || !result.data || result.data.length === 0) {
-        window.iaJurnalCloseGate_();
-        window.iaShowJurnalView_();
-        window.iaJurnalRenderEmpty_();
-        return;
-      }
-      if (result.data.length === 1) {
-        window.iaJurnalCloseGate_();
-        window.iaJurnalEnterFromGateData_(result, result.data[0].kelas);
-        return;
-      }
-      window.iaJurnalGateResult_ = result;
-      window.iaJurnalRenderGateCards_(result.data);
-    };
-
     const onFail = function (err) {
       window.iaJurnalCloseGate_();
       iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
     };
 
-    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetJurnalKelasList(window.currentToken, tanggal, window.iaJurnalState_.kelas);
+    google.script.run.withSuccessHandler(window.iaJurnalGateHandleResult_).withFailureHandler(onFail).serverGetJurnalKelasList(window.currentToken, tanggal, window.iaJurnalState_.kelas);
+  };
+
+  window.iaJurnalGateHandleResult_ = function (result) {
+    if (!result.success || !result.data || result.data.length === 0) {
+      window.iaJurnalCloseGate_();
+      window.iaShowJurnalView_();
+      window.iaJurnalRenderEmpty_();
+      return;
+    }
+    if (result.data.length === 1) {
+      window.iaJurnalCloseGate_();
+      window.iaJurnalEnterFromGateData_(result, result.data[0].kelas);
+      return;
+    }
+    document.getElementById('iaJurnalKelasGateOverlay').style.display = 'flex';
+    document.getElementById('iaJurnalGateLoading').style.display = 'none';
+    document.getElementById('iaJurnalGateMasukBtn').disabled = true;
+    window.iaJurnalGateSelected_ = null;
+    window.iaJurnalGateResult_ = result;
+    window.iaJurnalRenderGateCards_(result.data);
   };
 
   window.iaJurnalRenderGateCards_ = function (data) {
@@ -1267,6 +1319,7 @@
   };
 
   window.iaOnTanggalChange_ = function () {
+    window.iaPrefetchGateData_();
     if (window.iaState_.activeView === 'dashboard') {
       window.iaLoadDashboardSummary_();
       return;
