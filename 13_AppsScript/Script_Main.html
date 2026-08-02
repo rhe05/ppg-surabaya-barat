@@ -546,7 +546,119 @@
 
   window.iaMenuGoPilihKelas_ = function () {
     window.iaCloseMenu_();
-    window.iaShowKelasView_();
+    if (window.iaState_.mode !== 'guru') {
+      window.iaShowKelasView_();
+      return;
+    }
+    window.iaOpenKelasGate_();
+  };
+
+  /* ─── Popup pilih kelas (hyper premium): tampil kalau guru mengajar
+     lebih dari satu kelas, supaya guru sadar memilih kelas yang benar
+     sebelum masuk ke form absen (bukan auto-masuk diam-diam). Kalau
+     cuma 1 kelas, langsung masuk seperti biasa (tidak ada yang perlu
+     dipilih). Data kelas HANYA di-fetch sekali (serverGetKelasAbsenList)
+     lalu dipakai ulang utk isi baris chip + form santri — TIDAK ada
+     round-trip kedua. */
+
+  window.iaOpenKelasGate_ = function () {
+    const overlay = document.getElementById('iaKelasGateOverlay');
+    const loadingEl = document.getElementById('iaKelasGateLoading');
+    const listEl = document.getElementById('iaKelasGateList');
+    const footerEl = document.getElementById('iaKelasGateFooter');
+    overlay.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    document.getElementById('iaKelasGateMasukBtn').disabled = true;
+    window.iaKelasGateSelected_ = null;
+
+    const tanggal = document.getElementById('iaTanggal').value;
+
+    const onResult = function (result) {
+      if (!result.success || !result.data || result.data.length === 0) {
+        window.iaCloseKelasGate_();
+        window.iaShowKelasView_();
+        return;
+      }
+      if (result.data.length === 1) {
+        window.iaCloseKelasGate_();
+        window.iaEnterKelasFromGateData_(result, result.data[0].kelas);
+        return;
+      }
+      window.iaKelasGateResult_ = result;
+      window.iaRenderKelasGateCards_(result.data);
+    };
+
+    const onFail = function (err) {
+      window.iaCloseKelasGate_();
+      iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+    };
+
+    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetKelasAbsenList(window.currentToken, tanggal, window.iaState_.kelas);
+  };
+
+  window.iaRenderKelasGateCards_ = function (data) {
+    document.getElementById('iaKelasGateLoading').style.display = 'none';
+    const listEl = document.getElementById('iaKelasGateList');
+    const footerEl = document.getElementById('iaKelasGateFooter');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'flex';
+    listEl.innerHTML = '';
+
+    data.forEach(function (item) {
+      const card = document.createElement('div');
+      card.className = 'ia-kg-card';
+      const badgeHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kg-card-badge">Cabe Rawit</span>' : '';
+      const infoParts = [];
+      if (item.ruangan) infoParts.push(item.ruangan);
+      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
+      card.innerHTML = `
+        <div class="ia-kg-card-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ia-kg-card-main">
+          <div class="ia-kg-card-top">
+            <span class="ia-kg-card-nama">Kelas ${item.kelas}</span>
+            ${badgeHtml}
+          </div>
+          <div class="ia-kg-card-info">${infoParts.join(' · ')}</div>
+        </div>
+        <div class="ia-kg-card-count">${item.santriCount}<span>Santri</span></div>
+      `;
+      card.onclick = function () {
+        document.querySelectorAll('.ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        window.iaKelasGateSelected_ = item.kelas;
+        document.getElementById('iaKelasGateMasukBtn').disabled = false;
+      };
+      listEl.appendChild(card);
+    });
+  };
+
+  window.iaConfirmKelasGate_ = function () {
+    if (!window.iaKelasGateSelected_) return;
+    const kelas = window.iaKelasGateSelected_;
+    const result = window.iaKelasGateResult_;
+    window.iaCloseKelasGate_();
+    window.iaEnterKelasFromGateData_(result, kelas);
+  };
+
+  window.iaCloseKelasGate_ = function () {
+    document.getElementById('iaKelasGateOverlay').style.display = 'none';
+  };
+
+  window.iaEnterKelasFromGateData_ = function (result, chosenKelas) {
+    window.iaShowKelasView_(true);
+    window.iaState_.kelasLoadedKey = iaKelasCacheKey_();
+    document.getElementById('iaEmptyState').style.display = 'flex';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaProgressWrap').style.display = 'none';
+    document.getElementById('iaSantriList').innerHTML = '';
+    document.getElementById('iaBottomBar').style.display = 'none';
+
+    const chipEls = window.iaBuildKelasRow_(result.data);
+    const idx = result.data.findIndex(function (it) { return it.kelas.toLowerCase() === chosenKelas.toLowerCase(); });
+    window.iaApplyChosenKelas_(result, chosenKelas, chipEls[idx >= 0 ? idx : 0]);
   };
 
   window.iaMenuOpenGuruIzin_ = function () {
@@ -889,6 +1001,50 @@
     window.iaLoadKelasList_();
   };
 
+  /* Bangun ulang baris chip kelas dari data hasil serverGetKelasAbsenList/Admin
+     — dipakai baik oleh iaLoadKelasList_ (flow biasa) maupun oleh popup pilih
+     kelas hyper premium (window.iaEnterKelasFromGateData_), supaya render
+     chip TIDAK dobel-tulis di dua tempat. */
+  window.iaBuildKelasRow_ = function (data) {
+    const row = document.getElementById('iaKelasRow');
+    row.innerHTML = '';
+    window.iaState_.kelasMeta = {};
+    const chipEls = [];
+    data.forEach(function (item) {
+      window.iaState_.kelasMeta[item.kelas.toLowerCase()] = item;
+
+      const chip = document.createElement('div');
+      chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
+      const jenjangHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kelas-chip-jenjang">· Cabe Rawit</span>' : '';
+      chip.innerHTML = `
+        <span class="ia-kelas-chip-nama">${item.kelas}</span>
+        ${jenjangHtml}
+        <span class="ia-kelas-chip-count">${item.santriCount}</span>
+      `;
+      chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
+      row.appendChild(chip);
+      chipEls.push(chip);
+    });
+    return chipEls;
+  };
+
+  /* Terapkan kelas terpilih: pakai formData yang sudah disiapkan server kalau
+     cocok (hemat round-trip, lihat ERROR_LOG.md #19), fallback ke
+     iaSelectKelas_ (fetch form santri terpisah) kalau tidak cocok. */
+  window.iaApplyChosenKelas_ = function (result, chosenKelas, chosenChip) {
+    if (result.formKelas && result.formData && result.formKelas.toLowerCase() === chosenKelas.toLowerCase()) {
+      if (chosenChip) chosenChip.classList.add('active');
+      window.iaState_.kelas = chosenKelas;
+      window.iaRenderKelasInfoCard_(chosenKelas);
+      document.getElementById('iaEmptyState').style.display = 'none';
+      window.iaState_.list = result.formData;
+      window.iaState_.sudahTersimpan = !!result.formSudahTersimpan;
+      window.iaRenderSantriList_();
+    } else {
+      window.iaSelectKelas_(chosenKelas, chosenChip);
+    }
+  };
+
   window.iaLoadKelasList_ = function () {
     window.iaState_.kelas = null;
     document.getElementById('iaEmptyState').style.display = 'flex';
@@ -918,23 +1074,7 @@
         return;
       }
       window.iaState_.kelasLoadedKey = key;
-      window.iaState_.kelasMeta = {};
-      const chipEls = [];
-      result.data.forEach(function (item) {
-        window.iaState_.kelasMeta[item.kelas.toLowerCase()] = item;
-
-        const chip = document.createElement('div');
-        chip.className = 'ia-kelas-chip' + (item.isOwn === false ? ' pinjam' : '');
-        const jenjangHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kelas-chip-jenjang">· Cabe Rawit</span>' : '';
-        chip.innerHTML = `
-          <span class="ia-kelas-chip-nama">${item.kelas}</span>
-          ${jenjangHtml}
-          <span class="ia-kelas-chip-count">${item.santriCount}</span>
-        `;
-        chip.onclick = function () { window.iaSelectKelas_(item.kelas, chip); };
-        row.appendChild(chip);
-        chipEls.push(chip);
-      });
+      const chipEls = window.iaBuildKelasRow_(result.data);
 
       // ⚠️ Chip "+ Minta Akses" sengaja disembunyikan sementara (noted by user
       // 2026-07-26) — fungsi backend/modal-nya TETAP ADA, tinggal tampilkan
@@ -949,20 +1089,7 @@
       if (result.data.length > 0) {
         let idx = keepKelas ? result.data.findIndex(function (it) { return it.kelas.toLowerCase() === keepKelas.toLowerCase(); }) : -1;
         if (idx < 0) idx = 0;
-        const chosenKelas = result.data[idx].kelas;
-        const chosenChip = chipEls[idx];
-
-        if (result.formKelas && result.formData && result.formKelas.toLowerCase() === chosenKelas.toLowerCase()) {
-          chosenChip.classList.add('active');
-          window.iaState_.kelas = chosenKelas;
-          window.iaRenderKelasInfoCard_(chosenKelas);
-          document.getElementById('iaEmptyState').style.display = 'none';
-          window.iaState_.list = result.formData;
-          window.iaState_.sudahTersimpan = !!result.formSudahTersimpan;
-          window.iaRenderSantriList_();
-        } else {
-          window.iaSelectKelas_(chosenKelas, chosenChip);
-        }
+        window.iaApplyChosenKelas_(result, result.data[idx].kelas, chipEls[idx]);
       }
     };
 
