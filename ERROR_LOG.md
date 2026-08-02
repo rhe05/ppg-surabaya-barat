@@ -925,6 +925,39 @@ diandalkan melempar error yang jelas kalau payloadnya kegedean.
 
 ---
 
+## #27 — Tab "Bulanan" Kurikulum stuck di "Memuat..." saat diklik langsung (2026-08-02)
+
+**Gejala**: user klik tab "Bulanan" (Kurikulum, Kelp Petemon) — panel terbuka
+tapi isinya cuma spinner/teks "Memuat..." selamanya, tidak pernah tampil
+data walau filter Bulan sudah ada nilai default (Agustus).
+
+**Akar masalah**: `window.switchKurikulumTab_` (Script_Main.html) punya
+cabang pemicu load data untuk tab `'prota'` (Tahunan) dan `'promes'`
+(Semester), TAPI TIDAK ADA cabang untuk `'probul'` (Bulanan). Klik tab
+Bulanan cuma mengubah `style.display` panel jadi terlihat (perbaikan
+ERROR_LOG #25) tapi tidak pernah memanggil `loadKurikulumProbul_` — jadi
+konten panel tetap markup default statis ("Memuat..."), bukan hasil fetch
+yang gagal. Beda dari #25 (panel tidak kelihatan) — di sini panel KELIHATAN
+tapi kosong karena fetch-nya memang tidak pernah dipicu.
+
+**Perbaikan**: tambah cabang `if (tabName === 'probul') { ... }` di
+`switchKurikulumTab_` yang baca nilai `#kurikulumProbulBulan` lalu panggil
+`window.loadKurikulumProbul_(window.currentKelompokId, bulan)`, sama pola
+dengan cabang `prota`/`promes`.
+
+**Cara verifikasi**: klik tab "Bulanan" langsung dari strip tab (bukan
+lewat "Lihat Progres →") — daftar program bulanan harus tampil sesuai
+bulan default (bukan macet di "Memuat...").
+
+**Aturan permanen**: tiap tab baru di `switchKurikulumTab_` (atau pola
+switch-tab manapun yang mem-branch per tab) WAJIB dicek: apakah tab itu
+punya cabang pemicu load data sendiri? Panel yang kelihatan tapi tidak
+pernah fetch data terlihat identik dengan panel yang gagal fetch — mudah
+lolos review kalau cuma dicek visual "kebuka atau tidak", bukan "ada
+datanya atau tidak".
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
