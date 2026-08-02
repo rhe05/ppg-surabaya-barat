@@ -7263,9 +7263,14 @@
     }
 
     if (sectionName === 'Kurikulum' && window.currentKelompokId) {
-      const tahunEl = document.getElementById('kurikulumProtaTahun');
-      const kelasEl = document.getElementById('kurikulumProtaKelas');
-      window.loadKurikulumProta_(window.currentKelompokId, tahunEl ? tahunEl.value : 2026, kelasEl ? kelasEl.value : '');
+      window.kurikulumRenderKelasGate_();
+      if (window.kurikulumSelectedKelas_) {
+        // Kelas sudah dipilih sebelumnya di sesi ini (mis. pindah tab lalu
+        // balik lagi) -- langsung ke tab-tab, jangan paksa pilih ulang.
+        window.kurikulumShowTabsWrap_();
+      } else {
+        window.kurikulumShowKelasGate_();
+      }
     }
 
     if (sectionName === 'Laporan' && window.currentKelompokId) {
@@ -9349,6 +9354,63 @@
   });
 
   /* ═══════════════════════════════════════════════════════════════════════════════
+     KURIKULUM — Gerbang Pilih Kelas (tampilan pertama, BUKAN semua kartu
+     kelas sekaligus) -> baru setelah kelas dipilih, tab Tahunan/Semester/
+     Bulanan/Pencapaian Santri terbuka, semua otomatis terfilter ke kelas
+     itu. Kelas dipilih bertahan selama sesi (pindah section lalu balik ke
+     Kurikulum TIDAK minta pilih ulang) sampai user klik "Ganti Kelas".
+     ═════════════════════════════════════════════════════════════════════════════════ */
+
+  window.kurikulumSelectedKelas_ = null;
+
+  window.kurikulumRenderKelasGate_ = function () {
+    const grid = document.getElementById('kurikulumKelasGateGrid');
+    if (!grid) return;
+    const kelasList = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    grid.innerHTML = kelasList.map(function (k) {
+      const label = window.KURIKULUM_PROBUL_KELAS_LABEL_[k] || ('Kelas ' + k);
+      return `<div class="guru-dash-kpi-card kurikulum-kelas-gate-card" onclick="window.kurikulumSelectKelas_('${k}')">
+        <div class="guru-dash-kpi-label">${label}</div>
+      </div>`;
+    }).join('');
+  };
+
+  window.kurikulumShowKelasGate_ = function () {
+    document.getElementById('kurikulumKelasGate').style.display = 'block';
+    document.getElementById('kurikulumTabsWrap').style.display = 'none';
+  };
+
+  window.kurikulumShowTabsWrap_ = function () {
+    document.getElementById('kurikulumKelasGate').style.display = 'none';
+    document.getElementById('kurikulumTabsWrap').style.display = 'block';
+    document.getElementById('kurikulumSelectedKelasLabel').textContent =
+      window.KURIKULUM_PROBUL_KELAS_LABEL_[window.kurikulumSelectedKelas_] || ('Kelas ' + window.kurikulumSelectedKelas_);
+  };
+
+  window.kurikulumSelectKelas_ = function (kelas) {
+    window.kurikulumSelectedKelas_ = kelas;
+    window.kurikulumShowTabsWrap_();
+
+    // Pre-fill filter kelas di dropdown tab yang sudah punya sendiri
+    // (Tahunan, Bulanan) supaya begitu tab dibuka datanya langsung sesuai
+    // kelas yang dipilih di gerbang -- BUKAN endpoint baru, cuma menyetel
+    // dropdown existing.
+    const protaKelasEl = document.getElementById('kurikulumProtaKelas');
+    if (protaKelasEl) protaKelasEl.value = kelas;
+    const probulKelasEl = document.getElementById('kurikulumProbulKelas');
+    if (probulKelasEl) probulKelasEl.value = kelas;
+
+    // Selalu mulai dari tab pertama (Tahunan) tiap kali (re)pilih kelas.
+    const firstTabBtn = document.querySelector('.kurikulum-tab-btn[data-tab="prota"]');
+    if (firstTabBtn) window.switchKurikulumTab_(firstTabBtn, 'prota');
+  };
+
+  window.kurikulumGantiKelas_ = function () {
+    window.kurikulumSelectedKelas_ = null;
+    window.kurikulumShowKelasGate_();
+  };
+
+  /* ═══════════════════════════════════════════════════════════════════════════════
      KURIKULUM — Tab Switching & Loading
      ═════════════════════════════════════════════════════════════════════════════════ */
 
@@ -9599,7 +9661,14 @@
           return;
         }
         window.lastKurikulumSemesterTree_ = result.data;
-        window.renderKurikulumSemesterReport_(el, result.data);
+        // Kelas SELALU sudah dipilih di gerbang Kurikulum sebelum tab ini
+        // bisa dibuka (lihat window.kurikulumSelectKelas_) -- tanpa filter
+        // ini laporan akan tetap tampil SEMUA kelas sekaligus, bertentangan
+        // dgn konsep "1 kelas fokus" yg baru dipasang.
+        const scoped = window.kurikulumSelectedKelas_
+          ? result.data.filter(function (p) { return String(p.kelas || '') === String(window.kurikulumSelectedKelas_); })
+          : result.data;
+        window.renderKurikulumSemesterReport_(el, scoped);
       })
       .withFailureHandler(function (err) {
         el.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--red);">Error: ' + err.message + '</div>';

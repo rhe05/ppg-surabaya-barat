@@ -2816,12 +2816,27 @@
           <span>Kurikulum</span>
         </div>
 
-        <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-          <button class="kurikulum-tab-btn active" data-tab="prota" onclick="window.switchKurikulumTab_(this, 'prota')">Tahunan</button>
-          <button class="kurikulum-tab-btn" data-tab="promes" onclick="window.switchKurikulumTab_(this, 'promes')">Semester</button>
-          <button class="kurikulum-tab-btn" data-tab="probul" onclick="window.switchKurikulumTab_(this, 'probul')">Bulanan</button>
-          <button class="kurikulum-tab-btn" data-tab="pencapaian" onclick="window.switchKurikulumTab_(this, 'pencapaian')">Pencapaian Santri</button>
+        <!-- Gerbang Pilih Kelas: tampilan pertama Kurikulum SELALU ini, bukan
+             daftar semua kartu kelas langsung. Baru setelah kelas dipilih,
+             tab Tahunan/Semester/Bulanan/Pencapaian Santri terbuka -- semua
+             sudah otomatis terfilter ke kelas itu (lihat window.kurikulumSelectKelas_). -->
+        <div id="kurikulumKelasGate">
+          <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 14px;">Pilih kelas untuk mengelola Program Tahunan, Semester, Bulanan, dan Pencapaian Santri.</div>
+          <div class="guru-dash-kpi-row" id="kurikulumKelasGateGrid"></div>
         </div>
+
+        <div id="kurikulumTabsWrap" style="display: none;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+            <div id="kurikulumSelectedKelasLabel" style="font-size: 16px; font-weight: 800; color: var(--text);"></div>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="window.kurikulumGantiKelas_()">Ganti Kelas</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+            <button class="kurikulum-tab-btn active" data-tab="prota" onclick="window.switchKurikulumTab_(this, 'prota')">Tahunan</button>
+            <button class="kurikulum-tab-btn" data-tab="promes" onclick="window.switchKurikulumTab_(this, 'promes')">Semester</button>
+            <button class="kurikulum-tab-btn" data-tab="probul" onclick="window.switchKurikulumTab_(this, 'probul')">Bulanan</button>
+            <button class="kurikulum-tab-btn" data-tab="pencapaian" onclick="window.switchKurikulumTab_(this, 'pencapaian')">Pencapaian Santri</button>
+          </div>
 
         <!-- Tab: Prota (Tahunan) -->
         <div class="kurikulum-tab-content active" id="kurikulumTabProta" style="margin-bottom: 48px;">
@@ -2937,6 +2952,8 @@
             <div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih Probul terlebih dahulu</div>
           </div>
         </div>
+        </div>
+        <!-- /#kurikulumTabsWrap -->
         </div>
 
         <div class="kelp-section-panel" id="kelpPanelMonitoring">
