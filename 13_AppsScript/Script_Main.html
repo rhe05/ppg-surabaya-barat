@@ -9872,6 +9872,7 @@
   window.loadKurikulumProbul_ = function (kelompokId) {
     const listEl = document.getElementById('kurikulumProbulList');
     const infoEl = document.getElementById('kurikulumProbulInfo');
+    const statsEl = document.getElementById('kurikulumProbulStats');
     const kelas = document.getElementById('kurikulumProbulKelas').value;
     const semester = document.getElementById('kurikulumProbulSemester').value;
     const bulan = document.getElementById('kurikulumProbulBulan').value;
@@ -9879,6 +9880,7 @@
 
     if (!kelas) {
       infoEl.style.display = 'none';
+      statsEl.style.display = 'none';
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>';
       return;
     }
@@ -9889,6 +9891,7 @@
     infoEl.style.display = 'block';
 
     if (!bulan) {
+      statsEl.style.display = 'none';
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
       return;
     }
@@ -9905,12 +9908,59 @@
         const items = window.kurikulumFilterProbul_(result.data, kelas, semester, bulan);
         window.lastProbulData = items;
         window.renderProbulList_(items);
+        window.kurikulumRenderProbulStats_(items);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         listEl.innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
       })
       .serverGetKurikulumFullTree(window.currentToken, kelompokId, tahun);
+  };
+
+  // Ringkasan status per Program Bulanan (kartu Total/Selesai/Sedang
+  // Berjalan/Belum Dimulai) -- dihitung dari data Pencapaian Santri yang
+  // SUDAH ADA (kurikulum_pencapaian_santri.status: pending/in_progress/
+  // completed via serverGetPencapaianSantri, dipakai jg oleh tombol "Lihat
+  // Progres ->" di tiap kartu), BUKAN field baru. 1 program (probul) =
+  // "Belum Dimulai" kalau belum ada record pencapaian sama sekali,
+  // "Selesai" kalau SEMUA record berstatus completed, sisanya "Sedang
+  // Berjalan". N panggilan paralel (N = jumlah program bulanan yg
+  // ditampilkan, biasanya kecil) -- bukan hot-path performa spt Input
+  // Absen guru, jadi tidak perlu endpoint agregasi baru di backend.
+  window.kurikulumRenderProbulStats_ = function (items) {
+    const statsEl = document.getElementById('kurikulumProbulStats');
+    if (!items || items.length === 0) {
+      statsEl.style.display = 'none';
+      return;
+    }
+
+    statsEl.style.display = 'grid';
+    document.getElementById('kurikulumProbulStatTotal').textContent = items.length;
+    document.getElementById('kurikulumProbulStatSelesai').textContent = '…';
+    document.getElementById('kurikulumProbulStatBerjalan').textContent = '…';
+    document.getElementById('kurikulumProbulStatBelum').textContent = '…';
+
+    let done = 0;
+    let selesai = 0, berjalan = 0, belum = 0;
+    const finishOne = function (rows) {
+      if (!rows || rows.length === 0) belum++;
+      else if (rows.every(function (r) { return r.status === 'completed'; })) selesai++;
+      else berjalan++;
+
+      done++;
+      if (done === items.length) {
+        document.getElementById('kurikulumProbulStatSelesai').textContent = selesai;
+        document.getElementById('kurikulumProbulStatBerjalan').textContent = berjalan;
+        document.getElementById('kurikulumProbulStatBelum').textContent = belum;
+      }
+    };
+
+    items.forEach(function (probul) {
+      google.script.run
+        .withSuccessHandler(function (result) { finishOne(result.success ? result.data : []); })
+        .withFailureHandler(function () { finishOne([]); })
+        .serverGetPencapaianSantri(window.currentToken, window.currentKelompokId, probul.id);
+    });
   };
 
   window.kurikulumFilterProbul_ = function (tree, kelas, semester, bulan) {
