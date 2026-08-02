@@ -9856,9 +9856,22 @@
     containerEl.innerHTML = cardsHtml;
   };
 
+  // Kelas WAJIB dipilih dulu (ERROR_LOG #28: filter Bulan sendirian tidak
+  // cukup, program bulanan ada di banyak kelas sekaligus). Fetch pakai
+  // serverGetKurikulumFullTree yang SAMA dipakai tab Semester (1 panggilan,
+  // nested Prota->Promes->Probul, sudah punya `kelas` per Prota) -- BUKAN
+  // serverGetProbul (flat, tidak ada info kelas sama sekali) -- supaya tidak
+  // perlu endpoint/kolom baru di backend cuma utk filter kelas ini.
   window.loadKurikulumProbul_ = function (kelompokId, bulan) {
+    const listEl = document.getElementById('kurikulumProbulList');
+    const kelas = document.getElementById('kurikulumProbulKelas').value;
+
+    if (!kelas) {
+      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>';
+      return;
+    }
     if (!bulan) {
-      document.getElementById('kurikulumProbulList').innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
+      listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
       return;
     }
 
@@ -9868,17 +9881,32 @@
       .withSuccessHandler(function (result) {
         window.hideGlobalLoading_();
         if (!result.success) {
-          document.getElementById('kurikulumProbulList').innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
+          listEl.innerHTML = '<div style="color: var(--red);">Gagal: ' + result.error + '</div>';
           return;
         }
-        window.lastProbulData = result.data;
-        window.renderProbulList_(result.data);
+        window.lastKurikulumProbulTree_ = result.data;
+        const items = window.kurikulumFilterProbulByKelasBulan_(result.data, kelas, bulan);
+        window.lastProbulData = items;
+        window.renderProbulList_(items);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
-        document.getElementById('kurikulumProbulList').innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
+        listEl.innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
       })
-      .serverGetProbul(window.currentToken, kelompokId, tahun, parseInt(bulan));
+      .serverGetKurikulumFullTree(window.currentToken, kelompokId, tahun);
+  };
+
+  window.kurikulumFilterProbulByKelasBulan_ = function (tree, kelas, bulan) {
+    const out = [];
+    (tree || []).forEach(function (prota) {
+      if (String(prota.kelas || '') !== String(kelas)) return;
+      (prota.promes || []).forEach(function (promes) {
+        (promes.probul || []).forEach(function (p) {
+          if (parseInt(p.bulan) === parseInt(bulan)) out.push(p);
+        });
+      });
+    });
+    return out;
   };
 
   window.renderProbulList_ = function (data) {

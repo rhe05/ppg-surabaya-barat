@@ -2867,7 +2867,20 @@
 
         <!-- Tab: Probul (Bulanan) -->
         <div class="kurikulum-tab-content" id="kurikulumTabProbul" style="margin-bottom: 48px; display: none;">
-          <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+            <select class="form-select" id="kurikulumProbulKelas" style="max-width: 170px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId, document.getElementById('kurikulumProbulBulan').value)">
+              <option value="">-- Pilih Kelas --</option>
+              <option value="PAUD-TK">Kelas PAUD-TK</option>
+              <option value="1">Kelas 1</option>
+              <option value="2">Kelas 2</option>
+              <option value="3">Kelas 3</option>
+              <option value="4">Kelas 4</option>
+              <option value="5">Kelas 5</option>
+              <option value="6">Kelas 6</option>
+              <option value="7">Kelas 7</option>
+              <option value="8">Kelas 8</option>
+              <option value="9">Kelas 9</option>
+            </select>
             <select class="form-select" id="kurikulumProbulBulan" style="max-width: 150px;" onchange="window.loadKurikulumProbul_(window.currentKelompokId, this.value)">
               <option value="">-- Pilih Bulan --</option>
               <option value="1" selected>Bulan Ke 1</option>
