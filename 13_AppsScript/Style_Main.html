@@ -5418,6 +5418,26 @@
       border: 1.5px solid var(--border);
     }
 
+    /* ═════ INPUT JURNAL (desktop, tab Operasional) — tema indigo/violet,
+       sengaja beda dari brass/hijau supaya visual jelas beda modul dari
+       Input Absen & fitur Operasional lain. ═════ */
+    .jurnal-add-btn.btn-primary {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.28);
+      border: none;
+    }
+
+    .jurnal-add-btn.btn-primary:hover:not(:disabled) {
+      opacity: 0.92;
+    }
+
+    #jurnalTableBody td:nth-child(4),
+    #jurnalTableBody td:nth-child(5) {
+      max-width: 240px;
+      white-space: normal;
+      line-height: 1.4;
+    }
+
     /* ═════ POPUP PILIH KELAS (Input Absen guru — hyper premium) ═════ */
     .ia-kg-overlay {
       position: fixed;
@@ -5657,6 +5677,135 @@
       box-shadow: none;
       cursor: not-allowed;
     }
+
+    /* Tema indigo/violet popup pilih kelas Input Jurnal — override warna SAJA
+       dari .ia-kg-* (Input Absen, hijau) via class pembungkus .ia-jr-theme,
+       supaya layout/animasi tidak perlu ditulis ulang. */
+    .ia-jr-theme .ia-kg-modal-icon {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.32);
+    }
+
+    .ia-jr-theme .ia-kg-spinner {
+      border-color: rgba(79, 70, 229, 0.16);
+      border-top-color: #4F46E5;
+    }
+
+    .ia-jr-theme .ia-kg-card.selected {
+      background: linear-gradient(135deg, #EEF2FF 0%, #EDE9FE 100%);
+      border-color: #4F46E5;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.2);
+    }
+
+    .ia-jr-theme .ia-kg-card.selected .ia-kg-card-check {
+      background: #4F46E5;
+      border-color: #4F46E5;
+    }
+
+    .ia-jr-theme .ia-kg-card-badge {
+      color: #4F46E5;
+      background: rgba(79, 70, 229, 0.12);
+    }
+
+    .ia-jr-theme .ia-kg-card-count {
+      color: #4F46E5;
+    }
+
+    .ia-jr-theme .ia-kg-masuk-btn {
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.28);
+    }
+
+    /* ═════ INPUT JURNAL — layar (Input Absen guru mobile, tema indigo/violet) ═════ */
+    .ia-jr-kelas-row {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+      margin-bottom: 14px;
+    }
+
+    .ia-jr-theme .ia-jr-kelas-row .ia-kelas-chip.active {
+      border-color: #4F46E5;
+      background: linear-gradient(135deg, #EEF2FF 0%, #EDE9FE 100%);
+      box-shadow: 0 2px 8px rgba(79, 70, 229, 0.18);
+    }
+
+    .ia-jr-theme .ia-jr-kelas-row .ia-kelas-chip.active .ia-kelas-chip-count {
+      background: #4F46E5;
+      color: #fff;
+    }
+
+    .ia-jr-info {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #4F46E5;
+      background: rgba(79, 70, 229, 0.08);
+      border-radius: var(--radius-button);
+      padding: 8px 14px;
+      margin-bottom: 14px;
+    }
+
+    .ia-jr-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #4F46E5;
+      background: rgba(79, 70, 229, 0.1);
+      border-radius: var(--radius-button);
+      padding: 6px 12px;
+      margin-bottom: 16px;
+    }
+
+    .ia-jr-field {
+      margin-bottom: 16px;
+    }
+
+    .ia-jr-label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 8px;
+    }
+
+    .ia-jr-textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: var(--panel);
+      resize: vertical;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ia-jr-textarea:focus {
+      outline: none;
+      border-color: #4F46E5;
+      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+    }
+
+    .ia-jr-save-btn {
+      width: 100%;
+      border: none;
+      padding: 15px;
+      border-radius: var(--radius-lg);
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+      background: linear-gradient(135deg, #4F46E5, #7C3AED);
+      box-shadow: 0 8px 20px rgba(79, 70, 229, 0.3);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .ia-jr-save-btn:active { transform: scale(0.98); }
 
     /* ═════ LAPORAN (Input Absen guru — Unduh PDF, hyper premium) ═════ */
     .ia-laporan-view {

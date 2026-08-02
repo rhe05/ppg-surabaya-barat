@@ -460,6 +460,7 @@
     document.getElementById('iaKelompokSelect').style.display = 'none';
     document.getElementById('iaBellBtn').style.display = 'flex';
     document.getElementById('iaMenuDashboardBtn').style.display = 'flex';
+    document.getElementById('iaMenuJurnalBtn').style.display = 'flex';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'flex';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'flex';
     document.getElementById('iaMenuLaporanBtn').style.display = 'flex';
@@ -480,6 +481,7 @@
     document.getElementById('iaNamaGuru').textContent = 'Admin PPG';
     document.getElementById('iaBellBtn').style.display = 'none';
     document.getElementById('iaMenuDashboardBtn').style.display = 'none';
+    document.getElementById('iaMenuJurnalBtn').style.display = 'none';
     document.getElementById('iaMenuGuruIzinBtn').style.display = 'none';
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
     document.getElementById('iaMenuLaporanBtn').style.display = 'none';
@@ -661,6 +663,274 @@
     window.iaApplyChosenKelas_(result, chosenKelas, chipEls[idx >= 0 ? idx : 0]);
   };
 
+  /* ═══ Input Jurnal (guru mobile) — catatan materi KBM per kelas/tanggal.
+     Struktur & alur SENGAJA disamakan dgn popup pilih kelas Input Absen di
+     atas (gate premium kalau kelas > 1, auto-masuk kalau cuma 1) — cuma beda
+     tema warna (indigo/violet, class .ia-jr-theme) & endpoint server
+     (Modul_Jurnal.gs). State jurnal (iaJurnalState_) SENGAJA dipisah total
+     dari iaState_ Input Absen supaya kedua fitur tidak saling ganggu. ═══ */
+
+  window.iaJurnalState_ = { kelas: null, kelasLoadedKey: null };
+
+  window.iaMenuGoJurnal_ = function () {
+    window.iaCloseMenu_();
+    window.iaJurnalOpenGate_();
+  };
+
+  window.iaJurnalCacheKey_ = function () {
+    return document.getElementById('iaTanggal').value;
+  };
+
+  window.iaShowJurnalView_ = function () {
+    window.iaState_.activeView = 'jurnal';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'flex';
+  };
+
+  window.iaJurnalOpenGate_ = function () {
+    const overlay = document.getElementById('iaJurnalKelasGateOverlay');
+    const loadingEl = document.getElementById('iaJurnalGateLoading');
+    const listEl = document.getElementById('iaJurnalGateList');
+    const footerEl = document.getElementById('iaJurnalGateFooter');
+    overlay.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    document.getElementById('iaJurnalGateMasukBtn').disabled = true;
+    window.iaJurnalGateSelected_ = null;
+
+    const tanggal = document.getElementById('iaTanggal').value;
+
+    const onResult = function (result) {
+      if (!result.success || !result.data || result.data.length === 0) {
+        window.iaJurnalCloseGate_();
+        window.iaShowJurnalView_();
+        window.iaJurnalRenderEmpty_();
+        return;
+      }
+      if (result.data.length === 1) {
+        window.iaJurnalCloseGate_();
+        window.iaJurnalEnterFromGateData_(result, result.data[0].kelas);
+        return;
+      }
+      window.iaJurnalGateResult_ = result;
+      window.iaJurnalRenderGateCards_(result.data);
+    };
+
+    const onFail = function (err) {
+      window.iaJurnalCloseGate_();
+      iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+    };
+
+    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetJurnalKelasList(window.currentToken, tanggal, window.iaJurnalState_.kelas);
+  };
+
+  window.iaJurnalRenderGateCards_ = function (data) {
+    document.getElementById('iaJurnalGateLoading').style.display = 'none';
+    const listEl = document.getElementById('iaJurnalGateList');
+    const footerEl = document.getElementById('iaJurnalGateFooter');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'flex';
+    listEl.innerHTML = '';
+
+    data.forEach(function (item) {
+      const card = document.createElement('div');
+      card.className = 'ia-kg-card';
+      const badgeHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kg-card-badge">Cabe Rawit</span>' : '';
+      const infoParts = [];
+      if (item.ruangan) infoParts.push(item.ruangan);
+      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
+      card.innerHTML = `
+        <div class="ia-kg-card-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ia-kg-card-main">
+          <div class="ia-kg-card-top">
+            <span class="ia-kg-card-nama">Kelas ${item.kelas}</span>
+            ${badgeHtml}
+          </div>
+          <div class="ia-kg-card-info">${infoParts.join(' · ')}</div>
+        </div>
+      `;
+      card.onclick = function () {
+        document.querySelectorAll('#iaJurnalGateList .ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        window.iaJurnalGateSelected_ = item.kelas;
+        document.getElementById('iaJurnalGateMasukBtn').disabled = false;
+      };
+      listEl.appendChild(card);
+    });
+  };
+
+  window.iaJurnalConfirmGate_ = function () {
+    if (!window.iaJurnalGateSelected_) return;
+    const kelas = window.iaJurnalGateSelected_;
+    const result = window.iaJurnalGateResult_;
+    window.iaJurnalCloseGate_();
+    window.iaJurnalEnterFromGateData_(result, kelas);
+  };
+
+  window.iaJurnalCloseGate_ = function () {
+    document.getElementById('iaJurnalKelasGateOverlay').style.display = 'none';
+  };
+
+  window.iaJurnalBuildKelasRow_ = function (data) {
+    const row = document.getElementById('iaJurnalKelasRow');
+    row.innerHTML = '';
+    window.iaJurnalState_.kelasMeta = {};
+    const chipEls = [];
+    data.forEach(function (item) {
+      window.iaJurnalState_.kelasMeta[item.kelas.toLowerCase()] = item;
+      const chip = document.createElement('div');
+      chip.className = 'ia-kelas-chip';
+      const jenjangHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kelas-chip-jenjang">· Cabe Rawit</span>' : '';
+      chip.innerHTML = `<span class="ia-kelas-chip-nama">${item.kelas}</span>${jenjangHtml}`;
+      chip.onclick = function () { window.iaJurnalSelectKelas_(item.kelas, chip); };
+      row.appendChild(chip);
+      chipEls.push(chip);
+    });
+    return chipEls;
+  };
+
+  window.iaJurnalRenderInfoCard_ = function (kelas) {
+    const meta = (window.iaJurnalState_.kelasMeta || {})[kelas.toLowerCase()];
+    const el = document.getElementById('iaJurnalInfo');
+    if (!meta) { el.style.display = 'none'; return; }
+    const parts = ['Kelas ' + meta.kelas];
+    if (meta.ruangan) parts.push(meta.ruangan);
+    if (meta.jamMulai && meta.jamSelesai) parts.push(meta.jamMulai + '–' + meta.jamSelesai);
+    el.textContent = parts.join(' · ');
+    el.style.display = 'block';
+  };
+
+  window.iaJurnalRenderEmpty_ = function () {
+    document.getElementById('iaJurnalEmptyState').style.display = 'flex';
+    document.getElementById('iaJurnalForm').style.display = 'none';
+    document.getElementById('iaJurnalBottomBar').style.display = 'none';
+    document.getElementById('iaJurnalInfo').style.display = 'none';
+  };
+
+  window.iaJurnalFillForm_ = function (kelas, formData, tersimpan) {
+    window.iaJurnalState_.kelas = kelas;
+    window.iaJurnalRenderInfoCard_(kelas);
+    document.getElementById('iaJurnalEmptyState').style.display = 'none';
+    document.getElementById('iaJurnalForm').style.display = 'block';
+    document.getElementById('iaJurnalBottomBar').style.display = 'flex';
+    document.getElementById('iaJurnalMateri').value = (formData && formData.materi) || '';
+    document.getElementById('iaJurnalCatatan').value = (formData && formData.catatan) || '';
+    document.getElementById('iaJurnalStatusBadge').style.display = tersimpan ? 'inline-flex' : 'none';
+  };
+
+  window.iaJurnalEnterFromGateData_ = function (result, chosenKelas) {
+    window.iaShowJurnalView_();
+    window.iaJurnalState_.kelasLoadedKey = window.iaJurnalCacheKey_();
+    const chipEls = window.iaJurnalBuildKelasRow_(result.data);
+    const idx = result.data.findIndex(function (it) { return it.kelas.toLowerCase() === chosenKelas.toLowerCase(); });
+    if (chipEls[idx >= 0 ? idx : 0]) chipEls[idx >= 0 ? idx : 0].classList.add('active');
+
+    if (result.formKelas && result.formKelas.toLowerCase() === chosenKelas.toLowerCase()) {
+      window.iaJurnalFillForm_(chosenKelas, result.formData, result.formTersimpan);
+    } else {
+      window.iaJurnalSelectKelas_(chosenKelas, chipEls[idx >= 0 ? idx : 0]);
+    }
+  };
+
+  window.iaJurnalSelectKelas_ = function (kelas, chipEl) {
+    document.querySelectorAll('#iaJurnalKelasRow .ia-kelas-chip').forEach(function (c) { c.classList.remove('active'); });
+    if (chipEl) chipEl.classList.add('active');
+
+    const tanggal = document.getElementById('iaTanggal').value;
+    window.showGlobalLoading_('Memuat jurnal...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          iaShowToast_(result.error, 'error');
+          window.iaJurnalRenderEmpty_();
+          return;
+        }
+        window.iaJurnalFillForm_(kelas, result.data, result.tersimpan);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        iaShowToast_('Gagal memuat jurnal: ' + (err && err.message ? err.message : err), 'error');
+        window.iaJurnalRenderEmpty_();
+      })
+      .serverGetJurnalForm(window.currentToken, kelas, tanggal);
+  };
+
+  /* Dipanggil dari iaOnTanggalChange_ saat sedang di view Jurnal — auto pilih
+     ulang kelas yang sama (TANPA popup gate, sama seperti iaLoadKelasList_
+     Input Absen). Gate cuma tampil sekali di titik masuk awal via menu. */
+  window.iaJurnalLoadKelasList_ = function () {
+    const key = window.iaJurnalCacheKey_();
+    if (window.iaJurnalState_.kelasLoadedKey === key) return;
+
+    const tanggal = document.getElementById('iaTanggal').value;
+    const keepKelas = window.iaJurnalState_.kelas;
+    window.iaJurnalRenderEmpty_();
+    window.showGlobalLoading_('Memuat kelas...');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success || !result.data || result.data.length === 0) {
+          window.iaJurnalRenderEmpty_();
+          return;
+        }
+        window.iaJurnalState_.kelasLoadedKey = key;
+        const chipEls = window.iaJurnalBuildKelasRow_(result.data);
+        let idx = keepKelas ? result.data.findIndex(function (it) { return it.kelas.toLowerCase() === keepKelas.toLowerCase(); }) : -1;
+        if (idx < 0) idx = 0;
+        const chosenKelas = result.data[idx].kelas;
+        if (chipEls[idx]) chipEls[idx].classList.add('active');
+        if (result.formKelas && result.formKelas.toLowerCase() === chosenKelas.toLowerCase()) {
+          window.iaJurnalFillForm_(chosenKelas, result.formData, result.formTersimpan);
+        } else {
+          window.iaJurnalSelectKelas_(chosenKelas, chipEls[idx]);
+        }
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+        window.iaJurnalRenderEmpty_();
+      })
+      .serverGetJurnalKelasList(window.currentToken, tanggal, keepKelas);
+  };
+
+  window.iaJurnalSave_ = function () {
+    const kelas = window.iaJurnalState_.kelas;
+    if (!kelas) return;
+    const tanggal = document.getElementById('iaTanggal').value;
+    const materi = document.getElementById('iaJurnalMateri').value;
+    const catatan = document.getElementById('iaJurnalCatatan').value;
+
+    if (!materi.trim()) {
+      iaShowToast_('Materi wajib diisi.', 'error');
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan jurnal...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          iaShowToast_(result.error, 'error');
+          return;
+        }
+        document.getElementById('iaJurnalStatusBadge').style.display = 'inline-flex';
+        iaShowToast_('Jurnal berhasil disimpan.', 'success');
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        iaShowToast_('Gagal menyimpan jurnal: ' + (err && err.message ? err.message : err), 'error');
+      })
+      .serverSaveJurnal(window.currentToken, kelas, tanggal, materi, catatan);
+  };
+
   window.iaMenuOpenGuruIzin_ = function () {
     window.iaCloseMenu_();
     google.script.run
@@ -738,6 +1008,7 @@
     document.getElementById('iaDashboardView').style.display = 'block';
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
@@ -748,6 +1019,7 @@
     window.iaState_.activeView = 'kelas';
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
     if (skipLoad) return;
@@ -772,6 +1044,7 @@
     window.iaState_.activeView = 'laporan';
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'block';
@@ -996,6 +1269,10 @@
   window.iaOnTanggalChange_ = function () {
     if (window.iaState_.activeView === 'dashboard') {
       window.iaLoadDashboardSummary_();
+      return;
+    }
+    if (window.iaState_.activeView === 'jurnal') {
+      window.iaJurnalLoadKelasList_();
       return;
     }
     window.iaLoadKelasList_();
@@ -6487,6 +6764,174 @@
       .serverCreatePengumuman(window.currentToken, { kelompok_id: window.currentKelompokId, judul, isi, tanggal });
   };
 
+  /* ─── Input Jurnal (desktop, tab Operasional) — catatan materi KBM per
+     kelas/tanggal, Firestore-only (Modul_Jurnal.gs), 1 dokumen per kelas per
+     tanggal (docId deterministik) supaya baca/tulis selalu murah walau data
+     menumpuk bertahun-tahun. Kelas dropdown dipakai ulang dari
+     window.lastJadwalListData (Jadwal KBM) — TIDAK round-trip baru. ─── */
+
+  window.loadJurnalList_ = function (kelompokId) {
+    const tbody = document.getElementById('jurnalTableBody');
+    if (!tbody || !kelompokId) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-faint);">Memuat...</td></tr>';
+
+    const bulanEl = document.getElementById('jurnalFilterBulan');
+    const tahunEl = document.getElementById('jurnalFilterTahun');
+    if (!bulanEl.dataset.inited) {
+      const now = new Date();
+      bulanEl.value = String(now.getMonth() + 1);
+      tahunEl.value = String(now.getFullYear());
+      bulanEl.dataset.inited = '1';
+    }
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--red);">' + (result.error || 'Gagal memuat data.') + '</td></tr>';
+          return;
+        }
+        window.renderJurnalTable_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--red);">Gagal memuat jurnal: ' + (err && err.message ? err.message : err) + '</td></tr>';
+      })
+      .serverGetJurnalListKelompok(window.currentToken, kelompokId, bulanEl.value, tahunEl.value);
+  };
+
+  window.renderJurnalTable_ = function (data) {
+    window.lastJurnalListData_ = data;
+    const tbody = document.getElementById('jurnalTableBody');
+    if (data.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 24px; color: var(--text-faint);">Belum ada jurnal bulan ini.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(function (j) {
+      const materi = window.escapeHtmlExport_ ? window.escapeHtmlExport_(j.materi) : j.materi;
+      const catatan = j.catatan ? (window.escapeHtmlExport_ ? window.escapeHtmlExport_(j.catatan) : j.catatan) : '<span style="color:var(--text-faint);">—</span>';
+      return '<tr>'
+        + '<td>' + j.tanggal + '</td>'
+        + '<td>' + j.kelas + '</td>'
+        + '<td>' + j.guru_nama + '</td>'
+        + '<td>' + materi + '</td>'
+        + '<td>' + catatan + '</td>'
+        + '<td>'
+        + '<span class="guru-kelp-aksi-group">'
+        + '<button class="guru-kelp-aksi-btn" title="Edit" onclick="window.editJurnal_(\'' + j.kelas.replace(/'/g, "\\'") + '\', \'' + j.tanggal + '\')">' + window.iconEditSvg_ + '</button>'
+        + '<button class="guru-kelp-aksi-btn danger" title="Hapus" onclick="window.openModalDeleteJurnal_(\'' + j.kelas.replace(/'/g, "\\'") + '\', \'' + j.tanggal + '\')">' + window.iconDeleteSvg_ + '</button>'
+        + '</span>'
+        + '</td>'
+        + '</tr>';
+    }).join('');
+  };
+
+  window.populateJurnalKelasSelect_ = function (selectedKelas) {
+    const sel = document.getElementById('jurnalKelasSelect');
+    const kelasList = (window.lastJadwalListData || []).map(function (j) { return j.kelas; })
+      .filter(function (k, idx, arr) { return k && arr.indexOf(k) === idx; });
+    sel.innerHTML = kelasList.map(function (k) { return '<option value="' + k + '">' + k + '</option>'; }).join('');
+    if (selectedKelas) sel.value = selectedKelas;
+  };
+
+  window.openModalJurnal = function () {
+    document.getElementById('modalJurnalTitle').textContent = 'Tambah Jurnal';
+    document.getElementById('jurnalEditOrigKelas').value = '';
+    document.getElementById('jurnalEditOrigTanggal').value = '';
+    document.getElementById('jurnalTanggal').value = '';
+    document.getElementById('jurnalMateri').value = '';
+    document.getElementById('jurnalCatatan').value = '';
+    document.getElementById('jurnalFormMsg').style.display = 'none';
+    window.populateJurnalKelasSelect_();
+    document.getElementById('modalJurnal').classList.add('active');
+  };
+
+  window.editJurnal_ = function (kelas, tanggal) {
+    const entry = (window.lastJurnalListData_ || []).find(function (j) { return j.kelas === kelas && j.tanggal === tanggal; });
+    if (!entry) return;
+    document.getElementById('modalJurnalTitle').textContent = 'Edit Jurnal';
+    document.getElementById('jurnalEditOrigKelas').value = kelas;
+    document.getElementById('jurnalEditOrigTanggal').value = tanggal;
+    document.getElementById('jurnalTanggal').value = tanggal;
+    document.getElementById('jurnalMateri').value = entry.materi || '';
+    document.getElementById('jurnalCatatan').value = entry.catatan || '';
+    document.getElementById('jurnalFormMsg').style.display = 'none';
+    window.populateJurnalKelasSelect_(kelas);
+    document.getElementById('modalJurnal').classList.add('active');
+  };
+
+  window.closeModalJurnal = function () {
+    document.getElementById('modalJurnal').classList.remove('active');
+  };
+
+  window.saveJurnal_ = function () {
+    const kelas = document.getElementById('jurnalKelasSelect').value;
+    const tanggal = document.getElementById('jurnalTanggal').value;
+    const materi = document.getElementById('jurnalMateri').value;
+    const catatan = document.getElementById('jurnalCatatan').value;
+    const msgEl = document.getElementById('jurnalFormMsg');
+
+    if (!kelas || !tanggal || !materi.trim()) {
+      msgEl.textContent = 'Tanggal, kelas, dan materi wajib diisi.';
+      msgEl.style.color = 'var(--red)';
+      msgEl.style.display = 'block';
+      return;
+    }
+
+    window.showGlobalLoading_('Menyimpan jurnal...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          msgEl.textContent = result.error;
+          msgEl.style.color = 'var(--red)';
+          msgEl.style.display = 'block';
+          return;
+        }
+        window.closeModalJurnal();
+        window.loadJurnalList_(window.currentKelompokId);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        msgEl.textContent = 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err);
+        msgEl.style.color = 'var(--red)';
+        msgEl.style.display = 'block';
+      })
+      .serverSaveJurnalAdmin(window.currentToken, window.currentKelompokId, kelas, tanggal, materi, catatan);
+  };
+
+  window.openModalDeleteJurnal_ = function (kelas, tanggal) {
+    window.jurnalDeleteTarget_ = { kelas: kelas, tanggal: tanggal };
+    document.getElementById('jurnalDeleteKelas').textContent = kelas;
+    document.getElementById('jurnalDeleteTanggal').textContent = tanggal;
+    document.getElementById('modalDeleteJurnal').classList.add('active');
+  };
+
+  window.closeModalDeleteJurnal = function () {
+    document.getElementById('modalDeleteJurnal').classList.remove('active');
+  };
+
+  window.confirmDeleteJurnal_ = function () {
+    const target = window.jurnalDeleteTarget_;
+    if (!target) return;
+    const btn = document.getElementById('jurnalDeleteConfirmBtn');
+    btn.classList.add('is-loading');
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.classList.remove('is-loading');
+        if (!result.success) {
+          alert(result.error);
+          return;
+        }
+        window.closeModalDeleteJurnal();
+        window.loadJurnalList_(window.currentKelompokId);
+      })
+      .withFailureHandler(function (err) {
+        btn.classList.remove('is-loading');
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverDeleteJurnalAdmin(window.currentToken, window.currentKelompokId, target.kelas, target.tanggal);
+  };
+
   // Submenu section Dashboard Kelompok (Kelp Petemon dkk): Dashboard/Data Master/
   // Operasional/Kurikulum/Monitoring/Laporan. Menutup modal aktif dulu supaya
   // tidak ada modal "hilang" secara diam-diam kalau panel pemiliknya disembunyikan.
@@ -6608,6 +7053,7 @@
     window.loadKelompokDashboardPengumuman_(kelompokId);
     window.loadSiklusGenerusList_(kelompokId);
     window.loadPengurusList_(kelompokId);
+    window.loadJurnalList_(kelompokId);
   };
 
   // Inti aktivasi screen Dashboard Kelompok, TANPA event — dipakai baik oleh
