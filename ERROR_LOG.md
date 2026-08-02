@@ -991,6 +991,45 @@ keduanya memakai semantik nilai yang SAMA PERSIS sebelum menganggap
 fitur selesai — bukan cuma cek masing-masing UI kebuka/fetch dengan
 benar (itu baru cukup untuk #27, tidak cukup untuk bug jenis ini).
 
+## #29 — Tombol "Edit" di kartu Probul (tab Bulanan) diam-diam SELALU membuat baris baru, bukan update (2026-08-02)
+
+**Gejala**: klik "Edit" di kartu Program Bulanan (mis. "Bacaan Al-Qur'an"),
+ubah Target, klik Simpan — tidak ada error, tapi perubahan tidak konsisten
+tersimpan ke baris yang benar.
+
+**Akar masalah**: `window.saveProbul()` (Script_Main.html) TIDAK PERNAH
+mengecek `probulId` — selalu memanggil `serverAddProbul` apa pun
+konteksnya. `window.editProbul()` mengisi field `#probulId` tapi field itu
+tidak pernah dibaca di manapun. Akibatnya klik Edit→Simpan diam-diam
+menjalankan alur ADD (bikin baris baru dgn `id = 'probul_'+promesId+'_'+bulan`
+memakai `promesId` KOSONG dari modal — bertabrakan/menimpa baris lama
+lain yang kebetulan sudah punya `promesId` kosong+bulan sama, atau gagal
+sunyi kalau tidak ada). `editProbul()` juga cuma menerima 2 field
+(`target`, `deskripsi`) dari tombol Edit — tidak cukup informasi utk
+benar-benar membedakan mode edit.
+
+**Perbaikan**: `saveProbul()` sekarang cabang eksplisit: `probulId` terisi
+→ panggil `serverUpdateProbul` (diperluas menerima jilid+minggu1-4);
+kosong → `serverAddProbul` (alur Tambah lama, tidak diubah). Tombol Edit
+kirim SEMUA field lewat `data-*` attribute (bukan onclick string mentah —
+kategori materi spt "Bacaan Al-Qur'an" mengandung apostrof yang akan
+memutus string JS, pola sama [[ppg-kurikulum-tahunan-redesign-2026-07-29]]).
+Modal ganti judul dinamis + kunci Bulan/Kategori saat mode Edit.
+
+**Bug turunan yang ikut ketemu**: `serverAddProbul`/`serverUpdateProbul`/
+`serverDeleteProbul` (Modul_MaintainKurikulum.gs) tidak pernah men-drop
+cache `kurikulum_fulltree_<kelompokId>_<tahun>` (TTL 60 detik) — padahal
+tab Bulanan sudah pindah baca dari situ sejak refactor filter Kelas/
+Semester (lihat [[ppg-kurikulum-tahunan-redesign-2026-07-29]] cache
+`kurikulum_probul_*` lama). Tanpa fix ini, Add/Edit/Hapus probul bisa
+"telat muncul" sampai 60 detik meski server sudah sukses — persis pola
+staleness yang sama seperti kasus lain di app ini. Sekarang ketiga fungsi
+ikut `cacheDrop_('kurikulum_fulltree_' + kelompokId + '_' + tahun)`.
+
+**Cara verifikasi**: klik Edit di kartu manapun, ubah Target/Jilid/salah
+satu Minggu, Simpan — kartu yang SAMA harus terupdate (bukan kartu baru
+muncul), dan perubahan langsung terlihat tanpa perlu tunggu/refresh.
+
 ---
 
 ## Prosedur Debugging Cepat (urutan baku)
