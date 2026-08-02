@@ -709,11 +709,32 @@
      (Modul_Jurnal.gs). State jurnal (iaJurnalState_) SENGAJA dipisah total
      dari iaState_ Input Absen supaya kedua fitur tidak saling ganggu. ═══ */
 
-  window.iaJurnalState_ = { kelas: null, kelasLoadedKey: null };
+  window.iaJurnalState_ = { kelas: null, kelasLoadedKey: null, mode: 'input', editingTanggal: null };
 
   window.iaMenuGoJurnal_ = function () {
     window.iaCloseMenu_();
-    window.iaJurnalOpenGate_();
+    window.iaJurnalOpenChooser_();
+  };
+
+  /* Popup pilihan "Jurnal Mengajar": Input Jurnal (isi tanggal header, tema
+     indigo, alur lama) vs Edit Jurnal (browse+edit riwayat, tema amber,
+     BARU) — dibuka dari menu, sebelum masuk ke salah satu alur. */
+  window.iaJurnalOpenChooser_ = function () {
+    document.getElementById('iaJurnalChooserOverlay').style.display = 'flex';
+  };
+
+  window.iaJurnalCloseChooser_ = function () {
+    document.getElementById('iaJurnalChooserOverlay').style.display = 'none';
+  };
+
+  window.iaJurnalChooseMode_ = function (mode) {
+    window.iaJurnalCloseChooser_();
+    window.iaJurnalState_.mode = mode;
+    if (mode === 'edit') {
+      window.iaJurnalEditOpenGate_();
+    } else {
+      window.iaJurnalOpenGate_();
+    }
   };
 
   window.iaJurnalCacheKey_ = function () {
@@ -728,8 +749,15 @@
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'flex';
-    document.getElementById('iaHeaderRoot').classList.add('jr-active');
-    document.getElementById('iaHeaderHero').classList.add('jr-active');
+
+    const isEdit = window.iaJurnalState_.mode === 'edit';
+    const headerRoot = document.getElementById('iaHeaderRoot');
+    const headerHero = document.getElementById('iaHeaderHero');
+    headerRoot.classList.remove('jr-active', 'jr-edit-active');
+    headerHero.classList.remove('jr-active', 'jr-edit-active');
+    headerRoot.classList.add(isEdit ? 'jr-edit-active' : 'jr-active');
+    headerHero.classList.add(isEdit ? 'jr-edit-active' : 'jr-active');
+    document.getElementById('iaJurnalView').classList.toggle('jr-edit-mode', isEdit);
   };
 
   window.iaJurnalOpenGate_ = function () {
@@ -842,7 +870,13 @@
       chip.className = 'ia-kelas-chip';
       const jenjangHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kelas-chip-jenjang">· Cabe Rawit</span>' : '';
       chip.innerHTML = `<span class="ia-kelas-chip-nama">${item.kelas}</span>${jenjangHtml}`;
-      chip.onclick = function () { window.iaJurnalSelectKelas_(item.kelas, chip); };
+      chip.onclick = function () {
+        if (window.iaJurnalState_.mode === 'edit') {
+          window.iaJurnalEditSelectKelas_(item.kelas, chip);
+        } else {
+          window.iaJurnalSelectKelas_(item.kelas, chip);
+        }
+      };
       row.appendChild(chip);
       chipEls.push(chip);
     });
@@ -863,6 +897,8 @@
   window.iaJurnalRenderEmpty_ = function () {
     document.getElementById('iaJurnalEmptyState').style.display = 'flex';
     document.getElementById('iaJurnalForm').style.display = 'none';
+    document.getElementById('iaJurnalRiwayatList').style.display = 'none';
+    document.getElementById('iaJurnalEditBanner').style.display = 'none';
     document.getElementById('iaJurnalBottomBar').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
   };
@@ -871,6 +907,8 @@
     window.iaJurnalState_.kelas = kelas;
     window.iaJurnalRenderInfoCard_(kelas);
     document.getElementById('iaJurnalEmptyState').style.display = 'none';
+    document.getElementById('iaJurnalRiwayatList').style.display = 'none';
+    document.getElementById('iaJurnalEditBanner').style.display = 'none';
     document.getElementById('iaJurnalForm').style.display = 'block';
     document.getElementById('iaJurnalBottomBar').style.display = 'flex';
     document.getElementById('iaJurnalMateri').value = (formData && formData.materi) || '';
@@ -958,7 +996,9 @@
   window.iaJurnalSave_ = function () {
     const kelas = window.iaJurnalState_.kelas;
     if (!kelas) return;
-    const tanggal = document.getElementById('iaTanggal').value;
+    const isEdit = window.iaJurnalState_.mode === 'edit';
+    const tanggal = isEdit ? window.iaJurnalState_.editingTanggal : document.getElementById('iaTanggal').value;
+    if (!tanggal) return;
     const materi = document.getElementById('iaJurnalMateri').value;
     const catatan = document.getElementById('iaJurnalCatatan').value;
 
@@ -975,14 +1015,189 @@
           iaShowToast_(result.error, 'error');
           return;
         }
-        document.getElementById('iaJurnalStatusBadge').style.display = 'inline-flex';
-        iaShowToast_('Jurnal berhasil disimpan.', 'success');
+        if (isEdit) {
+          iaShowToast_('Jurnal berhasil diperbarui.', 'success');
+          window.iaJurnalBackToRiwayat_();
+          window.iaJurnalLoadRiwayat_(kelas);
+        } else {
+          document.getElementById('iaJurnalStatusBadge').style.display = 'inline-flex';
+          iaShowToast_('Jurnal berhasil disimpan.', 'success');
+        }
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         iaShowToast_('Gagal menyimpan jurnal: ' + (err && err.message ? err.message : err), 'error');
       })
       .serverSaveJurnal(window.currentToken, kelas, tanggal, materi, catatan);
+  };
+
+  /* ═══ Edit Jurnal (BARU) — popup pilih kelas tema amber (pola SAMA dgn
+     gate Input Jurnal indigo, endpoint beda: serverGetJurnalKelasOnly TIDAK
+     terikat 1 tanggal) → daftar riwayat semua tanggal tersimpan kelas itu →
+     tap 1 baris utk edit materi/catatan tanggal tsb (BUKAN tanggal header). ═══ */
+
+  window.iaJurnalEditOpenGate_ = function () {
+    const overlay = document.getElementById('iaJurnalEditKelasGateOverlay');
+    const loadingEl = document.getElementById('iaJurnalEditGateLoading');
+    const listEl = document.getElementById('iaJurnalEditGateList');
+    const footerEl = document.getElementById('iaJurnalEditGateFooter');
+    overlay.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    document.getElementById('iaJurnalEditGateMasukBtn').disabled = true;
+    window.iaJurnalEditGateSelected_ = null;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success || !result.data || result.data.length === 0) {
+          window.iaJurnalEditCloseGate_();
+          iaShowToast_((result && result.error) || 'Anda belum punya kelas.', 'error');
+          return;
+        }
+        if (result.data.length === 1) {
+          window.iaJurnalEditCloseGate_();
+          window.iaJurnalEditEnterKelas_(result.data, result.data[0].kelas);
+          return;
+        }
+        window.iaJurnalEditGateData_ = result.data;
+        window.iaJurnalEditRenderGateCards_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.iaJurnalEditCloseGate_();
+        iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+      })
+      .serverGetJurnalKelasOnly(window.currentToken);
+  };
+
+  window.iaJurnalEditRenderGateCards_ = function (data) {
+    document.getElementById('iaJurnalEditGateLoading').style.display = 'none';
+    const listEl = document.getElementById('iaJurnalEditGateList');
+    const footerEl = document.getElementById('iaJurnalEditGateFooter');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'flex';
+    listEl.innerHTML = '';
+
+    data.forEach(function (item) {
+      const card = document.createElement('div');
+      card.className = 'ia-kg-card';
+      const badgeHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kg-card-badge">Cabe Rawit</span>' : '';
+      const infoParts = [];
+      if (item.ruangan) infoParts.push(item.ruangan);
+      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
+      card.innerHTML = `
+        <div class="ia-kg-card-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ia-kg-card-main">
+          <div class="ia-kg-card-top">
+            <span class="ia-kg-card-nama">Kelas ${item.kelas}</span>
+            ${badgeHtml}
+          </div>
+          <div class="ia-kg-card-info">${infoParts.join(' · ')}</div>
+        </div>
+      `;
+      card.onclick = function () {
+        document.querySelectorAll('#iaJurnalEditGateList .ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        window.iaJurnalEditGateSelected_ = item.kelas;
+        document.getElementById('iaJurnalEditGateMasukBtn').disabled = false;
+      };
+      listEl.appendChild(card);
+    });
+  };
+
+  window.iaJurnalEditConfirmGate_ = function () {
+    if (!window.iaJurnalEditGateSelected_) return;
+    const kelas = window.iaJurnalEditGateSelected_;
+    const data = window.iaJurnalEditGateData_;
+    window.iaJurnalEditCloseGate_();
+    window.iaJurnalEditEnterKelas_(data, kelas);
+  };
+
+  window.iaJurnalEditCloseGate_ = function () {
+    document.getElementById('iaJurnalEditKelasGateOverlay').style.display = 'none';
+  };
+
+  window.iaJurnalEditEnterKelas_ = function (data, kelas) {
+    window.iaShowJurnalView_();
+    const chipEls = window.iaJurnalBuildKelasRow_(data);
+    const idx = data.findIndex(function (it) { return it.kelas.toLowerCase() === kelas.toLowerCase(); });
+    if (chipEls[idx >= 0 ? idx : 0]) chipEls[idx >= 0 ? idx : 0].classList.add('active');
+    window.iaJurnalState_.kelas = kelas;
+    window.iaJurnalRenderInfoCard_(kelas);
+    window.iaJurnalLoadRiwayat_(kelas);
+  };
+
+  window.iaJurnalEditSelectKelas_ = function (kelas, chipEl) {
+    document.querySelectorAll('#iaJurnalKelasRow .ia-kelas-chip').forEach(function (c) { c.classList.remove('active'); });
+    if (chipEl) chipEl.classList.add('active');
+    window.iaJurnalState_.kelas = kelas;
+    window.iaJurnalRenderInfoCard_(kelas);
+    window.iaJurnalLoadRiwayat_(kelas);
+  };
+
+  window.iaJurnalLoadRiwayat_ = function (kelas) {
+    document.getElementById('iaJurnalEmptyState').style.display = 'none';
+    document.getElementById('iaJurnalForm').style.display = 'none';
+    document.getElementById('iaJurnalEditBanner').style.display = 'none';
+    document.getElementById('iaJurnalBottomBar').style.display = 'none';
+    const listEl = document.getElementById('iaJurnalRiwayatList');
+    listEl.style.display = 'block';
+    listEl.innerHTML = '<div class="ia-jr-riwayat-loading">Memuat riwayat...</div>';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          listEl.innerHTML = '<div class="ia-jr-riwayat-empty">' + result.error + '</div>';
+          return;
+        }
+        window.iaJurnalRiwayatData_ = result.data;
+        window.iaJurnalRenderRiwayat_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        listEl.innerHTML = '<div class="ia-jr-riwayat-empty">Gagal memuat riwayat: ' + (err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetJurnalRiwayat(window.currentToken, kelas);
+  };
+
+  window.iaJurnalRenderRiwayat_ = function (data) {
+    const listEl = document.getElementById('iaJurnalRiwayatList');
+    if (data.length === 0) {
+      listEl.innerHTML = '<div class="ia-jr-riwayat-empty">Belum ada jurnal tersimpan untuk kelas ini.</div>';
+      return;
+    }
+    listEl.innerHTML = data.map(function (item, idx) {
+      const excerptRaw = item.materi || '';
+      const excerpt = excerptRaw.length > 80 ? excerptRaw.slice(0, 80) + '…' : excerptRaw;
+      const excerptSafe = window.escapeHtmlExport_ ? window.escapeHtmlExport_(excerpt) : excerpt;
+      return '<div class="ia-jr-riwayat-item" onclick="window.iaJurnalEditEntry_(' + idx + ')">'
+        + '<span class="ia-jr-riwayat-item-date">' + item.tanggal + '</span>'
+        + '<span class="ia-jr-riwayat-item-materi">' + excerptSafe + '</span>'
+        + '<svg class="ia-jr-riwayat-item-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>'
+        + '</div>';
+    }).join('');
+  };
+
+  window.iaJurnalEditEntry_ = function (idx) {
+    const item = (window.iaJurnalRiwayatData_ || [])[idx];
+    if (!item) return;
+    window.iaJurnalState_.editingTanggal = item.tanggal;
+    document.getElementById('iaJurnalRiwayatList').style.display = 'none';
+    document.getElementById('iaJurnalEditBanner').style.display = 'flex';
+    document.getElementById('iaJurnalEditBannerDate').textContent = item.tanggal;
+    document.getElementById('iaJurnalForm').style.display = 'block';
+    document.getElementById('iaJurnalBottomBar').style.display = 'flex';
+    document.getElementById('iaJurnalMateri').value = item.materi || '';
+    document.getElementById('iaJurnalCatatan').value = item.catatan || '';
+    document.getElementById('iaJurnalStatusBadge').style.display = 'none';
+  };
+
+  window.iaJurnalBackToRiwayat_ = function () {
+    document.getElementById('iaJurnalForm').style.display = 'none';
+    document.getElementById('iaJurnalEditBanner').style.display = 'none';
+    document.getElementById('iaJurnalBottomBar').style.display = 'none';
+    window.iaJurnalState_.editingTanggal = null;
+    document.getElementById('iaJurnalRiwayatList').style.display = 'block';
   };
 
   window.iaMenuOpenGuruIzin_ = function () {
@@ -1065,8 +1280,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
-    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
-    document.getElementById('iaHeaderHero').classList.remove('jr-active');
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
     window.iaLoadDashboardSummary_();
   };
@@ -1078,8 +1293,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
-    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
-    document.getElementById('iaHeaderHero').classList.remove('jr-active');
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     if (skipLoad) return;
     if (window.iaState_.kelasLoadedKey === iaKelasCacheKey_()) return;
     window.iaLoadKelasList_();
@@ -1105,8 +1320,8 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
-    document.getElementById('iaHeaderRoot').classList.remove('jr-active');
-    document.getElementById('iaHeaderHero').classList.remove('jr-active');
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaLaporanView').style.display = 'block';
     window.iaPopulateLaporanFilters_();
     window.iaUpdateLaporanNote_();
@@ -1333,7 +1548,11 @@
       return;
     }
     if (window.iaState_.activeView === 'jurnal') {
-      window.iaJurnalLoadKelasList_();
+      // Mode Edit Jurnal TIDAK terikat tanggal header (browsing riwayat semua
+      // tanggal), jadi ganti tanggal di sana sengaja tidak memicu apa pun.
+      if (window.iaJurnalState_.mode !== 'edit') {
+        window.iaJurnalLoadKelasList_();
+      }
       return;
     }
     window.iaLoadKelasList_();

@@ -64,23 +64,18 @@ function jurnalSaveEntry_(kelompokId, kelas, tanggal, materi, catatan, guruId, d
    getKelasOwnedByGuru_, getKelasSessionInfo_, canGuruAccessKelas_) ═════ */
 
 /**
- * GET daftar kelas milik guru + (kalau ada preferKelas yang cocok) jurnal
- * kelas itu sekalian — sama seperti serverGetKelasAbsenList, supaya popup
- * pilih kelas & form jurnal tidak perlu 2 round-trip terpisah.
+ * Daftar kelas milik guru + info sesi (kategori/ruangan/jam) — dipakai ulang
+ * oleh serverGetJurnalKelasList (Input Jurnal, butuh formData sekalian) dan
+ * serverGetJurnalKelasOnly (Edit Jurnal, cuma butuh daftar kelas, TIDAK ada
+ * tanggal spesifik jadi TIDAK ada formData yang relevan).
  */
-function serverGetJurnalKelasList(token, tanggal, preferKelas) {
-  const ctx = requireGuruContext_(token);
-  if (!ctx.success) return ctx;
-  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
-    return { success: false, error: 'Format tanggal tidak valid.' };
-  }
-
+function jurnalKelasListForGuru_(ctx) {
   const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU], ctx.kelompokId);
   const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
   const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
 
   const kelasNames = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
-  const data = kelasNames.map(function (kelas) {
+  return kelasNames.map(function (kelas) {
     const info = getKelasSessionInfo_(ctx.kelompokId, kelas, jadwalRowsAll, guruRowsAll) || {};
     return {
       kelas: kelas,
@@ -90,7 +85,22 @@ function serverGetJurnalKelasList(token, tanggal, preferKelas) {
       jamSelesai: info.jamSelesai || '',
     };
   });
+}
 
+/**
+ * GET daftar kelas milik guru + (kalau ada preferKelas yang cocok) jurnal
+ * kelas itu sekalian — sama seperti serverGetKelasAbsenList, supaya popup
+ * pilih kelas & form jurnal tidak perlu 2 round-trip terpisah. Dipakai oleh
+ * mode "Input Jurnal" (guru isi jurnal TANGGAL TERPILIH di header).
+ */
+function serverGetJurnalKelasList(token, tanggal, preferKelas) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+
+  const data = jurnalKelasListForGuru_(ctx);
   const result = { success: true, data: data };
   if (data.length === 0) return result;
 
@@ -106,6 +116,44 @@ function serverGetJurnalKelasList(token, tanggal, preferKelas) {
   result.formTersimpan = !!entry;
 
   return result;
+}
+
+/**
+ * GET daftar kelas milik guru SAJA, TANPA lookup jurnal tanggal tertentu —
+ * dipakai oleh mode "Edit Jurnal" (guru pilih kelas dulu, lalu browse RIWAYAT
+ * semua tanggal yang sudah pernah diisi, bukan 1 tanggal spesifik).
+ */
+function serverGetJurnalKelasOnly(token) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+  return { success: true, data: jurnalKelasListForGuru_(ctx) };
+}
+
+/**
+ * GET riwayat SEMUA jurnal 1 kelas (semua tanggal yang pernah diisi, terbaru
+ * dulu) — dipakai layar "Edit Jurnal". SENGAJA hanya kelas MILIK SENDIRI
+ * (bukan kelas pinjaman via akses_kelas_request) — guru cuma boleh
+ * lihat/edit riwayat jurnal kelasnya sendiri.
+ */
+function serverGetJurnalRiwayat(token, kelas) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  const owned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId).map(function (k) { return k.toLowerCase(); });
+  if (owned.indexOf(String(kelas).trim().toLowerCase()) === -1) {
+    return { success: false, error: 'Anda tidak punya akses ke kelas ini.' };
+  }
+
+  const kelasLower = String(kelas).trim().toLowerCase();
+  const rows = firestoreListCollection_(jurnalPath_(ctx.kelompokId)).filter(function (j) {
+    return String(j.kelas || '').trim().toLowerCase() === kelasLower;
+  });
+  rows.sort(function (a, b) { return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
+
+  return {
+    success: true,
+    data: rows.map(function (r) { return { tanggal: r.tanggal, materi: r.materi || '', catatan: r.catatan || '' }; }),
+  };
 }
 
 /** GET jurnal 1 kelas+tanggal (dipanggil saat guru ganti kelas via chip). */

@@ -5827,6 +5827,272 @@
 
     .ia-jr-save-btn:active { transform: scale(0.98); }
 
+    /* Header amber/orange saat mode "Edit Jurnal" — SATU LAGI tema warna
+       (beda dari hijau Input Absen & indigo Input Jurnal) supaya guru sadar
+       sedang di posisi Edit. Class jr-edit-active di-toggle bergantian dgn
+       jr-active oleh iaShowJurnalView_ (Script_Main.html), view lain
+       (Dashboard/Kelas/Laporan) tidak pernah kena kedua class ini. */
+    .ia-header.jr-edit-active {
+      box-shadow: 0 6px 20px rgba(217, 119, 6, 0.24);
+    }
+
+    .ia-header-hero.jr-edit-active {
+      background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+    }
+
+    /* Tema amber popup pilih kelas Edit Jurnal — sama pola dgn .ia-jr-theme
+       (indigo, Input Jurnal) tapi warna beda, class pembungkus .ia-jr-edit-theme. */
+    .ia-jr-edit-theme .ia-kg-modal-icon {
+      background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+      box-shadow: 0 8px 20px rgba(217, 119, 6, 0.32);
+    }
+
+    .ia-jr-edit-theme .ia-kg-spinner {
+      border-color: rgba(217, 119, 6, 0.16);
+      border-top-color: #D97706;
+    }
+
+    .ia-jr-edit-theme .ia-kg-card.selected {
+      background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+      border-color: #D97706;
+      box-shadow: 0 6px 18px rgba(217, 119, 6, 0.2);
+    }
+
+    .ia-jr-edit-theme .ia-kg-card.selected .ia-kg-card-check {
+      background: #D97706;
+      border-color: #D97706;
+    }
+
+    .ia-jr-edit-theme .ia-kg-card-badge {
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.12);
+    }
+
+    .ia-jr-edit-theme .ia-kg-masuk-btn {
+      background: linear-gradient(135deg, #D97706, #F59E0B);
+      box-shadow: 0 6px 16px rgba(217, 119, 6, 0.28);
+    }
+
+    .ia-jr-edit-theme .ia-kg-modal-subtitle,
+    .ia-jr-edit-theme .ia-kg-loading-text,
+    .ia-jr-edit-theme .ia-kg-card-info {
+      color: var(--text);
+    }
+
+    /* Field/tombol Simpan/badge/chip ikut amber saat #iaJurnalView sedang
+       mode edit — selector pakai ID biar lebih spesifik dari .ia-jr-theme
+       (indigo, dasar) yg sudah menempel permanen di elemen yg sama. */
+    #iaJurnalView.jr-edit-mode .ia-jr-textarea:focus {
+      border-color: #D97706;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.14);
+    }
+
+    #iaJurnalView.jr-edit-mode .ia-jr-save-btn {
+      background: linear-gradient(135deg, #D97706, #F59E0B);
+      box-shadow: 0 8px 20px rgba(217, 119, 6, 0.3);
+    }
+
+    #iaJurnalView.jr-edit-mode .ia-jr-status-badge {
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.1);
+    }
+
+    #iaJurnalView.jr-edit-mode .ia-jr-kelas-row .ia-kelas-chip.active {
+      border-color: #D97706;
+      background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+      box-shadow: 0 2px 8px rgba(217, 119, 6, 0.18);
+    }
+
+    /* Banner "Kembali ke Riwayat" — tampil hanya saat sedang edit 1 entri
+       jurnal spesifik (bukan saat mengisi jurnal tanggal header). */
+    .ia-jr-edit-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .ia-jr-edit-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: none;
+      background: rgba(217, 119, 6, 0.1);
+      color: #D97706;
+      font-size: 12.5px;
+      font-weight: 700;
+      padding: 7px 12px;
+      border-radius: var(--radius-button);
+      cursor: pointer;
+    }
+
+    .ia-jr-edit-back-btn:active { transform: scale(0.96); }
+
+    .ia-jr-edit-banner-date {
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+
+    .ia-jr-edit-banner-date strong {
+      color: var(--text);
+    }
+
+    /* Daftar riwayat jurnal (mode Edit Jurnal) — 1 baris = 1 tanggal tersimpan. */
+    .ia-jr-riwayat-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ia-jr-riwayat-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--panel);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 13px 14px;
+      cursor: pointer;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ia-jr-riwayat-item:active { transform: scale(0.98); }
+
+    .ia-jr-riwayat-item:hover {
+      border-color: #D97706;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.14);
+    }
+
+    .ia-jr-riwayat-item-date {
+      flex-shrink: 0;
+      font-size: 12.5px;
+      font-weight: 800;
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.1);
+      border-radius: var(--radius-button);
+      padding: 5px 10px;
+    }
+
+    .ia-jr-riwayat-item-materi {
+      flex: 1;
+      min-width: 0;
+      font-size: 13px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ia-jr-riwayat-item-arrow {
+      flex-shrink: 0;
+      color: var(--text-faint);
+    }
+
+    .ia-jr-riwayat-loading,
+    .ia-jr-riwayat-empty {
+      text-align: center;
+      padding: 32px 10px;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    /* Popup pilihan "Jurnal Mengajar" (Input Jurnal vs Edit Jurnal). */
+    .ia-jr-chooser-modal {
+      max-width: 360px;
+      text-align: left;
+      padding-top: 30px;
+    }
+
+    .ia-jr-chooser-title {
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .ia-jr-chooser-subtitle {
+      font-size: 12.5px;
+      color: var(--text);
+      margin-bottom: 18px;
+    }
+
+    .ia-jr-chooser-options {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ia-jr-chooser-opt {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      border: 1.5px solid var(--border);
+      background: var(--panel-2);
+      border-radius: var(--radius-lg);
+      padding: 13px 14px;
+      cursor: pointer;
+      text-align: left;
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .ia-jr-chooser-opt:active { transform: scale(0.98); }
+
+    .ia-jr-chooser-opt-icon {
+      flex-shrink: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    .ia-jr-chooser-opt-input .ia-jr-chooser-opt-icon {
+      background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+    }
+
+    .ia-jr-chooser-opt-input:hover {
+      border-color: #4F46E5;
+      box-shadow: 0 4px 14px rgba(79, 70, 229, 0.16);
+    }
+
+    .ia-jr-chooser-opt-edit .ia-jr-chooser-opt-icon {
+      background: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+    }
+
+    .ia-jr-chooser-opt-edit:hover {
+      border-color: #D97706;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.16);
+    }
+
+    .ia-jr-chooser-opt-text {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .ia-jr-chooser-opt-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .ia-jr-chooser-opt-desc {
+      font-size: 11.5px;
+      color: var(--text-dim);
+    }
+
+    .ia-jr-chooser-opt-arrow {
+      flex-shrink: 0;
+      color: var(--text-faint);
+    }
+
     /* ═════ LAPORAN (Input Absen guru — Unduh PDF, hyper premium) ═════ */
     .ia-laporan-view {
       flex: 1;

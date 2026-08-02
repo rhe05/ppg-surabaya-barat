@@ -218,7 +218,7 @@
       </button>
       <button type="button" class="ia-menu-item" id="iaMenuJurnalBtn" onclick="window.iaMenuGoJurnal_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        <span>Input Jurnal</span>
+        <span>Jurnal Mengajar</span>
       </button>
       <button type="button" class="ia-menu-item" id="iaMenuGuruIzinBtn" onclick="window.iaMenuOpenGuruIzin_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
@@ -312,7 +312,19 @@
         <div>Pilih kelas untuk mulai isi jurnal.</div>
       </div>
 
+      <!-- Riwayat jurnal (mode Edit Jurnal saja) — daftar semua tanggal yang
+           sudah pernah diisi utk kelas terpilih, tap salah satu utk edit. -->
+      <div class="ia-jr-riwayat-list" id="iaJurnalRiwayatList" style="display:none;"></div>
+
       <div class="ia-jr-form" id="iaJurnalForm" style="display:none;">
+        <div class="ia-jr-edit-banner" id="iaJurnalEditBanner" style="display:none;">
+          <button type="button" class="ia-jr-edit-back-btn" onclick="window.iaJurnalBackToRiwayat_()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            Kembali ke Riwayat
+          </button>
+          <span class="ia-jr-edit-banner-date">Mengedit tanggal <strong id="iaJurnalEditBannerDate"></strong></span>
+        </div>
+
         <div class="ia-jr-status-badge" id="iaJurnalStatusBadge" style="display:none;">✓ Sudah diisi untuk tanggal ini</div>
 
         <div class="ia-jr-field">
@@ -440,6 +452,64 @@
       <div class="ia-kg-footer" id="iaJurnalGateFooter" style="display:none;">
         <button type="button" class="ia-kg-cancel-btn" onclick="window.iaJurnalCloseGate_()">Batal</button>
         <button type="button" class="ia-kg-masuk-btn" id="iaJurnalGateMasukBtn" disabled onclick="window.iaJurnalConfirmGate_()">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup pilihan "Jurnal Mengajar": Input Jurnal (indigo) vs Edit Jurnal (amber) -->
+  <div class="ia-status-modal-overlay" id="iaJurnalChooserOverlay" style="display:none;">
+    <div class="ia-status-modal ia-jr-chooser-modal">
+      <button type="button" class="ia-status-modal-x" onclick="window.iaJurnalCloseChooser_()" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="ia-jr-chooser-title">Jurnal Mengajar</div>
+      <div class="ia-jr-chooser-subtitle">Pilih salah satu untuk melanjutkan.</div>
+      <div class="ia-jr-chooser-options">
+        <button type="button" class="ia-jr-chooser-opt ia-jr-chooser-opt-input" onclick="window.iaJurnalChooseMode_('input')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Input Jurnal</span>
+            <span class="ia-jr-chooser-opt-desc">Isi materi &amp; catatan KBM hari ini</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="ia-jr-chooser-opt ia-jr-chooser-opt-edit" onclick="window.iaJurnalChooseMode_('edit')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Edit Jurnal</span>
+            <span class="ia-jr-chooser-opt-desc">Ubah jurnal yang sudah pernah diisi</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup pilih kelas utk Edit Jurnal (tema amber — beda dari Input Absen hijau & Input Jurnal indigo) -->
+  <div class="ia-kg-overlay ia-jr-edit-theme" id="iaJurnalEditKelasGateOverlay" style="display:none;">
+    <div class="ia-kg-modal">
+      <div class="ia-kg-modal-header">
+        <div class="ia-kg-modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5Z"/></svg>
+        </div>
+        <div class="ia-kg-modal-title">Pilih Kelas</div>
+        <div class="ia-kg-modal-subtitle">Jenengan mengajar lebih dari satu kelas. Pilih salah satu untuk melihat riwayat jurnal.</div>
+      </div>
+
+      <div class="ia-kg-loading" id="iaJurnalEditGateLoading">
+        <div class="ia-kg-spinner"></div>
+        <div class="ia-kg-loading-text">Memuat kelas...</div>
+      </div>
+
+      <div class="ia-kg-list" id="iaJurnalEditGateList"></div>
+
+      <div class="ia-kg-footer" id="iaJurnalEditGateFooter" style="display:none;">
+        <button type="button" class="ia-kg-cancel-btn" onclick="window.iaJurnalEditCloseGate_()">Batal</button>
+        <button type="button" class="ia-kg-masuk-btn" id="iaJurnalEditGateMasukBtn" disabled onclick="window.iaJurnalEditConfirmGate_()">Masuk</button>
       </div>
     </div>
   </div>
