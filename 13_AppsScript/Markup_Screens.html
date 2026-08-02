@@ -4239,11 +4239,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Kategori</label>
-          <input type="text" class="form-input" id="probulKategori" placeholder="mis. Hafalan">
+          <label class="form-label">Materi</label>
+          <input type="text" class="form-input" id="probulKategori" placeholder="mis. Hafalan" oninput="window.probulUpdateJilidField_()">
         </div>
-        <div class="form-group">
-          <label class="form-label">Jilid</label>
+        <div class="form-group" id="probulJilidGroup">
+          <label class="form-label" id="probulJilidLabel">Jilid</label>
           <input type="text" class="form-input" id="probulJilid" placeholder="mis. Tilawati Jilid 1">
         </div>
         <div class="form-group">

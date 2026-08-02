@@ -10185,7 +10185,29 @@
     document.getElementById('probulMinggu2').value = '';
     document.getElementById('probulMinggu3').value = '';
     document.getElementById('probulMinggu4').value = '';
+    window.probulUpdateJilidField_();
     document.getElementById('modalAddProbul').classList.add('active');
+  };
+
+  // Baris "Jilid" cuma relevan utk materi "Bacaan Al-Qur'an" -- disembunyikan
+  // total utk materi lain. Kelas PAUD-TK s.d. 3 SD masih pakai istilah
+  // "Jilid" (Tilawati dst), Kelas 4 SD ke atas sudah baca Al-Qur'an
+  // langsung jadi labelnya diganti "Al-Qur'an" (field & data yang
+  // tersimpan tetap sama, cuma label yang berubah).
+  window.probulUpdateJilidField_ = function () {
+    const group = document.getElementById('probulJilidGroup');
+    const label = document.getElementById('probulJilidLabel');
+    if (!group || !label) return;
+    const kategoriEl = document.getElementById('probulKategori');
+    const kategori = kategoriEl ? kategoriEl.value.trim() : '';
+    if (kategori !== "Bacaan Al-Qur'an") {
+      group.style.display = 'none';
+      return;
+    }
+    group.style.display = '';
+    const kelas = window.kurikulumSelectedKelas_;
+    const kelasRendah = kelas === 'PAUD-TK' || kelas === '1' || kelas === '2' || kelas === '3';
+    label.textContent = kelasRendah ? 'Jilid' : "Al-Qur'an";
   };
 
   window.closeModalAddProbul = function () {
@@ -10486,6 +10508,7 @@
     document.getElementById('probulMinggu2').value = minggu2 || '';
     document.getElementById('probulMinggu3').value = minggu3 || '';
     document.getElementById('probulMinggu4').value = minggu4 || '';
+    window.probulUpdateJilidField_();
     document.getElementById('modalAddProbul').classList.add('active');
   };
 
