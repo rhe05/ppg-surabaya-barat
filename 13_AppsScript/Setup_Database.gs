@@ -66,7 +66,7 @@ function setupDatabaseStructure() {
   // 14-17. KURIKULUM (Prota/Promes/Probul + Pencapaian Santri)
   createSheetIfNotExists(ss, 'kurikulum_prota', ['id', 'kelompok_id', 'tahun', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at', 'kelas', 'urutan']);
   createSheetIfNotExists(ss, 'kurikulum_promes', ['id', 'kelompok_id', 'prota_id', 'semester', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
-  createSheetIfNotExists(ss, 'kurikulum_probul', ['id', 'kelompok_id', 'promes_id', 'tahun', 'bulan', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at']);
+  createSheetIfNotExists(ss, 'kurikulum_probul', ['id', 'kelompok_id', 'promes_id', 'tahun', 'bulan', 'kategori', 'target', 'deskripsi', 'created_by', 'created_at', 'updated_at', 'jilid', 'minggu1', 'minggu2', 'minggu3', 'minggu4']);
   createSheetIfNotExists(ss, 'kurikulum_pencapaian_santri', ['id', 'kelompok_id', 'santri_id', 'probul_id', 'status', 'tanggal_update', 'catatan_guru', 'updated_by']);
 
   // 18. IZIN AKSES KELAS LAIN (guru minta akses input absen kelas guru lain, per tanggal)
@@ -88,6 +88,7 @@ function setupDatabaseStructure() {
   migratePengurusKelpSchemaAddFields_(ss);
   migrateUsersSchemaAddFields_(ss);
   migrateKurikulumProtaSchemaAddFields_(ss);
+  migrateKurikulumProbulSchemaAddFields_(ss);
 
   // Seed data
   seedData(ss);
@@ -261,6 +262,31 @@ function migrateKurikulumProtaSchemaAddFields_(ss) {
 
   sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
   console.log(`✓ Sheet "kurikulum_prota" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
+}
+
+/**
+ * Migrasi sheet 'kurikulum_probul' yang SUDAH ADA: tambah kolom 'jilid'
+ * (mis. "Tilawati Jilid 1", konteks materi yang sedang dipakai — tampil di
+ * kartu Bulanan) dan 'minggu1'..'minggu4' (rincian target per minggu, diisi
+ * lewat modal Edit di kartu Bulanan).
+ * ⚠️ AMAN DIJALANKAN BERULANG — hanya menambah kolom yang belum ada.
+ */
+function migrateKurikulumProbulSchemaAddFields_(ss) {
+  const sheet = ss.getSheetByName('kurikulum_probul');
+  if (!sheet) return;
+
+  const newColumns = ['jilid', 'minggu1', 'minggu2', 'minggu3', 'minggu4'];
+  const lastCol = sheet.getLastColumn();
+  const existingHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim().toLowerCase());
+
+  const missing = newColumns.filter(col => !existingHeaders.includes(col));
+  if (missing.length === 0) {
+    console.log('↷ Sheet "kurikulum_probul" sudah punya semua kolom baru, skip migrasi.');
+    return;
+  }
+
+  sheet.getRange(1, lastCol + 1, 1, missing.length).setValues([missing]);
+  console.log(`✓ Sheet "kurikulum_probul" dimigrasi, kolom ditambahkan: ${missing.join(', ')}`);
 }
 
 /**

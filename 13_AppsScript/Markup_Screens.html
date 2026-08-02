@@ -2918,24 +2918,6 @@
               <span id="kurikulumProbulInfoTahun"></span>
             </div>
           </div>
-          <div class="guru-dash-kpi-row" id="kurikulumProbulStats" style="display: none; margin-bottom: 18px;">
-            <div class="guru-dash-kpi-card">
-              <div class="guru-dash-kpi-label">Total Program</div>
-              <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value" id="kurikulumProbulStatTotal">0</span></div>
-            </div>
-            <div class="guru-dash-kpi-card accent-sage">
-              <div class="guru-dash-kpi-label">Selesai</div>
-              <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value" id="kurikulumProbulStatSelesai">0</span></div>
-            </div>
-            <div class="guru-dash-kpi-card accent-volt">
-              <div class="guru-dash-kpi-label">Sedang Berjalan</div>
-              <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value" id="kurikulumProbulStatBerjalan">0</span></div>
-            </div>
-            <div class="guru-dash-kpi-card">
-              <div class="guru-dash-kpi-label">Belum Dimulai</div>
-              <div class="guru-dash-kpi-value-row"><span class="guru-dash-kpi-value" id="kurikulumProbulStatBelum">0</span></div>
-            </div>
-          </div>
           <div id="kurikulumProbulList" style="display: flex; flex-direction: column; gap: 16px;">
             <div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>
           </div>
@@ -4240,7 +4222,7 @@
     <div class="modal-overlay" id="modalAddProbul">
       <div class="modal-content">
         <div class="modal-header">
-          <span>Tambah Program Bulanan</span>
+          <span id="modalAddProbulTitle">Tambah Program Bulanan</span>
           <button class="modal-close-btn" onclick="window.closeModalAddProbul()">×</button>
         </div>
         <input type="hidden" id="probulId">
@@ -4248,18 +4230,12 @@
         <div class="form-group">
           <label class="form-label">Bulan</label>
           <select class="form-select" id="probulBulan">
-            <option value="1">Januari</option>
-            <option value="2">Februari</option>
-            <option value="3">Maret</option>
-            <option value="4">April</option>
-            <option value="5">Mei</option>
-            <option value="6">Juni</option>
-            <option value="7">Juli</option>
-            <option value="8">Agustus</option>
-            <option value="9">September</option>
-            <option value="10">Oktober</option>
-            <option value="11">November</option>
-            <option value="12">Desember</option>
+            <option value="1">Bulan Ke 1</option>
+            <option value="2">Bulan Ke 2</option>
+            <option value="3">Bulan Ke 3</option>
+            <option value="4">Bulan Ke 4</option>
+            <option value="5">Bulan Ke 5</option>
+            <option value="6">Bulan Ke 6</option>
           </select>
         </div>
         <div class="form-group">
@@ -4267,12 +4243,23 @@
           <input type="text" class="form-input" id="probulKategori" placeholder="mis. Hafalan">
         </div>
         <div class="form-group">
+          <label class="form-label">Jilid</label>
+          <input type="text" class="form-input" id="probulJilid" placeholder="mis. Tilawati Jilid 1">
+        </div>
+        <div class="form-group">
           <label class="form-label">Target</label>
-          <input type="text" class="form-input" id="probulTarget" placeholder="mis. 2 surat">
+          <input type="text" class="form-input" id="probulTarget" placeholder="mis. Hal 1-9">
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
           <textarea class="form-input" id="probulDeskripsi" rows="2" placeholder="Catatan tambahan"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Rincian Target Mingguan</label>
+          <input type="text" class="form-input" id="probulMinggu1" placeholder="Minggu Ke 1" style="margin-bottom: 8px;">
+          <input type="text" class="form-input" id="probulMinggu2" placeholder="Minggu Ke 2" style="margin-bottom: 8px;">
+          <input type="text" class="form-input" id="probulMinggu3" placeholder="Minggu Ke 3" style="margin-bottom: 8px;">
+          <input type="text" class="form-input" id="probulMinggu4" placeholder="Minggu Ke 4">
         </div>
         <div class="modal-footer">
           <button class="btn btn-secondary" onclick="window.closeModalAddProbul()">Batal</button>

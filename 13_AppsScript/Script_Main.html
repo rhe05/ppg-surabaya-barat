@@ -9941,7 +9941,6 @@
   window.loadKurikulumProbul_ = function (kelompokId) {
     const listEl = document.getElementById('kurikulumProbulList');
     const infoEl = document.getElementById('kurikulumProbulInfo');
-    const statsEl = document.getElementById('kurikulumProbulStats');
     const kelas = document.getElementById('kurikulumProbulKelas').value;
     const semester = document.getElementById('kurikulumProbulSemester').value;
     const bulan = document.getElementById('kurikulumProbulBulan').value;
@@ -9949,7 +9948,6 @@
 
     if (!kelas) {
       infoEl.style.display = 'none';
-      statsEl.style.display = 'none';
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih kelas terlebih dahulu</div>';
       return;
     }
@@ -9960,7 +9958,6 @@
     infoEl.style.display = 'block';
 
     if (!bulan) {
-      statsEl.style.display = 'none';
       listEl.innerHTML = '<div style="text-align: center; padding: 40px; color: var(--text-faint);">Pilih bulan terlebih dahulu</div>';
       return;
     }
@@ -9977,59 +9974,12 @@
         const items = window.kurikulumFilterProbul_(result.data, kelas, semester, bulan);
         window.lastProbulData = items;
         window.renderProbulList_(items);
-        window.kurikulumRenderProbulStats_(items);
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
         listEl.innerHTML = '<div style="color: var(--red);">Error: ' + err.message + '</div>';
       })
       .serverGetKurikulumFullTree(window.currentToken, kelompokId, tahun);
-  };
-
-  // Ringkasan status per Program Bulanan (kartu Total/Selesai/Sedang
-  // Berjalan/Belum Dimulai) -- dihitung dari data Pencapaian Santri yang
-  // SUDAH ADA (kurikulum_pencapaian_santri.status: pending/in_progress/
-  // completed via serverGetPencapaianSantri, dipakai jg oleh tombol "Lihat
-  // Progres ->" di tiap kartu), BUKAN field baru. 1 program (probul) =
-  // "Belum Dimulai" kalau belum ada record pencapaian sama sekali,
-  // "Selesai" kalau SEMUA record berstatus completed, sisanya "Sedang
-  // Berjalan". N panggilan paralel (N = jumlah program bulanan yg
-  // ditampilkan, biasanya kecil) -- bukan hot-path performa spt Input
-  // Absen guru, jadi tidak perlu endpoint agregasi baru di backend.
-  window.kurikulumRenderProbulStats_ = function (items) {
-    const statsEl = document.getElementById('kurikulumProbulStats');
-    if (!items || items.length === 0) {
-      statsEl.style.display = 'none';
-      return;
-    }
-
-    statsEl.style.display = 'grid';
-    document.getElementById('kurikulumProbulStatTotal').textContent = items.length;
-    document.getElementById('kurikulumProbulStatSelesai').textContent = '…';
-    document.getElementById('kurikulumProbulStatBerjalan').textContent = '…';
-    document.getElementById('kurikulumProbulStatBelum').textContent = '…';
-
-    let done = 0;
-    let selesai = 0, berjalan = 0, belum = 0;
-    const finishOne = function (rows) {
-      if (!rows || rows.length === 0) belum++;
-      else if (rows.every(function (r) { return r.status === 'completed'; })) selesai++;
-      else berjalan++;
-
-      done++;
-      if (done === items.length) {
-        document.getElementById('kurikulumProbulStatSelesai').textContent = selesai;
-        document.getElementById('kurikulumProbulStatBerjalan').textContent = berjalan;
-        document.getElementById('kurikulumProbulStatBelum').textContent = belum;
-      }
-    };
-
-    items.forEach(function (probul) {
-      google.script.run
-        .withSuccessHandler(function (result) { finishOne(result.success ? result.data : []); })
-        .withFailureHandler(function () { finishOne([]); })
-        .serverGetPencapaianSantri(window.currentToken, window.currentKelompokId, probul.id);
-    });
   };
 
   window.kurikulumFilterProbul_ = function (tree, kelas, semester, bulan) {
@@ -10053,17 +10003,36 @@
       return;
     }
 
+    // Field teks (kategori/target/deskripsi/jilid/minggu*) dikirim ke tombol
+    // Edit lewat data-* attribute (BUKAN diselipkan langsung ke string
+    // onclick="...('...')") -- kategori materi spt "Bacaan Al-Qur'an"
+    // mengandung apostrof yang akan memutus string JS kalau ditulis mentah
+    // di dalam onclick (pola bug yang sama persis spt catatan Kurikulum
+    // Tahunan). window.escKurikulumAttr_ escape ke entity HTML, otomatis
+    // ke-decode balik saat dibaca lewat .dataset di window.editProbulFromBtn_.
     list.innerHTML = data.map(probul => `
       <div class="kurikulum-probul-card">
         <div class="kurikulum-probul-card-top">
           <div>
             <div class="kurikulum-probul-eyebrow">Bulan Ke ${probul.bulan || '-'}</div>
             <div class="kurikulum-probul-title">${probul.kategori || 'N/A'}</div>
+            ${probul.jilid ? `<div class="kurikulum-probul-jilid">${probul.jilid}</div>` : ''}
             <div class="kurikulum-probul-target"><strong>Target:</strong> ${probul.target}</div>
             ${probul.deskripsi ? `<div class="kurikulum-probul-deskripsi">${probul.deskripsi}</div>` : ''}
           </div>
           <div class="kurikulum-probul-actions">
-            <button class="btn btn-sm btn-secondary" onclick="window.editProbul('${probul.id}', '${probul.target}', '${(probul.deskripsi || '').replace(/'/g, '&#39;')}')">Edit</button>
+            <button class="btn btn-sm btn-secondary"
+              data-probul-id="${probul.id}"
+              data-kategori="${window.escKurikulumAttr_(probul.kategori)}"
+              data-bulan="${window.escKurikulumAttr_(probul.bulan)}"
+              data-target="${window.escKurikulumAttr_(probul.target)}"
+              data-deskripsi="${window.escKurikulumAttr_(probul.deskripsi)}"
+              data-jilid="${window.escKurikulumAttr_(probul.jilid)}"
+              data-minggu1="${window.escKurikulumAttr_(probul.minggu1)}"
+              data-minggu2="${window.escKurikulumAttr_(probul.minggu2)}"
+              data-minggu3="${window.escKurikulumAttr_(probul.minggu3)}"
+              data-minggu4="${window.escKurikulumAttr_(probul.minggu4)}"
+              onclick="window.editProbulFromBtn_(this)">Edit</button>
             <button class="btn btn-sm btn-danger" onclick="window.deleteProbul('${probul.id}')">Hapus</button>
             <button class="btn btn-sm btn-primary" onclick="window.loadPencapaianSantri_('${window.currentKelompokId}', '${probul.id}')">Lihat Progres →</button>
           </div>
@@ -10073,12 +10042,17 @@
           ${[1, 2, 3, 4].map(w => `
             <div class="kurikulum-probul-week">
               <div class="kurikulum-probul-week-label">Minggu Ke ${w}</div>
-              <div class="kurikulum-probul-week-value">&nbsp;</div>
+              <div class="kurikulum-probul-week-value">${probul['minggu' + w] || '&nbsp;'}</div>
             </div>
           `).join('')}
         </div>
       </div>
     `).join('');
+  };
+
+  window.editProbulFromBtn_ = function (btn) {
+    const d = btn.dataset;
+    window.editProbul(d.probulId, d.kategori, d.bulan, d.target, d.deskripsi, d.jilid, d.minggu1, d.minggu2, d.minggu3, d.minggu4);
   };
 
   window.loadPencapaianSantri_ = function (kelompokId, probulId) {
@@ -10197,12 +10171,20 @@
   };
 
   window.openModalAddProbul = function () {
+    document.getElementById('modalAddProbulTitle').textContent = 'Tambah Program Bulanan';
     document.getElementById('probulId').value = '';
     document.getElementById('probulPromesId').value = '';
-    document.getElementById('probulBulan').value = new Date().getMonth() + 1;
+    document.getElementById('probulBulan').value = '1';
+    document.getElementById('probulBulan').disabled = false;
     document.getElementById('probulKategori').value = '';
+    document.getElementById('probulKategori').disabled = false;
+    document.getElementById('probulJilid').value = '';
     document.getElementById('probulTarget').value = '';
     document.getElementById('probulDeskripsi').value = '';
+    document.getElementById('probulMinggu1').value = '';
+    document.getElementById('probulMinggu2').value = '';
+    document.getElementById('probulMinggu3').value = '';
+    document.getElementById('probulMinggu4').value = '';
     document.getElementById('modalAddProbul').classList.add('active');
   };
 
@@ -10437,11 +10419,17 @@
   };
 
   window.saveProbul = function () {
+    const probulId = document.getElementById('probulId').value;
     const promesId = document.getElementById('probulPromesId').value;
     const bulan = document.getElementById('probulBulan').value;
     const kategori = document.getElementById('probulKategori').value.trim();
+    const jilid = document.getElementById('probulJilid').value.trim();
     const target = document.getElementById('probulTarget').value.trim();
     const deskripsi = document.getElementById('probulDeskripsi').value.trim();
+    const minggu1 = document.getElementById('probulMinggu1').value.trim();
+    const minggu2 = document.getElementById('probulMinggu2').value.trim();
+    const minggu3 = document.getElementById('probulMinggu3').value.trim();
+    const minggu4 = document.getElementById('probulMinggu4').value.trim();
 
     if (!kategori || !target) {
       alert('Kategori dan target harus diisi');
@@ -10449,27 +10437,55 @@
     }
 
     window.showGlobalLoading_('Menyimpan...');
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          alert('Error: ' + result.error);
-          return;
-        }
-        window.closeModalAddProbul();
-        window.loadKurikulumProbul_(window.currentKelompokId);
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        alert('Error: ' + err.message);
-      })
-      .serverAddProbul(window.currentToken, promesId, parseInt(bulan), kategori, target, deskripsi);
+    const onDone = function (result) {
+      window.hideGlobalLoading_();
+      if (!result.success) {
+        alert('Error: ' + result.error);
+        return;
+      }
+      window.closeModalAddProbul();
+      window.loadKurikulumProbul_(window.currentKelompokId);
+    };
+    const onFail = function (err) {
+      window.hideGlobalLoading_();
+      alert('Error: ' + err.message);
+    };
+
+    // Edit (probulId sudah terisi, dipicu tombol "Edit" di kartu) -> UPDATE
+    // baris yang sama (Bulan/Kategori terkunci, lihat window.editProbul).
+    // Tambah baru (dari tombol "+ Tambah Probul") -> tetap ADD spt semula.
+    if (probulId) {
+      google.script.run
+        .withSuccessHandler(onDone)
+        .withFailureHandler(onFail)
+        .serverUpdateProbul(window.currentToken, probulId, target, deskripsi, jilid, minggu1, minggu2, minggu3, minggu4);
+    } else {
+      google.script.run
+        .withSuccessHandler(onDone)
+        .withFailureHandler(onFail)
+        .serverAddProbul(window.currentToken, promesId, parseInt(bulan), kategori, target, deskripsi, jilid, minggu1, minggu2, minggu3, minggu4);
+    }
   };
 
-  window.editProbul = function (probulId, target, deskripsi) {
+  // Edit dipicu dari kartu Bulanan ("Edit") -- Bulan & Kategori dikunci
+  // (tidak ikut dikirim ke serverUpdateProbul, cuma ditampilkan sbg
+  // konteks) supaya materi/posisi bulan tidak sengaja berpindah lewat form
+  // ini; yang boleh diubah cuma Jilid/Target/Deskripsi/4 Minggu.
+  window.editProbul = function (probulId, kategori, bulan, target, deskripsi, jilid, minggu1, minggu2, minggu3, minggu4) {
+    document.getElementById('modalAddProbulTitle').textContent = 'Edit Program Bulanan';
     document.getElementById('probulId').value = probulId;
-    document.getElementById('probulTarget').value = target;
-    document.getElementById('probulDeskripsi').value = deskripsi;
+    document.getElementById('probulPromesId').value = '';
+    document.getElementById('probulBulan').value = bulan || '1';
+    document.getElementById('probulBulan').disabled = true;
+    document.getElementById('probulKategori').value = kategori || '';
+    document.getElementById('probulKategori').disabled = true;
+    document.getElementById('probulJilid').value = jilid || '';
+    document.getElementById('probulTarget').value = target || '';
+    document.getElementById('probulDeskripsi').value = deskripsi || '';
+    document.getElementById('probulMinggu1').value = minggu1 || '';
+    document.getElementById('probulMinggu2').value = minggu2 || '';
+    document.getElementById('probulMinggu3').value = minggu3 || '';
+    document.getElementById('probulMinggu4').value = minggu4 || '';
     document.getElementById('modalAddProbul').classList.add('active');
   };
 

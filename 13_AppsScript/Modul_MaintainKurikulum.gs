@@ -485,7 +485,7 @@ function serverGetProbulByPromes(token, promesId) {
   }
 }
 
-function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
+function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi, jilid, minggu1, minggu2, minggu3, minggu4) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
@@ -506,10 +506,14 @@ function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
       const now = new Date().toISOString();
       const tahun = promes.tahun || new Date().getFullYear();
 
-      appendRowToSheet('kurikulum_probul', [id, promes.kelompok_id, promesId, tahun, bulan, kategori, target, deskripsi || '', user.id, now, now]);
+      appendRowToSheet('kurikulum_probul', [id, promes.kelompok_id, promesId, tahun, bulan, kategori, target, deskripsi || '', user.id, now, now, jilid || '', minggu1 || '', minggu2 || '', minggu3 || '', minggu4 || '']);
 
       cacheDrop_('kurikulum_probul_' + promes.kelompok_id + '_' + tahun + '_' + bulan);
       cacheDrop_('kurikulum_probul_bypromes_' + promesId);
+      // Tab Bulanan (kartu) baca lewat serverGetKurikulumFullTree (cache 60
+      // detik) sejak refactor filter Kelas/Semester -- WAJIB ikut di-drop,
+      // kalau tidak kartu baru tidak muncul sampai cache lama kedaluwarsa.
+      cacheDrop_('kurikulum_fulltree_' + promes.kelompok_id + '_' + tahun);
       return { success: true, id: id };
     });
   } catch (e) {
@@ -517,7 +521,12 @@ function serverAddProbul(token, promesId, bulan, kategori, target, deskripsi) {
   }
 }
 
-function serverUpdateProbul(token, probulId, target, deskripsi) {
+/**
+ * Update Probul -- HANYA field konten (Target/Deskripsi/Jilid/4 Minggu).
+ * Bulan/Kategori/Promes SENGAJA tidak bisa diubah lewat sini (dikunci di
+ * form klien juga) supaya materi/posisi bulan tidak sengaja berpindah.
+ */
+function serverUpdateProbul(token, probulId, target, deskripsi, jilid, minggu1, minggu2, minggu3, minggu4) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Akses ditolak' };
 
@@ -533,10 +542,16 @@ function serverUpdateProbul(token, probulId, target, deskripsi) {
       updateRowByQuery('kurikulum_probul', { id: probulId }, {
         target: target || row.target,
         deskripsi: deskripsi !== undefined ? deskripsi : row.deskripsi,
+        jilid: jilid !== undefined ? jilid : row.jilid,
+        minggu1: minggu1 !== undefined ? minggu1 : row.minggu1,
+        minggu2: minggu2 !== undefined ? minggu2 : row.minggu2,
+        minggu3: minggu3 !== undefined ? minggu3 : row.minggu3,
+        minggu4: minggu4 !== undefined ? minggu4 : row.minggu4,
         updated_at: new Date().toISOString()
       });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
       cacheDrop_('kurikulum_probul_bypromes_' + row.promes_id);
+      cacheDrop_('kurikulum_fulltree_' + row.kelompok_id + '_' + row.tahun);
 
       return { success: true };
     });
@@ -561,6 +576,7 @@ function serverDeleteProbul(token, probulId) {
       deleteRowByQuery('kurikulum_probul', { id: probulId });
       cacheDrop_('kurikulum_probul_' + row.kelompok_id + '_' + row.tahun + '_' + row.bulan);
       cacheDrop_('kurikulum_probul_bypromes_' + row.promes_id);
+      cacheDrop_('kurikulum_fulltree_' + row.kelompok_id + '_' + row.tahun);
 
       return { success: true };
     });
