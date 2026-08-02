@@ -577,6 +577,27 @@
       window.iaShowKelasView_();
       return;
     }
+    window.iaKehadiranOpenChooser_();
+  };
+
+  /* Popup pilihan "Kehadiran": Input Kehadiran (alur Input Absen lama,
+     tetap dipertahankan) vs Riwayat Kehadiran (BARU, sementara placeholder
+     — belum ada fitur riwayat tersendiri). Dibuka dari menu, sebelum masuk
+     ke salah satu alur. */
+  window.iaKehadiranOpenChooser_ = function () {
+    document.getElementById('iaKehadiranChooserOverlay').style.display = 'flex';
+  };
+
+  window.iaKehadiranCloseChooser_ = function () {
+    document.getElementById('iaKehadiranChooserOverlay').style.display = 'none';
+  };
+
+  window.iaKehadiranChooseMode_ = function (mode) {
+    window.iaKehadiranCloseChooser_();
+    if (mode === 'riwayat') {
+      iaShowToast_('Riwayat Kehadiran segera hadir', 'info');
+      return;
+    }
     window.iaOpenKelasGate_();
   };
 

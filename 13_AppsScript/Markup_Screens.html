@@ -214,7 +214,7 @@
       </button>
       <button type="button" class="ia-menu-item" id="iaMenuPilihKelasBtn" onclick="window.iaMenuGoPilihKelas_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
-        <span>Input Absen</span>
+        <span>Kehadiran</span>
       </button>
       <button type="button" class="ia-menu-item" id="iaMenuJurnalBtn" onclick="window.iaMenuGoJurnal_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -452,6 +452,39 @@
       <div class="ia-kg-footer" id="iaJurnalGateFooter" style="display:none;">
         <button type="button" class="ia-kg-cancel-btn" onclick="window.iaJurnalCloseGate_()">Batal</button>
         <button type="button" class="ia-kg-masuk-btn" id="iaJurnalGateMasukBtn" disabled onclick="window.iaJurnalConfirmGate_()">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup pilihan "Kehadiran": Input Kehadiran vs Riwayat Kehadiran (hijau, tema sama Input Absen) -->
+  <div class="ia-status-modal-overlay" id="iaKehadiranChooserOverlay" style="display:none;">
+    <div class="ia-status-modal ia-jr-chooser-modal">
+      <button type="button" class="ia-status-modal-x" onclick="window.iaKehadiranCloseChooser_()" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="ia-jr-chooser-title">Kehadiran</div>
+      <div class="ia-jr-chooser-subtitle">Pilih salah satu untuk melanjutkan.</div>
+      <div class="ia-jr-chooser-options">
+        <button type="button" class="ia-jr-chooser-opt ia-kh-chooser-opt-input" onclick="window.iaKehadiranChooseMode_('input')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Input Kehadiran</span>
+            <span class="ia-jr-chooser-opt-desc">Catat kehadiran santri hari ini</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="ia-jr-chooser-opt ia-kh-chooser-opt-riwayat" onclick="window.iaKehadiranChooseMode_('riwayat')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Riwayat Kehadiran</span>
+            <span class="ia-jr-chooser-opt-desc">Lihat kehadiran yang sudah tercatat</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
       </div>
     </div>
   </div>
