@@ -956,6 +956,41 @@ pernah fetch data terlihat identik dengan panel yang gagal fetch — mudah
 lolos review kalau cuma dicek visual "kebuka atau tidak", bukan "ada
 datanya atau tidak".
 
+## #28 — Tab "Bulanan" Kurikulum tampil tapi datanya tidak pernah muncul — dropdown Bulan pakai semantik kalender, data pakai semantik posisi-relatif (2026-08-02)
+
+**Gejala**: fetch tab Bulanan sudah jalan (bug #27 sudah kefix), tapi kartu
+program bulanan tetap tidak pernah muncul untuk kelas/materi yang sudah
+diisi lewat modal "Edit Target Bulanan" di tab Semester — selalu "Belum
+ada program bulanan" walau data sebenarnya sudah tersimpan.
+
+**Akar masalah**: dua semantik "bulan" yang berbeda dipakai untuk kolom
+`kurikulum_probul.bulan` yang sama. Modal "Edit Target Bulanan"
+(`serverSetProbulBulan`) SELALU menyimpan `bulan` sebagai POSISI relatif
+1-6 di dalam semester (field-nya sendiri berlabel "Bulan 1".."Bulan 6",
+BUKAN nama bulan kalender — Semester I posisi 1 bisa jadi Juli, Semester
+II posisi 1 bisa jadi Januari). Tapi dropdown filter di tab Bulanan
+(`#kurikulumProbulBulan`) menawarkan 12 NAMA BULAN KALENDER
+(Januari..Desember, value 1-12, default terpilih Agustus=8) —
+`serverGetProbul` mencocokkan `bulan` persis, jadi filter bulan=8 tidak
+akan pernah cocok dengan data tersimpan yang cuma berkisar 1-6.
+
+**Perbaikan**: ganti opsi dropdown `#kurikulumProbulBulan` (Markup_Screens.html)
+dari 12 nama bulan kalender menjadi 6 opsi "Bulan Ke 1".."Bulan Ke 6"
+(selaras dengan label field modal & label kartu "Bulan Ke N" yang sudah
+dipakai di `renderProbulList_`), default terpilih "Bulan Ke 1".
+
+**Cara verifikasi**: isi target lewat modal "Edit Target Bulanan" (tab
+Semester) untuk salah satu materi, lalu buka tab "Bulanan" dan pilih
+"Bulan Ke" yang sesuai — kartu program bulanan harus muncul (bukan
+"Belum ada program bulanan").
+
+**Aturan permanen**: kalau ada 2 UI berbeda yang membaca/menulis kolom
+data yang sama (di sini: modal Edit Target Bulanan vs dropdown filter
+tab Bulanan, sama-sama menyentuh `kurikulum_probul.bulan`), WAJIB cek
+keduanya memakai semantik nilai yang SAMA PERSIS sebelum menganggap
+fitur selesai — bukan cuma cek masing-masing UI kebuka/fetch dengan
+benar (itu baru cukup untuk #27, tidak cukup untuk bug jenis ini).
+
 ---
 
 ## Prosedur Debugging Cepat (urutan baku)
