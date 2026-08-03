@@ -5622,12 +5622,13 @@
       + window.lpsMetricCardHtml_('Sakit', window.LPS_STATUS_WARNA_HEX_.Sakit, m.totalSakit, pct(m.totalSakit) + '% santri');
 
     const rowsHtml = data.santriDetail.map(function (s) {
-      const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94a3b8';
       return `<tr>
         <td>${s.nama}</td>
         <td>${s.hariAktif}</td>
         <td>${s.persenHadir !== null ? s.persenHadir + '%' : '—'}</td>
-        <td><span class="lps-status-badge" style="background: ${hex};">${s.status}</span></td>
+        <td>${s.izin}</td>
+        <td>${s.alfa}</td>
+        <td>${s.sakit}</td>
       </tr>`;
     }).join('');
 
@@ -5651,8 +5652,8 @@
       <div class="lps-metric-grid">${cardsHtml}</div>
       <div class="lps-detail-table-wrap">
         <table class="lps-detail-table">
-          <thead><tr><th>Nama</th><th>Hari Aktif</th><th>Kehadiran</th><th>Status</th></tr></thead>
-          <tbody>${rowsHtml || '<tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px;">Belum ada santri di kelas guru ini.</td></tr>'}</tbody>
+          <thead><tr><th>Nama</th><th>Hari Aktif</th><th>Kehadiran</th><th>Izin</th><th>Alfa</th><th>Sakit</th></tr></thead>
+          <tbody>${rowsHtml || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">Belum ada santri di kelas guru ini.</td></tr>'}</tbody>
         </table>
       </div>
     `;
@@ -5854,31 +5855,32 @@
 
     // Header tabel di-uppercase manual (pdfmake tak dukung CSS text-transform)
     // supaya visualnya sama dgn `.lps-detail-table th { text-transform:
-    // uppercase }` di layar. Kolom Status dikasih fillColor solid = warna
-    // status (pengganti pill `.lps-status-badge` yg pakai border-radius —
-    // pdfmake tak dukung rounded corner per-sel tabel).
+    // uppercase }` di layar. Kolom Status DIHAPUS, diganti Izin/Alfa/Sakit
+    // (angka per santri, sama dgn tabel layar) -- lihat window.lpsBuildBodyHtml_.
     content.push({
       table: {
         headerRows: 1,
-        widths: ['*', 'auto', 'auto', 'auto'],
+        widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
         body: [[
           { text: 'NAMA', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
           { text: 'HARI AKTIF', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
           { text: 'KEHADIRAN', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'STATUS', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'IZIN', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'ALFA', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'SAKIT', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
         ]].concat(data.santriDetail.map(function (s) {
-          const hex = window.LPS_STATUS_WARNA_HEX_[s.status] || '#94A3B8';
           return [
             { text: s.nama, fontSize: 12 },
             { text: String(s.hariAktif), fontSize: 12 },
             { text: s.persenHadir !== null ? s.persenHadir + '%' : '—', fontSize: 12 },
-            { text: s.status, fontSize: 10.5, bold: true, color: '#FFFFFF', fillColor: hex, alignment: 'center' },
+            { text: String(s.izin), fontSize: 12 },
+            { text: String(s.alfa), fontSize: 12 },
+            { text: String(s.sakit), fontSize: 12 },
           ];
         })),
       },
       layout: {
-        fillColor: function (rowIndex, node, columnIndex) {
-          if (columnIndex === 3 && rowIndex > 0) return null; // kolom Status pakai fillColor per-baris di atas, bukan header band
+        fillColor: function (rowIndex) {
           return rowIndex === 0 ? LPS_PDF_PANEL2_ : null;
         },
         hLineColor: function () { return LPS_PDF_BORDER_; },
