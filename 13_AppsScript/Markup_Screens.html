@@ -293,9 +293,26 @@
         <div class="ia-empty-icon">📋</div>
         <div>Pilih kelas di atas untuk mulai input absen.</div>
       </div>
-      <div class="ia-progress-wrap" id="iaProgressWrap" style="display:none;">
-        <div class="ia-progress-label" id="iaProgressLabel">0/0 Hadir</div>
-        <div class="ia-progress-bar"><div class="ia-progress-fill" id="iaProgressFill" style="width:0%;"></div></div>
+      <div class="ia-kehadiran-summary" id="iaProgressWrap" style="display:none;">
+        <div class="ia-kehadiran-summary-title">Ringkasan Kehadiran</div>
+        <div class="ia-kehadiran-summary-grid">
+          <div class="ia-kehadiran-summary-card ia-ks-hadir">
+            <div class="ia-ks-value" id="iaSummaryHadir">0</div>
+            <div class="ia-ks-label">Hadir</div>
+          </div>
+          <div class="ia-kehadiran-summary-card ia-ks-izin">
+            <div class="ia-ks-value" id="iaSummaryIzin">0</div>
+            <div class="ia-ks-label">Izin</div>
+          </div>
+          <div class="ia-kehadiran-summary-card ia-ks-sakit">
+            <div class="ia-ks-value" id="iaSummarySakit">0</div>
+            <div class="ia-ks-label">Sakit</div>
+          </div>
+          <div class="ia-kehadiran-summary-card ia-ks-alpa">
+            <div class="ia-ks-value" id="iaSummaryAlpa">0</div>
+            <div class="ia-ks-label">Alpa</div>
+          </div>
+        </div>
       </div>
       <div class="ia-santri-list" id="iaSantriList"></div>
     </div>

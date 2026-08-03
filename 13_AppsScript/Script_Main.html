@@ -426,8 +426,7 @@
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
     const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
     const d = new Date(dateStr + 'T00:00:00');
-    const isToday = dateStr === iaToday_();
-    label.textContent = (isToday ? 'Hari ini · ' : '') + `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    label.textContent = `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   /* Durasi (menit) dari "HH:MM"–"HH:MM", dipakai info kelas Dashboard. */
@@ -1817,9 +1816,11 @@
 
   window.iaUpdateProgress_ = function () {
     const list = window.iaState_.list;
-    const hadir = list.filter(function (s) { return s.status === 'hadir'; }).length;
-    document.getElementById('iaProgressLabel').textContent = hadir + '/' + list.length + ' Hadir';
-    document.getElementById('iaProgressFill').style.width = (list.length ? (hadir / list.length * 100) : 0) + '%';
+    const count = function (status) { return list.filter(function (s) { return s.status === status; }).length; };
+    document.getElementById('iaSummaryHadir').textContent = count('hadir');
+    document.getElementById('iaSummaryIzin').textContent = count('izin');
+    document.getElementById('iaSummarySakit').textContent = count('sakit');
+    document.getElementById('iaSummaryAlpa').textContent = count('alpa');
   };
 
   /* ─── Popup status Simpan Absen (hyper premium) ─── */

@@ -5300,7 +5300,10 @@
 
     .ia-empty-icon { font-size: 42px; }
 
-    .ia-progress-wrap {
+    /* Ringkasan Kehadiran -- 4 kartu Hadir/Izin/Sakit/Alpa, ganti progress
+       bar lama (yg cuma nampilin Hadir). Aksen warna tipis per status +
+       garis atas gradient supaya terlihat premium tanpa norak. */
+    .ia-kehadiran-summary {
       background: var(--panel);
       border-radius: var(--radius-lg);
       padding: 14px 16px;
@@ -5308,26 +5311,65 @@
       box-shadow: var(--shadow-subtle);
     }
 
-    .ia-progress-label {
-      font-size: 13px;
+    .ia-kehadiran-summary-title {
+      font-size: 11px;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 10px;
     }
 
-    .ia-progress-bar {
-      height: 8px;
-      border-radius: 999px;
-      background: var(--border);
+    .ia-kehadiran-summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .ia-kehadiran-summary-card {
+      position: relative;
       overflow: hidden;
+      text-align: center;
+      border-radius: var(--radius-md, 10px);
+      border: 1px solid var(--border);
+      padding: 10px 4px 9px;
     }
 
-    .ia-progress-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--sage), var(--brand-green));
-      border-radius: 999px;
-      transition: width 0.3s ease;
+    .ia-kehadiran-summary-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
     }
+
+    .ia-ks-value {
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .ia-ks-label {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    .ia-ks-hadir { background: linear-gradient(160deg, rgba(5, 150, 105, 0.09), rgba(5, 150, 105, 0.02)); border-color: rgba(5, 150, 105, 0.2); }
+    .ia-ks-hadir::before { background: linear-gradient(90deg, var(--sage), var(--brand-green)); }
+    .ia-ks-hadir .ia-ks-value { color: var(--sage); }
+
+    .ia-ks-izin { background: linear-gradient(160deg, rgba(79, 70, 229, 0.09), rgba(79, 70, 229, 0.02)); border-color: rgba(79, 70, 229, 0.2); }
+    .ia-ks-izin::before { background: linear-gradient(90deg, var(--indigo), #A855F7); }
+    .ia-ks-izin .ia-ks-value { color: var(--indigo); }
+
+    .ia-ks-sakit { background: linear-gradient(160deg, rgba(217, 119, 6, 0.09), rgba(217, 119, 6, 0.02)); border-color: rgba(217, 119, 6, 0.2); }
+    .ia-ks-sakit::before { background: linear-gradient(90deg, var(--brass), #F59E0B); }
+    .ia-ks-sakit .ia-ks-value { color: var(--brass); }
+
+    .ia-ks-alpa { background: linear-gradient(160deg, rgba(220, 38, 38, 0.09), rgba(220, 38, 38, 0.02)); border-color: rgba(220, 38, 38, 0.2); }
+    .ia-ks-alpa::before { background: linear-gradient(90deg, var(--red), #F87171); }
+    .ia-ks-alpa .ia-ks-value { color: var(--red); }
 
     .ia-santri-card {
       display: flex;
