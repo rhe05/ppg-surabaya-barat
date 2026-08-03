@@ -10017,7 +10017,7 @@
             <div class="kurikulum-probul-eyebrow">Bulan Ke ${probul.bulan || '-'}</div>
             <div class="kurikulum-probul-title">${probul.kategori || 'N/A'}</div>
             ${probul.jilid ? `<div class="kurikulum-probul-jilid">${probul.jilid}</div>` : ''}
-            <div class="kurikulum-probul-target"><strong>Target:</strong> ${probul.target}</div>
+            ${window.probulRenderTargetBlock_(probul)}
             ${probul.deskripsi ? `<div class="kurikulum-probul-deskripsi">${probul.deskripsi}</div>` : ''}
           </div>
           <div class="kurikulum-probul-actions">
@@ -10053,6 +10053,27 @@
   window.editProbulFromBtn_ = function (btn) {
     const d = btn.dataset;
     window.editProbul(d.probulId, d.kategori, d.bulan, d.target, d.deskripsi, d.jilid, d.minggu1, d.minggu2, d.minggu3, d.minggu4);
+  };
+
+  // Materi "Adab/Tata Krama" -- Target-nya kumpulan poin bernomor (lihat
+  // window.probulUpdateTargetField_), jadi kartu Bulanan menampilkannya
+  // sbg daftar bertumpuk bernomor premium (bukan satu baris teks polos spt
+  // materi lain -- \n di string biasa tidak ke-render HTML kalau cuma
+  // ditaruh di <div> polos).
+  window.probulRenderTargetBlock_ = function (probul) {
+    const lines = String(probul.target || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+    if (probul.kategori === 'Adab/Tata Krama' && lines.length > 1) {
+      return '<div class="kurikulum-probul-target-label">Target</div>' +
+        '<div class="kurikulum-probul-target-list">' +
+        lines.map(function (line, idx) {
+          return '<div class="kurikulum-probul-target-item">' +
+            '<span class="kurikulum-probul-target-num">' + (idx + 1) + '</span>' +
+            '<span class="kurikulum-probul-target-text">' + line + '</span>' +
+            '</div>';
+        }).join('') +
+        '</div>';
+    }
+    return '<div class="kurikulum-probul-target"><strong>Target:</strong> ' + (probul.target || '') + '</div>';
   };
 
   window.loadPencapaianSantri_ = function (kelompokId, probulId) {
@@ -10185,8 +10206,29 @@
     document.getElementById('probulMinggu2').value = '';
     document.getElementById('probulMinggu3').value = '';
     document.getElementById('probulMinggu4').value = '';
+    window.protaCatatanRenderLines_('probulTargetList', ['']);
     window.probulUpdateJilidField_();
+    window.probulUpdateTargetField_();
     document.getElementById('modalAddProbul').classList.add('active');
+  };
+
+  // Materi "Adab/Tata Krama" -- kolom Target diganti jadi line-editor
+  // bernomor dinamis (widget sama persis dgn Target Semester di Kurikulum
+  // Tahunan, lihat window.protaCatatanRenderLines_/Collect_/Keydown_):
+  // Enter nambah baris bernomor otomatis, Backspace di baris kosong hapus
+  // baris. Materi lain TETAP pakai input teks satu baris spt semula.
+  window.probulUpdateTargetField_ = function () {
+    const input = document.getElementById('probulTarget');
+    const list = document.getElementById('probulTargetList');
+    if (!input || !list) return;
+    const kategoriEl = document.getElementById('probulKategori');
+    const kategori = kategoriEl ? kategoriEl.value.trim() : '';
+    const useList = kategori === 'Adab/Tata Krama';
+    input.style.display = useList ? 'none' : '';
+    list.style.display = useList ? '' : 'none';
+    if (useList && !list.children.length) {
+      window.protaCatatanRenderLines_('probulTargetList', [input.value.trim()]);
+    }
   };
 
   // Baris "Jilid" cuma relevan utk materi "Bacaan Al-Qur'an" & "Tulis Huruf
@@ -10451,7 +10493,9 @@
     const bulan = document.getElementById('probulBulan').value;
     const kategori = document.getElementById('probulKategori').value.trim();
     const jilid = document.getElementById('probulJilid').value.trim();
-    const target = document.getElementById('probulTarget').value.trim();
+    const target = kategori === 'Adab/Tata Krama'
+      ? window.protaCatatanCollect_('probulTargetList').join('\n')
+      : document.getElementById('probulTarget').value.trim();
     const deskripsi = document.getElementById('probulDeskripsi').value.trim();
     const minggu1 = document.getElementById('probulMinggu1').value.trim();
     const minggu2 = document.getElementById('probulMinggu2').value.trim();
@@ -10507,13 +10551,16 @@
     document.getElementById('probulKategori').value = kategori || '';
     document.getElementById('probulKategori').disabled = true;
     document.getElementById('probulJilid').value = jilid || '';
-    document.getElementById('probulTarget').value = target || '';
+    document.getElementById('probulTarget').value = (kategori === 'Adab/Tata Krama') ? '' : (target || '');
+    const targetLines = (target || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+    window.protaCatatanRenderLines_('probulTargetList', targetLines.length ? targetLines : ['']);
     document.getElementById('probulDeskripsi').value = deskripsi || '';
     document.getElementById('probulMinggu1').value = minggu1 || '';
     document.getElementById('probulMinggu2').value = minggu2 || '';
     document.getElementById('probulMinggu3').value = minggu3 || '';
     document.getElementById('probulMinggu4').value = minggu4 || '';
     window.probulUpdateJilidField_();
+    window.probulUpdateTargetField_();
     document.getElementById('modalAddProbul').classList.add('active');
   };
 

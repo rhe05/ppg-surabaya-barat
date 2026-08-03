@@ -4240,7 +4240,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Materi</label>
-          <input type="text" class="form-input" id="probulKategori" placeholder="mis. Hafalan" oninput="window.probulUpdateJilidField_()">
+          <input type="text" class="form-input" id="probulKategori" placeholder="mis. Hafalan" oninput="window.probulUpdateJilidField_(); window.probulUpdateTargetField_();">
         </div>
         <div class="form-group" id="probulJilidGroup">
           <label class="form-label" id="probulJilidLabel">Jilid</label>
@@ -4249,6 +4249,7 @@
         <div class="form-group">
           <label class="form-label">Target</label>
           <input type="text" class="form-input" id="probulTarget" placeholder="mis. Hal 1-9">
+          <div class="prota-catatan-list" id="probulTargetList" data-placeholder-prefix="Target" style="display: none;"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
