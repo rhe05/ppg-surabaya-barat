@@ -10189,25 +10189,30 @@
     document.getElementById('modalAddProbul').classList.add('active');
   };
 
-  // Baris "Jilid" cuma relevan utk materi "Bacaan Al-Qur'an" -- disembunyikan
-  // total utk materi lain. Kelas PAUD-TK s.d. 3 SD masih pakai istilah
-  // "Jilid" (Tilawati dst), Kelas 4 SD ke atas sudah baca Al-Qur'an
-  // langsung jadi labelnya diganti "Al-Qur'an" (field & data yang
-  // tersimpan tetap sama, cuma label yang berubah).
+  // Baris "Jilid" cuma relevan utk materi "Bacaan Al-Qur'an" & "Tulis Huruf
+  // Arab" -- disembunyikan total utk materi lain. Kelas PAUD-TK s.d. 3 SD
+  // masih pakai istilah "Jilid" (Tilawati dst); Kelas 4 SD ke atas: utk
+  // "Bacaan Al-Qur'an" labelnya diganti "Al-Qur'an" (field & data yang
+  // tersimpan tetap sama, cuma label yang berubah), sedangkan utk "Tulis
+  // Huruf Arab" baris ini disembunyikan total (tidak ada padanannya).
   window.probulUpdateJilidField_ = function () {
     const group = document.getElementById('probulJilidGroup');
     const label = document.getElementById('probulJilidLabel');
     if (!group || !label) return;
     const kategoriEl = document.getElementById('probulKategori');
     const kategori = kategoriEl ? kategoriEl.value.trim() : '';
-    if (kategori !== "Bacaan Al-Qur'an") {
+    if (kategori !== "Bacaan Al-Qur'an" && kategori !== 'Tulis Huruf Arab') {
+      group.style.display = 'none';
+      return;
+    }
+    const kelas = window.kurikulumSelectedKelas_;
+    const kelasRendah = kelas === 'PAUD-TK' || kelas === '1' || kelas === '2' || kelas === '3';
+    if (kategori === 'Tulis Huruf Arab' && !kelasRendah) {
       group.style.display = 'none';
       return;
     }
     group.style.display = '';
-    const kelas = window.kurikulumSelectedKelas_;
-    const kelasRendah = kelas === 'PAUD-TK' || kelas === '1' || kelas === '2' || kelas === '3';
-    label.textContent = kelasRendah ? 'Jilid' : "Al-Qur'an";
+    label.textContent = (kategori === "Bacaan Al-Qur'an" && !kelasRendah) ? "Al-Qur'an" : 'Jilid';
   };
 
   window.closeModalAddProbul = function () {
