@@ -1493,7 +1493,31 @@
 
   /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */
 
+  const IA_FILTER_NAMA_BULAN_ = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  /* Bulan berjalan (default Dashboard) -- selalu dalam bentuk range
+     awal-akhir bulan supaya serverGetGuruDashboardSummaryRange langsung
+     mengakumulasi SELURUH data yang sudah diinput guru bulan itu (bukan cuma
+     hari ini), walau bulan belum selesai berjalan. */
+  window.iaCurrentMonthFilter_ = function () {
+    const now = new Date();
+    const bulan = now.getMonth() + 1;
+    const tahun = now.getFullYear();
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    const lastDay = new Date(tahun, bulan, 0).getDate();
+    return { mulai: tahun + '-' + pad(bulan) + '-01', selesai: tahun + '-' + pad(bulan) + '-' + pad(lastDay), bulan: bulan, tahun: tahun };
+  };
+
+  window.iaUpdateFilterLabel_ = function () {
+    const filter = window.iaState_.dashboardFilter;
+    if (!filter) return;
+    document.getElementById('iaFilterBtnLabel').textContent = IA_FILTER_NAMA_BULAN_[filter.bulan - 1] + ' - ' + filter.tahun;
+  };
+
   window.iaLoadDashboardSummary_ = function () {
+    if (!window.iaState_.dashboardFilter) window.iaState_.dashboardFilter = window.iaCurrentMonthFilter_();
+    window.iaUpdateFilterLabel_();
+
     const wrap = document.getElementById('iaDashboardCards');
     const key = iaDashboardCacheKey_();
     window.showGlobalLoading_('Memuat ringkasan...');
@@ -1513,26 +1537,16 @@
     };
 
     const filter = window.iaState_.dashboardFilter;
-    if (filter) {
-      google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
-        .serverGetGuruDashboardSummaryRange(window.currentToken, filter.mulai, filter.selesai);
-    } else {
-      const tanggal = document.getElementById('iaTanggal').value;
-      google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
-        .serverGetGuruDashboardSummary(window.currentToken, tanggal);
-    }
+    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
+      .serverGetGuruDashboardSummaryRange(window.currentToken, filter.mulai, filter.selesai);
   };
 
-  /* ─── Filter Bulan-Tahun Dashboard (ganti dari rentang tanggal ke Bulan
-     Tahun) ─── */
-
-  const IA_FILTER_NAMA_BULAN_ = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  /* ─── Filter Bulan-Tahun Dashboard ─── */
 
   window.iaPopulateFilterBulanTahun_ = function () {
     const bulanSel = document.getElementById('iaFilterBulan');
     const tahunSel = document.getElementById('iaFilterTahun');
-    const now = new Date();
-    const curYear = now.getFullYear();
+    const curYear = new Date().getFullYear();
 
     if (bulanSel.options.length === 0) {
       bulanSel.innerHTML = IA_FILTER_NAMA_BULAN_.map(function (nm, idx) { return `<option value="${idx + 1}">${nm}</option>`; }).join('');
@@ -1541,9 +1555,9 @@
       tahunSel.innerHTML = [curYear - 1, curYear].map(function (y) { return `<option value="${y}">${y}</option>`; }).join('');
     }
 
-    const filter = window.iaState_.dashboardFilter;
-    bulanSel.value = filter ? String(filter.bulan) : String(now.getMonth() + 1);
-    tahunSel.value = filter ? String(filter.tahun) : String(curYear);
+    const filter = window.iaState_.dashboardFilter || window.iaCurrentMonthFilter_();
+    bulanSel.value = String(filter.bulan);
+    tahunSel.value = String(filter.tahun);
   };
 
   window.iaToggleFilterPanel_ = function () {
@@ -1554,10 +1568,8 @@
   };
 
   window.iaResetFilter_ = function () {
-    window.iaState_.dashboardFilter = null;
+    window.iaState_.dashboardFilter = window.iaCurrentMonthFilter_();
     document.getElementById('iaFilterPanel').style.display = 'none';
-    document.getElementById('iaFilterBtn').classList.remove('active');
-    document.getElementById('iaFilterBtnLabel').textContent = 'Bulan - Tahun';
     window.iaLoadDashboardSummary_();
   };
 
@@ -1571,8 +1583,6 @@
 
     window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai, bulan: bulan, tahun: tahun };
     document.getElementById('iaFilterPanel').style.display = 'none';
-    document.getElementById('iaFilterBtn').classList.add('active');
-    document.getElementById('iaFilterBtnLabel').textContent = IA_FILTER_NAMA_BULAN_[bulan - 1] + ' ' + tahun;
     window.iaLoadDashboardSummary_();
   };
 

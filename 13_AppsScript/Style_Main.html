@@ -5121,6 +5121,25 @@
       box-shadow: 0 4px 14px rgba(5, 150, 105, 0.32);
     }
 
+    /* Label Bulan-Tahun Dashboard -- tulisan polos, TANPA bungkus kapsul
+       (beda dari .ia-filter-btn dasar di atas yang masih dipakai tombol
+       lain). Tetap bisa diklik (buka panel pilih Bulan/Tahun), cuma tanpa
+       border/background/shadow/ikon. */
+    .ia-filter-btn.ia-filter-btn-plain {
+      border: none;
+      background: none;
+      box-shadow: none;
+      padding: 4px 0;
+      font-size: 13.5px;
+      color: var(--sage);
+    }
+
+    .ia-filter-btn.ia-filter-btn-plain.active {
+      background: none;
+      box-shadow: none;
+      color: var(--sage);
+    }
+
     .ia-filter-panel {
       background: var(--panel);
       border: 1px solid var(--border);
