@@ -1367,7 +1367,47 @@
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaLaporanView').style.display = 'block';
     window.iaPopulateLaporanFilters_();
+    window.iaPopulateLaporanKelasFilter_();
     window.iaUpdateLaporanNote_();
+  };
+
+  /* Guru yang mengajar >1 kelas sebelumnya laporannya otomatis GABUNG semua
+     kelas (kelasFilter selalu '') -- sengaja ditambah pilihan Kelas (reuse
+     serverGetJurnalKelasOnly, sudah ada utk fitur Edit Jurnal, daftar kelas
+     yang sama persis dibutuhkan di sini) supaya guru bisa unduh laporan
+     1 kelas spesifik. Select disembunyikan total kalau guru cuma pegang
+     1 kelas (tidak ada yang perlu dipilih, sama seperti pola versi desktop
+     #lpsKelasSelect). Di-cache di window.iaLaporanKelasList_ per sesi. */
+  window.iaPopulateLaporanKelasFilter_ = function () {
+    const field = document.getElementById('iaLaporanKelasField');
+    const sel = document.getElementById('iaLaporanKelas');
+    if (window.iaLaporanKelasList_) {
+      window.iaRenderLaporanKelasFilter_(window.iaLaporanKelasList_);
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.iaLaporanKelasList_ = (result && result.success) ? (result.data || []) : [];
+        window.iaRenderLaporanKelasFilter_(window.iaLaporanKelasList_);
+      })
+      .withFailureHandler(function () {
+        window.iaLaporanKelasList_ = [];
+        field.style.display = 'none';
+      })
+      .serverGetJurnalKelasOnly(window.currentToken);
+  };
+
+  window.iaRenderLaporanKelasFilter_ = function (list) {
+    const field = document.getElementById('iaLaporanKelasField');
+    const sel = document.getElementById('iaLaporanKelas');
+    if (!list || list.length <= 1) {
+      field.style.display = 'none';
+      sel.innerHTML = '';
+      return;
+    }
+    sel.innerHTML = '<option value="">Semua Kelas</option>' +
+      list.map(function (k) { return `<option value="${k.kelas}">Kelas ${k.kelas}</option>`; }).join('');
+    field.style.display = '';
   };
 
   const IA_LAPORAN_NAMA_BULAN_ = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -1419,6 +1459,8 @@
   window.iaLaporanUnduhPdf_ = function () {
     const bulan = Number(document.getElementById('iaLaporanBulan').value);
     const tahun = Number(document.getElementById('iaLaporanTahun').value);
+    const kelasSel = document.getElementById('iaLaporanKelas');
+    const kelasFilter = (kelasSel && document.getElementById('iaLaporanKelasField').style.display !== 'none') ? kelasSel.value : '';
     const cek = window.iaLaporanCekEligible_(bulan, tahun);
     if (!cek.eligible) {
       window.iaShowStatusModal_('warning', 'Laporan Belum Bisa Diunduh',
@@ -1446,7 +1488,7 @@
         btn.disabled = false;
         window.iaShowStatusModal_('warning', 'Gagal Membuat Laporan', 'Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
       })
-      .serverGetLaporanPerkembanganSantri(window.currentToken, window.iaState_.kelompokId, window.currentUser.guruId, tahun, bulan, '');
+      .serverGetLaporanPerkembanganSantri(window.currentToken, window.iaState_.kelompokId, window.currentUser.guruId, tahun, bulan, kelasFilter);
   };
 
   /* ─── Dashboard: ringkasan kehadiran semua kelas milik guru ─── */
