@@ -3318,6 +3318,32 @@
         </div>
       </div>
 
+      <!-- Modal konfirmasi "Keluarkan dari Kelas" (Daftar Santri, Jadwal KBM) —
+           reuse gaya premium guru-kelp-delete-modal, BUKAN browser confirm() polos. -->
+      <div class="modal-overlay" id="modalRemoveSantriKelas">
+        <div class="modal-content guru-kelp-delete-modal">
+          <button class="modal-close-btn guru-kelp-delete-close" onclick="window.closeModalRemoveSantriKelas_()">×</button>
+
+          <div class="guru-kelp-delete-icon guru-kelp-delete-icon-warning">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M10.5 3.5 2 19h20L13.5 3.5a1.7 1.7 0 0 0-3 0Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 9v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="16.3" r="1" fill="currentColor"/></svg>
+          </div>
+
+          <div class="guru-kelp-delete-title">Keluarkan dari Kelas Ini?</div>
+          <div class="guru-kelp-delete-message">
+            <strong id="removeSantriKelasNama">—</strong> akan keluar dari Daftar Santri kelas ini.
+            <br>Data generus <strong>tetap aman</strong> di Data Master — bisa ditambahkan lagi ke kelas yang benar lewat "+ Santri".
+          </div>
+
+          <div class="modal-footer guru-kelp-delete-footer">
+            <button class="btn btn-secondary" id="removeSantriKelasCancelBtn" onclick="window.closeModalRemoveSantriKelas_()">Batal</button>
+            <button class="guru-kelp-btn-danger" id="removeSantriKelasConfirmBtn" onclick="window.confirmRemoveSantriKelas_()">
+              <span class="guru-kelp-btn-label">Ya, Keluarkan</span>
+              <span class="guru-kelp-spinner" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Modal Pengumuman -->
       <div class="modal-overlay" id="modalPengumuman">
         <div class="modal-content">

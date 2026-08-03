@@ -6269,22 +6269,49 @@
       Sengaja tidak menghapus data generus dari Data Master: admin bisa saja
       salah meletakkan santri di kelas yang keliru (mis. harusnya Kelas B
       tapi kepilih Kelas A), jadi "Hapus" di sini cuma keluarkan dari kelas,
-      datanya tetap aman & bisa di-+Santri-kan lagi ke kelas yang benar. */
+      datanya tetap aman & bisa di-+Santri-kan lagi ke kelas yang benar.
+      Konfirmasi lewat modal premium (#modalRemoveSantriKelas, reuse gaya
+      guru-kelp-delete-modal) -- BUKAN browser confirm() polos. */
+  window.pendingRemoveSantriKelasId_ = null;
+
   window.removeSantriDariKelasRoster_ = function (id) {
     const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
     if (!s) return;
-    if (!confirm(`Keluarkan "${s.nama}" dari Daftar Santri kelas ini?\n\nData generus TIDAK dihapus dari Data Master, hanya keluar dari kelas ini.`)) return;
+    window.pendingRemoveSantriKelasId_ = id;
+    document.getElementById('removeSantriKelasNama').textContent = s.nama;
+    document.getElementById('modalRemoveSantriKelas').classList.add('active');
+  };
 
-    window.showGlobalLoading_('Mengeluarkan dari kelas...');
+  window.closeModalRemoveSantriKelas_ = function () {
+    document.getElementById('modalRemoveSantriKelas').classList.remove('active');
+    window.pendingRemoveSantriKelasId_ = null;
+    window.setRemoveSantriKelasLoading_(false);
+  };
+
+  window.setRemoveSantriKelasLoading_ = function (isLoading) {
+    const confirmBtn = document.getElementById('removeSantriKelasConfirmBtn');
+    const cancelBtn = document.getElementById('removeSantriKelasCancelBtn');
+    confirmBtn.disabled = isLoading;
+    cancelBtn.disabled = isLoading;
+    confirmBtn.classList.toggle('is-loading', isLoading);
+  };
+
+  window.confirmRemoveSantriKelas_ = function () {
+    const id = window.pendingRemoveSantriKelasId_;
+    if (!id) return;
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
+
+    window.setRemoveSantriKelasLoading_(true);
     google.script.run
       .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
+        window.setRemoveSantriKelasLoading_(false);
         if (!result.success) { alert(result.error); return; }
-        s.kelas_ngaji = '';
+        if (s) s.kelas_ngaji = '';
+        window.closeModalRemoveSantriKelas_();
         window.renderJadwalKBMList_(window.lastJadwalListData || []);
       })
       .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
+        window.setRemoveSantriKelasLoading_(false);
         alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
       })
       .serverUpdateSantri(window.currentToken, window.currentKelompokId, id, { kelas_ngaji: '' });
