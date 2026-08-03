@@ -187,9 +187,46 @@ function serverAddProta(token, kelompokId, tahun, kategori, kelas) {
 }
 
 /**
+ * Upsert kurikulum_probul Bulan 1-6 dari baris-baris Target Semester --
+ * Target ke-1 -> Bulan 1, Target ke-2 -> Bulan 2, dst (index array =
+ * urutan baris = posisi Bulan). Baris yang sudah ada di-UPDATE (target
+ * saja), yang belum ada di-INSERT; baris Bulan yang TIDAK punya Target
+ * baris ke-N (targetLines lebih pendek dari slot Bulan yg sudah terisi)
+ * DIBIARKAN, tidak dihapus -- sama seperti perilaku serverSetProbulBulan.
+ */
+function upsertProbulFromTargetLines_(promesId, kelompokId, tahun, kategori, targetLines, user) {
+  const existingProbul = readSheetAsObjects('kurikulum_probul').filter(r => String(r.promes_id) === String(promesId));
+  const now = new Date().toISOString();
+
+  for (let i = 0; i < targetLines.length && i < 6; i++) {
+    const bulan = i + 1;
+    const target = targetLines[i];
+    if (!target) continue;
+    const existing = existingProbul.find(function (r) { return parseInt(r.bulan) === bulan; });
+    if (existing) {
+      updateRowByQuery('kurikulum_probul', { id: existing.id }, { target: target, updated_at: now });
+    } else {
+      const id = 'probul_' + promesId + '_' + bulan;
+      appendRowToSheet('kurikulum_probul', [id, kelompokId, promesId, tahun, bulan, kategori, target, '', user.id, now, now]);
+    }
+  }
+
+  cacheDrop_('kurikulum_probul_bypromes_' + promesId);
+  for (let b = 1; b <= 6; b++) {
+    cacheDrop_('kurikulum_probul_' + kelompokId + '_' + tahun + '_' + b);
+  }
+}
+
+/**
  * Isi/ubah Target Semester I & II sebuah materi sekaligus dalam 1 panggilan
  * -- dipicu tombol Edit (✎) per materi. Upsert: kalau baris Promes-nya
  * ternyata belum ada (data lama sblm auto-create dipasang), dibuatkan baru.
+ *
+ * Tiap baris Target (dari line-editor dinamis di klien, dipisah '\n')
+ * OTOMATIS ikut mengisi kurikulum_probul Bulan 1-6 milik Semester itu --
+ * Target ke-1 -> Bulan 1, Target ke-2 -> Bulan 2, dst (lihat
+ * upsertProbulFromTargetLines_) -- supaya tab Bulanan tidak perlu diisi
+ * ulang manual setelah Target Semester diisi di tab Tahunan.
  */
 function serverUpdateProtaSemesters(token, protaId, sem1Target, sem1Deskripsi, sem2Target, sem2Deskripsi) {
   const user = getCurrentUser(token);
@@ -213,10 +250,18 @@ function serverUpdateProtaSemesters(token, protaId, sem1Target, sem1Deskripsi, s
 
       inputs.forEach(function (input) {
         const existing = existingPromes.find(r => String(r.semester) === String(input.semester));
+        let promesId;
         if (existing) {
+          promesId = existing.id;
           updateRowByQuery('kurikulum_promes', { id: existing.id }, { target: input.target, deskripsi: input.deskripsi, updated_at: now });
         } else {
-          appendRowToSheet('kurikulum_promes', ['promes_' + protaId + '_' + input.semester, prota.kelompok_id, protaId, input.semester, input.target, input.deskripsi, user.id, now, now]);
+          promesId = 'promes_' + protaId + '_' + input.semester;
+          appendRowToSheet('kurikulum_promes', [promesId, prota.kelompok_id, protaId, input.semester, input.target, input.deskripsi, user.id, now, now]);
+        }
+
+        const targetLines = String(input.target || '').split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; });
+        if (targetLines.length) {
+          upsertProbulFromTargetLines_(promesId, prota.kelompok_id, prota.tahun, prota.kategori, targetLines, user);
         }
       });
 
