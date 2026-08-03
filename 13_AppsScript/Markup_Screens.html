@@ -259,23 +259,19 @@
     <div class="ia-dashboard-toolbar">
       <button type="button" class="ia-filter-btn" id="iaFilterBtn" onclick="window.iaToggleFilterPanel_()">
         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-        <span id="iaFilterBtnLabel">Filter</span>
+        <span id="iaFilterBtnLabel">Bulan - Tahun</span>
       </button>
     </div>
 
     <div class="ia-filter-panel" id="iaFilterPanel" style="display:none;">
       <div class="ia-filter-panel-row">
         <div class="ia-filter-field">
-          <label class="ia-filter-label">Dari Tanggal</label>
-          <input type="text" class="form-input ia-date-display" id="iaFilterMulaiDisplay" data-datepicker-trigger readonly placeholder="Mulai" onclick="window.toggleDatePicker('iaFilterMulai')">
-          <input type="hidden" id="iaFilterMulai">
-          <div class="ppg-datepicker" id="iaFilterMulaiPicker"></div>
+          <label class="ia-filter-label">Bulan</label>
+          <select class="form-select" id="iaFilterBulan"></select>
         </div>
         <div class="ia-filter-field">
-          <label class="ia-filter-label">Sampai Tanggal</label>
-          <input type="text" class="form-input ia-date-display" id="iaFilterSelesaiDisplay" data-datepicker-trigger readonly placeholder="Selesai" onclick="window.toggleDatePicker('iaFilterSelesai')">
-          <input type="hidden" id="iaFilterSelesai">
-          <div class="ppg-datepicker" id="iaFilterSelesaiPicker"></div>
+          <label class="ia-filter-label">Tahun</label>
+          <select class="form-select" id="iaFilterTahun"></select>
         </div>
       </div>
       <div class="ia-filter-panel-actions">

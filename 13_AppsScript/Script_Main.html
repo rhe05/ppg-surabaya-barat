@@ -1523,49 +1523,58 @@
     }
   };
 
-  /* ─── Filter rentang tanggal Dashboard ─── */
+  /* ─── Filter Bulan-Tahun Dashboard (ganti dari rentang tanggal ke Bulan
+     Tahun) ─── */
+
+  const IA_FILTER_NAMA_BULAN_ = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+
+  window.iaPopulateFilterBulanTahun_ = function () {
+    const bulanSel = document.getElementById('iaFilterBulan');
+    const tahunSel = document.getElementById('iaFilterTahun');
+    const now = new Date();
+    const curYear = now.getFullYear();
+
+    if (bulanSel.options.length === 0) {
+      bulanSel.innerHTML = IA_FILTER_NAMA_BULAN_.map(function (nm, idx) { return `<option value="${idx + 1}">${nm}</option>`; }).join('');
+    }
+    if (tahunSel.options.length === 0) {
+      tahunSel.innerHTML = [curYear - 1, curYear].map(function (y) { return `<option value="${y}">${y}</option>`; }).join('');
+    }
+
+    const filter = window.iaState_.dashboardFilter;
+    bulanSel.value = filter ? String(filter.bulan) : String(now.getMonth() + 1);
+    tahunSel.value = filter ? String(filter.tahun) : String(curYear);
+  };
 
   window.iaToggleFilterPanel_ = function () {
     const panel = document.getElementById('iaFilterPanel');
-    panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    const opening = panel.style.display !== 'block';
+    if (opening) window.iaPopulateFilterBulanTahun_();
+    panel.style.display = opening ? 'block' : 'none';
   };
 
   window.iaResetFilter_ = function () {
     window.iaState_.dashboardFilter = null;
-    document.getElementById('iaFilterMulai').value = '';
-    document.getElementById('iaFilterMulaiDisplay').value = '';
-    document.getElementById('iaFilterSelesai').value = '';
-    document.getElementById('iaFilterSelesaiDisplay').value = '';
     document.getElementById('iaFilterPanel').style.display = 'none';
     document.getElementById('iaFilterBtn').classList.remove('active');
-    document.getElementById('iaFilterBtnLabel').textContent = 'Filter';
+    document.getElementById('iaFilterBtnLabel').textContent = 'Bulan - Tahun';
     window.iaLoadDashboardSummary_();
   };
 
   window.iaApplyFilter_ = function () {
-    const mulai = document.getElementById('iaFilterMulai').value;
-    const selesai = document.getElementById('iaFilterSelesai').value;
-    if (!mulai || !selesai) {
-      iaShowToast_('Pilih tanggal mulai dan selesai.', 'error');
-      return;
-    }
-    if (selesai < mulai) {
-      iaShowToast_('Tanggal selesai tidak boleh sebelum tanggal mulai.', 'error');
-      return;
-    }
-    window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai };
+    const bulan = Number(document.getElementById('iaFilterBulan').value);
+    const tahun = Number(document.getElementById('iaFilterTahun').value);
+    const pad = function (n) { return String(n).padStart(2, '0'); };
+    const mulai = tahun + '-' + pad(bulan) + '-01';
+    const lastDay = new Date(tahun, bulan, 0).getDate();
+    const selesai = tahun + '-' + pad(bulan) + '-' + pad(lastDay);
+
+    window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai, bulan: bulan, tahun: tahun };
     document.getElementById('iaFilterPanel').style.display = 'none';
     document.getElementById('iaFilterBtn').classList.add('active');
-    document.getElementById('iaFilterBtnLabel').textContent = iaFormatFilterRangeShort_(mulai, selesai);
+    document.getElementById('iaFilterBtnLabel').textContent = IA_FILTER_NAMA_BULAN_[bulan - 1] + ' ' + tahun;
     window.iaLoadDashboardSummary_();
   };
-
-  function iaFormatFilterRangeShort_(mulai, selesai) {
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-    const d1 = new Date(mulai + 'T00:00:00');
-    const d2 = new Date(selesai + 'T00:00:00');
-    return d1.getDate() + ' ' + monthNames[d1.getMonth()] + '–' + d2.getDate() + ' ' + monthNames[d2.getMonth()];
-  }
 
   window.iaRenderDashboardCards_ = function (list) {
     const wrap = document.getElementById('iaDashboardCards');
