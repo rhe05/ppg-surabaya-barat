@@ -758,6 +758,29 @@
     }
   };
 
+  /* ═══ Menu "Kurikulum" (guru mobile) — dibawah "Jurnal Mengajar" di menu
+     hamburger. Sementara cuma popup pilihan Prota/Promes/Probul (placeholder
+     toast, isinya menyusul instruksi lanjutan) — tampilan desktop Kurikulum
+     (Dashboard Kelompok, tab Kurikulum) TIDAK disentuh sama sekali. ═══ */
+  window.iaMenuGoKurikulum_ = function () {
+    window.iaCloseMenu_();
+    window.iaKurikulumOpenChooser_();
+  };
+
+  window.iaKurikulumOpenChooser_ = function () {
+    document.getElementById('iaKurikulumChooserOverlay').style.display = 'flex';
+  };
+
+  window.iaKurikulumCloseChooser_ = function () {
+    document.getElementById('iaKurikulumChooserOverlay').style.display = 'none';
+  };
+
+  window.iaKurikulumChooseMode_ = function (mode) {
+    window.iaKurikulumCloseChooser_();
+    const label = mode === 'prota' ? 'Program Tahunan (Prota)' : mode === 'promes' ? 'Program Semester (Promes)' : 'Program Bulanan (Probul)';
+    iaShowToast_(label + ' segera hadir', 'info');
+  };
+
   window.iaJurnalCacheKey_ = function () {
     return document.getElementById('iaTanggal').value;
   };

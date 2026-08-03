@@ -220,6 +220,10 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
         <span>Jurnal Mengajar</span>
       </button>
+      <button type="button" class="ia-menu-item" id="iaMenuKurikulumBtn" onclick="window.iaMenuGoKurikulum_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M8 7h8"/><path d="M8 11h8"/></svg>
+        <span>Kurikulum</span>
+      </button>
       <button type="button" class="ia-menu-item" id="iaMenuGuruIzinBtn" onclick="window.iaMenuOpenGuruIzin_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
         <span>Guru Izin</span>
@@ -515,6 +519,49 @@
           <span class="ia-jr-chooser-opt-text">
             <span class="ia-jr-chooser-opt-label">Edit Jurnal</span>
             <span class="ia-jr-chooser-opt-desc">Ubah jurnal yang sudah pernah diisi</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup pilihan "Kurikulum": Prota / Promes / Probul -->
+  <div class="ia-status-modal-overlay" id="iaKurikulumChooserOverlay" style="display:none;">
+    <div class="ia-status-modal ia-jr-chooser-modal">
+      <button type="button" class="ia-status-modal-x" onclick="window.iaKurikulumCloseChooser_()" aria-label="Tutup">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="ia-jr-chooser-title">Kurikulum</div>
+      <div class="ia-jr-chooser-subtitle">Pilih salah satu untuk melanjutkan.</div>
+      <div class="ia-jr-chooser-options">
+        <button type="button" class="ia-jr-chooser-opt ia-jr-chooser-opt-input" onclick="window.iaKurikulumChooseMode_('prota')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 2v4"/><path d="M16 2v4"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Program Tahunan (Prota)</span>
+            <span class="ia-jr-chooser-opt-desc">Materi & target per Kelas selama 1 tahun</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="ia-jr-chooser-opt ia-jr-chooser-opt-edit" onclick="window.iaKurikulumChooseMode_('promes')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Program Semester (Promes)</span>
+            <span class="ia-jr-chooser-opt-desc">Target per Semester I &amp; II</span>
+          </span>
+          <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
+        </button>
+        <button type="button" class="ia-jr-chooser-opt" onclick="window.iaKurikulumChooseMode_('probul')">
+          <span class="ia-jr-chooser-opt-icon">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/><path d="M8 14h.01"/><path d="M12 14h.01"/><path d="M16 14h.01"/><path d="M8 18h.01"/><path d="M12 18h.01"/><path d="M16 18h.01"/></svg>
+          </span>
+          <span class="ia-jr-chooser-opt-text">
+            <span class="ia-jr-chooser-opt-label">Program Bulanan (Probul)</span>
+            <span class="ia-jr-chooser-opt-desc">Target per Bulan &amp; progres mingguan</span>
           </span>
           <svg class="ia-jr-chooser-opt-arrow" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>
         </button>
