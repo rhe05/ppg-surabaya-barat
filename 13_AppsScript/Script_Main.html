@@ -6264,6 +6264,32 @@
       .serverUpdateSantri(window.currentToken, window.currentKelompokId, santriId, { kelas_ngaji: kelasNama });
   };
 
+  /** Keluarkan 1 santri dari "Daftar Santri" kelas ini SAJA (kosongkan
+      kelas_ngaji lewat serverUpdateSantri) -- BUKAN serverDeleteSantri.
+      Sengaja tidak menghapus data generus dari Data Master: admin bisa saja
+      salah meletakkan santri di kelas yang keliru (mis. harusnya Kelas B
+      tapi kepilih Kelas A), jadi "Hapus" di sini cuma keluarkan dari kelas,
+      datanya tetap aman & bisa di-+Santri-kan lagi ke kelas yang benar. */
+  window.removeSantriDariKelasRoster_ = function (id) {
+    const s = (window.lastSantriListData || []).find(x => String(x.id) === String(id));
+    if (!s) return;
+    if (!confirm(`Keluarkan "${s.nama}" dari Daftar Santri kelas ini?\n\nData generus TIDAK dihapus dari Data Master, hanya keluar dari kelas ini.`)) return;
+
+    window.showGlobalLoading_('Mengeluarkan dari kelas...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) { alert(result.error); return; }
+        s.kelas_ngaji = '';
+        window.renderJadwalKBMList_(window.lastJadwalListData || []);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        alert('Gagal terhubung ke server: ' + (err && err.message ? err.message : err));
+      })
+      .serverUpdateSantri(window.currentToken, window.currentKelompokId, id, { kelas_ngaji: '' });
+  };
+
   /** Slug aman-untuk-id dari nama kategori (mis. "Cabe Rawit" → "cabe_rawit"). */
   window.jadwalKatSlug_ = function (kat) {
     return String(kat || '').toLowerCase().replace(/[^a-z0-9]+/g, '_');
@@ -6283,8 +6309,8 @@
           <td>${window.formatTanggalDisplay_(s.mulai_ngaji) || '-'}</td>
           <td style="text-align: center;">
             <div class="jadwal-row-actions" style="justify-content: center;">
-              <button class="jadwal-row-icon-btn" title="Edit" onclick="window.editGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.edit}</button>
-              <button class="jadwal-row-icon-btn danger" title="Hapus" onclick="window.deleteGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.delete}</button>
+              <button class="jadwal-row-icon-btn primary" title="Edit Data Generus" onclick="window.editGenerusKelp('${s.id}')">${window.JADWAL_ICONS_.edit}</button>
+              <button class="jadwal-row-icon-btn danger" title="Keluarkan dari kelas ini" onclick="window.removeSantriDariKelasRoster_('${s.id}')">${window.JADWAL_ICONS_.delete}</button>
             </div>
           </td>
         </tr>

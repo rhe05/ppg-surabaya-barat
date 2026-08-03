@@ -1611,6 +1611,31 @@
       border-color: rgba(220, 38, 38, 0.3);
     }
 
+    /* Aksi Edit/Hapus di "Daftar Santri" (panel detail kelas Jadwal KBM) --
+       SENGAJA hanya scoped via kombinasi class .danger/.primary (dipakai
+       eksklusif di roster ini, TIDAK dipakai tombol jadwal-row-icon-btn
+       lainnya di Data Master) supaya warna standing (bukan cuma pas hover)
+       tidak ikut mengubah tombol serupa di fitur lain. */
+    .jadwal-row-icon-btn.danger {
+      color: var(--red);
+    }
+
+    .jadwal-row-icon-btn.primary {
+      color: var(--indigo);
+    }
+
+    .jadwal-row-icon-btn.primary:hover {
+      background: var(--panel);
+      border-color: rgba(79, 70, 229, 0.3);
+      color: var(--indigo);
+    }
+
+    /* Font kolom Daftar Santri (roster kelas Jadwal KBM) dipastikan hitam,
+       bukan abu-abu, biar terbaca. */
+    .jadwal-santri-roster-wrap .data-table td {
+      color: var(--text);
+    }
+
     /* ═════ KELAS PENGAJIAN: pill kelas + panel detail (klik kartu kategori → baris tombol
        kelas presisi sama panjang/tinggi; klik satu kelas → detail memanjang ke bawah) ═════ */
     .jadwal-kelas-pill-row {
