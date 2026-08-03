@@ -192,8 +192,8 @@ function getKelasOwnerGuruId_(kelompokId, kelas) {
  * Cek apakah guru boleh input absen kelas tsb pada tanggal tsb:
  * pemilik kelas ATAU ada permintaan akses berstatus 'approved' utk tanggal itu.
  */
-function canGuruAccessKelas_(kelompokId, guruId, kelas, tanggal) {
-  const owned = getKelasOwnedByGuru_(kelompokId, guruId).map(function (k) { return k.toLowerCase(); });
+function canGuruAccessKelas_(kelompokId, guruId, kelas, tanggal, jadwalRowsAll) {
+  const owned = getKelasOwnedByGuru_(kelompokId, guruId, jadwalRowsAll).map(function (k) { return k.toLowerCase(); });
   if (owned.indexOf(String(kelas).trim().toLowerCase()) !== -1) return true;
 
   const kelasLower = String(kelas).trim().toLowerCase();
@@ -214,7 +214,7 @@ function canGuruAccessKelas_(kelompokId, guruId, kelas, tanggal) {
  * mode Admin PPG (serverSaveAbsensiKelasAdmin) sengaja tidak dibatasi, itu
  * jalur override yang memang bebas.
  */
-function iaValidateWaktuAbsen_(kelompokId, kelas, tanggal) {
+function iaValidateWaktuAbsen_(kelompokId, kelas, tanggal, jadwalRowsAll, guruRowsAll) {
   const tz = SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone();
   const now = new Date();
   const todayStr = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
@@ -223,7 +223,7 @@ function iaValidateWaktuAbsen_(kelompokId, kelas, tanggal) {
     return { valid: false, code: 'future', error: 'Tidak bisa menyimpan absen untuk tanggal yang akan datang.' };
   }
   if (tanggal === todayStr) {
-    const info = getKelasSessionInfo_(kelompokId, kelas);
+    const info = getKelasSessionInfo_(kelompokId, kelas, jadwalRowsAll, guruRowsAll);
     const jamMulai = info && info.jamMulai;
     if (jamMulai) {
       const nowHHMM = Utilities.formatDate(now, tz, 'HH:mm');
@@ -497,11 +497,22 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
-  if (!canGuruAccessKelas_(ctx.kelompokId, ctx.user.guruId, kelas, tanggal)) {
+
+  // JADWAL_KBM/GURU/SANTRI dibaca SEKALI & PARALEL di sini, dipakai ulang oleh
+  // canGuruAccessKelas_/iaValidateWaktuAbsen_/santriIdsKelas di bawah --
+  // sebelumnya masing-masing baca sendiri (JADWAL_KBM sampai 2x) jadi 3-4
+  // round-trip Firestore BERURUTAN yang bikin Simpan Kehadiran lambat
+  // (pola sama ERROR_LOG #18-22, belum sempat diterapkan ke fungsi ini).
+  const tabelAbsen_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelAbsen_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelAbsen_[SHEET_NAMES.GURU];
+  const santriAll = tabelAbsen_[SHEET_NAMES.SANTRI];
+
+  if (!canGuruAccessKelas_(ctx.kelompokId, ctx.user.guruId, kelas, tanggal, jadwalRowsAll)) {
     return { success: false, error: 'Anda belum memiliki akses ke kelas ini pada tanggal tersebut.' };
   }
 
-  const waktuCheck = iaValidateWaktuAbsen_(ctx.kelompokId, kelas, tanggal);
+  const waktuCheck = iaValidateWaktuAbsen_(ctx.kelompokId, kelas, tanggal, jadwalRowsAll, guruRowsAll);
   if (!waktuCheck.valid) {
     return { success: false, error: waktuCheck.error, code: waktuCheck.code };
   }
@@ -516,7 +527,7 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   }
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const santriIdsKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, ctx.kelompokId)
+  const santriIdsKelas = santriAll
     .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
 

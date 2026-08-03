@@ -1843,7 +1843,7 @@
     if (!btn) return;
     const locked = window.iaState_.mode !== 'admin' && !!window.iaState_.sudahTersimpan;
     btn.classList.toggle('ia-save-btn-locked', locked);
-    btn.textContent = locked ? '✓ Absen Tersimpan' : 'Simpan Absen';
+    btn.textContent = locked ? '✓ Absen Tersimpan' : 'Simpan Kehadiran';
   };
 
   window.iaSetStatus_ = function (santriId, status, btnEl) {
@@ -1869,16 +1869,34 @@
 
   const QUOTE_HARIAN_FALLBACK_ = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
-  /* Prefetch quote hari ini sekali saat screen Input Absen dibuka (guru & admin
-     override) — dipakai instan di popup sukses Simpan Absen, tidak perlu
-     round-trip tambahan saat baru saja klik Simpan. */
+  /* Prefetch SELURUH pool quote sekali saat screen Input Absen dibuka (guru &
+     admin override) — dipakai window.iaPickRandomQuote_ tiap kali Simpan
+     Kehadiran berhasil, TANPA round-trip tambahan saat baru saja klik Simpan
+     (supaya tetap instan/<1 detik). */
   window.iaLoadQuoteHariIni_ = function () {
     google.script.run
       .withSuccessHandler(function (result) {
-        window.iaState_.quoteHariIni = (result && result.success && result.data && result.data.teks) || QUOTE_HARIAN_FALLBACK_;
+        const pool = (result && result.success && result.data && result.data.pool) || [];
+        window.iaState_.quotePool = pool.length ? pool : [QUOTE_HARIAN_FALLBACK_];
       })
-      .withFailureHandler(function () { window.iaState_.quoteHariIni = QUOTE_HARIAN_FALLBACK_; })
+      .withFailureHandler(function () { window.iaState_.quotePool = [QUOTE_HARIAN_FALLBACK_]; })
       .serverGetQuoteHariIni(window.currentToken);
+  };
+
+  /* Pilih 1 quote ACAK dari pool tiap kali Simpan Kehadiran berhasil --
+     sebelumnya selalu quote yang sama sepanjang hari (deterministik per
+     tanggal), sekarang berputar/berubah tiap klik. Kalau pool >1, hindari
+     mengulang quote yang SAMA dgn tampilan sebelumnya biar terasa benar2
+     "berputar" (bukan kebetulan random dapat yang sama 2x berturutan). */
+  window.iaPickRandomQuote_ = function () {
+    const pool = window.iaState_.quotePool || [QUOTE_HARIAN_FALLBACK_];
+    if (pool.length <= 1) return pool[0] || QUOTE_HARIAN_FALLBACK_;
+    let pick;
+    do {
+      pick = pool[Math.floor(Math.random() * pool.length)];
+    } while (pick === window.iaState_.lastQuoteShown && pool.length > 1);
+    window.iaState_.lastQuoteShown = pick;
+    return pick;
   };
 
   const IA_STATUS_MODAL_ICONS_ = {
@@ -1964,8 +1982,8 @@
       window.hideGlobalLoading_();
       btn.disabled = false;
       if (result.success) {
-        btn.textContent = 'Simpan Absen';
-        window.iaShowStatusModal_('success', 'Alhamdulillah, Absen Berhasil Disimpan', result.message, window.iaState_.quoteHariIni || QUOTE_HARIAN_FALLBACK_);
+        btn.textContent = 'Simpan Kehadiran';
+        window.iaShowStatusModal_('success', 'Alhamdulillah, Absen Berhasil Disimpan', result.message, window.iaPickRandomQuote_());
         // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
         // absen baru saja disimpan — paksa reload sekali berikutnya kali
         // Dashboard dibuka, jangan pakai cache lama (lihat ERROR_LOG.md #21).
@@ -1982,20 +2000,20 @@
         window.iaUpdateSaveBtnState_();
         window.iaShowStatusModal_('success', 'Absen Sudah Tersimpan', result.error);
       } else if (result.code === 'future' || result.code === 'belum-waktu') {
-        btn.textContent = 'Simpan Absen';
+        btn.textContent = 'Simpan Kehadiran';
         window.iaShowStatusModal_('warning', result.code === 'future' ? 'Belum Bisa Disimpan' : 'Sesi Belum Dimulai', result.error);
       } else if (result.code === 'guru-izin') {
-        btn.textContent = 'Simpan Absen';
+        btn.textContent = 'Simpan Kehadiran';
         window.iaShowStatusModal_('warning', 'Sedang Mengajukan Izin', result.error);
       } else {
-        btn.textContent = 'Simpan Absen';
+        btn.textContent = 'Simpan Kehadiran';
         iaShowToast_(result.error, 'error');
       }
     };
     const onSaveFailure = function () {
       window.hideGlobalLoading_();
       btn.disabled = false;
-      btn.textContent = 'Simpan Absen';
+      btn.textContent = 'Simpan Kehadiran';
       iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
     };
 

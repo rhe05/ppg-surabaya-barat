@@ -10,11 +10,13 @@
 const QUOTE_HARIAN_DEFAULT_ = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
 /**
- * GET quote hari ini (dipanggil dari popup sukses Simpan Absen, guru MAUPUN
- * admin override — siapa saja yang sudah login boleh lihat). Rotasi: urut
- * berdasar id lalu index = (hari sejak epoch) % jumlah quote — deterministik
- * per HARI KALENDER (sama sepanjang hari itu, ganti besok), otomatis
- * berputar ulang dari awal begitu index melebihi jumlah quote yang ada.
+ * GET seluruh pool teks quote (dipanggil sekali saat screen Input Absen
+ * guru dibuka, guru MAUPUN admin override — siapa saja yang sudah login
+ * boleh lihat). SEBELUMNYA fungsi ini mengembalikan 1 quote deterministik
+ * per HARI KALENDER (sama sepanjang hari, tidak berubah walau berkali-kali
+ * Simpan Kehadiran) — diganti kembalikan SELURUH pool supaya klien bisa
+ * pilih quote ACAK setiap kali Simpan Kehadiran berhasil (lihat
+ * window.iaPickRandomQuote_, Script_Main.html) TANPA round-trip tambahan.
  */
 function serverGetQuoteHariIni(token) {
   const user = getCurrentUser(token);
@@ -22,15 +24,9 @@ function serverGetQuoteHariIni(token) {
 
   const quotes = readSheetAsObjects(SHEET_NAMES.QUOTE_HARIAN)
     .filter(function (q) { return String(q.teks || '').trim() !== ''; })
-    .sort(function (a, b) { return (parseInt(a.id) || 0) - (parseInt(b.id) || 0); });
+    .map(function (q) { return q.teks; });
 
-  if (quotes.length === 0) {
-    return { success: true, data: { teks: QUOTE_HARIAN_DEFAULT_ } };
-  }
-
-  const hariKe = Math.floor(new Date().getTime() / 86400000);
-  const idx = hariKe % quotes.length;
-  return { success: true, data: { teks: quotes[idx].teks } };
+  return { success: true, data: { pool: quotes.length ? quotes : [QUOTE_HARIAN_DEFAULT_] } };
 }
 
 /**
