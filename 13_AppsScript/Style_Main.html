@@ -5221,16 +5221,30 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
-      padding: 8px 4px;
+      gap: 3px;
+      padding: 10px 4px 9px;
       border-radius: var(--radius-md, 10px);
       background: var(--panel-2);
     }
 
     .ia-dash-stat-num {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: 800;
+      line-height: 1;
       color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Prosentase -- pill kecil bertinta warna status yg sama dgn angka di
+       atasnya, presisi ditengah, TIDAK norak (tint lembut, bukan warna
+       solid penuh). */
+    .ia-dash-stat-percent {
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 1;
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-variant-numeric: tabular-nums;
     }
 
     .ia-dash-stat-label {
@@ -5239,12 +5253,18 @@
       color: var(--text-dim);
       text-transform: uppercase;
       letter-spacing: 0.02em;
+      margin-top: 1px;
     }
 
     .ia-dash-stat.hadir .ia-dash-stat-num { color: var(--sage); }
     .ia-dash-stat.izin .ia-dash-stat-num { color: var(--indigo); }
     .ia-dash-stat.sakit .ia-dash-stat-num { color: #B45309; }
     .ia-dash-stat.alpa .ia-dash-stat-num { color: var(--red); }
+
+    .ia-dash-stat.hadir .ia-dash-stat-percent { background: rgba(5, 150, 105, 0.12); color: var(--sage); }
+    .ia-dash-stat.izin .ia-dash-stat-percent { background: rgba(79, 70, 229, 0.12); color: var(--indigo); }
+    .ia-dash-stat.sakit .ia-dash-stat-percent { background: rgba(180, 83, 9, 0.12); color: #B45309; }
+    .ia-dash-stat.alpa .ia-dash-stat-percent { background: rgba(220, 38, 38, 0.12); color: var(--red); }
 
     .ia-dash-empty {
       text-align: center;
