@@ -594,7 +594,7 @@
   window.iaKehadiranChooseMode_ = function (mode) {
     window.iaKehadiranCloseChooser_();
     if (mode === 'riwayat') {
-      window.iaShowRiwayatView_();
+      window.iaRiwayatOpenGate_();
       return;
     }
     window.iaOpenKelasGate_();
@@ -1393,8 +1393,94 @@
   window.IA_RIWAYAT_STATUS_WARNA_ = { hadir: 'hijau-tua', izin: 'kuning', sakit: 'kuning', alpa: 'merah' };
   window.IA_RIWAYAT_STATUS_LABEL_ = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' };
 
-  window.iaShowRiwayatView_ = function () {
+  /* ─── Popup pilih kelas Riwayat Kehadiran — SAMA pola dgn iaOpenKelasGate_
+     (Input Kehadiran)/iaJurnalOpenGate_, tapi TIDAK terikat tanggal (riwayat
+     per bulan) jadi cukup pakai serverGetJurnalKelasOnly (list kelas milik
+     guru, tanpa lookup form 1 tanggal). Kalau guru cuma pegang 1 kelas,
+     langsung masuk tanpa nampilkan kartu (sama seperti alur lain). */
+  window.iaRiwayatOpenGate_ = function () {
+    const overlay = document.getElementById('iaRiwayatKelasGateOverlay');
+    const loadingEl = document.getElementById('iaRiwayatGateLoading');
+    const listEl = document.getElementById('iaRiwayatGateList');
+    const footerEl = document.getElementById('iaRiwayatGateFooter');
+    overlay.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    document.getElementById('iaRiwayatGateMasukBtn').disabled = true;
+    window.iaRiwayatGateSelected_ = null;
+
+    const onResult = function (result) {
+      if (!result.success || !result.data || result.data.length === 0) {
+        window.iaRiwayatCloseGate_();
+        iaShowToast_(result.error || 'Anda belum mengampu kelas apa pun.', 'info');
+        return;
+      }
+      if (result.data.length === 1) {
+        window.iaRiwayatCloseGate_();
+        window.iaShowRiwayatView_(result.data[0].kelas);
+        return;
+      }
+      loadingEl.style.display = 'none';
+      window.iaRenderRiwayatGateCards_(result.data);
+    };
+    const onFail = function (err) {
+      window.iaRiwayatCloseGate_();
+      iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+    };
+
+    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetJurnalKelasOnly(window.currentToken);
+  };
+
+  window.iaRenderRiwayatGateCards_ = function (data) {
+    const listEl = document.getElementById('iaRiwayatGateList');
+    const footerEl = document.getElementById('iaRiwayatGateFooter');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'flex';
+    listEl.innerHTML = '';
+
+    data.forEach(function (item) {
+      const card = document.createElement('div');
+      card.className = 'ia-kg-card';
+      const badgeHtml = item.kategori === 'Cabe Rawit' ? '<span class="ia-kg-card-badge">Cabe Rawit</span>' : '';
+      const infoParts = [];
+      if (item.ruangan) infoParts.push(item.ruangan);
+      if (item.jamMulai && item.jamSelesai) infoParts.push(item.jamMulai + '–' + item.jamSelesai);
+      card.innerHTML = `
+        <div class="ia-kg-card-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ia-kg-card-main">
+          <div class="ia-kg-card-top">
+            <span class="ia-kg-card-nama">Kelas ${item.kelas}</span>
+            ${badgeHtml}
+          </div>
+          <div class="ia-kg-card-info">${infoParts.join(' · ')}</div>
+        </div>
+      `;
+      card.onclick = function () {
+        document.querySelectorAll('#iaRiwayatGateList .ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        window.iaRiwayatGateSelected_ = item.kelas;
+        document.getElementById('iaRiwayatGateMasukBtn').disabled = false;
+      };
+      listEl.appendChild(card);
+    });
+  };
+
+  window.iaRiwayatConfirmGate_ = function () {
+    if (!window.iaRiwayatGateSelected_) return;
+    const kelas = window.iaRiwayatGateSelected_;
+    window.iaRiwayatCloseGate_();
+    window.iaShowRiwayatView_(kelas);
+  };
+
+  window.iaRiwayatCloseGate_ = function () {
+    document.getElementById('iaRiwayatKelasGateOverlay').style.display = 'none';
+  };
+
+  window.iaShowRiwayatView_ = function (kelas) {
     window.iaState_.activeView = 'riwayat';
+    window.iaRiwayatKelas_ = kelas;
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
@@ -1432,7 +1518,8 @@
 
   window.iaUpdateRiwayatFilterLabel_ = function () {
     const f = window.iaRiwayatFilter_;
-    document.getElementById('iaRiwayatFilterBtnLabel').textContent = IA_FILTER_NAMA_BULAN_[f.bulan - 1] + ' - ' + f.tahun;
+    const kelasPart = window.iaRiwayatKelas_ ? ('Kelas ' + window.iaRiwayatKelas_ + ' · ') : '';
+    document.getElementById('iaRiwayatFilterBtnLabel').textContent = kelasPart + IA_FILTER_NAMA_BULAN_[f.bulan - 1] + ' - ' + f.tahun;
   };
 
   window.iaToggleRiwayatFilterPanel_ = function () {
@@ -1474,7 +1561,7 @@
       .withFailureHandler(function (err) {
         body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--red);">Gagal memuat: ' + (err && err.message ? err.message : err) + '</td></tr>';
       })
-      .serverGetRiwayatKehadiranGuru(window.currentToken, f.tahun, f.bulan);
+      .serverGetRiwayatKehadiranGuru(window.currentToken, f.tahun, f.bulan, window.iaRiwayatKelas_);
   };
 
   window.iaRenderRiwayatTable_ = function (dates, rows) {

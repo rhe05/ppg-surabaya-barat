@@ -1044,9 +1044,10 @@ function serverSubmitGuruIzin(token, payload) {
  * Riwayat Kehadiran (mobile, "Kehadiran" > "Riwayat Kehadiran") — matrix
  * santri × tanggal 1 bulan, sama pola dgn serverGetKehadiranGenerusMatrix
  * (desktop Operasional > Kehadiran Generus > Detail Kehadiran), TAPI di-scope
- * ke kelas MILIK GURU INI SAJA (bukan seluruh Kelompok) via getKelasOwnedByGuru_.
+ * ke SATU kelas milik guru ini SAJA (dipilih guru lewat popup "Pilih Kelas",
+ * pola sama Input Kehadiran/Jurnal — lihat window.iaRiwayatOpenGate_).
  */
-function serverGetRiwayatKehadiranGuru(token, year, month) {
+function serverGetRiwayatKehadiranGuru(token, year, month, kelas) {
   const ctx = requireGuruContext_(token);
   if (!ctx.success) return ctx;
 
@@ -1055,8 +1056,13 @@ function serverGetRiwayatKehadiranGuru(token, year, month) {
   const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
 
   const kelasOwnedLower = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll).map(function (k) { return k.toLowerCase(); });
+  const kelasLower = String(kelas || '').trim().toLowerCase();
+  if (!kelasLower || kelasOwnedLower.indexOf(kelasLower) === -1) {
+    return { success: false, error: 'Kelas tidak ditemukan atau bukan milik Anda.' };
+  }
+
   const santriList = santriAll.filter(function (s) {
-    return kelasOwnedLower.indexOf(String(s.kelas_ngaji || '').trim().toLowerCase()) !== -1;
+    return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
@@ -1087,15 +1093,11 @@ function serverGetRiwayatKehadiranGuru(token, year, month) {
     return {
       id: s.id,
       nama: s.nama,
-      kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi',
       statusByDate: statusMap[String(s.id)] || {},
     };
   });
 
-  rows.sort(function (a, b) {
-    if (a.kelas !== b.kelas) return a.kelas.localeCompare(b.kelas);
-    return a.nama.localeCompare(b.nama);
-  });
+  rows.sort(function (a, b) { return a.nama.localeCompare(b.nama); });
 
   return { success: true, dates: dates, data: rows };
 }
