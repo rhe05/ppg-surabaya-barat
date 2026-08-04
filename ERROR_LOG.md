@@ -1049,25 +1049,35 @@ Guru melihat popup ini tapi mengira koreksinya tetap tersimpan — padahal
 TIDAK PERNAH ditulis ke Firestore/Sheet sama sekali, jadi wajar tidak
 muncul di Dashboard (atau di manapun, termasuk Riwayat Kehadiran).
 
-**Perbaikan**: kunci "sekali simpan" sekarang HANYA berlaku utk tanggal
-yang SUDAH LEWAT (data historis tetap terlindungi, tetap harus lewat Admin
-Kelompok kalau perlu dikoreksi). Tanggal HARI INI boleh ditimpa ulang
-berkali-kali sepanjang hari itu — `iaRewriteAbsensiKelas_` sudah pola
-delete+insert per kelas+tanggal jadi aman tanpa duplikat baris. Diterapkan
-via helper baru `iaTodayStr_()` di 3 titik yang menentukan status "sudah
-tersimpan": `serverSaveAbsensiKelas` (gerbang utama, server-side),
-`serverGetKelasAbsenList` & `serverGetAbsensiKelasForm` (penentu kunci
-tombol Simpan di klien — kalau cuma gerbang utama yang dibetulkan tapi
-kedua fungsi ini tidak, tombol Simpan di klien akan tetap kelihatan
-terkunci utk hari ini). Mode Admin PPG (`serverSaveAbsensiKelasAdmin`)
-sengaja tidak disentuh — sudah tanpa batasan dari awal.
+**Perbaikan (v1, 2026-08-04 pagi)**: kunci "sekali simpan" awalnya cuma
+dilonggarkan utk tanggal HARI INI (via helper `iaTodayStr_()`), tanggal
+yang sudah lewat tetap terkunci.
 
-**Cara verifikasi**: simpan absen kelas apa pun hari ini (semua Hadir),
-lalu buka lagi kelas yang sama hari ini & ubah beberapa santri ke
-Izin/Sakit/Alpa, Simpan lagi — harus berhasil (bukan popup "sudah
-tersimpan"), dan Dashboard/Riwayat Kehadiran langsung menunjukkan angka
-yang benar. Ulangi utk tanggal KEMARIN — harus tetap ditolak (kunci lama
-masih berlaku).
+**Kenapa v1 belum cukup (2026-08-04 siang, laporan susulan)**: kelas
+mingguan (mis. kelas Senin) baru ketahuan salah beberapa hari kemudian —
+begitu tanggalnya bukan "hari ini" lagi (mis. guru mengoreksi Senin di
+hari Selasa), kunci lama tetap menolak persis seperti sebelumnya. User
+dikonfirmasi lewat pertanyaan eksplisit: guru boleh mengoreksi absen
+kelasnya sendiri **kapan pun, tanpa batas waktu**.
+
+**Perbaikan final**: kunci "sekali simpan" **DIHAPUS TOTAL** dari
+`serverSaveAbsensiKelas` (Modul_InputAbsen.gs) — guru pemilik kelas boleh
+menimpa ulang absen kelasnya sendiri utk tanggal berapa pun, kapan pun.
+Aman krn `iaRewriteAbsensiKelas_` sudah pola delete+insert per
+kelas+tanggal (tidak ada duplikat baris) dan tiap simpan tetap tercatat
+`logAudit` (bukan diam-diam). Field `formSudahTersimpan`/`sudahTersimpan`
+di `serverGetKelasAbsenList`/`serverGetAbsensiKelasForm` SENGAJA dibiarkan
+selalu `false` (bukan dihapus — klien masih membacanya) supaya tombol
+Simpan di klien tidak pernah terkunci lagi. Helper `iaTodayStr_()` (dipakai
+v1) sudah tidak dipakai lagi, dihapus. Mode Admin PPG
+(`serverSaveAbsensiKelasAdmin`) tidak disentuh — sudah tanpa batasan dari
+awal.
+
+**Cara verifikasi**: simpan absen kelas apa pun (misalnya semua Hadir),
+lalu buka lagi kelas & TANGGAL YANG SAMA — termasuk tanggal beberapa hari
+lalu — ubah beberapa santri ke Izin/Sakit/Alpa, Simpan lagi. Harus selalu
+berhasil (tidak pernah muncul popup "sudah tersimpan" lagi utk guru), dan
+Dashboard/Riwayat Kehadiran langsung menunjukkan angka yang benar.
 
 ---
 

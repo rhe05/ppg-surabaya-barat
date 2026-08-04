@@ -30,16 +30,6 @@ function requireGuruContext_(token) {
 }
 
 /**
- * Tanggal hari ini (yyyy-MM-dd) menurut timezone Spreadsheet — dipakai supaya
- * absen HARI INI masih boleh dikoreksi ulang oleh guru (lihat
- * serverSaveAbsensiKelas/serverGetKelasAbsenList/serverGetAbsensiKelasForm),
- * beda dari tanggal yang sudah lewat yang tetap terkunci sekali simpan.
- */
-function iaTodayStr_() {
-  return Utilities.formatDate(new Date(), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
-}
-
-/**
  * Baca 1 tabel yang di-scope per Kelompok (santri/guru/jadwal_kbm) — jauh
  * lebih cepat dari readSheetAsObjects() generik utk kasus Input Absen, yang
  * SELALU langsung butuh data 1 kelompok saja. readSheetAsObjects() generik
@@ -338,13 +328,14 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     formKelas = list[idx].kelas;
     const kelasLower = formKelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const santriKelasIds = santriKelas.map(function (s) { return String(s.id); });
     const absensiExisting = iaReadAbsensiKelompok_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }))
       .filter(function (a) { return tanggalKeString_(a.tanggal) === tanggal; });
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
-    formSudahTersimpan = tanggal !== iaTodayStr_() && absensiExisting.some(function (a) { return santriKelasIds.indexOf(String(a.santri_id)) !== -1; });
+    // formSudahTersimpan SENGAJA selalu false -- guru boleh mengoreksi absen
+    // kelasnya sendiri kapan pun (lihat serverSaveAbsensiKelas), jadi tombol
+    // Simpan di klien tidak pernah terkunci lagi krn flag ini.
   }
 
   return { success: true, data: list, formKelas: formKelas, formData: formData, formSudahTersimpan: formSudahTersimpan };
@@ -377,7 +368,9 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
     return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' };
   });
 
-  return { success: true, data: formData, sudahTersimpan: tanggal !== iaTodayStr_() && absensiExisting.length > 0 };
+  // sudahTersimpan SENGAJA selalu false -- guru boleh mengoreksi absen
+  // kelasnya sendiri kapan pun (lihat serverSaveAbsensiKelas).
+  return { success: true, data: formData, sudahTersimpan: false };
 }
 
 /**
@@ -541,17 +534,11 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
     .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
 
-  const santriIdsKelasSet = santriIdsKelas.map(function (id) { return String(id); });
-  // Absen HARI INI boleh dikoreksi ulang (guru sering asal-klik dulu lalu
-  // balik membetulkan Izin/Sakit/Alpa) -- kunci "sekali simpan" cuma berlaku
-  // utk tanggal yang sudah lewat, supaya data historis tidak diubah diam-diam.
-  if (tanggal !== iaTodayStr_()) {
-    const sudahTersimpan = iaReadAbsensiKelompok_(ctx.kelompokId, santriIdsKelas)
-      .some(function (a) { return santriIdsKelasSet.indexOf(String(a.santri_id)) !== -1 && tanggalKeString_(a.tanggal) === tanggal; });
-    if (sudahTersimpan) {
-      return { success: false, error: `Absen kelas "${kelas}" tanggal ini sudah tersimpan sebelumnya.`, code: 'sudah-tersimpan' };
-    }
-  }
+  // Guru boleh mengoreksi absen kelasnya sendiri kapan pun (tanggal berapa
+  // pun, tidak dibatasi "hari ini" saja) -- kelas mingguan (mis. Senin)
+  // sering baru ketahuan salah beberapa hari kemudian. iaRewriteAbsensiKelas_
+  // menimpa per kelas+tanggal (hapus+tulis ulang), jadi aman tanpa duplikat;
+  // tiap simpan tetap tercatat logAudit di bawah, jadi tidak "diam-diam".
 
   let count = 0;
   withScriptLock_(function () {
