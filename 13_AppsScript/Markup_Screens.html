@@ -401,35 +401,6 @@
       </button>
     </div>
 
-    <div class="ia-filter-panel" id="iaRiwayatFilterPanel" style="display:none;">
-      <div class="ia-filter-panel-row">
-        <div class="ia-filter-field">
-          <label class="ia-filter-label">Bulan</label>
-          <select class="form-select" id="iaRiwayatFilterBulan"></select>
-        </div>
-        <div class="ia-filter-field">
-          <label class="ia-filter-label">Tahun</label>
-          <select class="form-select" id="iaRiwayatFilterTahun"></select>
-        </div>
-      </div>
-      <div class="ia-filter-panel-row">
-        <div class="ia-filter-field">
-          <label class="ia-filter-label">Minggu</label>
-          <select class="form-select" id="iaRiwayatFilterMinggu">
-            <option value="semua">Semuanya</option>
-            <option value="1">Minggu Ke 1</option>
-            <option value="2">Minggu Ke 2</option>
-            <option value="3">Minggu Ke 3</option>
-            <option value="4">Minggu Ke 4</option>
-          </select>
-        </div>
-      </div>
-      <div class="ia-filter-panel-actions">
-        <button type="button" class="btn btn-secondary" onclick="window.iaResetRiwayatFilter_()">Reset</button>
-        <button type="button" class="btn btn-primary" onclick="window.iaApplyRiwayatFilter_()">Terapkan</button>
-      </div>
-    </div>
-
     <div class="kg-matrix-scroll">
       <table class="kg-matrix-table">
         <thead id="iaRiwayatTableHead"></thead>
@@ -518,6 +489,48 @@
       <div class="ia-kg-footer" id="iaRiwayatGateFooter" style="display:none;">
         <button type="button" class="ia-kg-cancel-btn" onclick="window.iaRiwayatCloseGate_()">Batal</button>
         <button type="button" class="ia-kg-masuk-btn" id="iaRiwayatGateMasukBtn" disabled onclick="window.iaRiwayatConfirmGate_()">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup filter Bulan/Tahun/Minggu Riwayat Kehadiran (kartu tengah, tema
+       sama gaya popup Pilih Kelas hijau) -->
+  <div class="ia-kg-overlay" id="iaRiwayatFilterOverlay" style="display:none;">
+    <div class="ia-kg-modal">
+      <div class="ia-kg-modal-header">
+        <div class="ia-kg-modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </div>
+        <div class="ia-kg-modal-title">Filter Riwayat</div>
+        <div class="ia-kg-modal-subtitle">Pilih Bulan, Tahun, dan Minggu untuk melihat riwayat kehadiran.</div>
+      </div>
+
+      <div class="ia-filter-panel-row">
+        <div class="ia-filter-field">
+          <label class="ia-filter-label">Bulan</label>
+          <select class="form-select" id="iaRiwayatFilterBulan"></select>
+        </div>
+        <div class="ia-filter-field">
+          <label class="ia-filter-label">Tahun</label>
+          <select class="form-select" id="iaRiwayatFilterTahun"></select>
+        </div>
+      </div>
+      <div class="ia-filter-panel-row">
+        <div class="ia-filter-field">
+          <label class="ia-filter-label">Minggu</label>
+          <select class="form-select" id="iaRiwayatFilterMinggu">
+            <option value="semua">Semuanya</option>
+            <option value="1">Minggu Ke 1</option>
+            <option value="2">Minggu Ke 2</option>
+            <option value="3">Minggu Ke 3</option>
+            <option value="4">Minggu Ke 4</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="ia-kg-footer">
+        <button type="button" class="ia-kg-cancel-btn" onclick="window.iaResetRiwayatFilter_()">Reset</button>
+        <button type="button" class="ia-kg-masuk-btn" onclick="window.iaApplyRiwayatFilter_()">Terapkan</button>
       </div>
     </div>
   </div>

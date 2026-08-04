@@ -1525,14 +1525,18 @@
   };
 
   window.iaToggleRiwayatFilterPanel_ = function () {
-    const panel = document.getElementById('iaRiwayatFilterPanel');
-    panel.style.display = panel.style.display !== 'block' ? 'block' : 'none';
+    window.iaPopulateRiwayatFilters_();
+    document.getElementById('iaRiwayatFilterOverlay').style.display = 'flex';
+  };
+
+  window.iaCloseRiwayatFilterOverlay_ = function () {
+    document.getElementById('iaRiwayatFilterOverlay').style.display = 'none';
   };
 
   window.iaResetRiwayatFilter_ = function () {
     const now = new Date();
     window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear(), minggu: 'semua' };
-    document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
+    window.iaCloseRiwayatFilterOverlay_();
     window.iaPopulateRiwayatFilters_();
     window.iaLoadRiwayatKehadiran_();
   };
@@ -1543,7 +1547,7 @@
       tahun: Number(document.getElementById('iaRiwayatFilterTahun').value),
       minggu: document.getElementById('iaRiwayatFilterMinggu').value,
     };
-    document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
+    window.iaCloseRiwayatFilterOverlay_();
     window.iaUpdateRiwayatFilterLabel_();
     window.iaLoadRiwayatKehadiran_();
   };
