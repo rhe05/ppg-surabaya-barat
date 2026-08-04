@@ -1509,17 +1509,19 @@
 
     if (!window.iaRiwayatFilter_) {
       const now = new Date();
-      window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear() };
+      window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear(), minggu: 'semua' };
     }
     bulanSel.value = String(window.iaRiwayatFilter_.bulan);
     tahunSel.value = String(window.iaRiwayatFilter_.tahun);
+    document.getElementById('iaRiwayatFilterMinggu').value = window.iaRiwayatFilter_.minggu || 'semua';
     window.iaUpdateRiwayatFilterLabel_();
   };
 
   window.iaUpdateRiwayatFilterLabel_ = function () {
     const f = window.iaRiwayatFilter_;
     const kelasPart = window.iaRiwayatKelas_ ? ('Kelas ' + window.iaRiwayatKelas_ + ' · ') : '';
-    document.getElementById('iaRiwayatFilterBtnLabel').textContent = kelasPart + IA_FILTER_NAMA_BULAN_[f.bulan - 1] + ' - ' + f.tahun;
+    const mingguPart = (f.minggu && f.minggu !== 'semua') ? (' · Minggu ' + f.minggu) : '';
+    document.getElementById('iaRiwayatFilterBtnLabel').textContent = kelasPart + IA_FILTER_NAMA_BULAN_[f.bulan - 1] + ' - ' + f.tahun + mingguPart;
   };
 
   window.iaToggleRiwayatFilterPanel_ = function () {
@@ -1529,7 +1531,7 @@
 
   window.iaResetRiwayatFilter_ = function () {
     const now = new Date();
-    window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear() };
+    window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear(), minggu: 'semua' };
     document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
     window.iaPopulateRiwayatFilters_();
     window.iaLoadRiwayatKehadiran_();
@@ -1539,6 +1541,7 @@
     window.iaRiwayatFilter_ = {
       bulan: Number(document.getElementById('iaRiwayatFilterBulan').value),
       tahun: Number(document.getElementById('iaRiwayatFilterTahun').value),
+      minggu: document.getElementById('iaRiwayatFilterMinggu').value,
     };
     document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
     window.iaUpdateRiwayatFilterLabel_();
@@ -1556,7 +1559,9 @@
           body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</td></tr>';
           return;
         }
-        window.iaRenderRiwayatTable_(result.dates, result.data);
+        window.iaRiwayatLastDates_ = result.dates || [];
+        window.iaRiwayatLastData_ = result.data || [];
+        window.iaRenderRiwayatTable_();
       })
       .withFailureHandler(function (err) {
         body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--red);">Gagal memuat: ' + (err && err.message ? err.message : err) + '</td></tr>';
@@ -1564,17 +1569,33 @@
       .serverGetRiwayatKehadiranGuru(window.currentToken, f.tahun, f.bulan, window.iaRiwayatKelas_);
   };
 
-  window.iaRenderRiwayatTable_ = function (dates, rows) {
+  /* Minggu ke-N dihitung dari hari Senin: hari-hari sebelum Senin pertama
+     bulan itu (kalau ada) ikut masuk Minggu Ke 1, lalu tiap kali ketemu hari
+     Senin baru mulai Minggu Ke berikutnya — bukan pembagian tanggal 1-7/8-14. */
+  window.iaRiwayatBucketMinggu_ = function (dates) {
+    const buckets = {};
+    let minggu = 0;
+    dates.forEach(function (tgl) {
+      const dow = new Date(tgl + 'T00:00:00').getDay();
+      if (minggu === 0 || dow === 1) minggu++;
+      (buckets[minggu] = buckets[minggu] || []).push(tgl);
+    });
+    return buckets;
+  };
+
+  window.iaRenderRiwayatTable_ = function () {
     const head = document.getElementById('iaRiwayatTableHead');
     const body = document.getElementById('iaRiwayatTableBody');
-    dates = dates || [];
-    rows = rows || [];
+    const allDates = window.iaRiwayatLastDates_ || [];
+    const rows = window.iaRiwayatLastData_ || [];
+    const mingguFilter = (window.iaRiwayatFilter_ && window.iaRiwayatFilter_.minggu) || 'semua';
+    const dates = mingguFilter === 'semua' ? allDates : (window.iaRiwayatBucketMinggu_(allDates)[Number(mingguFilter)] || []);
 
     head.innerHTML = '<tr>'
-      + '<th class="kg-matrix-sticky kg-matrix-nama" style="text-align:left; color:#000;">Nama Santri</th>'
+      + '<th class="kg-matrix-sticky kg-matrix-nama" style="text-align:center; color:#000; min-width:84px;">Nama Santri</th>'
       + dates.map(function (tgl) {
           const d = new Date(tgl + 'T00:00:00');
-          return `<th class="kg-matrix-date-head">${d.getDate()}<span class="kg-matrix-dow">${window.IA_RIWAYAT_HARI_PENDEK_[d.getDay()]}</span></th>`;
+          return `<th class="kg-matrix-date-head" style="color:#000;">${d.getDate()}<span class="kg-matrix-dow" style="color:#000;">${window.IA_RIWAYAT_HARI_PENDEK_[d.getDay()]}</span></th>`;
         }).join('')
       + '</tr>';
 
@@ -1592,7 +1613,7 @@
         return `<td><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.IA_RIWAYAT_STATUS_LABEL_[status] || status}">${huruf}</span></td>`;
       }).join('');
       return `<tr>
-        <td class="kg-matrix-sticky kg-matrix-nama" style="text-align:left; color:#000;">${r.nama}</td>
+        <td class="kg-matrix-sticky kg-matrix-nama" style="text-align:left; color:#000; min-width:84px;">${r.nama}</td>
         ${cells}
       </tr>`;
     }).join('');
