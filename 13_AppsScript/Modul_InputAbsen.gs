@@ -1092,7 +1092,7 @@ function serverGetRiwayatKehadiranGuru(token, year, month, kelas) {
   const rows = santriList.map(function (s) {
     return {
       id: s.id,
-      nama: s.nama,
+      nama: String(s.nama_panggilan || '').trim() || s.nama,
       statusByDate: statusMap[String(s.id)] || {},
     };
   });

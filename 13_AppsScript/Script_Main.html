@@ -1571,7 +1571,7 @@
     rows = rows || [];
 
     head.innerHTML = '<tr>'
-      + '<th class="kg-matrix-sticky kg-matrix-nama">Nama</th>'
+      + '<th class="kg-matrix-sticky kg-matrix-nama" style="text-align:left; color:#000;">Nama Santri</th>'
       + dates.map(function (tgl) {
           const d = new Date(tgl + 'T00:00:00');
           return `<th class="kg-matrix-date-head">${d.getDate()}<span class="kg-matrix-dow">${window.IA_RIWAYAT_HARI_PENDEK_[d.getDay()]}</span></th>`;
@@ -1592,7 +1592,7 @@
         return `<td><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.IA_RIWAYAT_STATUS_LABEL_[status] || status}">${huruf}</span></td>`;
       }).join('');
       return `<tr>
-        <td class="kg-matrix-sticky kg-matrix-nama">${r.nama}</td>
+        <td class="kg-matrix-sticky kg-matrix-nama" style="text-align:left; color:#000;">${r.nama}</td>
         ${cells}
       </tr>`;
     }).join('');
