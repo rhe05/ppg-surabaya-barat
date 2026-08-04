@@ -594,7 +594,7 @@
   window.iaKehadiranChooseMode_ = function (mode) {
     window.iaKehadiranCloseChooser_();
     if (mode === 'riwayat') {
-      iaShowToast_('Riwayat Kehadiran segera hadir', 'info');
+      window.iaShowRiwayatView_();
       return;
     }
     window.iaOpenKelasGate_();
@@ -790,6 +790,7 @@
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1325,6 +1326,7 @@
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1339,6 +1341,7 @@
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
@@ -1366,6 +1369,7 @@
     document.getElementById('iaDashboardView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1375,6 +1379,136 @@
     window.iaPopulateLaporanFilters_();
     window.iaPopulateLaporanKelasFilter_();
     window.iaUpdateLaporanNote_();
+  };
+
+  /* ─── Riwayat Kehadiran (popup "Kehadiran" > Riwayat Kehadiran) — matrix
+     santri (kelas milik guru ini saja) × tanggal 1 bulan, sumber data
+     server serverGetRiwayatKehadiranGuru (Modul_InputAbsen.gs, pola sama
+     serverGetKehadiranGenerusMatrix desktop tapi di-scope ke guru). Filter
+     Bulan/Tahun reuse pola iaFilterPanel Dashboard, tabel reuse class
+     .kg-matrix-* (Kehadiran Generus desktop) — read-only, tanpa CRUD sel. */
+  window.iaRiwayatFilter_ = null;
+  window.IA_RIWAYAT_HARI_PENDEK_ = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  window.IA_RIWAYAT_STATUS_HURUF_ = { hadir: 'H', izin: 'I', sakit: 'S', alpa: 'A' };
+  window.IA_RIWAYAT_STATUS_WARNA_ = { hadir: 'hijau-tua', izin: 'kuning', sakit: 'kuning', alpa: 'merah' };
+  window.IA_RIWAYAT_STATUS_LABEL_ = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa' };
+
+  window.iaShowRiwayatView_ = function () {
+    window.iaState_.activeView = 'riwayat';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaRiwayatView').style.display = 'block';
+    window.iaPopulateRiwayatFilters_();
+    window.iaLoadRiwayatKehadiran_();
+  };
+
+  window.iaPopulateRiwayatFilters_ = function () {
+    const bulanSel = document.getElementById('iaRiwayatFilterBulan');
+    const tahunSel = document.getElementById('iaRiwayatFilterTahun');
+    const curYear = new Date().getFullYear();
+
+    if (bulanSel.options.length === 0) {
+      bulanSel.innerHTML = IA_FILTER_NAMA_BULAN_.map(function (nm, idx) { return `<option value="${idx + 1}">${nm}</option>`; }).join('');
+    }
+    if (tahunSel.options.length === 0) {
+      tahunSel.innerHTML = [curYear - 1, curYear].map(function (y) { return `<option value="${y}">${y}</option>`; }).join('');
+    }
+
+    if (!window.iaRiwayatFilter_) {
+      const now = new Date();
+      window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear() };
+    }
+    bulanSel.value = String(window.iaRiwayatFilter_.bulan);
+    tahunSel.value = String(window.iaRiwayatFilter_.tahun);
+    window.iaUpdateRiwayatFilterLabel_();
+  };
+
+  window.iaUpdateRiwayatFilterLabel_ = function () {
+    const f = window.iaRiwayatFilter_;
+    document.getElementById('iaRiwayatFilterBtnLabel').textContent = IA_FILTER_NAMA_BULAN_[f.bulan - 1] + ' - ' + f.tahun;
+  };
+
+  window.iaToggleRiwayatFilterPanel_ = function () {
+    const panel = document.getElementById('iaRiwayatFilterPanel');
+    panel.style.display = panel.style.display !== 'block' ? 'block' : 'none';
+  };
+
+  window.iaResetRiwayatFilter_ = function () {
+    const now = new Date();
+    window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear() };
+    document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
+    window.iaPopulateRiwayatFilters_();
+    window.iaLoadRiwayatKehadiran_();
+  };
+
+  window.iaApplyRiwayatFilter_ = function () {
+    window.iaRiwayatFilter_ = {
+      bulan: Number(document.getElementById('iaRiwayatFilterBulan').value),
+      tahun: Number(document.getElementById('iaRiwayatFilterTahun').value),
+    };
+    document.getElementById('iaRiwayatFilterPanel').style.display = 'none';
+    window.iaUpdateRiwayatFilterLabel_();
+    window.iaLoadRiwayatKehadiran_();
+  };
+
+  window.iaLoadRiwayatKehadiran_ = function () {
+    const f = window.iaRiwayatFilter_;
+    const body = document.getElementById('iaRiwayatTableBody');
+    document.getElementById('iaRiwayatTableHead').innerHTML = '';
+    body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--text-faint);">Memuat...</td></tr>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result || !result.success) {
+          body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--red);">Gagal memuat: ' + ((result && result.error) || 'respons tidak valid.') + '</td></tr>';
+          return;
+        }
+        window.iaRenderRiwayatTable_(result.dates, result.data);
+      })
+      .withFailureHandler(function (err) {
+        body.innerHTML = '<tr><td style="text-align:center; padding:24px; color:var(--red);">Gagal memuat: ' + (err && err.message ? err.message : err) + '</td></tr>';
+      })
+      .serverGetRiwayatKehadiranGuru(window.currentToken, f.tahun, f.bulan);
+  };
+
+  window.iaRenderRiwayatTable_ = function (dates, rows) {
+    const head = document.getElementById('iaRiwayatTableHead');
+    const body = document.getElementById('iaRiwayatTableBody');
+    dates = dates || [];
+    rows = rows || [];
+
+    head.innerHTML = '<tr>'
+      + '<th class="kg-matrix-sticky kg-matrix-nama">Nama</th>'
+      + dates.map(function (tgl) {
+          const d = new Date(tgl + 'T00:00:00');
+          return `<th class="kg-matrix-date-head">${d.getDate()}<span class="kg-matrix-dow">${window.IA_RIWAYAT_HARI_PENDEK_[d.getDay()]}</span></th>`;
+        }).join('')
+      + '</tr>';
+
+    if (rows.length === 0) {
+      body.innerHTML = '<tr><td colspan="' + (1 + dates.length) + '" style="text-align:center; padding:24px; color:var(--text-faint);">Belum ada santri di kelas Jenengan.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = rows.map(function (r) {
+      const cells = dates.map(function (tgl) {
+        const status = (r.statusByDate ? r.statusByDate[tgl] : null) || '';
+        if (!status) return '<td>—</td>';
+        const huruf = window.IA_RIWAYAT_STATUS_HURUF_[status] || '?';
+        const warna = window.IA_RIWAYAT_STATUS_WARNA_[status] || 'abu';
+        return `<td><span class="kg-matrix-cell-badge kg-matrix-badge-${warna}" title="${window.IA_RIWAYAT_STATUS_LABEL_[status] || status}">${huruf}</span></td>`;
+      }).join('');
+      return `<tr>
+        <td class="kg-matrix-sticky kg-matrix-nama">${r.nama}</td>
+        ${cells}
+      </tr>`;
+    }).join('');
   };
 
   /* Guru yang mengajar >1 kelas sebelumnya laporannya otomatis GABUNG semua

@@ -1039,3 +1039,63 @@ function serverSubmitGuruIzin(token, payload) {
   logAudit('guru_izin', String(newId), 'create', ctx.user.id, `Ajukan ${jenis === 'cuti' ? 'Cuti' : 'Izin Harian'} (${tanggalMulai} s/d ${tanggalSelesai})`);
   return { success: true, message: (jenis === 'cuti' ? 'Cuti' : 'Izin') + ' berhasil diajukan.' };
 }
+
+/**
+ * Riwayat Kehadiran (mobile, "Kehadiran" > "Riwayat Kehadiran") — matrix
+ * santri × tanggal 1 bulan, sama pola dgn serverGetKehadiranGenerusMatrix
+ * (desktop Operasional > Kehadiran Generus > Detail Kehadiran), TAPI di-scope
+ * ke kelas MILIK GURU INI SAJA (bukan seluruh Kelompok) via getKelasOwnedByGuru_.
+ */
+function serverGetRiwayatKehadiranGuru(token, year, month) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
+
+  const kelasOwnedLower = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll).map(function (k) { return k.toLowerCase(); });
+  const santriList = santriAll.filter(function (s) {
+    return kelasOwnedLower.indexOf(String(s.kelas_ngaji || '').trim().toLowerCase()) !== -1;
+  });
+  const santriIds = santriList.map(function (s) { return String(s.id); });
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const dates = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dow = new Date(year, month - 1, d).getDay(); // 0=Minggu, 6=Sabtu
+    if (dow !== 0 && dow !== 6) {
+      dates.push(`${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+    }
+  }
+
+  const monthStart = dates.length > 0 ? dates[0] : `${year}-${String(month).padStart(2, '0')}-01`;
+  const monthEnd = dates.length > 0 ? dates[dates.length - 1] : monthStart;
+  const monthAbsensi = iaReadAbsensiKelompok_(ctx.kelompokId, santriIds).filter(function (a) {
+    const tgl = tanggalKeString_(a.tanggal);
+    return tgl >= monthStart && tgl <= monthEnd;
+  });
+
+  const statusMap = {};
+  monthAbsensi.forEach(function (a) {
+    const id = String(a.santri_id);
+    if (!statusMap[id]) statusMap[id] = {};
+    statusMap[id][tanggalKeString_(a.tanggal)] = a.status;
+  });
+
+  const rows = santriList.map(function (s) {
+    return {
+      id: s.id,
+      nama: s.nama,
+      kelas: String(s.kelas_ngaji || '').trim() || 'Belum diisi',
+      statusByDate: statusMap[String(s.id)] || {},
+    };
+  });
+
+  rows.sort(function (a, b) {
+    if (a.kelas !== b.kelas) return a.kelas.localeCompare(b.kelas);
+    return a.nama.localeCompare(b.nama);
+  });
+
+  return { success: true, dates: dates, data: rows };
+}

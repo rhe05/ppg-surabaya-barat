@@ -394,6 +394,38 @@
     </div>
   </div>
 
+  <div class="ia-dashboard-view" id="iaRiwayatView" style="display:none;">
+    <div class="ia-dashboard-toolbar">
+      <button type="button" class="ia-filter-btn ia-filter-btn-plain" id="iaRiwayatFilterBtn" onclick="window.iaToggleRiwayatFilterPanel_()">
+        <span id="iaRiwayatFilterBtnLabel">Bulan - Tahun</span>
+      </button>
+    </div>
+
+    <div class="ia-filter-panel" id="iaRiwayatFilterPanel" style="display:none;">
+      <div class="ia-filter-panel-row">
+        <div class="ia-filter-field">
+          <label class="ia-filter-label">Bulan</label>
+          <select class="form-select" id="iaRiwayatFilterBulan"></select>
+        </div>
+        <div class="ia-filter-field">
+          <label class="ia-filter-label">Tahun</label>
+          <select class="form-select" id="iaRiwayatFilterTahun"></select>
+        </div>
+      </div>
+      <div class="ia-filter-panel-actions">
+        <button type="button" class="btn btn-secondary" onclick="window.iaResetRiwayatFilter_()">Reset</button>
+        <button type="button" class="btn btn-primary" onclick="window.iaApplyRiwayatFilter_()">Terapkan</button>
+      </div>
+    </div>
+
+    <div class="kg-matrix-scroll">
+      <table class="kg-matrix-table">
+        <thead id="iaRiwayatTableHead"></thead>
+        <tbody id="iaRiwayatTableBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="ia-toast" id="iaToast"></div>
 
   <!-- Popup status Simpan Absen (berhasil / sudah tersimpan / belum waktunya) -->
