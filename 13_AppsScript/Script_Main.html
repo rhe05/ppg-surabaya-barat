@@ -713,6 +713,7 @@
     window.iaState_.kelasLoadedKey = iaKelasCacheKey_();
     document.getElementById('iaEmptyState').style.display = 'flex';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaProgressWrap').style.display = 'none';
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
@@ -791,6 +792,7 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'flex';
 
     const isEdit = window.iaJurnalState_.mode === 'edit';
@@ -929,6 +931,7 @@
   window.iaJurnalRenderInfoCard_ = function (kelas) {
     const meta = (window.iaJurnalState_.kelasMeta || {})[kelas.toLowerCase()];
     const el = document.getElementById('iaGreetingKelasInfo');
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     if (!meta) { el.style.display = 'none'; return; }
     const parts = ['Kelas ' + meta.kelas];
     if (meta.ruangan) parts.push(meta.ruangan);
@@ -944,6 +947,7 @@
     document.getElementById('iaJurnalEditBanner').style.display = 'none';
     document.getElementById('iaJurnalBottomBar').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
   };
 
   window.iaJurnalFillForm_ = function (kelas, formData, tersimpan) {
@@ -1323,6 +1327,7 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
@@ -1363,6 +1368,7 @@
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaLaporanView').style.display = 'block';
@@ -1716,6 +1722,7 @@
     window.iaState_.kelas = null;
     document.getElementById('iaEmptyState').style.display = 'flex';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaProgressWrap').style.display = 'none';
     document.getElementById('iaSantriList').innerHTML = '';
     document.getElementById('iaBottomBar').style.display = 'none';
@@ -1775,16 +1782,25 @@
   window.iaRenderKelasInfoCard_ = function (kelas) {
     const meta = (window.iaState_.kelasMeta || {})[kelas.toLowerCase()];
     const el = document.getElementById('iaGreetingKelasInfo');
-    if (!meta) { el.style.display = 'none'; return; }
+    const waktuEl = document.getElementById('iaGreetingWaktuInfo');
+    if (!meta) { el.style.display = 'none'; waktuEl.style.display = 'none'; return; }
 
+    // Baris kelas: Kelas <X> · <ruangan> · <N> Santri [· Kak <guru> khusus mode admin].
     const parts = ['Kelas ' + meta.kelas];
     if (meta.ruangan) parts.push(meta.ruangan);
     parts.push((meta.santriCount || 0) + ' Santri');
-    if (meta.jamMulai && meta.jamSelesai) parts.push(meta.jamMulai + '–' + meta.jamSelesai);
     if (window.iaState_.mode === 'admin' && meta.namaGuru) parts.push('Kak ' + meta.namaGuru);
-
     el.textContent = parts.join(' · ');
     el.style.display = 'block';
+
+    // Baris waktu ngaji (di bawah baris kelas): jam mulai-selesai + Durasi.
+    if (meta.jamMulai && meta.jamSelesai) {
+      const durasi = window.iaDurasiMenit_(meta.jamMulai, meta.jamSelesai);
+      waktuEl.textContent = meta.jamMulai + '–' + meta.jamSelesai + (durasi != null ? ' · Durasi: ' + durasi + ' Menit' : '');
+      waktuEl.style.display = 'block';
+    } else {
+      waktuEl.style.display = 'none';
+    }
   };
 
   window.iaSelectKelas_ = function (kelas, chipEl) {
