@@ -1032,6 +1032,45 @@ muncul), dan perubahan langsung terlihat tanpa perlu tunggu/refresh.
 
 ---
 
+## #30 — Koreksi Izin/Sakit/Alpa mobile guru "tidak muncul" di Dashboard — sebenarnya tidak pernah tersimpan, ditolak diam-diam oleh kunci "sekali simpan" (2026-08-04)
+
+**Gejala**: guru input absen kelas Pra Remaja hari Senin (hari yang sama),
+set 1 santri Izin + 1 santri Alpa — Dashboard (kartu Hadir/Izin/Sakit/Alpa)
+tidak menunjukkan angka itu. Awalnya diduga bug tampilan/cache realtime
+Dashboard.
+
+**Akar masalah SEBENARNYA (dikonfirmasi user)**: BUKAN bug tampilan.
+`serverSaveAbsensiKelas` (Modul_InputAbsen.gs) punya kunci "sekali simpan
+per kelas+tanggal" — begitu ADA SATU SAJA catatan absensi utk kelas+tanggal
+itu (mis. guru sempat asal-klik "Hadir semua" duluan), percobaan simpan
+berikutnya (koreksi ke Izin/Alpa) ditolak dgn `code: 'sudah-tersimpan'`
+("Absen kelas ... sudah tersimpan sebelumnya. Hubungi Admin Kelompok").
+Guru melihat popup ini tapi mengira koreksinya tetap tersimpan — padahal
+TIDAK PERNAH ditulis ke Firestore/Sheet sama sekali, jadi wajar tidak
+muncul di Dashboard (atau di manapun, termasuk Riwayat Kehadiran).
+
+**Perbaikan**: kunci "sekali simpan" sekarang HANYA berlaku utk tanggal
+yang SUDAH LEWAT (data historis tetap terlindungi, tetap harus lewat Admin
+Kelompok kalau perlu dikoreksi). Tanggal HARI INI boleh ditimpa ulang
+berkali-kali sepanjang hari itu — `iaRewriteAbsensiKelas_` sudah pola
+delete+insert per kelas+tanggal jadi aman tanpa duplikat baris. Diterapkan
+via helper baru `iaTodayStr_()` di 3 titik yang menentukan status "sudah
+tersimpan": `serverSaveAbsensiKelas` (gerbang utama, server-side),
+`serverGetKelasAbsenList` & `serverGetAbsensiKelasForm` (penentu kunci
+tombol Simpan di klien — kalau cuma gerbang utama yang dibetulkan tapi
+kedua fungsi ini tidak, tombol Simpan di klien akan tetap kelihatan
+terkunci utk hari ini). Mode Admin PPG (`serverSaveAbsensiKelasAdmin`)
+sengaja tidak disentuh — sudah tanpa batasan dari awal.
+
+**Cara verifikasi**: simpan absen kelas apa pun hari ini (semua Hadir),
+lalu buka lagi kelas yang sama hari ini & ubah beberapa santri ke
+Izin/Sakit/Alpa, Simpan lagi — harus berhasil (bukan popup "sudah
+tersimpan"), dan Dashboard/Riwayat Kehadiran langsung menunjukkan angka
+yang benar. Ulangi utk tanggal KEMARIN — harus tetap ditolak (kunci lama
+masih berlaku).
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
