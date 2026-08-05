@@ -48,6 +48,38 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ?diag=kelompokdist&sheet=<nama> → hitung jumlah baris per kelompok_id
+  // (join ke santri_id kalau sheet itu 'absensi', yang tidak punya kolom
+  // kelompok_id sendiri). Dipakai investigasi Migration 003 (data inventory)
+  // tanpa perlu diagRows_ yang dibatasi 50 baris. HAPUS setelah dipakai.
+  if (e && e.parameter && e.parameter.diag === 'kelompokdist') {
+    let result;
+    try {
+      const sheetName = e.parameter.sheet;
+      const rows = readSheetAsObjects(sheetName);
+      const dist = {};
+      if (sheetName === 'absensi') {
+        const santriMap = {};
+        readSheetAsObjects('santri').forEach(function (s) { santriMap[s.id] = s.kelompok_id; });
+        rows.forEach(function (r) {
+          const k = santriMap[r.santri_id] || 'ORPHAN(santri_id=' + r.santri_id + ')';
+          dist[k] = (dist[k] || 0) + 1;
+        });
+      } else {
+        rows.forEach(function (r) {
+          const k = r.kelompok_id !== undefined ? r.kelompok_id : '(tidak ada kolom kelompok_id)';
+          dist[k] = (dist[k] || 0) + 1;
+        });
+      }
+      result = { success: true, sheet: sheetName, totalRows: rows.length, distribusiPerKelompok: dist };
+    } catch (err) {
+      result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   // ?diag=firestoretest → jalankan testFirestoreBridge_() (Modul_FirestoreBridge.gs)
   // lewat Web App, alternatif kalau dropdown "select function" di editor Apps
   // Script gagal ke-load untuk file baru. TIDAK menyentuh data aplikasi asli —
