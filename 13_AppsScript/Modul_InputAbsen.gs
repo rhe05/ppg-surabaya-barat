@@ -804,13 +804,18 @@ function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai)
       kelas: kelas, total: santriIdsKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0,
       ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '', kategori: info.kategori || '',
     };
+    // Hari Aktif = jumlah tanggal BERBEDA yang sudah diisi guru utk kelas ini
+    // (bukan jumlah catatan) -- kartu Dashboard mobile Kelp Petemon.
+    const tanggalDiisi = {};
     absensiRange.forEach(function (a) {
       if (santriIdsKelas.indexOf(Number(a.santri_id)) === -1) return;
       if (a.status === 'hadir') summary.hadir++;
       else if (a.status === 'izin') summary.izin++;
       else if (a.status === 'sakit') summary.sakit++;
       else if (a.status === 'alpa') summary.alpa++;
+      tanggalDiisi[tanggalKeString_(a.tanggal)] = true;
     });
+    summary.hariAktif = Object.keys(tanggalDiisi).length;
     return summary;
   });
 
