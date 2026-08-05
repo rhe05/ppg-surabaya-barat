@@ -3597,6 +3597,20 @@
       background: rgba(217, 119, 6, 0.1);
     }
 
+    /* Garis pembatas antar kolom -- KHUSUS Riwayat Kehadiran mobile
+       (.ia-riwayat-table), tidak menyentuh tabel Detail Kehadiran desktop
+       yang sama-sama pakai .kg-matrix-table. Tipis & terang (bukan --border
+       solid) supaya pembedanya kelihatan tapi tetap premium, tidak norak. */
+    .ia-riwayat-table th,
+    .ia-riwayat-table td {
+      border-right: 1px solid rgba(148, 163, 184, 0.35);
+    }
+
+    .ia-riwayat-table th:last-child,
+    .ia-riwayat-table td:last-child {
+      border-right: none;
+    }
+
     .kg-matrix-cell-badge {
       display: inline-flex;
       align-items: center;
@@ -5138,6 +5152,22 @@
       background: none;
       box-shadow: none;
       color: var(--sage);
+    }
+
+    /* Toolbar Riwayat Kehadiran -- beda dari toolbar Dashboard (yang cuma
+       tombol filter, rata kanan): di sini ada label "Hari Aktif" di kiri
+       + tombol filter di kanan, sejajar 1 baris. */
+    .ia-dashboard-toolbar.ia-riwayat-toolbar {
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Warna teal (beda dari hijau filter Bulan-Tahun) supaya ada pembeda
+       visual antara keterangan Hari Aktif & tombol filter. */
+    .ia-riwayat-hariaktif {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--teal);
     }
 
     .ia-filter-panel {

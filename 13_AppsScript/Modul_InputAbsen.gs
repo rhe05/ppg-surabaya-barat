@@ -1113,10 +1113,20 @@ function serverGetRiwayatKehadiranGuru(token, year, month, kelas) {
   const monthAbsensi = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriIds, monthStart, monthEnd);
 
   const statusMap = {};
+  const tanggalDiisi = {};
   monthAbsensi.forEach(function (a) {
     const id = String(a.santri_id);
+    // monthAbsensi utk kelompok Firestore TIDAK di-filter santriIds (query
+    // cuma di-scope tanggal) -- WAJIB cek di sini, kalau tidak Hari Aktif
+    // ikut menghitung tanggal dari kelas LAIN di kelompok yang sama.
+    if (santriIds.indexOf(id) === -1) return;
     if (!statusMap[id]) statusMap[id] = {};
-    statusMap[id][tanggalKeString_(a.tanggal)] = a.status;
+    const tgl = tanggalKeString_(a.tanggal);
+    statusMap[id][tgl] = a.status;
+    // Hari Aktif = jumlah tanggal BERBEDA yang sudah diisi guru, APAPUN
+    // statusnya (hadir/izin/sakit/alpa semua tetap dihitung) -- kartu
+    // "Hari Aktif" di Riwayat Kehadiran mobile.
+    tanggalDiisi[tgl] = true;
   });
 
   const rows = santriList.map(function (s) {
@@ -1129,5 +1139,5 @@ function serverGetRiwayatKehadiranGuru(token, year, month, kelas) {
 
   rows.sort(function (a, b) { return a.nama.localeCompare(b.nama); });
 
-  return { success: true, dates: dates, data: rows };
+  return { success: true, dates: dates, data: rows, hariAktif: Object.keys(tanggalDiisi).length };
 }

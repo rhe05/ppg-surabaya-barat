@@ -395,14 +395,15 @@
   </div>
 
   <div class="ia-dashboard-view" id="iaRiwayatView" style="display:none;">
-    <div class="ia-dashboard-toolbar">
+    <div class="ia-dashboard-toolbar ia-riwayat-toolbar">
+      <span class="ia-riwayat-hariaktif" id="iaRiwayatHariAktifLabel">Hari Aktif - 0 Hari</span>
       <button type="button" class="ia-filter-btn ia-filter-btn-plain" id="iaRiwayatFilterBtn" onclick="window.iaToggleRiwayatFilterPanel_()">
         <span id="iaRiwayatFilterBtnLabel">Bulan - Tahun</span>
       </button>
     </div>
 
     <div class="kg-matrix-scroll">
-      <table class="kg-matrix-table">
+      <table class="kg-matrix-table ia-riwayat-table">
         <thead id="iaRiwayatTableHead"></thead>
         <tbody id="iaRiwayatTableBody"></tbody>
       </table>

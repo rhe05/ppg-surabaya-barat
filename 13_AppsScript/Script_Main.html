@@ -1565,6 +1565,7 @@
         }
         window.iaRiwayatLastDates_ = result.dates || [];
         window.iaRiwayatLastData_ = result.data || [];
+        document.getElementById('iaRiwayatHariAktifLabel').textContent = 'Hari Aktif - ' + (result.hariAktif || 0) + ' Hari';
         window.iaRenderRiwayatTable_();
       })
       .withFailureHandler(function (err) {
