@@ -1862,14 +1862,15 @@
           </div>
           <div class="ia-dash-card-info">${infoParts.join(' · ')}</div>
           <div class="ia-dash-stat-row">
+            <div class="ia-dash-stat hariaktif">
+              <span class="ia-dash-stat-num">${item.hariAktif}</span>
+              <span class="ia-dash-stat-percent">HARI</span>
+              <span class="ia-dash-stat-label">AKTIF</span>
+            </div>
             <div class="ia-dash-stat hadir">
               <span class="ia-dash-stat-num">${item.hadir}</span>
               <span class="ia-dash-stat-percent">${pct(item.hadir)}%</span>
               <span class="ia-dash-stat-label">Hadir</span>
-            </div>
-            <div class="ia-dash-stat hariaktif">
-              <span class="ia-dash-stat-num">${item.hariAktif}</span>
-              <span class="ia-dash-stat-label">Hari Aktif</span>
             </div>
             <div class="ia-dash-stat izin">
               <span class="ia-dash-stat-num">${item.izin}</span>
