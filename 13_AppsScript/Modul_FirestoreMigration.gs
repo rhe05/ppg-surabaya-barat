@@ -90,18 +90,67 @@ function migrateAbsensiKelompokToFirestore_(kelompokId, dryRun) {
   const report = { sheetName: 'absensi', kelompokId: kelompokId, totalDiSheet: rows.length, dibuatBaru: 0, sudahAda: 0, error: [] };
 
   rows.forEach(function (row) {
-    const docId = String(row.id);
+    // Id dokumen deterministik (absensiDocId_, Modul_Utilities.gs), BUKAN
+    // row.id sekuensial dari Sheet — supaya konsisten dgn skema id yang
+    // dipakai jalur tulis absensi Firestore (analisis performa 2026-08-05,
+    // opsi A). Kalau ini tetap pakai row.id, tulisan absensi berikutnya via
+    // absensiDocId_ akan bikin dokumen DUPLIKAT (id berbeda) utk santri+tanggal
+    // yang sama.
+    const docId = absensiDocId_(tanggalKeString_(row.tanggal), row.santri_id);
+    const fields = Object.assign({}, row, { id: docId, kelompok_id: String(kelompokId) });
     if (dryRun) {
       const existing = firestoreGetDoc_(path, docId);
       if (existing) report.sudahAda++; else report.dibuatBaru++;
       return;
     }
     try {
-      const fields = Object.assign({}, row, { kelompok_id: String(kelompokId) });
       const result = firestoreCreateDoc_(path, docId, fields);
       if (result.created) report.dibuatBaru++; else report.sudahAda++;
     } catch (e) {
       report.error.push({ id: docId, pesan: e.message });
+    }
+  });
+
+  return report;
+}
+
+/**
+ * SATU KALI SAJA (2026-08-05): ganti id dokumen absensi Firestore yang SUDAH
+ * ADA dari skema lama (integer sekuensial) ke skema baru deterministik
+ * (`absensiDocId_`, Modul_Utilities.gs — `tanggal_santriId`) — dijalankan
+ * setelah opsi A (lihat analisis performa 2026-08-05) supaya data lama tetap
+ * konsisten dgn tulisan baru. Kalau TIDAK dijalankan, santri+tanggal yang
+ * sama bisa berakhir dgn 2 dokumen (id lama dari sebelum migrasi ini + id
+ * baru dari tulisan sesudahnya) begitu ada guru yang mengoreksi absen lama.
+ * AMAN DIJALANKAN BERULANG (idempotent) — dokumen yang id-nya sudah format
+ * baru dilewati begitu saja.
+ */
+function migrateAbsensiRekeyToDeterministic_(kelompokId, dryRun) {
+  const path = 'kelompok/' + kelompokId + '/absensi';
+  const docs = firestoreListCollection_(path);
+  const report = { total: docs.length, sudahBaru: 0, dikonversi: 0, tabrakan: [], error: [] };
+
+  docs.forEach(function (d) {
+    const newId = absensiDocId_(tanggalKeString_(d.tanggal), d.santri_id);
+    if (String(d.id) === newId) {
+      report.sudahBaru++;
+      return;
+    }
+    const tabrakan = docs.some(function (other) { return other !== d && String(other.id) === newId; });
+    if (tabrakan) {
+      report.tabrakan.push({ oldId: d.id, newId: newId });
+      return;
+    }
+    if (dryRun) {
+      report.dikonversi++;
+      return;
+    }
+    try {
+      firestoreCreateDoc_(path, newId, Object.assign({}, d, { id: newId }));
+      firestoreDeleteDoc_(path, String(d.id));
+      report.dikonversi++;
+    } catch (e) {
+      report.error.push({ oldId: d.id, pesan: e.message });
     }
   });
 

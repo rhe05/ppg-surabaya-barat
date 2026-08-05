@@ -391,6 +391,19 @@ function bulanTerakhirStr_(year, month) {
 }
 
 /**
+ * ID dokumen Firestore utk 1 baris absensi = deterministik dari tanggal +
+ * santri_id (BUKAN integer sekuensial) -- satu santri cuma bisa punya 1
+ * status per hari, jadi key ini alami unik. Dipakai supaya simpan/edit
+ * absensi TIDAK PERNAH perlu baca seluruh koleksi dulu (cuma utk cari id
+ * berikutnya atau cari dokumen mana yang mau ditimpa) -- lihat analisis
+ * performa 2026-08-05 (opsi A: hilangkan full-collection read di jalur
+ * tulis absensi Firestore).
+ */
+function absensiDocId_(tanggal, santriId) {
+  return tanggal + '_' + santriId;
+}
+
+/**
  * Jalankan fungsi mutasi di dalam ScriptLock (antri maks 10 detik).
  * WAJIB membungkus SEMUA operasi tulis (add/update/delete) supaya aman
  * dipakai banyak pengguna bersamaan. Mencegah: (a) id ganda dari generateId,

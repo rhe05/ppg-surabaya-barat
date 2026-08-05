@@ -421,40 +421,59 @@ function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList
 }
 
 /**
- * Versi Firestore dari iaRewriteAbsensiKelas_ — koleksi 'kelompok/{id}/absensi'
- * sudah di-scope 1 kelompok (jauh lebih kecil dari sheet gabungan semua
- * kelompok), dan hapus+buat dokumen dijalankan PARALEL lewat UrlFetchApp.fetchAll
- * (bukan satu-satu berurutan) — lihat pola iaReadKelompokTablesParallel_.
+ * Versi Firestore dari iaRewriteAbsensiKelas_ — delegasi ke
+ * iaBulkWriteAbsensiFirestore_ (di bawah), yang pakai id dokumen DETERMINISTIK
+ * (`absensiDocId_`, Modul_Utilities.gs) jadi TIDAK PERLU baca koleksi sama
+ * sekali sebelum menulis. Sebelumnya fungsi ini baca SELURUH riwayat absensi
+ * kelompok cuma utk cari baris yang mau dihapus + hitung id berikutnya —
+ * biaya itu tumbuh terus seiring riwayat kelompok bertambah (lihat analisis
+ * performa 2026-08-05, opsi A).
  */
 function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh) {
+  const relevantSantriIds = relevantList.map(function (item) { return String(item.santri_id); });
+  const deleteSantriIds = santriIdSet.filter(function (id) { return relevantSantriIds.indexOf(id) === -1; });
+  return iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, relevantList, tanggal, dicatatOleh);
+}
+
+/**
+ * Hapus (by id deterministik) sekumpulan santri_id pada 1 tanggal, DAN
+ * upsert (PATCH — menimpa kalau sudah ada, membuat kalau belum) sekumpulan
+ * record baru — semua dikirim PARALEL lewat UrlFetchApp.fetchAll dalam 1
+ * batch, TANPA baca apa pun dulu (id dokumen sudah pasti dari
+ * `absensiDocId_(tanggal, santriId)`). Dipakai bersama oleh
+ * iaRewriteAbsensiKelasFirestore_ (guru, per-kelas) & serverSaveAbsensiDaily
+ * (admin, per-kelompok/harian, Modul_MaintainAbsensi.gs) supaya logika
+ * tulisnya 1 tempat saja.
+ * @returns {number} jumlah record yang di-upsert
+ */
+function iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, upsertList, tanggal, dicatatOleh) {
   const path = 'kelompok/' + kelompokId + '/absensi';
-  const existing = firestoreListCollection_(path);
-  const toDelete = existing.filter(function (a) {
-    return santriIdSet.indexOf(String(a.santri_id)) !== -1 && tanggalKeString_(a.tanggal) === tanggal;
-  });
-
-  let maxId = existing.reduce(function (max, a) { return Math.max(max, Number(a.id) || 0); }, 0);
-  const newDocs = relevantList.map(function (item) {
-    maxId += 1;
-    return {
-      id: maxId, santri_id: item.santri_id, tanggal: tanggal, status: item.status,
-      dicatat_oleh: dicatatOleh, kelompok_id: String(kelompokId),
-    };
-  });
-
   const token = firestoreGetAccessToken_();
   const baseUrl = firestoreBaseUrl_();
   const requests = [];
-  toDelete.forEach(function (a) {
-    requests.push({ url: baseUrl + '/' + path + '/' + encodeURIComponent(String(a.id)), method: 'delete', headers: { Authorization: 'Bearer ' + token }, muteHttpExceptions: true });
-  });
-  newDocs.forEach(function (doc) {
+
+  deleteSantriIds.forEach(function (santriId) {
     requests.push({
-      url: baseUrl + '/' + path + '?documentId=' + encodeURIComponent(String(doc.id)),
-      method: 'post',
+      url: baseUrl + '/' + path + '/' + encodeURIComponent(absensiDocId_(tanggal, santriId)),
+      method: 'delete',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+    });
+  });
+
+  upsertList.forEach(function (item) {
+    const docId = absensiDocId_(tanggal, item.santri_id);
+    const fields = {
+      id: docId, santri_id: item.santri_id, tanggal: tanggal, status: item.status,
+      dicatat_oleh: dicatatOleh, kelompok_id: String(kelompokId),
+    };
+    const mask = Object.keys(fields).map(function (k) { return 'updateMask.fieldPaths=' + encodeURIComponent(k); }).join('&');
+    requests.push({
+      url: baseUrl + '/' + path + '/' + encodeURIComponent(docId) + '?' + mask,
+      method: 'patch',
       contentType: 'application/json',
       headers: { Authorization: 'Bearer ' + token },
-      payload: JSON.stringify({ fields: firestoreEncodeFields_(doc) }),
+      payload: JSON.stringify({ fields: firestoreEncodeFields_(fields) }),
       muteHttpExceptions: true,
     });
   });
@@ -469,7 +488,7 @@ function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relev
     });
   }
 
-  return newDocs.length;
+  return upsertList.length;
 }
 
 /**

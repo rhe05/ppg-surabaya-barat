@@ -45,8 +45,11 @@ async function main() {
       + '&tahun=' + encodeURIComponent(tahun) + '&bulan=' + encodeURIComponent(bulan)
       + (kelas ? '&kelas=' + encodeURIComponent(kelas) : '')
       + (guruId ? '&guruid=' + encodeURIComponent(guruId) : '');
+  } else if (mode === 'migrateabsensiids') {
+    const [kelompokId, dryrun] = process.argv.slice(3);
+    url = APP_URL + '?diag=migrateabsensiids&kelompok=' + encodeURIComponent(kelompokId) + '&dryrun=' + encodeURIComponent(dryrun || 'true');
   } else {
-    console.error('usage: node tools/diag_query.js rows <sheet> [limit] | listkelompok <santri|guru|absensi|jadwal_kbm> <kelompokId> | kehadirantest <kelompokId> <tahun> <bulan> [kelas] [guruId]');
+    console.error('usage: node tools/diag_query.js rows <sheet> [limit] | listkelompok <santri|guru|absensi|jadwal_kbm> <kelompokId> | kehadirantest <kelompokId> <tahun> <bulan> [kelas] [guruId] | migrateabsensiids <kelompokId> [dryrun=true|false]');
     process.exit(1);
   }
   const res = await fetchFollow(url, token, 5);

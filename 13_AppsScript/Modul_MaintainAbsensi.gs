@@ -71,51 +71,46 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
   }
 
   const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
-  const path = 'kelompok/' + kelompokId + '/absensi';
 
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
-
-  // Delete existing absensi untuk tanggal ini (santri di kelompok ini)
   const santriIds = readSheetAsObjects(SHEET_NAMES.SANTRI)
     .filter(s => s.kelompok_id == kelompokId)
     .map(s => s.id);
 
   let count = 0;
-  withScriptLock_(function () {
-    absensiData.forEach(a => {
-      if (tanggalKeString_(a.tanggal) === tanggal && santriIds.includes(Number(a.santri_id))) {
-        if (onFirestore) {
-          firestoreDeleteDoc_(path, String(a.id));
-        } else {
+
+  if (onFirestore) {
+    // Id dokumen deterministik (absensiDocId_, Modul_Utilities.gs) — TIDAK
+    // perlu baca absensi sama sekali dulu (lihat iaBulkWriteAbsensiFirestore_,
+    // Modul_InputAbsen.gs, & analisis performa 2026-08-05).
+    const upsertList = absensiList.filter(item => santriIds.includes(Number(item.santri_id)));
+    const upsertSantriIds = upsertList.map(item => String(item.santri_id));
+    const deleteSantriIds = santriIds.map(String).filter(id => upsertSantriIds.indexOf(id) === -1);
+    withScriptLock_(function () {
+      count = iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, upsertList, tanggal, user.id);
+    });
+  } else {
+    const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+    withScriptLock_(function () {
+      // Delete existing absensi untuk tanggal ini (santri di kelompok ini)
+      absensiData.forEach(a => {
+        if (tanggalKeString_(a.tanggal) === tanggal && santriIds.includes(Number(a.santri_id))) {
           // Hapus by id langsung (bukan query {tanggal}) — deleteRowByQuery mencocokkan
           // via String(cell), dan cell tanggal di sheet adalah objek Date, bukan string
           // 'yyyy-MM-dd', jadi query {tanggal} TIDAK PERNAH match (ERROR_LOG.md #8).
           deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
         }
-      }
-    });
+      });
 
-    // Insert baru
-    absensiList.forEach(item => {
-      if (santriIds.includes(Number(item.santri_id))) {
-        if (onFirestore) {
-          const id = firestoreGenerateIdInPath_(path);
-          firestoreCreateDoc_(path, String(id), {
-            id: id,
-            santri_id: item.santri_id,
-            tanggal: tanggal,
-            status: item.status,
-            dicatat_oleh: user.id,
-            kelompok_id: String(kelompokId),
-          });
-        } else {
+      // Insert baru
+      absensiList.forEach(item => {
+        if (santriIds.includes(Number(item.santri_id))) {
           const id = generateId(SHEET_NAMES.ABSENSI);
           appendRowToSheet(SHEET_NAMES.ABSENSI, [id, item.santri_id, tanggal, item.status, user.id]);
+          count++;
         }
-        count++;
-      }
+      });
     });
-  });
+  }
 
   logAudit('absensi', 'batch_' + tanggal, 'create', user.id, `Daily entry: ${count} records`);
   return { success: true, message: `Absensi ${count} santri berhasil disimpan.` };
@@ -153,31 +148,36 @@ function serverSetAbsensiSatuSantri(token, kelompokId, santriId, tanggal, status
 
   try {
     return withScriptLock_(function () {
-      const existing = (onFirestore ? firestoreListCollection_(path) : readSheetAsObjects(SHEET_NAMES.ABSENSI))
+      if (onFirestore) {
+        // Id dokumen deterministik (absensiDocId_, Modul_Utilities.gs) —
+        // TIDAK perlu baca koleksi dulu utk tahu docId-nya, langsung hapus
+        // atau upsert (PATCH menimpa/membuat) by id (analisis performa
+        // 2026-08-05, opsi A).
+        const docId = absensiDocId_(tanggal, santriId);
+        if (!status) {
+          firestoreDeleteDoc_(path, docId);
+          logAudit('absensi', santriId + '_' + tanggal, 'delete', user.id, 'Hapus via Detail Kehadiran');
+          return { success: true, status: '' };
+        }
+        firestoreUpdateDoc_(path, docId, {
+          id: docId, santri_id: santriId, tanggal: tanggal, status: status,
+          dicatat_oleh: user.id, kelompok_id: String(kelompokId),
+        });
+        logAudit('absensi', santriId + '_' + tanggal, 'update', user.id, 'status=' + status + ' via Detail Kehadiran');
+        return { success: true, status: status };
+      }
+
+      const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI)
         .find(function (a) { return String(a.santri_id) === String(santriId) && tanggalKeString_(a.tanggal) === tanggal; });
 
       if (!status) {
-        if (existing) {
-          if (onFirestore) firestoreDeleteDoc_(path, String(existing.id));
-          else deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id });
-        }
+        if (existing) deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id });
         logAudit('absensi', santriId + '_' + tanggal, 'delete', user.id, 'Hapus via Detail Kehadiran');
         return { success: true, status: '' };
       }
 
       if (existing) {
-        if (onFirestore) firestoreUpdateDoc_(path, String(existing.id), { status: status });
-        else updateRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id }, { status: status });
-      } else if (onFirestore) {
-        const id = firestoreGenerateIdInPath_(path);
-        firestoreCreateDoc_(path, String(id), {
-          id: id,
-          santri_id: santriId,
-          tanggal: tanggal,
-          status: status,
-          dicatat_oleh: user.id,
-          kelompok_id: String(kelompokId),
-        });
+        updateRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id }, { status: status });
       } else {
         const id = generateId(SHEET_NAMES.ABSENSI);
         appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, tanggal, status, user.id]);
@@ -232,6 +232,24 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
         return;
       }
 
+      if (onFirestore) {
+        // Cek duplikat via GET 1 dokumen by id deterministik (absensiDocId_,
+        // Modul_Utilities.gs) — BUKAN baca seluruh koleksi per baris seperti
+        // sebelumnya (analisis performa 2026-08-05, opsi A).
+        const docId = absensiDocId_(row.tanggal, santriId);
+        if (firestoreGetDoc_(path, docId)) {
+          errorCount++;
+          errors.push(`Baris ${idx + 1}: Absensi ${row.nama_santri} pada ${row.tanggal} sudah ada.`);
+          return;
+        }
+        firestoreUpdateDoc_(path, docId, {
+          id: docId, santri_id: santriId, tanggal: row.tanggal, status: row.status,
+          dicatat_oleh: user.id, kelompok_id: String(kelompokId),
+        });
+        successCount++;
+        return;
+      }
+
       // Check duplicate (unique constraint santri_id + tanggal)
       const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI).find(
         a => a.santri_id == santriId && tanggalKeString_(a.tanggal) === row.tanggal
@@ -243,20 +261,8 @@ function serverBulkImportAbsensi(token, kelompokId, absensiRows) {
         return;
       }
 
-      if (onFirestore) {
-        const id = firestoreGenerateIdInPath_(path);
-        firestoreCreateDoc_(path, String(id), {
-          id: id,
-          santri_id: santriId,
-          tanggal: row.tanggal,
-          status: row.status,
-          dicatat_oleh: user.id,
-          kelompok_id: String(kelompokId),
-        });
-      } else {
-        const id = generateId(SHEET_NAMES.ABSENSI);
-        appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, row.tanggal, row.status, user.id]);
-      }
+      const id = generateId(SHEET_NAMES.ABSENSI);
+      appendRowToSheet(SHEET_NAMES.ABSENSI, [id, santriId, row.tanggal, row.status, user.id]);
       successCount++;
     });
   });
