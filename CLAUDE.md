@@ -201,6 +201,67 @@ After deployment, app accessible at Apps Script deployment URL (stable URL, same
 7. **Verifikasi wajib**: `node tools/check_local.js` sebelum commit → deploy → `node tools/verify_served.js`. Belum lolos = belum selesai.
 8. **Regresi**: bug baru ditemukan = entri baru `ERROR_LOG.md` di commit yang sama dengan fix-nya.
 
+## Prinsip Performa Firestore (WAJIB — berlaku tiap tambah/ubah fitur yang sentuh Firestore)
+
+> Ditetapkan 2026-08-05/06 setelah audit performa collection `absensi`,
+> `santri`/`guru`/`jadwal_kbm`/`jadwal_kategori_hari`/`pengumuman`,
+> `jurnal_kbm`, `kop_surat` — SEMUA collection Firestore yang ada saat ini
+> sudah dicek. Aturan di bawah WAJIB dipakai untuk collection Firestore
+> BARU atau perubahan pada yang sudah ada, bukan cuma referensi historis.
+
+**Sebelum menambah field/fungsi baru yang baca/tulis Firestore, tanya 3 hal ini:**
+
+### 1. ID dokumen
+- Collection punya composite key alami yang UNIK per baris (mis. absensi =
+  `tanggal_santriId`, jurnal_kbm = `slug(kelas)__tanggal`)? → PAKAI itu
+  sebagai id dokumen deterministik. Upsert langsung `firestoreUpdateDoc_`
+  (PATCH dgn field mask lengkap = otomatis create-if-absent), delete
+  langsung `firestoreDeleteDoc_` by id. **JANGAN** baca-semua-dulu-cari-id
+  utk collection begini — kalau ada composite key alami, TIDAK PERNAH
+  butuh baca apa pun sebelum tulis.
+- Tidak ada composite key alami (mis. santri/guru/jadwal_kbm/pengumuman,
+  butuh id sekuensial)? → PAKAI `firestoreGenerateIdInPath_(path)`
+  (Modul_FirestoreBridge.gs) APA ADANYA — sudah pakai dokumen counter
+  (`.../_counters/{tabel}`, O(1)), JANGAN bikin logika scan-cari-maxId
+  sendiri lagi.
+
+### 2. Baca data
+- Collection itu MASTER/REFERENSI (daftar yang memang selalu dibutuhkan
+  UTUH, volumenya kecil-menengah dan tidak tumbuh tanpa batas — santri,
+  guru, jadwal_kbm, pengumuman)? → `firestoreListCollection_(path)` full
+  read TETAP TEPAT, tidak perlu diubah jadi query.
+- Collection itu TIME-SERIES / tumbuh terus tanpa batas (ditulis per-hari
+  atau per-transaksi — absensi, jurnal_kbm, atau apa pun sejenis itu di
+  masa depan) DAN pemanggil cuma butuh SEBAGIAN (1 bulan/1 tanggal/1
+  filter field)? → WAJIB `firestoreRunQuery_` + `firestoreRangeQuery_`
+  (Modul_FirestoreBridge.gs, query `where` di sisi Firestore). **JANGAN**
+  `firestoreListCollection_` lalu `.filter()` manual di Apps Script — itu
+  men-download seluruh riwayat cuma buat dibuang sebagian besar, dan
+  biayanya tumbuh terus seiring data bertambah (bukan biaya tetap).
+- Inequality/equality pada SATU field (mis. rentang tanggal, atau equal 1
+  nilai) tidak butuh composite index baru — Firestore auto-index tiap
+  field. Composite index baru relevan kalau nanti ADA query yang
+  menggabungkan equality field lain + range field lain sekaligus (belum
+  ada kasusnya di app ini).
+
+### 3. Tulis data
+- WAJIB di dalam `withScriptLock_()` (menyerialkan semua penulis app ini —
+  ini juga alasan pola read-lalu-tulis counter di atas AMAN tanpa
+  transaksi Firestore beneran).
+- Kalau id deterministik (poin 1) → upsert langsung, TANPA baca dulu utk
+  cek "sudah ada atau belum".
+- Kalau TERPAKSA perlu tahu existence duluan (bukan collection dgn id
+  deterministik) → `firestoreGetDoc_` (1 dokumen, O(1)), **JANGAN**
+  `firestoreListCollection_` (semua dokumen) cuma buat cek ada/tidak.
+
+### Cara verifikasi (tidak ada test otomatis utk Firestore production)
+Tambah diag route sementara di `Code.js` (pola `?diag=xxxtest`, lihat
+riwayat commit utk contoh), panggil via `node tools/diag_query.js` (atau
+script Node sekali-pakai serupa) LANGSUNG ke deployment production,
+bandingkan hasil/jumlah dokumen sebelum & sesudah perubahan — baru HAPUS
+diag route itu setelah terverifikasi. Jangan biarkan diag route mutasi
+menumpuk permanen di `doGet` (endpoint publik, access "Anyone").
+
 ## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
 
 1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah + penanganan. Cocokkan gejala sebelum investigasi baru.
