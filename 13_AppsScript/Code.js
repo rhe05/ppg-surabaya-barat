@@ -140,15 +140,15 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // ?diag=listkelompok&table=santri|guru&kelompok=<id> → lihat isi mentah
+  // ?diag=listkelompok&table=santri|guru|absensi&kelompok=<id> → lihat isi mentah
   // 1 subcollection Firestore (mis. buat pastikan tidak ada duplikasi setelah
   // sentralisasi readSheetAsObjects). TIDAK mengubah apapun, cuma baca.
   if (e && e.parameter && e.parameter.diag === 'listkelompok') {
     const table = e.parameter.table;
     const kelompokId = e.parameter.kelompok;
     let result;
-    if (['santri', 'guru'].indexOf(table) === -1 || !kelompokId) {
-      result = { success: false, error: 'Butuh &table=santri|guru&kelompok=<id>.' };
+    if (['santri', 'guru', 'absensi'].indexOf(table) === -1 || !kelompokId) {
+      result = { success: false, error: 'Butuh &table=santri|guru|absensi&kelompok=<id>.' };
     } else {
       try {
         const data = firestoreListCollection_('kelompok/' + kelompokId + '/' + table);
