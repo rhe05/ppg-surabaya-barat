@@ -1533,14 +1533,6 @@
     document.getElementById('iaRiwayatFilterOverlay').style.display = 'none';
   };
 
-  window.iaResetRiwayatFilter_ = function () {
-    const now = new Date();
-    window.iaRiwayatFilter_ = { bulan: now.getMonth() + 1, tahun: now.getFullYear(), minggu: 'semua' };
-    window.iaCloseRiwayatFilterOverlay_();
-    window.iaPopulateRiwayatFilters_();
-    window.iaLoadRiwayatKehadiran_();
-  };
-
   window.iaApplyRiwayatFilter_ = function () {
     window.iaRiwayatFilter_ = {
       bulan: Number(document.getElementById('iaRiwayatFilterBulan').value),
