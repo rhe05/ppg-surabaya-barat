@@ -144,10 +144,13 @@ function serverGetJurnalRiwayat(token, kelas) {
     return { success: false, error: 'Anda tidak punya akses ke kelas ini.' };
   }
 
-  const kelasLower = String(kelas).trim().toLowerCase();
-  const rows = firestoreListCollection_(jurnalPath_(ctx.kelompokId)).filter(function (j) {
-    return String(j.kelas || '').trim().toLowerCase() === kelasLower;
-  });
+  // Query EQUAL by field 'kelas' di sisi Firestore (firestoreRangeQuery_ dgn
+  // awal===akhir), BUKAN firestoreListCollection_ penuh lalu filter di Apps
+  // Script — jurnal_kbm bisa sampai ratusan ribu dokumen per kelompok dalam
+  // 20 tahun (lihat catatan arsitektur di atas file ini), jadi query
+  // push-down penting di sini juga (analisis performa 2026-08-05/06, opsi B).
+  const query = firestoreRangeQuery_('jurnal_kbm', 'kelas', String(kelas).trim(), String(kelas).trim());
+  const rows = firestoreRunQuery_('kelompok/' + ctx.kelompokId, query);
   rows.sort(function (a, b) { return String(b.tanggal || '').localeCompare(String(a.tanggal || '')); });
 
   return {
@@ -211,9 +214,13 @@ function serverGetJurnalListKelompok(token, kelompokId, bulan, tahun) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const prefix = tahun + '-' + String(bulan).padStart(2, '0');
-  const all = firestoreListCollection_(jurnalPath_(kelompokId));
-  const filtered = all.filter(function (j) { return String(j.tanggal || '').indexOf(prefix) === 0; });
+  // Query rentang tanggal di sisi Firestore, BUKAN firestoreListCollection_
+  // penuh lalu filter prefix string di Apps Script (analisis performa
+  // 2026-08-05/06, opsi B — sama pola dgn absensi).
+  const monthStart = tahun + '-' + String(bulan).padStart(2, '0') + '-01';
+  const monthEnd = bulanTerakhirStr_(Number(tahun), Number(bulan));
+  const query = firestoreRangeQuery_('jurnal_kbm', 'tanggal', monthStart, monthEnd);
+  const filtered = firestoreRunQuery_('kelompok/' + kelompokId, query);
 
   const guruMap = {};
   iaReadKelompokTable_(SHEET_NAMES.GURU, kelompokId).forEach(function (g) { guruMap[g.id] = g.nama; });
