@@ -228,7 +228,7 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+  const monthEnd = bulanTerakhirStr_(year, month);
   const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
     return tgl >= monthStart && tgl <= monthEnd;

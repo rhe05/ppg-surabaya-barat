@@ -375,6 +375,22 @@ function tanggalKeString_(v) {
 }
 
 /**
+ * String 'yyyy-MM-dd' tanggal TERAKHIR di satu bulan (dipakai batas atas
+ * filter rentang bulanan, mis. Kehadiran Generus). SENGAJA tidak lewat
+ * `new Date(year, month, 0).toISOString()` -- toISOString() konversi ke UTC,
+ * jadi di timezone WIB (UTC+7) tanggal 1 (mis. "2026-07-31" jam 00:00 lokal)
+ * mundur jadi "2026-07-30" saat di-ISO-kan, diam-diam MEMBUANG seluruh data
+ * hari terakhir bulan itu dari perbandingan `tgl <= monthEnd`. Ditemukan saat
+ * investigasi laporan guru "sudah input absen tapi tidak muncul di Dashboard/
+ * Riwayat Kehadiran" -- kelas yang HANYA punya catatan di tanggal 31 hilang
+ * total dari Kehadiran Generus (2026-08-05).
+ */
+function bulanTerakhirStr_(year, month) {
+  const lastDay = new Date(year, month, 0).getDate();
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+}
+
+/**
  * Jalankan fungsi mutasi di dalam ScriptLock (antri maks 10 detik).
  * WAJIB membungkus SEMUA operasi tulis (add/update/delete) supaya aman
  * dipakai banyak pengguna bersamaan. Mencegah: (a) id ganda dari generateId,

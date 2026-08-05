@@ -1081,6 +1081,69 @@ Dashboard/Riwayat Kehadiran langsung menunjukkan angka yang benar.
 
 ---
 
+## #31 — Kehadiran Generus (desktop) "Belum ada data" utk kelas yang absennya persis di tanggal 31 — `monthEnd` mundur 1 hari akibat `toISOString()` (2026-08-05)
+
+**Gejala**: guru Neiza melapor sudah input absen kelas "1A"/"Remaja SMA"
+(tanggal 2026-07-31), tapi kelasnya tampil "Belum ada data" di kartu
+Kehadiran Generus (desktop, tab Operasional) utk bulan Juli — padahal
+guru Baban (kelas "4"/"Pra Remaja SMP", absen tanggal 2026-08-03/04) bisa
+tampil normal. Riwayat Kehadiran guru (mobile) sendiri menunjukkan data
+Neiza ADA dan benar.
+
+**Investigasi**: ditambah endpoint diagnostik sementara (`?diag=listkelompok`
+diperluas ke tabel `absensi`/`jadwal_kbm`, `?diag=kehadirantest`) buat baca
+langsung isi Firestore `kelompok/1/absensi` & `kelompok/1/jadwal_kbm` tanpa
+perlu login browser. Ketahuan: (1) tulis/simpan absen guru BEKERJA NORMAL —
+data Baban & Neiza sama-sama benar tersimpan di Firestore, terhubung ke
+kelas yang benar (join `santri.kelas_ngaji` cocok); (2) `jadwal_kbm` sudah
+Firestore utk Kelp Petemon jadi kepemilikan kelas guru (`getKelasOwnedByGuru_`)
+juga benar (Baban punya "4"+"Pra Remaja SMP", Neiza punya "1A"+"Remaja SMA");
+(3) laporan Baban soal absen "tidak muncul" ternyata gejala LAMA (kunci
+"sekali simpan", sudah dibenahi bug #30 hari sebelumnya) — akun lamanya
+sempat gagal simpan diam-diam sebelum fix itu deploy, akun barunya (setelah
+fix) berhasil normal.
+
+**Akar masalah SEBENARNYA (khusus Neiza)**: `serverGetKehadiranGenerusKategori`
+/`serverGetKehadiranGenerusDetailList` (Modul_Monitoring.gs) & fungsi sejenis
+(`serverGetMonitoringGenerus`, `serverGetSantriBerisiko` di
+Modul_MaintainAbsensi.gs, laporan bulanan di Modul_Laporan.gs) menghitung
+batas akhir bulan dengan `new Date(year, month, 0).toISOString().split('T')[0]`.
+`toISOString()` mengonversi ke UTC — di timezone spreadsheet (WIB, UTC+7),
+`new Date(2026, 7, 0)` (tengah malam lokal 31 Juli) mundur jadi jam 17:00
+tanggal 30 Juli UTC, sehingga `monthEnd` yang dihasilkan `"2026-07-30"`,
+BUKAN `"2026-07-31"`. Akibatnya SEMUA absensi yang tanggalnya persis hari
+TERAKHIR bulan itu (`tgl <= monthEnd` gagal) terbuang diam-diam dari
+perhitungan rata-rata kehadiran. Kelas yang absennya kebetulan HANYA ada di
+tanggal 31 (kasus Neiza, guru baru mulai isi bulan itu) jadi kelihatan
+"Belum ada data" total. Kelas dengan banyak tanggal (kasus lain) cuma
+kehilangan 1 hari data, tidak kelihatan sebagai bug.
+
+`serverGetRiwayatKehadiranGuru` (mobile, Modul_InputAbsen.gs) TIDAK kena
+bug ini karena membangun `monthEnd` dari string tanggal langsung
+(`dates[dates.length-1]`, hasil loop `d=1..daysInMonth`), bukan lewat
+`Date().toISOString()` — makanya guru sendiri tetap melihat datanya benar
+di Riwayat Kehadiran, cuma admin/desktop yang salah baca.
+
+**Perbaikan**: helper baru `bulanTerakhirStr_(year, month)`
+(Modul_Utilities.gs, dekat `tanggalKeString_`) — hitung `getDate()` hari
+terakhir bulan (operasi tanggal LOKAL, tidak lewat `toISOString()`), lalu
+format manual `yyyy-MM-dd`. Semua 5 titik yang pakai pola lama diganti:
+`Modul_Monitoring.gs` (×3 — Kategori/DetailList/Matrix… tepatnya
+`serverGetMonitoringGenerus`/`serverGetKehadiranGenerusKategori`/
+`serverGetKehadiranGenerusDetailList`), `Modul_MaintainAbsensi.gs`
+(`serverGetSantriBerisiko`), `Modul_Laporan.gs` (laporan bulanan guru).
+`serverGetKehadiranGenerusMatrix` TIDAK perlu diubah — sudah pakai pola
+`dates[dates.length-1]` yang aman dari awal.
+
+**Cara verifikasi**: `node tools/diag_query.js kehadirantest 1 2026 7 1A 22`
+(atau buka kartu Kehadiran Generus > kelas dgn data HANYA di tanggal 31)
+— sebelum fix kelas tampil "Belum ada data"/avgPct null, sesudah fix
+tampil persentase asli. Sudah diverifikasi lewat endpoint diagnostik
+langsung ke deployment production sebelum & sesudah fix (bukan cuma baca
+kode) — kelas "1A" berubah dari `adaData:false` → `avgPct:86`.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

@@ -54,7 +54,7 @@ function serverGetMonitoringGenerus(token, kelompokId, year, month) {
   const santriIds = santriList.map(s => String(s.id));
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+  const monthEnd = bulanTerakhirStr_(year, month);
 
   // ERROR_LOG.md #8: kolom tanggal di sheet Absensi diam-diam jadi objek Date,
   // WAJIB dinormalkan lewat tanggalKeString_() sebelum dibandingkan sbg string.
@@ -179,7 +179,7 @@ function serverGetKehadiranGenerusKategori(token, kelompokId, year, month) {
   const santriIds = santriList.map(function (s) { return String(s.id); });
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+  const monthEnd = bulanTerakhirStr_(year, month);
   const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
     return tgl >= monthStart && tgl <= monthEnd;
@@ -259,7 +259,7 @@ function serverGetKehadiranGenerusDetailList(token, kelompokId, year, month) {
   const santriIds = Object.keys(santriMap);
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0];
+  const monthEnd = bulanTerakhirStr_(year, month);
   const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
     const tgl = tanggalKeString_(a.tanggal);
     return tgl >= monthStart && tgl <= monthEnd;

@@ -330,7 +330,7 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
   // Get absensi for the month
   const allAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI);
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
-  const monthEnd = new Date(year, month, 0).toISOString().split('T')[0]; // Last day of month
+  const monthEnd = bulanTerakhirStr_(year, month);
 
   const monthAbsensi = allAbsensi.filter(a => {
     const tgl = tanggalKeString_(a.tanggal);

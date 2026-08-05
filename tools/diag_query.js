@@ -38,8 +38,15 @@ async function main() {
     url = APP_URL + '?diag=rows&sheet=' + encodeURIComponent(a) + '&limit=' + (b || 50);
   } else if (mode === 'listkelompok') {
     url = APP_URL + '?diag=listkelompok&table=' + encodeURIComponent(a) + '&kelompok=' + encodeURIComponent(b);
+  } else if (mode === 'kehadirantest') {
+    // node tools/diag_query.js kehadirantest <kelompokId> <tahun> <bulan> [kelas] [guruId]
+    const [kelompokId, tahun, bulan, kelas, guruId] = process.argv.slice(3);
+    url = APP_URL + '?diag=kehadirantest&kelompok=' + encodeURIComponent(kelompokId)
+      + '&tahun=' + encodeURIComponent(tahun) + '&bulan=' + encodeURIComponent(bulan)
+      + (kelas ? '&kelas=' + encodeURIComponent(kelas) : '')
+      + (guruId ? '&guruid=' + encodeURIComponent(guruId) : '');
   } else {
-    console.error('usage: node tools/diag_query.js rows <sheet> [limit] | listkelompok <santri|guru> <kelompokId>');
+    console.error('usage: node tools/diag_query.js rows <sheet> [limit] | listkelompok <santri|guru|absensi|jadwal_kbm> <kelompokId> | kehadirantest <kelompokId> <tahun> <bulan> [kelas] [guruId]');
     process.exit(1);
   }
   const res = await fetchFollow(url, token, 5);

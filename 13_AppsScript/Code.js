@@ -147,8 +147,8 @@ function doGet(e) {
     const table = e.parameter.table;
     const kelompokId = e.parameter.kelompok;
     let result;
-    if (['santri', 'guru', 'absensi'].indexOf(table) === -1 || !kelompokId) {
-      result = { success: false, error: 'Butuh &table=santri|guru|absensi&kelompok=<id>.' };
+    if (['santri', 'guru', 'absensi', 'jadwal_kbm'].indexOf(table) === -1 || !kelompokId) {
+      result = { success: false, error: 'Butuh &table=santri|guru|absensi|jadwal_kbm&kelompok=<id>.' };
     } else {
       try {
         const data = firestoreListCollection_('kelompok/' + kelompokId + '/' + table);
@@ -212,6 +212,44 @@ function doGet(e) {
       result = serverGetDashboardBundle();
     } catch (err) {
       result = { success: false, error: err.message };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ?diag=kehadirantest&kelompok=<id>&tahun=<yyyy>&bulan=<1-12> → panggil
+  // serverGetKehadiranGenerusKategori/DetailList/serverGetRiwayatKehadiranGuru
+  // langsung pakai sesi admin_ppg sementara (bukan token login sungguhan) --
+  // dipakai investigasi laporan guru "sudah input absen tapi tidak muncul di
+  // Dashboard/Riwayat Kehadiran" tanpa perlu login browser (web app diam-diam
+  // pakai DEV_MODE_SKIP_LOGIN=false sekarang jadi diag=monitoringtest lama
+  // sudah tidak jalan tanpa token asli).
+  if (e && e.parameter && e.parameter.diag === 'kehadirantest') {
+    let result;
+    try {
+      const kelompokId = e.parameter.kelompok || '1';
+      const tahun = parseInt(e.parameter.tahun, 10) || new Date().getFullYear();
+      const bulan = parseInt(e.parameter.bulan, 10) || (new Date().getMonth() + 1);
+      const kelas = e.parameter.kelas || '';
+      const guruId = e.parameter.guruid || '';
+      const diagToken = Utilities.getUuid();
+      CacheService.getUserCache().put('session_' + diagToken, JSON.stringify({
+        id: 0, nama: '[diag]', role: 'admin_ppg', scopeType: 'ppg', scopeId: 1, guruId: guruId || null,
+      }), 300);
+      result = {
+        kategori: serverGetKehadiranGenerusKategori(diagToken, kelompokId, tahun, bulan),
+        detailList: serverGetKehadiranGenerusDetailList(diagToken, kelompokId, tahun, bulan),
+      };
+      if (guruId && kelas) {
+        const guruToken = Utilities.getUuid();
+        CacheService.getUserCache().put('session_' + guruToken, JSON.stringify({
+          id: 0, nama: '[diag-guru]', role: 'guru', scopeType: 'kelompok', scopeId: parseInt(kelompokId, 10), guruId: parseInt(guruId, 10),
+        }), 300);
+        result.riwayatGuru = serverGetRiwayatKehadiranGuru(guruToken, tahun, bulan, kelas);
+      }
+    } catch (err) {
+      result = { success: false, error: err.message, stack: err.stack };
     }
     return ContentService
       .createTextOutput(JSON.stringify(result))
