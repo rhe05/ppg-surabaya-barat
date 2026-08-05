@@ -210,6 +210,73 @@ function firestoreListCollection_(collectionName) {
 }
 
 /**
+ * Jalankan Firestore structured query (REST `:runQuery`) — BEDA dari
+ * firestoreListCollection_ yang SELALU download seluruh koleksi lalu filter
+ * di Apps Script. Di sini filter (`where`) dikerjakan DI SISI FIRESTORE,
+ * jadi cuma dokumen yang cocok yang dikirim balik — jauh lebih murah utk
+ * koleksi yang riwayatnya sudah besar (mis. absensi lintas tahun ajaran,
+ * lihat analisis performa 2026-08-05, opsi B).
+ *
+ * Query dgn HANYA inequality (`<`/`<=`/`>`/`>=`) pada SATU field (mis.
+ * rentang tanggal) tidak butuh composite index — Firestore otomatis
+ * index tiap field satu-per-satu. Composite index baru diperlukan kalau
+ * suatu saat query menggabungkan equality field lain + range field ini
+ * sekaligus (belum ada kasusnya di app ini).
+ *
+ * @param {string} parentPath - path ke DOKUMEN INDUK subcollection yg
+ *   di-query, mis. 'kelompok/1' (BUKAN 'kelompok/1/absensi' — collectionId
+ *   ditaruh terpisah di `structuredQuery.from`).
+ * @param {Object} structuredQuery - lihat format StructuredQuery Firestore:
+ *   https://firebase.google.com/docs/firestore/reference/rest/v1/StructuredQuery
+ */
+function firestoreRunQuery_(parentPath, structuredQuery) {
+  const token = firestoreGetAccessToken_();
+  const url = firestoreBaseUrl_() + '/' + parentPath + ':runQuery';
+  const resp = UrlFetchApp.fetch(url, {
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ structuredQuery: structuredQuery }),
+    muteHttpExceptions: true,
+  });
+  const code = resp.getResponseCode();
+  if (code < 200 || code >= 300) {
+    throw new Error('Gagal jalankan query Firestore "' + parentPath + '": ' + resp.getContentText());
+  }
+  const body = JSON.parse(resp.getContentText() || '[]');
+  return body
+    .filter(function (item) { return item.document; })
+    .map(function (item) { return firestoreDocToObject_(item.document); });
+}
+
+/**
+ * Bangun `structuredQuery` utk filter 1 field dgn rentang [awal, akhir]
+ * (inklusif kedua ujung) — dipakai bareng firestoreRunQuery_. Kalau
+ * awal === akhir, otomatis jadi filter EQUAL tunggal (bukan 2 kondisi AND
+ * yang sama-sama inequality — sedikit lebih murah & tetap benar).
+ */
+function firestoreRangeQuery_(collectionId, field, awal, akhir) {
+  if (awal === akhir) {
+    return {
+      from: [{ collectionId: collectionId }],
+      where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: firestoreEncodeValue_(awal) } },
+    };
+  }
+  return {
+    from: [{ collectionId: collectionId }],
+    where: {
+      compositeFilter: {
+        op: 'AND',
+        filters: [
+          { fieldFilter: { field: { fieldPath: field }, op: 'GREATER_THAN_OR_EQUAL', value: firestoreEncodeValue_(awal) } },
+          { fieldFilter: { field: { fieldPath: field }, op: 'LESS_THAN_OR_EQUAL', value: firestoreEncodeValue_(akhir) } },
+        ],
+      },
+    },
+  };
+}
+
+/**
  * Buat dokumen baru dengan ID pilihan sendiri (bukan ID acak Firestore) —
  * dipakai supaya kolom `id` yang sudah ada di aplikasi tetap jadi ID dokumen,
  * jadi cari/update/hapus 1 baris langsung tanpa scan.

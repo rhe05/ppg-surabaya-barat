@@ -175,7 +175,7 @@ function serverGetAbsensiSummary(token, kelompokId) {
  * izin, lalu 'Alfa' jika ada hari alfa, sisanya 'Sakit' (atau 'Belum Ada
  * Data' jika belum ada rekap absensi bulan itu).
  * ⚠️ PERF (2026-07-30): baca guru/jadwal_kbm/santri/absensi lewat
- * `iaReadKelompokTablesParallel_`/`iaReadAbsensiKelompok_` (Modul_InputAbsen.gs,
+ * `iaReadKelompokTablesParallel_`/`iaReadAbsensiKelompokRange_` (Modul_InputAbsen.gs,
  * SCOPED ke satu kelompok — Firestore langsung utk Kelp Petemon), BUKAN
  * `readSheetAsObjects()` generik (scan seluruh sheet semua kelompok). Pola
  * sama dgn Modul_Monitoring.gs.
@@ -229,10 +229,7 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = bulanTerakhirStr_(year, month);
-  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
-    const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd;
-  });
+  const monthAbsensi = iaReadAbsensiKelompokRange_(kelompokId, santriIds, monthStart, monthEnd);
 
   const statsBySantri = {};
   monthAbsensi.forEach(function (a) {

@@ -289,12 +289,14 @@ function serverGetAbsensiSummary(token, kelompokId, tanggal) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => tanggalKeString_(a.tanggal) === tanggal);
   const santriIds = readSheetAsObjects(SHEET_NAMES.SANTRI)
     .filter(s => s.kelompok_id == kelompokId)
     .map(s => s.id);
-
-  const absensiKelompok = absensiData.filter(a => santriIds.includes(Number(a.santri_id)));
+  // Baca+filter di-scope 1 kelompok & 1 tanggal (iaReadAbsensiKelompokRange_,
+  // Modul_InputAbsen.gs) — bukan readSheetAsObjects(ABSENSI) generik yang
+  // baca SELURUH kelompok lain dulu baru dibuang (analisis performa
+  // 2026-08-05, opsi B).
+  const absensiKelompok = iaReadAbsensiKelompokRange_(kelompokId, santriIds, tanggal, tanggal);
 
   const summary = {
     tanggal,
@@ -333,15 +335,12 @@ function serverGetSantriBerisiko(token, kelompokId, year, month) {
     santriMap[s.id] = s.nama;
   });
 
-  // Get absensi for the month
-  const allAbsensi = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  // Get absensi for the month — di-scope 1 kelompok & 1 bulan
+  // (iaReadAbsensiKelompokRange_, Modul_InputAbsen.gs), bukan baca SELURUH
+  // absensi semua kelompok lalu dibuang (analisis performa 2026-08-05, opsi B).
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = bulanTerakhirStr_(year, month);
-
-  const monthAbsensi = allAbsensi.filter(a => {
-    const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd && santriMap[a.santri_id];
-  });
+  const monthAbsensi = iaReadAbsensiKelompokRange_(kelompokId, santriList.map(s => s.id), monthStart, monthEnd);
 
   // Calculate stats per santri
   const santriStats = {};

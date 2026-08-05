@@ -8,7 +8,7 @@
  * ⚠️ PERF (2026-07-30): fungsi Kehadiran Generus (`serverGetKehadiranGenerusKategori`/
  * `Matrix`/`DetailList`, dipakai tab Operasional & Laporan) baca guru/jadwal_kbm/
  * santri/absensi lewat `iaReadKelompokTablesParallel_`/`iaReadKelompokTable_`/
- * `iaReadAbsensiKelompok_` (Modul_InputAbsen.gs) — SCOPED ke satu kelompok saja
+ * `iaReadAbsensiKelompokRange_` (Modul_InputAbsen.gs) — SCOPED ke satu kelompok saja
  * (Firestore langsung utk Kelp Petemon via `FIRESTORE_KELOMPOK_TABLES_`, Sheets
  * terfilter utk kelompok lain). JANGAN kembalikan ke `readSheetAsObjects()`
  * generik di fungsi-fungsi ini — itu scan SELURUH sheet semua kelompok dulu baru
@@ -180,10 +180,7 @@ function serverGetKehadiranGenerusKategori(token, kelompokId, year, month) {
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = bulanTerakhirStr_(year, month);
-  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
-    const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd;
-  });
+  const monthAbsensi = iaReadAbsensiKelompokRange_(kelompokId, santriIds, monthStart, monthEnd);
   const statsBySantri = {};
   monthAbsensi.forEach(function (a) {
     const id = String(a.santri_id);
@@ -260,10 +257,7 @@ function serverGetKehadiranGenerusDetailList(token, kelompokId, year, month) {
 
   const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = bulanTerakhirStr_(year, month);
-  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
-    const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd;
-  });
+  const monthAbsensi = iaReadAbsensiKelompokRange_(kelompokId, santriIds, monthStart, monthEnd);
 
   const data = monthAbsensi.map(function (a) {
     const s = santriMap[String(a.santri_id)];
@@ -306,10 +300,7 @@ function serverGetKehadiranGenerusMatrix(token, kelompokId, year, month) {
 
   const monthStart = dates.length > 0 ? dates[0] : `${year}-${String(month).padStart(2, '0')}-01`;
   const monthEnd = dates.length > 0 ? dates[dates.length - 1] : monthStart;
-  const monthAbsensi = iaReadAbsensiKelompok_(kelompokId, santriIds).filter(function (a) {
-    const tgl = tanggalKeString_(a.tanggal);
-    return tgl >= monthStart && tgl <= monthEnd;
-  });
+  const monthAbsensi = iaReadAbsensiKelompokRange_(kelompokId, santriIds, monthStart, monthEnd);
 
   const statusMap = {};
   monthAbsensi.forEach(function (a) {
