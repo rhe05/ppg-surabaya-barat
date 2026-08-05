@@ -344,12 +344,35 @@ function firestoreFieldsFromRowArray_(sheetName, values) {
  * perlu unik DI DALAM subcollection kelompok itu (beda kelompok boleh sama-sama
  * punya dokumen ber-ID "1" — bukan konflik, karena path induknya beda).
  * WAJIB dipanggil di dalam withScriptLock_() sama seperti generateId() versi Sheets.
+ *
+ * Implementasi pakai DOKUMEN COUNTER kecil ('.../_counters/{tabel}', field
+ * `value`) — BUKAN scan seluruh koleksi tiap kali (cara lama). Baca 1
+ * dokumen kecil (O(1)) jauh lebih murah dari baca N dokumen yang tumbuh
+ * terus seiring data bertambah, apalagi dipanggil di tiap create (analisis
+ * performa 2026-08-06, opsi C — lanjutan opsi A/B utk collection absensi).
+ * Counter yang BELUM ADA (tabel/kelompok baru, atau migrasi dari sebelum
+ * perubahan ini) di-bootstrap SEKALI SAJA dari isi koleksi yang sudah ada —
+ * sesudah itu counter selalu dipakai, tidak scan lagi. Aman tanpa transaksi
+ * Firestore beneran krn withScriptLock_() sudah menyerialkan SEMUA penulis
+ * app ini (cuma 1 yang jalan di saat bersamaan).
  */
 function firestoreGenerateIdInPath_(path) {
+  const parts = path.split('/');
+  const tableName = parts[parts.length - 1];
+  const counterCollection = parts.slice(0, -1).concat('_counters').join('/');
+
+  const counterDoc = firestoreGetDoc_(counterCollection, tableName);
+  if (counterDoc) {
+    const next = (Number(counterDoc.value) || 0) + 1;
+    firestoreUpdateDoc_(counterCollection, tableName, { value: next });
+    return next;
+  }
+
   const existing = firestoreListCollection_(path);
-  if (existing.length === 0) return 1;
-  const maxId = Math.max.apply(null, existing.map(function (o) { return parseInt(o.id, 10) || 0; }));
-  return maxId + 1;
+  const maxId = existing.reduce(function (max, o) { return Math.max(max, parseInt(o.id, 10) || 0); }, 0);
+  const next = maxId + 1;
+  firestoreCreateDoc_(counterCollection, tableName, { value: next });
+  return next;
 }
 
 /**
