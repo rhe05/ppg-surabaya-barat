@@ -68,25 +68,18 @@ function serverExportAbsensiMonthly(token, kelompokId, year, month) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
-
-  const santri = santriData.filter(s => s.kelompok_id == kelompokId);
+  // Di-scope 1 kelompok (santri lewat cache) + 1 bulan (Modul_InputAbsen.gs)
+  // -- bukan readSheetAsObjects generik yg baca SEMUA 18 kelompok (analisis
+  // performa 2026-08-06, kuota Firestore).
+  const santri = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId);
   const santriIds = santri.map(s => s.id);
 
-  // Filter absensi untuk bulan ini
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
-
-  const absensiMonth = absensiData.filter(a => {
-    const tanggal = new Date(a.tanggal);
-    return santriIds.includes(a.santri_id) &&
-           tanggal >= startDate &&
-           tanggal <= endDate;
-  });
+  const monthStart = `${year}-${String(month).padStart(2, '0')}-01`;
+  const monthEnd = bulanTerakhirStr_(year, month);
+  const absensiMonth = iaReadAbsensiKelompokRange_(kelompokId, santriIds, monthStart, monthEnd);
 
   // Build matrix
-  const daysInMonth = endDate.getDate();
+  const daysInMonth = new Date(year, month, 0).getDate();
   const dateHeaders = Array.from({ length: daysInMonth }, (_, i) => i + 1).join(',');
 
   let csv = `Absensi ${new Date(year, month - 1).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}\n`;

@@ -172,6 +172,7 @@ function serverCreateJadwalKBM(token, jadwalData) {
         ]);
       }
 
+      cacheDrop_('jadwalkbm_k' + jadwalData.kelompok_id);
       logAudit(SHEET_NAMES.JADWAL_KBM, id, 'create', user.id, `Sesi: ${jadwalData.kategori} ${jadwalData.jam_mulai}-${jadwalData.jam_selesai} kls ${jadwalData.kelas}`);
       return { success: true, message: 'Jadwal KBM berhasil ditambahkan.', id };
     });
@@ -228,6 +229,7 @@ function serverUpdateJadwalKBM(token, jadwalId, updates) {
         updateRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwal.id }, newFields);
       }
 
+      cacheDrop_('jadwalkbm_k' + jadwal.kelompok_id);
       logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'update', user.id, JSON.stringify(updates));
       return { success: true, message: 'Jadwal KBM berhasil diperbarui.' };
     });
@@ -257,6 +259,7 @@ function serverDeleteJadwalKBM(token, jadwalId) {
       } else {
         deleteRowByQuery(SHEET_NAMES.JADWAL_KBM, { id: jadwal.id });
       }
+      cacheDrop_('jadwalkbm_k' + jadwal.kelompok_id);
       logAudit(SHEET_NAMES.JADWAL_KBM, jadwalId, 'delete', user.id, 'deleted');
       return { success: true, message: 'Jadwal KBM berhasil dihapus.' };
     });
@@ -336,6 +339,7 @@ function serverSaveJadwalKategoriHari(token, kelompokId, kategori, hariAktif) {
         logAudit(SHEET_NAMES.JADWAL_KATEGORI_HARI, id, 'create', user.id, `${kategori}: ${hariAktifStr}`);
       }
 
+      cacheDrop_('jadwalkategorihari_k' + kelompokId);
       return { success: true, message: 'Hari aktif berhasil disimpan.' };
     });
   } catch (e) {

@@ -44,7 +44,12 @@ function requireGuruContext_(token) {
  */
 function iaReadKelompokTable_(sheetName, kelompokId) {
   if (isKelompokTableOnFirestore_(sheetName, kelompokId)) {
-    return firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName);
+    const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[sheetName];
+    const cached = keyFn ? cacheGet_(keyFn(kelompokId)) : null;
+    if (cached) return cached;
+    const rows = firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName);
+    iaKelompokTableCachePut_(sheetName, kelompokId, rows);
+    return rows;
   }
   return readSheetRowsRaw_(sheetName).filter(function (r) { return r.kelompok_id == kelompokId; });
 }
@@ -94,7 +99,11 @@ function iaReadAbsensiKelompokRange_(kelompokId, santriIdsKelompok, tanggalMulai
  * sudah pindah Firestore (Kelp Petemon), baca satu-satu = 3x latensi jaringan
  * BERURUTAN. Paralel = cuma latensi 1x request (paling lambat dari yang 3).
  * Tabel yang BELUM pindah Firestore tetap dibaca lewat readSheetRowsRaw_
- * biasa (SpreadsheetApp, bukan HTTP, tidak bisa/perlu diparalelkan).
+ * biasa (SpreadsheetApp, bukan HTTP, tidak bisa/perlu diparalelkan). Tabel
+ * master (santri/guru/jadwal_kbm/jadwal_kategori_hari) dicek dulu ke cache
+ * (IA_KELOMPOK_TABLE_CACHE_KEY_, Modul_Utilities.gs) sebelum fetch — cuma
+ * cache MISS yang benar-benar ditembak ke Firestore (analisis performa
+ * 2026-08-06).
  * @param {string[]} sheetNames
  * @returns {Object} { [sheetName]: rows[] }
  */
@@ -110,14 +119,35 @@ function iaReadKelompokTablesParallel_(sheetNames, kelompokId) {
   });
 
   if (firestoreNames.length === 0) return result;
-  if (firestoreNames.length === 1) {
-    result[firestoreNames[0]] = firestoreListCollection_('kelompok/' + kelompokId + '/' + firestoreNames[0]);
+
+  // Cek cache dulu (tabel master: santri/guru/jadwal_kbm/jadwal_kategori_hari,
+  // lihat IA_KELOMPOK_TABLE_CACHE_KEY_ di Modul_Utilities.gs) -- cuma tabel
+  // yang CACHE MISS yang benar-benar di-fetch dari Firestore. Analisis
+  // performa 2026-08-06: sebelum ini fungsi ini SELALU fetch semua tabel
+  // tiap panggilan, walau dipanggil berkali-kali dlm hitungan menit yang
+  // sama oleh guru yang sama/berbeda.
+  const toFetch = [];
+  firestoreNames.forEach(function (name) {
+    const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[name];
+    const cached = keyFn ? cacheGet_(keyFn(kelompokId)) : null;
+    if (cached) {
+      result[name] = cached;
+    } else {
+      toFetch.push(name);
+    }
+  });
+
+  if (toFetch.length === 0) return result;
+  if (toFetch.length === 1) {
+    const rows = firestoreListCollection_('kelompok/' + kelompokId + '/' + toFetch[0]);
+    iaKelompokTableCachePut_(toFetch[0], kelompokId, rows);
+    result[toFetch[0]] = rows;
     return result;
   }
 
   const token = firestoreGetAccessToken_();
   const baseUrl = firestoreBaseUrl_();
-  const requests = firestoreNames.map(function (name) {
+  const requests = toFetch.map(function (name) {
     return {
       url: baseUrl + '/kelompok/' + kelompokId + '/' + name + '?pageSize=300',
       method: 'get',
@@ -127,7 +157,7 @@ function iaReadKelompokTablesParallel_(sheetNames, kelompokId) {
   });
   const responses = UrlFetchApp.fetchAll(requests);
 
-  firestoreNames.forEach(function (name, idx) {
+  toFetch.forEach(function (name, idx) {
     const resp = responses[idx];
     const code = resp.getResponseCode();
     if (code < 200 || code >= 300) {
@@ -142,6 +172,7 @@ function iaReadKelompokTablesParallel_(sheetNames, kelompokId) {
     if (body.nextPageToken) {
       rows = firestoreListCollection_('kelompok/' + kelompokId + '/' + name);
     }
+    iaKelompokTableCachePut_(name, kelompokId, rows);
     result[name] = rows;
   });
 

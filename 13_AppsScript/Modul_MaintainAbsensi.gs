@@ -33,11 +33,12 @@ function serverGetAbsensiForm(token, kelompokId, tanggal) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
-  // Ambil santri di kelompok ini
-  const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
-
-  // Ambil absensi existing untuk tanggal ini
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI).filter(a => tanggalKeString_(a.tanggal) === tanggal);
+  // Di-scope 1 kelompok (santri lewat cache, Modul_InputAbsen.gs) + 1
+  // tanggal (Modul_InputAbsen.gs) -- bukan readSheetAsObjects generik yg
+  // baca SEMUA 18 kelompok (analisis performa 2026-08-06, kuota Firestore).
+  const santriData = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId);
+  const santriIds = santriData.map(function (s) { return s.id; });
+  const absensiData = iaReadAbsensiKelompokRange_(kelompokId, santriIds, tanggal, tanggal);
   const absensiMap = {};
   absensiData.forEach(a => {
     absensiMap[a.santri_id] = a.status;

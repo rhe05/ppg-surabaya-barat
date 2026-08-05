@@ -76,6 +76,41 @@ const FIRESTORE_KELOMPOK_TABLES_ = {
   absensi: ['1'], // Kelp Petemon — data lama sudah disalin (7 baris, 0 error, 2026-07-28)
 };
 
+/**
+ * Kunci CacheService (ScriptCache, dibagi SEMUA eksekusi/pengguna) utk
+ * tabel MASTER/REFERENSI per-kelompok yang dibaca lewat iaReadKelompokTable_/
+ * iaReadKelompokTablesParallel_ (Modul_InputAbsen.gs) — dipakai 20+ fungsi
+ * mobile guru (Dashboard/Kelas/Riwayat/Jurnal/Laporan) yang sebelumnya SELALU
+ * baca Firestore fresh tiap panggilan, walau datanya jarang berubah dalam
+ * hitungan menit (analisis performa 2026-08-06, setelah kuota Firestore
+ * harian habis). `santri`/`guru` SENGAJA pakai key yang SAMA dgn cache lama
+ * di Modul_MaintainSantri.gs/Modul_MaintainGuru.gs (`santri_k<id>`/
+ * `guru_k<id>`) supaya invalidasi yang sudah ada di situ (tiap Add/Update/
+ * Delete/BulkImport) otomatis ikut membersihkan cache di sini juga — TIDAK
+ * ADA 2 cache terpisah yang bisa tidak sinkron. `absensi` SENGAJA TIDAK ada
+ * di sini — data transaksional yang ditulis tiap hari, guru mengharapkan
+ * Dashboard langsung update setelah Simpan (lihat ERROR_LOG.md #30), risiko
+ * data "telat muncul" lebih besar dari manfaat cache-nya; query absensi
+ * sendiri sudah di-scope tanggal (opsi B, 2026-08-05) jadi biayanya sudah
+ * rendah tanpa cache.
+ */
+const IA_KELOMPOK_TABLE_CACHE_KEY_ = {
+  santri: function (kelompokId) { return 'santri_k' + kelompokId; },
+  guru: function (kelompokId) { return 'guru_k' + kelompokId; },
+  jadwal_kbm: function (kelompokId) { return 'jadwalkbm_k' + kelompokId; },
+  jadwal_kategori_hari: function (kelompokId) { return 'jadwalkategorihari_k' + kelompokId; },
+};
+
+/** TTL cache tabel master (detik) — samakan dgn cache santri/guru lama. */
+const IA_KELOMPOK_TABLE_CACHE_TTL_ = 300;
+
+/** Simpan hasil baca 1 tabel master ke cache, kalau tabel itu ada di daftar
+    IA_KELOMPOK_TABLE_CACHE_KEY_ (no-op kalau tidak, mis. absensi). */
+function iaKelompokTableCachePut_(sheetName, kelompokId, rows) {
+  const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[sheetName];
+  if (keyFn) cachePut_(keyFn(kelompokId), rows, IA_KELOMPOK_TABLE_CACHE_TTL_);
+}
+
 function isKelompokTableOnFirestore_(tableName, kelompokId) {
   const list = FIRESTORE_KELOMPOK_TABLES_[tableName];
   return !!list && list.indexOf(String(kelompokId)) !== -1;
