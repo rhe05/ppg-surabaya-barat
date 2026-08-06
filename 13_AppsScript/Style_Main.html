@@ -5170,15 +5170,6 @@
       color: var(--teal);
     }
 
-    .ia-filter-panel {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 14px;
-      margin-bottom: 14px;
-      box-shadow: var(--shadow-card);
-    }
-
     .ia-filter-panel-row {
       display: flex;
       gap: 10px;
@@ -5193,12 +5184,6 @@
       font-weight: 700;
       color: var(--text-dim);
       margin-bottom: 5px;
-    }
-
-    .ia-filter-panel-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
     }
 
     .ia-dashboard-cards {
@@ -5287,16 +5272,25 @@
     }
 
     .ia-dash-stat.hadir .ia-dash-stat-num { color: var(--sage); }
-    .ia-dash-stat.hariaktif .ia-dash-stat-num { color: var(--teal); }
     .ia-dash-stat.izin .ia-dash-stat-num { color: var(--indigo); }
     .ia-dash-stat.sakit .ia-dash-stat-num { color: #B45309; }
     .ia-dash-stat.alpa .ia-dash-stat-num { color: var(--red); }
 
-    .ia-dash-stat.hariaktif .ia-dash-stat-percent { background: rgba(13, 148, 136, 0.12); color: var(--teal); }
     .ia-dash-stat.hadir .ia-dash-stat-percent { background: rgba(5, 150, 105, 0.12); color: var(--sage); }
     .ia-dash-stat.izin .ia-dash-stat-percent { background: rgba(79, 70, 229, 0.12); color: var(--indigo); }
     .ia-dash-stat.sakit .ia-dash-stat-percent { background: rgba(180, 83, 9, 0.12); color: #B45309; }
     .ia-dash-stat.alpa .ia-dash-stat-percent { background: rgba(220, 38, 38, 0.12); color: var(--red); }
+
+    /* Hari Aktif — SENGAJA dibedakan dari 4 stat lain (kartu solid gradasi
+       teal, bukan cuma tint pill spt sebelumnya) krn ini info struktural
+       (jumlah sesi kelas), bukan status kehadiran spt hadir/izin/sakit/alpa.
+       Gradasi 2-tingkat + shadow tint tipis = kesan premium tanpa neon/norak. */
+    .ia-dash-stat.hariaktif {
+      background: linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%);
+      box-shadow: 0 4px 14px rgba(13, 148, 136, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+    }
+    .ia-dash-stat.hariaktif .ia-dash-stat-num { color: #FFFFFF; }
+    .ia-dash-stat.hariaktif .ia-dash-stat-label { color: rgba(255, 255, 255, 0.85); }
 
     .ia-dash-empty {
       text-align: center;
@@ -5787,6 +5781,61 @@
     @media (min-width: 480px) {
       .ia-kg-overlay { align-items: center; padding: 24px; }
       .ia-kg-modal { border-radius: 26px; max-height: 86vh; animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1); }
+    }
+
+    /* Popup "Pilih Kelas" Input Absen (Kehadiran → Input Kehadiran) SENGAJA
+       di-tengah-kan di HP juga (beda dari popup pilih-kelas lain yang masih
+       bottom-sheet) — override khusus by-ID, TIDAK mengubah `.ia-kg-overlay`
+       generik supaya Riwayat Kelas/Filter Riwayat/Jurnal tidak ikut berubah. */
+    #iaKelasGateOverlay {
+      align-items: center;
+      padding: 24px;
+    }
+    #iaKelasGateOverlay .ia-kg-modal {
+      border-radius: 26px;
+      max-height: 86vh;
+      animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Popup "Pilih Kelas" Riwayat Kehadiran (Kehadiran → Riwayat Kehadiran)
+       SENGAJA di-tengah-kan di HP juga, pola SAMA PERSIS override di atas —
+       khusus by-ID, TIDAK mengubah `.ia-kg-overlay` generik supaya Input
+       Kehadiran/Filter Riwayat/Jurnal tidak ikut berubah. */
+    #iaRiwayatKelasGateOverlay {
+      align-items: center;
+      padding: 24px;
+    }
+    #iaRiwayatKelasGateOverlay .ia-kg-modal {
+      border-radius: 26px;
+      max-height: 86vh;
+      animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Popup Filter Riwayat (Riwayat Kehadiran → Filter Riwayat) SENGAJA
+       di-tengah-kan di HP juga, pola SAMA PERSIS 2 override di atas —
+       khusus by-ID, TIDAK mengubah `.ia-kg-overlay` generik supaya popup
+       pilih-kelas lain/Jurnal tidak ikut berubah. */
+    #iaRiwayatFilterOverlay {
+      align-items: center;
+      padding: 24px;
+    }
+    #iaRiwayatFilterOverlay .ia-kg-modal {
+      border-radius: 26px;
+      max-height: 86vh;
+      animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Popup Filter Dashboard Kehadiran (Dashboard → Bulan-Tahun) SENGAJA
+       di-tengah-kan di HP juga, konsep SAMA PERSIS popup Filter Riwayat di
+       atas — khusus by-ID, TIDAK mengubah `.ia-kg-overlay` generik. */
+    #iaFilterOverlay {
+      align-items: center;
+      padding: 24px;
+    }
+    #iaFilterOverlay .ia-kg-modal {
+      border-radius: 26px;
+      max-height: 86vh;
+      animation: iaStatusModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     @keyframes iaKgModalUp {

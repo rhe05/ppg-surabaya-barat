@@ -263,7 +263,22 @@
       </button>
     </div>
 
-    <div class="ia-filter-panel" id="iaFilterPanel" style="display:none;">
+    <div class="ia-dashboard-cards" id="iaDashboardCards"></div>
+  </div>
+
+  <!-- Popup filter Bulan/Tahun Dashboard Kehadiran (kartu tengah, konsep SAMA
+       PERSIS popup Filter Riwayat -- kartu tengah layar hyper premium). -->
+  <div class="ia-kg-overlay" id="iaFilterOverlay" style="display:none;">
+    <div class="ia-kg-modal">
+      <button type="button" class="ia-riwayat-filter-close-btn" onclick="window.iaCloseFilterOverlay_()" aria-label="Tutup">×</button>
+      <div class="ia-kg-modal-header">
+        <div class="ia-kg-modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </div>
+        <div class="ia-kg-modal-title">Filter Dashboard</div>
+        <div class="ia-kg-modal-subtitle">Pilih Bulan dan Tahun untuk melihat ringkasan kehadiran.</div>
+      </div>
+
       <div class="ia-filter-panel-row">
         <div class="ia-filter-field">
           <label class="ia-filter-label">Bulan</label>
@@ -274,13 +289,11 @@
           <select class="form-select" id="iaFilterTahun"></select>
         </div>
       </div>
-      <div class="ia-filter-panel-actions">
-        <button type="button" class="btn btn-secondary" onclick="window.iaResetFilter_()">Reset</button>
-        <button type="button" class="btn btn-primary" onclick="window.iaApplyFilter_()">Terapkan</button>
+
+      <div class="ia-kg-footer">
+        <button type="button" class="ia-kg-masuk-btn" onclick="window.iaApplyFilter_()">Terapkan</button>
       </div>
     </div>
-
-    <div class="ia-dashboard-cards" id="iaDashboardCards"></div>
   </div>
 
   <div class="ia-kelas-view" id="iaKelasView" style="display:none;">

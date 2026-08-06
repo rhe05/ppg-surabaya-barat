@@ -1806,16 +1806,12 @@
   };
 
   window.iaToggleFilterPanel_ = function () {
-    const panel = document.getElementById('iaFilterPanel');
-    const opening = panel.style.display !== 'block';
-    if (opening) window.iaPopulateFilterBulanTahun_();
-    panel.style.display = opening ? 'block' : 'none';
+    window.iaPopulateFilterBulanTahun_();
+    document.getElementById('iaFilterOverlay').style.display = 'flex';
   };
 
-  window.iaResetFilter_ = function () {
-    window.iaState_.dashboardFilter = window.iaCurrentMonthFilter_();
-    document.getElementById('iaFilterPanel').style.display = 'none';
-    window.iaLoadDashboardSummary_();
+  window.iaCloseFilterOverlay_ = function () {
+    document.getElementById('iaFilterOverlay').style.display = 'none';
   };
 
   window.iaApplyFilter_ = function () {
@@ -1827,7 +1823,7 @@
     const selesai = tahun + '-' + pad(bulan) + '-' + pad(lastDay);
 
     window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai, bulan: bulan, tahun: tahun };
-    document.getElementById('iaFilterPanel').style.display = 'none';
+    window.iaCloseFilterOverlay_();
     window.iaLoadDashboardSummary_();
   };
 
@@ -1857,7 +1853,7 @@
           <div class="ia-dash-stat-row">
             <div class="ia-dash-stat hariaktif">
               <span class="ia-dash-stat-num">${item.hariAktif}</span>
-              <span class="ia-dash-stat-percent">HARI</span>
+              <span class="ia-dash-stat-label">HARI</span>
               <span class="ia-dash-stat-label">AKTIF</span>
             </div>
             <div class="ia-dash-stat hadir">
