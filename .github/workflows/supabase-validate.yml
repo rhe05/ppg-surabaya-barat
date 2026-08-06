@@ -1,0 +1,132 @@
+name: Supabase Validate (Blueprint)
+
+# ============================================================================
+# CI/CD BLUEPRINT — Migration 004, Phase 2 (Development Foundation)
+# ============================================================================
+# Status: VALIDATION ONLY. No schema deployment, no database write, ever.
+#
+# This workflow intentionally does NOT deploy anything. It exists to:
+#   1. Give the team an immediately-usable, safe validation pipeline.
+#   2. Document, in working YAML rather than prose, where a future deployment
+#      step would eventually be wired in (see the commented-out "deploy" job
+#      at the bottom) — that job must stay disabled until Migration 004's
+#      Task 6/7/8 (Loading/Verification/Recovery) engine actually exists and
+#      the required GitHub Secrets are confirmed present.
+#
+# Reference: docs/architecture/MAS.md §17 (Implementation Guidance) and
+# docs/architecture/Task09_Runbook.md (operational approval-gate discipline).
+# Do not add a real deploy step here without following that runbook.
+# ============================================================================
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '08_Development/tpq-app/supabase/**'
+  workflow_dispatch:
+
+# Hardcode the target project ref rather than accepting it as workflow input —
+# this is a deliberate safety rule (MAS §17 rule 2 in spirit: never let a
+# workflow target an arbitrary/unpinned environment). Only Development exists
+# today; if Staging/Production are created later, this file must be updated
+# explicitly, not parameterized generically.
+env:
+  SUPABASE_PROJECT_ID: fnhqtkqswxsqmjxynldg   # ruang-ngaji-dev (Development) — the ONLY environment that exists
+  TARGET_ENVIRONMENT: development
+
+jobs:
+  environment-guard:
+    name: Confirm target environment is Development
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assert environment is development
+        run: |
+          if [ "$TARGET_ENVIRONMENT" != "development" ]; then
+            echo "::error::This workflow must only ever target the Development environment. Refusing to continue."
+            exit 1
+          fi
+          echo "Target environment confirmed: $TARGET_ENVIRONMENT ($SUPABASE_PROJECT_ID)"
+
+  validate-structure:
+    name: Validate Supabase local structure
+    runs-on: ubuntu-latest
+    needs: environment-guard
+    defaults:
+      run:
+        working-directory: 08_Development/tpq-app
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Confirm required Supabase scaffold exists
+        run: |
+          test -f supabase/config.toml || { echo "::error::supabase/config.toml missing"; exit 1; }
+          test -d supabase/migrations || { echo "::error::supabase/migrations/ missing"; exit 1; }
+          echo "Supabase scaffold present."
+
+  migration-check:
+    name: Migration history check (read-only)
+    runs-on: ubuntu-latest
+    needs: validate-structure
+    defaults:
+      run:
+        working-directory: 08_Development/tpq-app
+    # This job requires SUPABASE_ACCESS_TOKEN + SUPABASE_DB_PASSWORD to be
+    # configured as repo secrets. It will fail loudly (not silently skip) if
+    # they are missing — that failure is the intended signal that secrets
+    # still need to be set up, per the Development Foundation Report.
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link project (read-only credential use, no writes)
+        run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+      - name: List migrations (local vs. remote comparison, READ-ONLY)
+        run: supabase migration list
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
+  # --------------------------------------------------------------------------
+  # FUTURE DEPLOYMENT HOOK — DO NOT ENABLE YET.
+  #
+  # This job is intentionally left commented out. It is a placeholder showing
+  # where a real `supabase db push` deployment step would eventually go, once:
+  #   1. Migration 004's Load/Verify/Recovery stages (Tasks 6-8) have an actual
+  #      implementation, not just approved architecture.
+  #   2. All 6 required GitHub Secrets are confirmed configured.
+  #   3. Task 9's operational approval-gate process has signed off on enabling
+  #      automated deployment (this is a governance decision, not a technical
+  #      one — see Task09_Runbook.md §6 Go/No-Go Decision Framework).
+  #
+  # deploy:
+  #   name: Deploy migrations to Supabase (Development)
+  #   runs-on: ubuntu-latest
+  #   needs: migration-check
+  #   if: github.ref == 'refs/heads/main'
+  #   defaults:
+  #     run:
+  #       working-directory: 08_Development/tpq-app
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #     - uses: supabase/setup-cli@v1
+  #       with:
+  #         version: latest
+  #     - run: supabase link --project-ref "$SUPABASE_PROJECT_ID"
+  #       env:
+  #         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  #         SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+  #     - run: supabase db push
+  #       env:
+  #         SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+  #         SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+  # --------------------------------------------------------------------------

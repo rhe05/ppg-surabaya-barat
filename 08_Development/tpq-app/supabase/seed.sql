@@ -1,0 +1,2 @@
+-- Seed data for local Supabase development.
+-- Intentionally empty as of Architecture Freeze (Phase 1). No seed data generated yet.
