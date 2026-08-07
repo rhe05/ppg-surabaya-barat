@@ -5351,6 +5351,17 @@
        kapital berjarak huruf, angka besar tabular-nums. Aksen warna beda tiap
        kartu TAPI selalu lewat tint rgba() lembut (BUKAN warna solid penuh) --
        kesan premium tanpa norak. */
+    /* Wrapper sticky supaya 7 kartu KPI Admin Kelp tetap terlihat (freeze)
+       saat kartu per kelas di bawahnya di-scroll -- background solid supaya
+       konten yang lewat di baliknya tidak tembus pandang. */
+    .ia-kpi-hero-sticky-wrap {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: var(--bg);
+      padding-top: 2px;
+    }
+
     .ia-kpi-hero-row {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
