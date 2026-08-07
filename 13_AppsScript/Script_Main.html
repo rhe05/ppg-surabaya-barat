@@ -6248,7 +6248,7 @@
       <div class="lps-detail-table-wrap">
         <table class="lps-detail-table">
           <thead><tr><th>Nama</th><th>Hari Aktif</th><th>Kehadiran</th><th>Izin</th><th>Alfa</th><th>Sakit</th></tr></thead>
-          <tbody>${rowsHtml || '<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:20px;">Belum ada santri di kelas guru ini.</td></tr>'}</tbody>
+          <tbody>${rowsHtml || '<tr><td colspan="6" style="text-align:center;color:#000;padding:20px;">Belum ada santri di kelas guru ini.</td></tr>'}</tbody>
         </table>
       </div>
     `;
@@ -6372,10 +6372,10 @@
     // ⚠️ 2026-07-30: nilai fontSize/warna di bawah SENGAJA disamakan literal
     // dgn CSS layar (.lps-header-title/.lps-info-row/.lps-metric-*/
     // .lps-detail-table di Style_Main.html) — kalau CSS itu diubah, samakan
-    // juga di sini supaya PDF tetap match tampilan web. `--text-faint`
-    // (#94A3B8) dan `--panel-2` (#F9FAFB) adalah warna resmi tema, JANGAN
-    // pakai hex lain (mis. #64748B/#F8FAFC) walau kelihatan mirip.
-    const LPS_PDF_FAINT_ = '#94A3B8';
+    // juga di sini supaya PDF tetap match tampilan web. `--panel-2`
+    // (#F9FAFB) adalah warna resmi tema, JANGAN pakai hex lain (mis.
+    // #F8FAFC) walau kelihatan mirip. Label/subtext kartu metrik & header
+    // tabel diganti HITAM (#000000) 2026-08-08, sebelumnya abu-abu faint.
     const LPS_PDF_PANEL2_ = '#F9FAFB';
     const LPS_PDF_BORDER_ = '#E2E8F0';
 
@@ -6427,9 +6427,9 @@
             widths: ['*'],
             body: [[{
               stack: [
-                { text: mc.label, fontSize: 9, bold: true, color: LPS_PDF_FAINT_, margin: [0, 5, 0, 7] },
+                { text: mc.label, fontSize: 9, bold: true, color: '#000000', margin: [0, 5, 0, 7] },
                 { text: mc.value, fontSize: 26, bold: true, color: mc.color },
-                { text: mc.sub, fontSize: 9.5, color: LPS_PDF_FAINT_, margin: [0, 5, 0, 5] },
+                { text: mc.sub, fontSize: 9.5, color: '#000000', margin: [0, 5, 0, 5] },
               ],
             }]],
           },
@@ -6457,12 +6457,12 @@
         headerRows: 1,
         widths: ['*', 'auto', 'auto', 'auto', 'auto', 'auto'],
         body: [[
-          { text: 'NAMA', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'HARI AKTIF', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'KEHADIRAN', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'IZIN', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'ALFA', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
-          { text: 'SAKIT', bold: true, fontSize: 10.5, color: LPS_PDF_FAINT_ },
+          { text: 'NAMA', bold: true, fontSize: 10.5, color: '#000000' },
+          { text: 'HARI AKTIF', bold: true, fontSize: 10.5, color: '#000000' },
+          { text: 'KEHADIRAN', bold: true, fontSize: 10.5, color: '#000000' },
+          { text: 'IZIN', bold: true, fontSize: 10.5, color: '#000000' },
+          { text: 'ALFA', bold: true, fontSize: 10.5, color: '#000000' },
+          { text: 'SAKIT', bold: true, fontSize: 10.5, color: '#000000' },
         ]].concat(data.santriDetail.map(function (s) {
           return [
             { text: s.nama, fontSize: 12 },
