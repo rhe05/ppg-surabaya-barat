@@ -12,10 +12,16 @@
 /**
  * GET daftar file dengan filter kategori dan search.
  * Return: [{id, kategori, nama_file, deskripsi, url, ukuran_kb, pembuat, tanggal_upload}]
+ * Cache 180dtk per (kategori, searchQuery) — Pusat Unduhan jarang berubah
+ * (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetFilesList(token, kategori = '', searchQuery = '') {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'pustakunduhan_list_' + kategori + '_' + searchQuery;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   let fileData = readSheetAsObjects(SHEET_NAMES.FILES);
 
@@ -35,10 +41,11 @@ function serverGetFilesList(token, kategori = '', searchQuery = '') {
 
   // Get user data untuk pembuat nama
   const usersData = readSheetAsObjects(SHEET_NAMES.USERS);
+  const usersById = new Map(usersData.map(u => [String(u.id), u]));
 
   // Transform data
   const result = fileData.map(f => {
-    const pembuat = usersData.find(u => u.id == f.dibuat_oleh);
+    const pembuat = usersById.get(String(f.dibuat_oleh));
     const ukuranKb = Math.round(f.ukuran_bytes / 1024);
 
     return {
@@ -57,7 +64,9 @@ function serverGetFilesList(token, kategori = '', searchQuery = '') {
   // Sort by tanggal_upload DESC (newest first)
   result.sort((a, b) => new Date(b.tanggal_upload) - new Date(a.tanggal_upload));
 
-  return { success: true, data: result };
+  const finalResult = { success: true, data: result };
+  cachePut_(cacheKey, finalResult, 180);
+  return finalResult;
 }
 
 /**
@@ -67,6 +76,9 @@ function serverGetFilesList(token, kategori = '', searchQuery = '') {
 function serverGetFileCategories(token) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cached = cacheGet_('pustakunduhan_categories');
+  if (cached) return cached;
 
   const fileData = readSheetAsObjects(SHEET_NAMES.FILES);
   const categories = {};
@@ -81,7 +93,9 @@ function serverGetFileCategories(token) {
     jumlah,
   }));
 
-  return { success: true, data: result };
+  const finalResult = { success: true, data: result };
+  cachePut_('pustakunduhan_categories', finalResult, 180);
+  return finalResult;
 }
 
 /**
@@ -130,6 +144,7 @@ function serverCreateFile(token, fileData) {
   ]);
 
   logAudit(SHEET_NAMES.FILES, id, 'create', user.id, `File: ${fileData.nama_file} (${fileData.kategori})`);
+  cacheDrop_('pustakunduhan_categories');
 
   return { success: true, message: 'File berhasil ditambahkan ke Pusat Unduhan.', id };
 }
@@ -155,6 +170,7 @@ function serverDeleteFile(token, fileId) {
 
   deleteRowByQuery(SHEET_NAMES.FILES, { id: fileId });
   logAudit(SHEET_NAMES.FILES, fileId, 'delete', user.id, `File deleted: ${fileData.nama_file}`);
+  cacheDrop_('pustakunduhan_categories');
 
   return { success: true, message: 'File berhasil dihapus dari Pusat Unduhan.' };
 }

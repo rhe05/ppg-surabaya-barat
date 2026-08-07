@@ -31,10 +31,19 @@ function serverGetPeriodeMunaqosah(token) {
  * GET daftar penilaian dengan filter.
  * Filters: periodeId, kelompokId, desaId, bulan, tahun, status
  * Return: [{santri_id, nama, kelas, nilai, status, dinilai_pada, kelompok_nama}]
+ *
+ * Cache 90dtk per (periodeId, filters, role, scopeId) — TTL pendek (bukan
+ * invalidasi eksplisit tiap Create/Update/Delete) krn kombinasi filter bisa
+ * sangat banyak, sama pola dgn serverGetDashboardBundle (audit performa
+ * 2026-08-07, Sprint 2).
  */
 function serverGetMunaqosahList(token, periodeId, filters = {}) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'munaqosah_list_' + periodeId + '_' + JSON.stringify(filters) + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   // RBAC: Tentukan scope akses
   let accessibleKelompokIds = [];
@@ -61,6 +70,10 @@ function serverGetMunaqosahList(token, periodeId, filters = {}) {
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
+  // Map lookup O(1) (bukan .find() di dalam .map()) -- key di-String()-kan
+  // krn kode asli pakai `==` longgar (audit performa 2026-08-07, Sprint 2).
+  const kelompokById = new Map(kelompokData.map(k => [String(k.id), k]));
+  const desaById = new Map(desaData.map(d => [String(d.id), d]));
 
   // Filter berdasarkan RBAC
   const santriByKelompok = {};
@@ -81,8 +94,8 @@ function serverGetMunaqosahList(token, periodeId, filters = {}) {
   // Join dengan santri data
   result = result.map(m => {
     const santri = santriByKelompok[m.santri_id];
-    const kelompok = kelompokData.find(k => k.id == santri.kelompok_id);
-    const desa = desaData.find(d => d.id == kelompok.desa_id);
+    const kelompok = kelompokById.get(String(santri.kelompok_id));
+    const desa = desaById.get(String(kelompok.desa_id));
 
     return {
       id: m.id,
@@ -102,7 +115,9 @@ function serverGetMunaqosahList(token, periodeId, filters = {}) {
   // Sort by nama
   result.sort((a, b) => a.nama.localeCompare(b.nama));
 
-  return { success: true, data: result, total: result.length };
+  const finalResult = { success: true, data: result, total: result.length };
+  cachePut_(cacheKey, finalResult, 90);
+  return finalResult;
 }
 
 /**
@@ -266,10 +281,16 @@ function serverDeleteMunaqosah(token, munaqosahId) {
 /**
  * GET santri teladan (nilai >= minScore, default 90).
  * Return: [{santri_id, nama, nilai, kelas, kelompok_nama}] sorted by nilai DESC
+ * Cache 90dtk per (periodeId, minScore, role, scopeId) — TTL pendek, pola
+ * sama serverGetMunaqosahList (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetSantriTeladan(token, periodeId, minScore = 90) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'munaqosah_teladan_' + periodeId + '_' + minScore + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   // RBAC: Tentukan scope akses
   let accessibleKelompokIds = [];
@@ -290,15 +311,19 @@ function serverGetSantriTeladan(token, periodeId, minScore = 90) {
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
+  // Map lookup O(1) (bukan .find() dipanggil 2x per baris di filter+map) --
+  // key di-String()-kan krn kode asli pakai `==` longgar.
+  const santriById = new Map(santriData.map(s => [String(s.id), s]));
+  const kelompokById = new Map(kelompokData.map(k => [String(k.id), k]));
 
   const result = munaqosahData
     .filter(m => {
-      const santri = santriData.find(s => s.id == m.santri_id);
+      const santri = santriById.get(String(m.santri_id));
       return santri && accessibleKelompokIds.includes(Number(santri.kelompok_id));
     })
     .map(m => {
-      const santri = santriData.find(s => s.id == m.santri_id);
-      const kelompok = kelompokData.find(k => k.id == santri.kelompok_id);
+      const santri = santriById.get(String(m.santri_id));
+      const kelompok = kelompokById.get(String(santri.kelompok_id));
       return {
         santri_id: m.santri_id,
         nama: santri.nama,
@@ -309,16 +334,24 @@ function serverGetSantriTeladan(token, periodeId, minScore = 90) {
     })
     .sort((a, b) => b.nilai - a.nilai);
 
-  return { success: true, data: result, total: result.length };
+  const finalResult = { success: true, data: result, total: result.length };
+  cachePut_(cacheKey, finalResult, 90);
+  return finalResult;
 }
 
 /**
  * GET statistik munaqosah untuk chart/reporting.
  * Return: {sudah_dinilai, belum_dinilai, avg_nilai, distribution_by_kelas}
+ * Cache 90dtk per (periodeId, filters, role, scopeId) — pola sama
+ * serverGetMunaqosahList (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetMunaqosahStats(token, periodeId, filters = {}) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'munaqosah_stats_' + periodeId + '_' + JSON.stringify(filters) + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   // RBAC: Tentukan scope akses
   let accessibleKelompokIds = [];
@@ -336,10 +369,11 @@ function serverGetMunaqosahStats(token, periodeId, filters = {}) {
     .filter(m => m.periode_id == periodeId);
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
+  const santriById = new Map(santriData.map(s => [String(s.id), s]));
 
   // Filter by accessible kelompok
   const filteredMunaqosah = munaqosahData.filter(m => {
-    const santri = santriData.find(s => s.id == m.santri_id);
+    const santri = santriById.get(String(m.santri_id));
     return santri && accessibleKelompokIds.includes(Number(santri.kelompok_id));
   });
 
@@ -356,7 +390,7 @@ function serverGetMunaqosahStats(token, periodeId, filters = {}) {
     distribution[kelas] = (distribution[kelas] || 0) + 1;
   });
 
-  return {
+  const finalResult = {
     success: true,
     data: {
       sudah_dinilai: sudahDinilai,
@@ -366,6 +400,8 @@ function serverGetMunaqosahStats(token, periodeId, filters = {}) {
       distribution_by_kelas: distribution,
     },
   };
+  cachePut_(cacheKey, finalResult, 90);
+  return finalResult;
 }
 
 /**

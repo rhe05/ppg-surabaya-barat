@@ -12,10 +12,18 @@
  * GET daftar pencatatan konseling dengan filter.
  * Filters: santri_id, kelompok_id, kategori, status, from_date, to_date
  * Return: [{id, tanggal, santri_nama, kategori, masalah, status, pencatat_nama}]
+ *
+ * Cache 90dtk per (filters, role, scopeId) — TTL pendek, pola sama
+ * serverGetDashboardBundle/serverGetMunaqosahList (audit performa
+ * 2026-08-07, Sprint 2).
  */
 function serverGetKonselingList(token, filters = {}) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'konseling_list_' + JSON.stringify(filters) + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   // RBAC: Tentukan scope akses
   let accessibleKelompokIds = [];
@@ -58,10 +66,15 @@ function serverGetKonselingList(token, filters = {}) {
     konselingData = konselingData.filter(k => k.tanggal <= filters.to_date);
   }
 
+  // Map lookup O(1) (bukan .find() di dalam .map()), key di-String()-kan
+  // krn kode asli pakai `==` longgar (audit performa 2026-08-07, Sprint 2).
+  const santriById = new Map(santriData.map(s => [String(s.id), s]));
+  const usersById = new Map(usersData.map(u => [String(u.id), u]));
+
   // Join dengan santri dan users
   const result = konselingData.map(k => {
-    const santri = santriData.find(s => s.id == k.santri_id);
-    const pencatat = usersData.find(u => u.id == k.pencatat_id);
+    const santri = santriById.get(String(k.santri_id));
+    const pencatat = usersById.get(String(k.pencatat_id));
 
     return {
       id: k.id,
@@ -80,7 +93,9 @@ function serverGetKonselingList(token, filters = {}) {
   // Sort by tanggal DESC (newest first)
   result.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
 
-  return { success: true, data: result, total: result.length };
+  const finalResult = { success: true, data: result, total: result.length };
+  cachePut_(cacheKey, finalResult, 90);
+  return finalResult;
 }
 
 /**
@@ -301,6 +316,10 @@ function serverGetKonselingStats(token, filters = {}) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
+  const cacheKey = 'konseling_stats_' + JSON.stringify(filters) + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
+
   // RBAC: Tentukan scope akses
   let accessibleKelompokIds = [];
   if (user.role === 'admin_ppg') {
@@ -343,7 +362,7 @@ function serverGetKonselingStats(token, filters = {}) {
     distribution_by_month[month] = (distribution_by_month[month] || 0) + 1;
   });
 
-  return {
+  const finalResult = {
     success: true,
     data: {
       total,
@@ -354,6 +373,8 @@ function serverGetKonselingStats(token, filters = {}) {
       distribution_by_month,
     },
   };
+  cachePut_(cacheKey, finalResult, 90);
+  return finalResult;
 }
 
 /**

@@ -43,15 +43,24 @@ function requireGuruContext_(token) {
  * ERROR_LOG.md #20.
  */
 function iaReadKelompokTable_(sheetName, kelompokId) {
-  if (isKelompokTableOnFirestore_(sheetName, kelompokId)) {
-    const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[sheetName];
-    const cached = keyFn ? cacheGet_(keyFn(kelompokId)) : null;
+  // Cek cache DULU terlepas dari sumbernya Firestore atau Sheets --
+  // sebelumnya cache HANYA dicek di cabang Firestore, jadi 17/18 kelompok
+  // yang masih Sheets SELALU baca langsung tanpa cache sama sekali walau
+  // key-nya (IA_KELOMPOK_TABLE_CACHE_KEY_) sudah generik per-kelompok
+  // (audit performa 2026-08-07, Sprint 2).
+  const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[sheetName];
+  const cacheKey = keyFn ? keyFn(kelompokId) : null;
+  if (cacheKey) {
+    const cached = cacheGet_(cacheKey);
     if (cached) return cached;
-    const rows = firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName);
-    iaKelompokTableCachePut_(sheetName, kelompokId, rows);
-    return rows;
   }
-  return readSheetRowsRaw_(sheetName).filter(function (r) { return r.kelompok_id == kelompokId; });
+
+  const rows = isKelompokTableOnFirestore_(sheetName, kelompokId)
+    ? firestoreListCollection_('kelompok/' + kelompokId + '/' + sheetName)
+    : readSheetRowsRaw_(sheetName).filter(function (r) { return r.kelompok_id == kelompokId; });
+
+  iaKelompokTableCachePut_(sheetName, kelompokId, rows);
+  return rows;
 }
 
 /**
@@ -113,9 +122,23 @@ function iaReadKelompokTablesParallel_(sheetNames, kelompokId) {
   sheetNames.forEach(function (name) {
     if (isKelompokTableOnFirestore_(name, kelompokId)) {
       firestoreNames.push(name);
-    } else {
-      result[name] = readSheetRowsRaw_(name).filter(function (r) { return r.kelompok_id == kelompokId; });
+      return;
     }
+    // Tabel master (santri/guru/jadwal_kbm/jadwal_kategori_hari) sumber
+    // Sheets sekarang JUGA dicek cache dulu -- sebelumnya SELALU baca
+    // langsung tanpa cache utk 17/18 kelompok yg belum pindah Firestore
+    // (audit performa 2026-08-07, Sprint 2). `absensi` tidak ada di
+    // IA_KELOMPOK_TABLE_CACHE_KEY_ jadi keyFn null → selalu baca langsung,
+    // TIDAK BERUBAH (sengaja, lihat komentar di atas const-nya).
+    const keyFn = IA_KELOMPOK_TABLE_CACHE_KEY_[name];
+    const cached = keyFn ? cacheGet_(keyFn(kelompokId)) : null;
+    if (cached) {
+      result[name] = cached;
+      return;
+    }
+    const rows = readSheetRowsRaw_(name).filter(function (r) { return r.kelompok_id == kelompokId; });
+    iaKelompokTableCachePut_(name, kelompokId, rows);
+    result[name] = rows;
   });
 
   if (firestoreNames.length === 0) return result;

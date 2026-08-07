@@ -11,10 +11,17 @@
 /**
  * GET daftar event untuk bulan tertentu (untuk calendar view).
  * Return: [{id, tanggal, judul, tipe, pukul_mulai, kelompok_id}]
+ * Cache 180dtk per (tahun, bulan, kelompokId, role, scopeId) — kalender
+ * akademik jarang berubah dalam hitungan menit (audit performa 2026-08-07,
+ * Sprint 2).
  */
 function serverGetCalendarEvents(token, tahun, bulan, kelompokId = null) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'kalender_events_' + tahun + '_' + bulan + '_' + kelompokId + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   let eventData = readSheetAsObjects(SHEET_NAMES.CALENDAR_EVENTS);
 
@@ -44,7 +51,9 @@ function serverGetCalendarEvents(token, tahun, bulan, kelompokId = null) {
     return (a.pukul_mulai || '').localeCompare(b.pukul_mulai || '');
   });
 
-  return { success: true, data: eventData };
+  const result = { success: true, data: eventData };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
@@ -196,6 +205,10 @@ function serverGetCalendarEventSummary(token, tahun, bulan, kelompokId = null) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
+  const cacheKey = 'kalender_summary_' + tahun + '_' + bulan + '_' + kelompokId + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
+
   let eventData = readSheetAsObjects(SHEET_NAMES.CALENDAR_EVENTS);
 
   // RBAC
@@ -226,11 +239,13 @@ function serverGetCalendarEventSummary(token, tahun, bulan, kelompokId = null) {
     libur: eventData.filter(e => e.tipe_event === 'libur').length,
   };
 
-  return {
+  const result = {
     success: true,
     data: {
       total_events: eventData.length,
       by_type: byType,
     },
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }

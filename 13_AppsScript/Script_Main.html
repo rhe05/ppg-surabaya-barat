@@ -5335,7 +5335,7 @@
      Peta layar -> fungsi pemuat datanya, dipakai window.hardRefresh_ agar user
      tetap berada di layar yang sama setelah refresh. */
   window.SCREEN_LOADERS_ = {
-    screenDashboard: function () { window.loadDashboard(); },
+    screenDashboard: function () { window.loadDashboard(true); },
     screenSantri: function () { window.loadSantriList(); },
     screenGuru: function () { window.loadGuruList(); },
     screenMunaqosah: function () { window.loadMunaqosahScreen(); },
@@ -8139,9 +8139,11 @@
     if (screenName === 'userManagement') window.loadUserManagement();
   };
 
-  window.loadDashboard = function () {
+  window.loadDashboard = function (forceFresh) {
     // 1 panggilan gabungan (KPI + breakdown Desa + Santri Teladan) — sebelumnya
     // 3 panggilan terpisah yang masing-masing baca ulang tabel yang sama.
+    // forceFresh (dipakai tombol Refresh global, lihat SCREEN_LOADERS_ di
+    // bawah) menembus cache 90dtk server (Sprint 2).
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result.success) return;
@@ -8168,7 +8170,7 @@
 
         window.renderSantriTeladanTable(result.santriTeladan);
       })
-      .serverGetDashboardBundle();
+      .serverGetDashboardBundle(!!forceFresh);
   };
 
   window.loadSantriList = function () {

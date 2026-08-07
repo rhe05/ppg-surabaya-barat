@@ -26,10 +26,12 @@
  * di tiap titik mutasi absensi/santri/guru/munaqosah/akhlaq (banyak file,
  * risiko ada yg terlewat) — 90dtk cukup basi utk tidak kerasa "nyangkut",
  * cukup kecil utk hemat baca berkali-kali dlm sesi yg sama (audit performa
- * 2026-08-07, Sprint 1).
+ * 2026-08-07, Sprint 1). `forceFresh` (dipakai tombol Refresh global,
+ * window.hardRefresh_ -> SCREEN_LOADERS_.screenDashboard, Sprint 2) menembus
+ * cache -- pola sama `serverGetSantriList`/`serverGetGuruList`.
  */
-function serverGetDashboardBundle() {
-  const cached = cacheGet_('dashboard_bundle');
+function serverGetDashboardBundle(forceFresh) {
+  const cached = forceFresh ? null : cacheGet_('dashboard_bundle');
   if (cached) return cached;
 
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);

@@ -5,6 +5,9 @@
 
 /**
  * GET attendance trend (weekly): attendance % per minggu
+ * Cache 180dtk per (kelompokId, days) — tab Statistik dibaca ulang tiap buka
+ * tab/ganti sub-tab TANPA cache sebelumnya, padahal `absensi` dibaca PENUH
+ * tiap panggilan (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetAttendanceTrend(token, kelompokId, days = 90) {
   const user = getCurrentUser(token);
@@ -13,6 +16,10 @@ function serverGetAttendanceTrend(token, kelompokId, days = 90) {
   if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
+
+  const cacheKey = 'stats_trend_' + kelompokId + '_' + days;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
@@ -50,19 +57,27 @@ function serverGetAttendanceTrend(token, kelompokId, days = 90) {
       percent: Math.round((data.hadir / data.total) * 100)
     }));
 
-  return {
+  const result = {
     success: true,
     data: trend
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
  * GET attendance rate per kelompok (untuk ranking/comparison)
  * Note: Untuk admin PPG, show semua kelompok; untuk admin kelompok, show hanya kelompok mereka
+ * Cache 180dtk per (days, role, scopeId) — hasil akhir sudah terfilter RBAC,
+ * jadi aman di-cache per identitas user (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetAttendanceByKelompok(token, days = 30) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  const cacheKey = 'stats_bykelompok_' + days + '_' + user.role + '_' + user.scopeId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
@@ -103,14 +118,17 @@ function serverGetAttendanceByKelompok(token, days = 30) {
   // Sort by percent descending
   results.sort((a, b) => b.percent - a.percent);
 
-  return {
+  const result = {
     success: true,
     data: results
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
  * GET santri demographics (gender distribution, per jenjang)
+ * Cache 180dtk per kelompokId (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetSantriDemographics(token, kelompokId) {
   const user = getCurrentUser(token);
@@ -119,6 +137,10 @@ function serverGetSantriDemographics(token, kelompokId) {
   if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
+
+  const cacheKey = 'stats_demografi_' + kelompokId;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const santri = santriData.filter(s => s.kelompok_id == kelompokId);
@@ -137,7 +159,7 @@ function serverGetSantriDemographics(token, kelompokId) {
     jenjangDist[jenjang] = (jenjangDist[jenjang] || 0) + 1;
   });
 
-  return {
+  const result = {
     success: true,
     data: {
       gender: genderDist,
@@ -145,10 +167,13 @@ function serverGetSantriDemographics(token, kelompokId) {
       totalSantri: santri.length
     }
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
  * GET top attendees (santri dengan kehadiran tertinggi bulan ini)
+ * Cache 180dtk per (kelompokId, limit) (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetTopAttendees(token, kelompokId, limit = 10) {
   const user = getCurrentUser(token);
@@ -157,6 +182,10 @@ function serverGetTopAttendees(token, kelompokId, limit = 10) {
   if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
+
+  const cacheKey = 'stats_top_' + kelompokId + '_' + limit;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
@@ -192,14 +221,17 @@ function serverGetTopAttendees(token, kelompokId, limit = 10) {
     .sort((a, b) => b.percent - a.percent)
     .slice(0, limit);
 
-  return {
+  const result = {
     success: true,
     data: results
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
  * GET worst attendees (santri dengan absen terbanyak)
+ * Cache 180dtk per (kelompokId, limit) (audit performa 2026-08-07, Sprint 2).
  */
 function serverGetWorstAttendees(token, kelompokId, limit = 10) {
   const user = getCurrentUser(token);
@@ -208,6 +240,10 @@ function serverGetWorstAttendees(token, kelompokId, limit = 10) {
   if (!validateUserAccess(token, 'kelompok', kelompokId)) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
+
+  const cacheKey = 'stats_worst_' + kelompokId + '_' + limit;
+  const cached = cacheGet_(cacheKey);
+  if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
@@ -244,10 +280,12 @@ function serverGetWorstAttendees(token, kelompokId, limit = 10) {
     .sort((a, b) => a.percent - b.percent)
     .slice(0, limit);
 
-  return {
+  const result = {
     success: true,
     data: results
   };
+  cachePut_(cacheKey, result, 180);
+  return result;
 }
 
 /**
