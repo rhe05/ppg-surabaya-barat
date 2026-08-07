@@ -160,8 +160,16 @@ function readSheetRowsRaw_(sheetName) {
  * baris Firestore utk kelompok yang SUDAH pindah — supaya SEMUA pemanggil
  * yang sudah ada (Laporan, Statistik, Dashboard, Absensi, dst — 40+ titik)
  * tetap dapat data lengkap & benar TANPA perlu diubah satu-satu.
+ *
+ * @param {Array} [preloadedSantriForAbsensi] - HANYA dipakai kalau sheetName
+ *   === SHEET_NAMES.ABSENSI: kalau pemanggil SUDAH punya hasil
+ *   readSheetAsObjects(SANTRI) di scope yang sama, kirim di sini supaya
+ *   fungsi ini TIDAK baca ulang tabel santri PENUH cuma utk bikin peta
+ *   join santri_id→kelompok_id (nested read tersembunyi, audit performa
+ *   2026-08-07, Sprint 3). Opsional — kalau tidak dikirim, perilaku PERSIS
+ *   seperti sebelumnya (baca santri sendiri).
  */
-function readSheetAsObjects(sheetName) {
+function readSheetAsObjects(sheetName, preloadedSantriForAbsensi) {
   if (FIRESTORE_TABLES_.indexOf(sheetName) !== -1) {
     return firestoreListCollection_(sheetName);
   }
@@ -174,7 +182,7 @@ function readSheetAsObjects(sheetName) {
       // lewat join ke santri_id, jadi filter exclude-nya harus lewat peta ini,
       // bukan row.kelompok_id langsung (selalu undefined utk tabel ini).
       const santriKelompokMap_ = {};
-      readSheetAsObjects(SHEET_NAMES.SANTRI).forEach(function (s) {
+      (preloadedSantriForAbsensi || readSheetAsObjects(SHEET_NAMES.SANTRI)).forEach(function (s) {
         santriKelompokMap_[s.id] = String(s.kelompok_id);
       });
       sheetRows = sheetRows.filter(row => kelompokFirestoreList.indexOf(santriKelompokMap_[row.santri_id]) === -1);

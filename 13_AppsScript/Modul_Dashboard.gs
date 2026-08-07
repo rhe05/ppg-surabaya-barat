@@ -37,7 +37,10 @@ function serverGetDashboardBundle(forceFresh) {
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  // santriData dikirim sbg preload -- hindari readSheetAsObjects(ABSENSI)
+  // baca ulang SELURUH tabel santri lagi cuma utk peta join (audit performa
+  // 2026-08-07, Sprint 3).
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
   const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
   const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH);
   const akhlaqData = readSheetAsObjects(SHEET_NAMES.KURIKULUM_AKHLAQ);

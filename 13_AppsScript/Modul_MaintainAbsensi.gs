@@ -90,16 +90,22 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
       count = iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, upsertList, tanggal, user.id);
     });
   } else {
-    const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+    // Baca+filter di-scope 1 kelompok (via santriIds) & 1 tanggal
+    // (iaReadAbsensiKelompokRange_, Modul_InputAbsen.gs) -- BUKAN
+    // readSheetAsObjects(ABSENSI) generik yang baca SELURUH riwayat SEMUA
+    // kelompok (tumbuh terus tanpa batas) DI DALAM lock global, dan
+    // sekalian memicu baca ulang tersembunyi SELURUH tabel santri (lihat
+    // Modul_Utilities.gs readSheetAsObjects cabang absensi+Firestore) --
+    // audit performa 2026-08-07, Sprint 3. Sudah pre-filtered persis
+    // tanggal+santri kelompok ini, jadi forEach di bawah tidak perlu cek
+    // kondisi lagi.
+    const absensiHariIni = iaReadAbsensiKelompokRange_(kelompokId, santriIds, tanggal, tanggal);
     withScriptLock_(function () {
-      // Delete existing absensi untuk tanggal ini (santri di kelompok ini)
-      absensiData.forEach(a => {
-        if (tanggalKeString_(a.tanggal) === tanggal && santriIds.includes(Number(a.santri_id))) {
-          // Hapus by id langsung (bukan query {tanggal}) — deleteRowByQuery mencocokkan
-          // via String(cell), dan cell tanggal di sheet adalah objek Date, bukan string
-          // 'yyyy-MM-dd', jadi query {tanggal} TIDAK PERNAH match (ERROR_LOG.md #8).
-          deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
-        }
+      // Hapus by id langsung (bukan query {tanggal}) — deleteRowByQuery mencocokkan
+      // via String(cell), dan cell tanggal di sheet adalah objek Date, bukan string
+      // 'yyyy-MM-dd', jadi query {tanggal} TIDAK PERNAH match (ERROR_LOG.md #8).
+      absensiHariIni.forEach(a => {
+        deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: a.id });
       });
 
       // Insert baru
@@ -168,8 +174,11 @@ function serverSetAbsensiSatuSantri(token, kelompokId, santriId, tanggal, status
         return { success: true, status: status };
       }
 
-      const existing = readSheetAsObjects(SHEET_NAMES.ABSENSI)
-        .find(function (a) { return String(a.santri_id) === String(santriId) && tanggalKeString_(a.tanggal) === tanggal; });
+      // Di-scope 1 santri & 1 tanggal (iaReadAbsensiKelompokRange_, Modul_InputAbsen.gs)
+      // -- BUKAN readSheetAsObjects(ABSENSI) generik yang baca SELURUH riwayat
+      // semua kelompok cuma untuk cari 1 baris (audit performa 2026-08-07,
+      // Sprint 3).
+      const existing = iaReadAbsensiKelompokRange_(kelompokId, [santriId], tanggal, tanggal)[0] || null;
 
       if (!status) {
         if (existing) deleteRowByQuery(SHEET_NAMES.ABSENSI, { id: existing.id });

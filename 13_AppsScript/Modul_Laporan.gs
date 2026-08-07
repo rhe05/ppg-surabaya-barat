@@ -125,7 +125,9 @@ function serverGetAbsensiSummary(token, kelompokId) {
   }
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  // santriData dikirim sbg preload -- hindari baca ulang tabel santri
+  // (audit performa 2026-08-07, Sprint 3).
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
 
   const santri = santriData.filter(s => s.kelompok_id == kelompokId);
   const santriIds = santri.map(s => s.id);

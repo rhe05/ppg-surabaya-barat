@@ -4174,6 +4174,13 @@
               <tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-faint);">⏳ Memuat...</td></tr>
             </tbody>
           </table>
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 4px 0;">
+            <span style="font-size: 12px; color: var(--text-dim);" id="userMgmtPageInfo"></span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary" id="userMgmtPrevBtn" onclick="window.userMgmtGoPage_(-1)" disabled>‹ Sebelumnya</button>
+              <button class="btn btn-secondary" id="userMgmtNextBtn" onclick="window.userMgmtGoPage_(1)" disabled>Berikutnya ›</button>
+            </div>
+          </div>
         </div>
       </div>
 

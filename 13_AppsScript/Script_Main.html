@@ -9021,7 +9021,17 @@
 
   /* ═════ USER MANAGEMENT FUNCTIONS ═════ */
 
-  window.loadUserManagement = function () {
+  // Pagination (audit performa 2026-08-07, Sprint 3) -- server sudah lama
+  // punya parameter page/limit (serverGetUsersList), tapi client hardcode
+  // "1, 100" (ambil 100 sekaligus tiap kali). Baru relevan kalau user >100,
+  // tapi disambungkan sekarang biar siap.
+  window.userMgmtPage_ = 1;
+  window.userMgmtLimit_ = 50;
+  window.userMgmtTotal_ = 0;
+
+  window.loadUserManagement = function (page) {
+    if (page) window.userMgmtPage_ = page;
+
     // Show User Management menu only for admins
     const menuItem = document.getElementById('menuUserManagement');
     if (window.currentUser && ['admin_ppg', 'admin_desa', 'admin_kelompok'].includes(window.currentUser.role)) {
@@ -9032,12 +9042,28 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (result.success) {
+          window.userMgmtTotal_ = result.total;
           window.renderUserTable(result.data);
+          window.userMgmtUpdatePager_();
         } else {
           showAlert('userMgmtError', result.error, 'error');
         }
       })
-      .serverGetUsersList(window.currentToken, 1, 100);
+      .serverGetUsersList(window.currentToken, window.userMgmtPage_, window.userMgmtLimit_);
+  };
+
+  window.userMgmtGoPage_ = function (delta) {
+    const nextPage = window.userMgmtPage_ + delta;
+    if (nextPage < 1) return;
+    window.loadUserManagement(nextPage);
+  };
+
+  window.userMgmtUpdatePager_ = function () {
+    const totalPages = Math.max(1, Math.ceil(window.userMgmtTotal_ / window.userMgmtLimit_));
+    document.getElementById('userMgmtPageInfo').textContent =
+      `Halaman ${window.userMgmtPage_} dari ${totalPages} (${window.userMgmtTotal_} user)`;
+    document.getElementById('userMgmtPrevBtn').disabled = window.userMgmtPage_ <= 1;
+    document.getElementById('userMgmtNextBtn').disabled = window.userMgmtPage_ >= totalPages;
   };
 
   window.renderUserTable = function (users) {
@@ -9049,6 +9075,7 @@
       return;
     }
 
+    const rowOffset = (window.userMgmtPage_ - 1) * window.userMgmtLimit_;
     users.forEach((user, idx) => {
       const tr = document.createElement('tr');
       const roleLabel = {
@@ -9062,7 +9089,7 @@
       const statusColor = user.status === 'active' ? 'var(--sage)' : 'var(--text-faint)';
 
       tr.innerHTML = `
-        <td>${idx + 1}</td>
+        <td>${rowOffset + idx + 1}</td>
         <td><strong>${user.nama}</strong></td>
         <td><code style="background: var(--panel-2); padding: 2px 6px; border-radius: 3px; font-size: 12px;">${user.username}</code></td>
         <td style="font-size: 12px;">${user.email || '-'}</td>

@@ -22,7 +22,9 @@ function serverGetAttendanceTrend(token, kelompokId, days = 90) {
   if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  // santriData dikirim sbg preload -- hindari baca ulang tabel santri
+  // (audit performa 2026-08-07, Sprint 3).
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
 
   const santri = santriData.filter(s => s.kelompok_id == kelompokId);
   const santriIds = santri.map(s => s.id);
@@ -81,7 +83,7 @@ function serverGetAttendanceByKelompok(token, days = 30) {
 
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
 
   const today = new Date();
   const startDate = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
@@ -188,7 +190,7 @@ function serverGetTopAttendees(token, kelompokId, limit = 10) {
   if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
 
   const santri = santriData.filter(s => s.kelompok_id == kelompokId);
   const santriMap = Object.fromEntries(santri.map(s => [s.id, s]));
@@ -246,7 +248,7 @@ function serverGetWorstAttendees(token, kelompokId, limit = 10) {
   if (cached) return cached;
 
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
-  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI);
+  const absensiData = readSheetAsObjects(SHEET_NAMES.ABSENSI, santriData);
 
   const santri = santriData.filter(s => s.kelompok_id == kelompokId);
   const santriMap = Object.fromEntries(santri.map(s => [s.id, s]));
