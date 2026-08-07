@@ -533,8 +533,13 @@
 
   /* Urutan kartu Dashboard Kehadiran Admin Kelp (TERPISAH dari
      window.KG_KELAS_ORDER_ yang dipakai tab Kehadiran Generus desktop —
-     supaya perubahan di sini tidak ikut mengubah fitur lain). */
-  window.IA_ADMIN_KELP_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', '4', 'Pra Remaja', 'Remaja SMA'];
+     supaya perubahan di sini tidak ikut mengubah fitur lain). Nilai HARUS
+     cocok persis dgn jadwal_kbm.kelas Kelp Petemon sungguhan (dicek via
+     diag=listkelompok&table=jadwal_kbm&kelompok=1) -- kelas 5 nyatanya
+     "2 & 3A" (pakai spasi di sekitar &, BUKAN "2&3A"), kelas 7 nyatanya
+     "Pra Remaja SMP" (BUKAN cuma "Pra Remaja") -- sebelumnya salah tulis,
+     jadi 2 kelas ini selalu jatuh ke "tidak ketemu" (dilempar ke akhir). */
+  window.IA_ADMIN_KELP_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2 & 3A', '4', 'Pra Remaja SMP', 'Remaja SMA'];
 
   /* Warna badge kategori (Dashboard Admin Kelp) -- key = nilai jadwal_kbm.kategori
      (KATEGORI_JADWAL_, Modul_MaintainJadwalKBM.gs), value = kelas warna CSS
