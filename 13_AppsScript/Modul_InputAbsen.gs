@@ -941,13 +941,22 @@ function serverGetAdminKelpDashboardSummaryRange(token, tanggalMulai, tanggalSel
 }
 
 /**
- * GET 3 KPI ringkas Dashboard Admin Kelp (Total Kelas / Total Generus /
- * Total Caberawit, masing² Generus & Caberawit dipecah L/P) — endpoint
- * TERPISAH dari serverGetAdminKelpDashboardSummaryRange di atas (kartu per
- * kelas yang sudah ada), sengaja tidak digabung supaya tidak menyentuh
- * fungsi itu. "Caberawit" = santri yang kelas_ngaji-nya termasuk kategori
- * "Cabe Rawit" di Jadwal KBM (PAUD/TK A s.d. kelas 4 SD, sama definisi
- * kategori yang sudah dipakai fitur Kehadiran Generus).
+ * GET KPI ringkas Dashboard Admin Kelp (Total Kelas / Total Generus /
+ * Total Caberawit / Total Pra Remaja / Total Remaja SMA / Total Muda-Mudi,
+ * masing² kelompok santri dipecah L/P) — endpoint TERPISAH dari
+ * serverGetAdminKelpDashboardSummaryRange di atas (kartu per kelas yang
+ * sudah ada), sengaja tidak digabung supaya tidak menyentuh fungsi itu.
+ *
+ * Caberawit/Pra Remaja/Remaja SMA = santri yang kelas_ngaji-nya termasuk
+ * kategori "Cabe Rawit"/"Pra Remaja SMP"/"Remaja SMA" di Jadwal KBM (sama
+ * definisi kategori yang sudah dipakai fitur Kehadiran Generus).
+ *
+ * Muda-Mudi SENGAJA beda sumber (bukan kategori Jadwal KBM — belum ada
+ * kelas berkategori "Muda-Mudi" yang di-setting di Jadwal KBM Kelp Petemon
+ * saat ini, jadi kategori itu selalu kosong): dihitung dari
+ * `santri.jenjang_saat_ini === 'Remaja'` ("Remaja Pra Nikah", definisi yang
+ * sudah dipakai `MONITORING_JENJANG_LABEL_`, Modul_Monitoring.gs) — sesuai
+ * arahan user, "data Muda-Mudi diambil dari total Remaja Pra Nikah".
  */
 function serverGetAdminKelpKpiSummary(token) {
   const ctx = requireAdminKelpContext_(token);
@@ -966,21 +975,29 @@ function serverGetAdminKelpKpiSummary(token) {
     kategoriByKelas[meta.kelas.toLowerCase()] = info.kategori || '';
   });
 
+  const bumpGender_ = function (bucket, gender) {
+    bucket.total++;
+    if (gender === 'L') bucket.l++;
+    else if (gender === 'P') bucket.p++;
+  };
+
   const totalGenerus = { total: 0, l: 0, p: 0 };
   const totalCaberawit = { total: 0, l: 0, p: 0 };
+  const totalPraRemaja = { total: 0, l: 0, p: 0 };
+  const totalRemajaSma = { total: 0, l: 0, p: 0 };
+  const totalMudaMudi = { total: 0, l: 0, p: 0 };
 
   santriAll.forEach(function (s) {
     const gender = String(s.gender || '').trim().toUpperCase();
-    totalGenerus.total++;
-    if (gender === 'L') totalGenerus.l++;
-    else if (gender === 'P') totalGenerus.p++;
+    bumpGender_(totalGenerus, gender);
 
     const kelasKey = String(s.kelas_ngaji || '').trim().toLowerCase();
-    if (kelasKey && kategoriByKelas[kelasKey] === 'Cabe Rawit') {
-      totalCaberawit.total++;
-      if (gender === 'L') totalCaberawit.l++;
-      else if (gender === 'P') totalCaberawit.p++;
-    }
+    const kategori = kelasKey ? kategoriByKelas[kelasKey] : '';
+    if (kategori === 'Cabe Rawit') bumpGender_(totalCaberawit, gender);
+    else if (kategori === 'Pra Remaja SMP') bumpGender_(totalPraRemaja, gender);
+    else if (kategori === 'Remaja SMA') bumpGender_(totalRemajaSma, gender);
+
+    if (String(s.jenjang_saat_ini || '').trim() === 'Remaja') bumpGender_(totalMudaMudi, gender);
   });
 
   return {
@@ -989,6 +1006,9 @@ function serverGetAdminKelpKpiSummary(token) {
       totalKelas: kelasList.length,
       totalGenerus: totalGenerus,
       totalCaberawit: totalCaberawit,
+      totalPraRemaja: totalPraRemaja,
+      totalRemajaSma: totalRemajaSma,
+      totalMudaMudi: totalMudaMudi,
     },
   };
 }
