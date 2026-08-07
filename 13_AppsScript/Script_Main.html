@@ -534,7 +534,17 @@
   /* Urutan kartu Dashboard Kehadiran Admin Kelp (TERPISAH dari
      window.KG_KELAS_ORDER_ yang dipakai tab Kehadiran Generus desktop —
      supaya perubahan di sini tidak ikut mengubah fitur lain). */
-  window.IA_ADMIN_KELP_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', 'Pra Remaja', 'Remaja SMA'];
+  window.IA_ADMIN_KELP_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', '4', 'Pra Remaja', 'Remaja SMA'];
+
+  /* Warna badge kategori (Dashboard Admin Kelp) -- key = nilai jadwal_kbm.kategori
+     (KATEGORI_JADWAL_, Modul_MaintainJadwalKBM.gs), value = kelas warna CSS
+     `.ia-kat-pill-<value>` (lihat Style_Main.html). */
+  window.IA_ADMIN_KELP_KATEGORI_WARNA_ = {
+    'Cabe Rawit': 'sage',
+    'Pra Remaja SMP': 'indigo',
+    'Remaja SMA': 'teal',
+    'Muda-Mudi': 'violet',
+  };
 
   /* Admin Kelp (mobile self-register, lihat serverCompleteOnboardingAdminKelompok
      di Code.js): SEMENTARA hanya menampilkan Dashboard Kehadiran SEMUA kelas
@@ -1981,10 +1991,14 @@
       // saja yang dilabeli (tidak diubah).
       let kelasHeadHtml;
       if (isAdminKelp) {
+        const sep = ' <span class="ia-dash-card-kelas-sep">·</span> ';
         const headParts = ['Kelas ' + item.kelas];
-        if (item.kategori) headParts.push(item.kategori);
+        if (item.kategori) {
+          const warna = window.IA_ADMIN_KELP_KATEGORI_WARNA_[item.kategori] || 'abu';
+          headParts.push(`<span class="ia-kat-pill ia-kat-pill-${warna}">${item.kategori}</span>`);
+        }
         if (item.namaGuru) headParts.push('Kak ' + item.namaGuru);
-        kelasHeadHtml = headParts.join(' <span class="ia-dash-card-kelas-sep">·</span> ');
+        kelasHeadHtml = headParts.join(sep);
       } else {
         const jenjangLabel = item.kategori === 'Cabe Rawit' ? ' <span class="ia-dash-card-jenjang">· Cabe Rawit</span>' : '';
         kelasHeadHtml = `Kelas ${item.kelas}${jenjangLabel}`;
