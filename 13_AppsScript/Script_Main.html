@@ -8915,10 +8915,36 @@
           <button class="btn-icon" onclick="window.editUser(${user.id})" title="Edit">✎</button>
           <button class="btn-icon" onclick="window.openResetPasswordModal(${user.id})" title="Reset Password">🔑</button>
           <button class="btn-icon danger" onclick="window.toggleUserStatus(${user.id})" title="Toggle Status">🔄</button>
+          ${window.currentUser && window.currentUser.role === 'admin_ppg'
+            ? `<button class="btn-icon danger" onclick="window.deleteUser(${user.id})" title="Hapus">🗑</button>`
+            : ''}
         </td>
       `;
       tbody.appendChild(tr);
     });
+  };
+
+  // Hapus (soft-delete) user -- khusus admin_ppg (serverDeleteUser di
+  // Modul_UserManagement.gs). Set status='inactive', blokir login
+  // berikutnya (serverLogin di Code.js sudah cek status). Sebelumnya
+  // tombol ini TIDAK ADA di tabel -- hanya Edit/Reset Password/Toggle
+  // Status, jadi "Hapus" belum pernah benar-benar berfungsi.
+  window.deleteUser = function (userId) {
+    if (!confirm('Hapus user ini? Akun akan dinonaktifkan dan tidak bisa login lagi.')) return;
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (result.success) {
+          showAlert('userMgmtSuccess', result.message, 'success');
+          window.loadUserManagement();
+        } else {
+          showAlert('userMgmtError', result.error, 'error');
+        }
+      })
+      .withFailureHandler(function (err) {
+        showAlert('userMgmtError', 'Gagal menghapus user: ' + (err && err.message ? err.message : err), 'error');
+      })
+      .serverDeleteUser(window.currentToken, userId);
   };
 
   window.openModalCreateUser = function () {
