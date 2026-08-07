@@ -531,6 +531,11 @@
     window.iaPrefetchGateData_();
   };
 
+  /* Urutan kartu Dashboard Kehadiran Admin Kelp (TERPISAH dari
+     window.KG_KELAS_ORDER_ yang dipakai tab Kehadiran Generus desktop —
+     supaya perubahan di sini tidak ikut mengubah fitur lain). */
+  window.IA_ADMIN_KELP_KELAS_ORDER_ = ['PAUD/TK A', 'PAUD/TK B', '1A', '1B', '2&3A', 'Pra Remaja', 'Remaja SMA'];
+
   /* Admin Kelp (mobile self-register, lihat serverCompleteOnboardingAdminKelompok
      di Code.js): SEMENTARA hanya menampilkan Dashboard Kehadiran SEMUA kelas
      Kelompoknya — TAMPILAN SAMA PERSIS dashboard guru (5 kartu Hari
@@ -538,8 +543,8 @@
      lewat pipeline yang SAMA (window.iaShowDashboardView_ → iaLoadDashboardSummary_
      → iaRenderDashboardCards_, keduanya dicabangkan via iaState_.mode di
      bawah) — bedanya cuma sumber data (semua kelas, bukan cuma kelas 1 guru)
-     dan diurutkan PAUD/TK A → Remaja SMA. Tidak ada menu lain yang aktif,
-     hamburger cuma berisi "Keluar". */
+     dan diurutkan sesuai IA_ADMIN_KELP_KELAS_ORDER_ di atas. Tidak ada menu
+     lain yang aktif, hamburger cuma berisi "Keluar". */
   window.initAdminKelpDashboard_ = function () {
     window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
 
@@ -1942,34 +1947,54 @@
         : '<div class="ia-dash-empty">Anda belum mengampu kelas apa pun.</div>';
       return;
     }
-    // Admin Kelp lihat SEMUA kelas Kelompok sekaligus — urutkan PAUD/TK A →
-    // Remaja SMA (window.kgKelasSortIndex_, dari bagian Kehadiran Generus di
-    // bawah) supaya konsisten dgn urutan kelas di seluruh app. Guru cuma
-    // punya 1-2 kelas sendiri, urutan bawaan server sudah cukup — tidak diubah.
+    // Admin Kelp lihat SEMUA kelas Kelompok sekaligus — urutkan sesuai
+    // IA_ADMIN_KELP_KELAS_ORDER_ (khusus Dashboard Admin Kelp, TERPISAH dari
+    // window.KG_KELAS_ORDER_/kgKelasSortIndex_ yang dipakai tab Kehadiran
+    // Generus desktop, supaya tidak ikut berubah). Guru cuma punya 1-2 kelas
+    // sendiri, urutan bawaan server sudah cukup — tidak diubah.
     if (isAdminKelp) {
+      const order = window.IA_ADMIN_KELP_KELAS_ORDER_;
+      const sortIndex = function (kelas) {
+        const idx = order.findIndex(function (o) { return o.toLowerCase() === String(kelas || '').trim().toLowerCase(); });
+        return idx === -1 ? order.length : idx;
+      };
       list = list.slice().sort(function (a, b) {
-        const ra = window.kgKelasSortIndex_(a.kelas);
-        const rb = window.kgKelasSortIndex_(b.kelas);
+        const ra = sortIndex(a.kelas);
+        const rb = sortIndex(b.kelas);
         if (ra !== rb) return ra - rb;
         return String(a.kelas).localeCompare(String(b.kelas));
       });
     }
     wrap.innerHTML = list.map(function (item) {
       const infoParts = [];
-      if (item.namaGuru) infoParts.push('Kak ' + item.namaGuru);
+      // Admin Kelp: nama guru pindah ke baris judul (sejajar dgn kelas &
+      // kategori), JANGAN dobel ditampilkan lagi di baris info bawah.
+      if (item.namaGuru && !isAdminKelp) infoParts.push('Kak ' + item.namaGuru);
       if (item.ruangan) infoParts.push(item.ruangan);
       infoParts.push(item.total + ' Santri');
       if (item.jamMulai && item.jamSelesai) {
         const durasi = window.iaDurasiMenit_(item.jamMulai, item.jamSelesai);
         infoParts.push(item.jamMulai + '–' + item.jamSelesai + (durasi != null ? ' · Durasi ' + durasi + ' Menit' : ''));
       }
-      const jenjangLabel = item.kategori === 'Cabe Rawit' ? ' <span class="ia-dash-card-jenjang">· Cabe Rawit</span>' : '';
+      // Admin Kelp: "Kelas {kelas} · {kategori} · Kak {namaGuru}" satu baris.
+      // Guru (kartu kelas sendiri): tetap tampilan lama, kategori Cabe Rawit
+      // saja yang dilabeli (tidak diubah).
+      let kelasHeadHtml;
+      if (isAdminKelp) {
+        const headParts = ['Kelas ' + item.kelas];
+        if (item.kategori) headParts.push(item.kategori);
+        if (item.namaGuru) headParts.push('Kak ' + item.namaGuru);
+        kelasHeadHtml = headParts.join(' <span class="ia-dash-card-kelas-sep">·</span> ');
+      } else {
+        const jenjangLabel = item.kategori === 'Cabe Rawit' ? ' <span class="ia-dash-card-jenjang">· Cabe Rawit</span>' : '';
+        kelasHeadHtml = `Kelas ${item.kelas}${jenjangLabel}`;
+      }
       const totalCatatan = item.hadir + item.izin + item.sakit + item.alpa;
       const pct = function (n) { return totalCatatan > 0 ? Math.round((n / totalCatatan) * 100) : 0; };
       return `
         <div class="ia-dash-card">
           <div class="ia-dash-card-head">
-            <span class="ia-dash-card-kelas">Kelas ${item.kelas}${jenjangLabel}</span>
+            <span class="ia-dash-card-kelas">${kelasHeadHtml}</span>
           </div>
           <div class="ia-dash-card-info">${infoParts.join(' · ')}</div>
           <div class="ia-dash-stat-row">
