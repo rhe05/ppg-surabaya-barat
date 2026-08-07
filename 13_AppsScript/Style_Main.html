@@ -5345,6 +5345,103 @@
     .ia-dash-stat.hariaktif .ia-dash-stat-num { color: #FFFFFF; }
     .ia-dash-stat.hariaktif .ia-dash-stat-label { color: rgba(255, 255, 255, 0.85); }
 
+    /* ═════ KPI HERO ROW (khusus Admin Kelp): Total Kelas/Generus/Caberawit ═════
+       Standar "premium card" proyek ini (lihat memory feedback-dashboard-
+       design-standard): panel + border tipis + shadow 2-lapis halus, label
+       kapital berjarak huruf, angka besar tabular-nums. Aksen warna beda tiap
+       kartu TAPI selalu lewat tint rgba() lembut (BUKAN warna solid penuh) --
+       kesan premium tanpa norak. */
+    .ia-kpi-hero-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .ia-kpi-hero-card {
+      position: relative;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 10px 12px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 10px 24px -14px rgba(15, 23, 42, 0.16);
+      overflow: hidden;
+    }
+
+    /* Aksen tipis di tepi atas -- pembeda warna per kartu, halus (bukan blok). */
+    .ia-kpi-hero-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2.5px;
+    }
+    .ia-kpi-hero-indigo::before { background: linear-gradient(90deg, var(--indigo), #818CF8); }
+    .ia-kpi-hero-sage::before { background: linear-gradient(90deg, var(--sage), var(--brand-green)); }
+    .ia-kpi-hero-brass::before { background: linear-gradient(90deg, var(--brass), #F59E0B); }
+
+    .ia-kpi-hero-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      margin-bottom: 9px;
+    }
+    .ia-kpi-hero-indigo .ia-kpi-hero-icon { background: rgba(79, 70, 229, 0.1); color: var(--indigo); }
+    .ia-kpi-hero-sage .ia-kpi-hero-icon { background: rgba(5, 150, 105, 0.1); color: var(--sage); }
+    .ia-kpi-hero-brass .ia-kpi-hero-icon { background: rgba(217, 119, 6, 0.1); color: var(--brass); }
+
+    .ia-kpi-hero-value {
+      font-size: clamp(20px, 6vw, 25px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+    }
+
+    .ia-kpi-hero-label {
+      margin-top: 3px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-faint);
+      text-transform: uppercase;
+      letter-spacing: 0.055em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ia-kpi-hero-gender-row {
+      display: flex;
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    .ia-kpi-hero-gender-pill {
+      flex: 1;
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 3px;
+      padding: 3px 0;
+      border-radius: 999px;
+      font-size: 10.5px;
+      font-weight: 600;
+      background: var(--panel-2);
+      color: var(--text-dim);
+    }
+    .ia-kpi-hero-gender-pill b {
+      font-size: 12px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: var(--text);
+    }
+    .ia-kpi-hero-gender-l { border: 1px solid rgba(79, 70, 229, 0.16); }
+    .ia-kpi-hero-gender-p { border: 1px solid rgba(219, 39, 119, 0.16); }
+    .ia-kpi-hero-gender-p b { color: #DB2777; }
+
     .ia-dash-empty {
       text-align: center;
       color: var(--text-dim);

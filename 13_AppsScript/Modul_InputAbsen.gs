@@ -941,6 +941,59 @@ function serverGetAdminKelpDashboardSummaryRange(token, tanggalMulai, tanggalSel
 }
 
 /**
+ * GET 3 KPI ringkas Dashboard Admin Kelp (Total Kelas / Total Generus /
+ * Total Caberawit, masing² Generus & Caberawit dipecah L/P) — endpoint
+ * TERPISAH dari serverGetAdminKelpDashboardSummaryRange di atas (kartu per
+ * kelas yang sudah ada), sengaja tidak digabung supaya tidak menyentuh
+ * fungsi itu. "Caberawit" = santri yang kelas_ngaji-nya termasuk kategori
+ * "Cabe Rawit" di Jadwal KBM (PAUD/TK A s.d. kelas 4 SD, sama definisi
+ * kategori yang sudah dipakai fitur Kehadiran Generus).
+ */
+function serverGetAdminKelpKpiSummary(token) {
+  const ctx = requireAdminKelpContext_(token);
+  if (!ctx.success) return ctx;
+
+  const kelasList = getAllKelasInKelompok_(ctx.kelompokId);
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
+
+  // Peta kelas (huruf kecil) -> kategori, dibangun SEKALI (bukan per santri).
+  const kategoriByKelas = {};
+  kelasList.forEach(function (meta) {
+    const info = getKelasSessionInfo_(ctx.kelompokId, meta.kelas, jadwalRowsAll, guruRowsAll) || {};
+    kategoriByKelas[meta.kelas.toLowerCase()] = info.kategori || '';
+  });
+
+  const totalGenerus = { total: 0, l: 0, p: 0 };
+  const totalCaberawit = { total: 0, l: 0, p: 0 };
+
+  santriAll.forEach(function (s) {
+    const gender = String(s.gender || '').trim().toUpperCase();
+    totalGenerus.total++;
+    if (gender === 'L') totalGenerus.l++;
+    else if (gender === 'P') totalGenerus.p++;
+
+    const kelasKey = String(s.kelas_ngaji || '').trim().toLowerCase();
+    if (kelasKey && kategoriByKelas[kelasKey] === 'Cabe Rawit') {
+      totalCaberawit.total++;
+      if (gender === 'L') totalCaberawit.l++;
+      else if (gender === 'P') totalCaberawit.p++;
+    }
+  });
+
+  return {
+    success: true,
+    data: {
+      totalKelas: kelasList.length,
+      totalGenerus: totalGenerus,
+      totalCaberawit: totalCaberawit,
+    },
+  };
+}
+
+/**
  * ═════ MODE ADMIN (admin_ppg) — akses ke SEMUA Kelompok/Guru/Kelas ═════
  *
  * Admin PPG boleh pakai screen Input Absen yang sama, tapi TANPA dikunci ke

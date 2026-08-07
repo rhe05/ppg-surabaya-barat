@@ -581,7 +581,29 @@
     // iaAkFilterOverlay di bawah), bukan dua kontrol terpisah lagi.
     document.getElementById('iaFilterBtn').style.display = 'none';
 
+    // 3 kartu KPI ringkas (Total Kelas/Generus/Caberawit) -- TIDAK terikat
+    // filter Bulan-Tahun/Tanggal (beda dari kartu per kelas di bawahnya),
+    // jadi dimuat sekali saja di sini, bukan tiap ganti filter.
+    document.getElementById('iaKpiHeroRow').style.display = 'grid';
+    window.iaLoadAdminKelpKpiSummary_();
+
     window.iaShowDashboardView_();
+  };
+
+  window.iaLoadAdminKelpKpiSummary_ = function () {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) return;
+        const d = result.data;
+        document.getElementById('iaKpiTotalKelas').textContent = d.totalKelas;
+        document.getElementById('iaKpiTotalGenerus').textContent = d.totalGenerus.total;
+        document.getElementById('iaKpiGenerusL').textContent = d.totalGenerus.l;
+        document.getElementById('iaKpiGenerusP').textContent = d.totalGenerus.p;
+        document.getElementById('iaKpiTotalCaberawit').textContent = d.totalCaberawit.total;
+        document.getElementById('iaKpiCaberawitL').textContent = d.totalCaberawit.l;
+        document.getElementById('iaKpiCaberawitP').textContent = d.totalCaberawit.p;
+      })
+      .serverGetAdminKelpKpiSummary(window.currentToken);
   };
 
   /* ─── Prefetch diam-diam daftar kelas Input Absen & Input Jurnal, dipanggil
