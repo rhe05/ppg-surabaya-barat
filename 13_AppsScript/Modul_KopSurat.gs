@@ -27,8 +27,15 @@ function kopSuratPath_(kelompokId) {
   return 'kelompok/' + kelompokId + '/kop_surat';
 }
 
+function kopSuratCacheKey_(kelompokId, kategoriSlug) {
+  return 'kopsurat_' + kelompokId + '_' + kategoriSlug;
+}
+
 /**
  * GET konfigurasi kop surat. Return { success, data: null } kalau belum pernah diatur.
+ * Cache 1800dtk (berubah SANGAT jarang — admin set 1× lalu dipakai berbulan-
+ * bulan, lihat komentar file) — invalidasi eksplisit di serverSaveKopSurat
+ * di bawah (audit performa 2026-08-07, Sprint 1).
  */
 function serverGetKopSurat(token, kelompokId, kategoriSlug) {
   const user = getCurrentUser(token);
@@ -37,7 +44,16 @@ function serverGetKopSurat(token, kelompokId, kategoriSlug) {
     return { success: false, error: 'Anda tidak memiliki akses ke Kelompok ini.' };
   }
 
+  // Dibungkus {value: doc} (bukan cache doc langsung) supaya "belum pernah
+  // diatur" (doc === null) TETAP bisa di-cache dgn benar — cacheGet_ return
+  // null baik utk "tidak ada di cache" MAUPUN "nilai ter-cache adalah null",
+  // jadi butuh pembungkus utk membedakan keduanya.
+  const cacheKey = kopSuratCacheKey_(kelompokId, kategoriSlug);
+  const cached = cacheGet_(cacheKey);
+  if (cached) return { success: true, data: cached.value };
+
   const doc = firestoreGetDoc_(kopSuratPath_(kelompokId), kategoriSlug);
+  cachePut_(cacheKey, { value: doc }, 1800);
   return { success: true, data: doc };
 }
 
@@ -78,6 +94,7 @@ function serverSaveKopSurat(token, kelompokId, kategoriSlug, data) {
       } else {
         firestoreCreateDoc_(path, kategoriSlug, fields);
       }
+      cacheDrop_(kopSuratCacheKey_(kelompokId, kategoriSlug));
       return { success: true };
     });
   } catch (e) {

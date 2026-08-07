@@ -20,8 +20,18 @@
  * array polos), padahal frontend cek `if (result.success)` — akibatnya KPI
  * card & tabel Ringkasan Per Desa di Dashboard utama selalu kosong. Baru
  * ketahuan saat menggabung fungsi ini (bukan disengaja dicari).
+ *
+ * Cache 90dtk (data PPG-wide, sama utk semua admin_ppg — 1 kunci global):
+ * layar paling sering dibuka, TTL pendek dipilih drpd invalidasi eksplisit
+ * di tiap titik mutasi absensi/santri/guru/munaqosah/akhlaq (banyak file,
+ * risiko ada yg terlewat) — 90dtk cukup basi utk tidak kerasa "nyangkut",
+ * cukup kecil utk hemat baca berkali-kali dlm sesi yg sama (audit performa
+ * 2026-08-07, Sprint 1).
  */
 function serverGetDashboardBundle() {
+  const cached = cacheGet_('dashboard_bundle');
+  if (cached) return cached;
+
   const kelompokData = readSheetAsObjects(SHEET_NAMES.KELOMPOK);
   const santriData = readSheetAsObjects(SHEET_NAMES.SANTRI);
   const guruData = readSheetAsObjects(SHEET_NAMES.GURU);
@@ -29,6 +39,17 @@ function serverGetDashboardBundle() {
   const desaData = readSheetAsObjects(SHEET_NAMES.DESA);
   const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH);
   const akhlaqData = readSheetAsObjects(SHEET_NAMES.KURIKULUM_AKHLAQ);
+
+  // Lookup O(1) (Map by id) — sebelumnya `santriData.find(...)`/`kelompokData.find(...)`
+  // di dalam .forEach()/.map() = O(n×m) (±280rb operasi per load Dashboard
+  // pada data production sekarang). Hasil akhir IDENTIK, murni algoritma.
+  // santriById: kode asli pakai `===` (strict) -> key APA ADANYA (s.id).
+  // kelompokById: kode asli pakai `==` (LONGGAR, `k.id == santri.kelompok_id`)
+  // -> key di-String()-kan supaya toleran beda tipe number/string spt semula,
+  // JANGAN dibuat strict atau nama kelompok bisa jadi 'Unknown' kalau tipe
+  // id beda antara sheet kelompok & santri.
+  const santriById = new Map(santriData.map(s => [s.id, s]));
+  const kelompokById = new Map(kelompokData.map(k => [String(k.id), k]));
 
   const kelompokAktif = kelompokData.filter(k => k.status_aktif === 'aktif');
   const kelompokAktifIds = kelompokAktif.map(k => k.id);
@@ -47,7 +68,7 @@ function serverGetDashboardBundle() {
   let totalAbsensiRecord = 0;
   let totalHadir = 0;
   absensiMingguan.forEach(a => {
-    const santri = santriData.find(s => s.id === a.santri_id);
+    const santri = santriById.get(a.santri_id);
     if (santri && kelompokAktifIds.includes(santri.kelompok_id)) {
       totalAbsensiRecord++;
       if (a.status === 'hadir') totalHadir++;
@@ -66,7 +87,7 @@ function serverGetDashboardBundle() {
     let totalAbsensiDesa = 0;
     let totalHadirDesa = 0;
     absensiMingguan.forEach(a => {
-      const santri = santriData.find(s => s.id === a.santri_id);
+      const santri = santriById.get(a.santri_id);
       if (santri && kelompokAktifDesaIds.includes(santri.kelompok_id)) {
         totalAbsensiDesa++;
         if (a.status === 'hadir') totalHadirDesa++;
@@ -97,7 +118,7 @@ function serverGetDashboardBundle() {
     const hadirCount = absensiSantri.filter(a => a.status === 'hadir').length;
     const kehadiranPersenSantri = absensiSantri.length > 0 ? Math.round((hadirCount / absensiSantri.length) * 100) : 0;
 
-    const kelompok = kelompokData.find(k => k.id == santri.kelompok_id);
+    const kelompok = kelompokById.get(String(santri.kelompok_id));
 
     return {
       santri_id: santri.id,
@@ -111,7 +132,7 @@ function serverGetDashboardBundle() {
     };
   }).filter(r => r.status === 'teladan').sort((a, b) => b.nilai - a.nilai);
 
-  return {
+  const result = {
     success: true,
     kpi: {
       totalSantri: totalSantri,
@@ -122,6 +143,9 @@ function serverGetDashboardBundle() {
     desaBreakdown: desaBreakdown,
     santriTeladan: santriTeladan,
   };
+
+  cachePut_('dashboard_bundle', result, 90);
+  return result;
 }
 
 /**
@@ -276,7 +300,7 @@ function serverGetSidebarTree() {
     });
 
     const result = { success: true, data: data };
-    cachePut_('sidebar_tree', result, 300);
+    cachePut_('sidebar_tree', result, 600);
     return result;
   } catch (e) {
     return { success: false, error: e.message };
