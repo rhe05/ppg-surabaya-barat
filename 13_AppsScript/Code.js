@@ -519,6 +519,50 @@ function serverCompleteOnboardingGuru(token, kelompokId, nama, kelas) {
 }
 
 /**
+ * Dipanggil SETELAH login pertama (akun role masih kosong) — jalur Admin
+ * Kelompok wizard onboarding: user pilih peran Admin > Admin Kelompok, pilih
+ * Kelompok (dibatasi ONBOARDING_ACTIVE_KELOMPOK_IDS_, sama dgn jalur guru),
+ * isi Nama. TIDAK ada verifikasi ke data Guru (akun admin bukan guru) — nama
+ * bebas diisi, langsung dilengkapi jadi role='admin_kelp' terikat Kelompok
+ * itu. Role ini SENGAJA beda dari 'admin_kelompok' (akun desktop lengkap yang
+ * dibuat manual admin_ppg lewat User Management) — 'admin_kelp' dikunci ke
+ * screen mobile Input Absen, hanya lihat Dashboard Kehadiran semua kelas.
+ */
+function serverCompleteOnboardingAdminKelompok(token, kelompokId, nama) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+
+  if (ONBOARDING_ACTIVE_KELOMPOK_IDS_.indexOf(Number(kelompokId)) === -1) {
+    return { success: false, error: 'Kelompok tidak tersedia untuk saat ini.' };
+  }
+
+  nama = String(nama || '').trim();
+  if (!nama) return { success: false, error: 'Nama wajib diisi.' };
+
+  withScriptLock_(function () {
+    updateRowByQuery(SHEET_NAMES.USERS, { id: user.id }, {
+      nama: nama,
+      role: 'admin_kelp',
+      scope_type: 'kelompok',
+      scope_id: kelompokId,
+      updated_at: new Date().toISOString().split('T')[0],
+    });
+  });
+
+  const sessionData = {
+    id: user.id,
+    nama: nama,
+    role: 'admin_kelp',
+    scopeType: 'kelompok',
+    scopeId: kelompokId,
+    guruId: null,
+  };
+  CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
+
+  return { success: true, user: sessionData };
+}
+
+/**
  * "Lupa Password" mandiri — dipakai untuk akun guru self-register. Ganti
  * password TANPA tahu password lama, tapi harus membuktikan identitas yang
  * SAMA dengan yang dipakai saat onboarding (Kelompok+Nama+Kelas cocok data

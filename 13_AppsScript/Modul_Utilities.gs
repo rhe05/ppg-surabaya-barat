@@ -371,6 +371,12 @@ function validateUserAccess(token, resourceType, resourceId) {
     return resourceType === 'kelompok' && user.scopeId === resourceId;
   }
 
+  // Admin Kelp (akun mobile self-register, lihat serverCompleteOnboardingAdminKelompok
+  // di Code.js) — akses Kelompoknya sendiri saja, sama seperti admin_kelompok.
+  if (user.role === 'admin_kelp' && user.scopeType === 'kelompok') {
+    return resourceType === 'kelompok' && user.scopeId === resourceId;
+  }
+
   // Guru bisa akses Kelompoknya sendiri saja (dipakai fitur mobile Input
   // Absen > Laporan > Unduh PDF, reuse serverGetLaporanPerkembanganSantri)
   if (user.role === 'guru' && user.scopeType === 'kelompok') {

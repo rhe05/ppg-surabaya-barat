@@ -130,8 +130,19 @@
           <div>Admin</div>
         </button>
       </div>
+      <div class="onboard-role-grid" id="onboardAdminTypeGrid" style="display:none;">
+        <button class="onboard-role-btn" onclick="window.onboardChooseAdminType_('kelompok')">
+          <div class="onboard-role-icon">🏘️</div>
+          <div>Admin Kelompok</div>
+        </button>
+        <button class="onboard-role-btn" onclick="window.onboardChooseAdminType_('desa')">
+          <div class="onboard-role-icon">🏙️</div>
+          <div>Admin Desa</div>
+        </button>
+        <button class="btn btn-secondary" style="margin-top:14px; width:100%; grid-column: 1 / -1;" onclick="window.onboardBackToRole_()">Kembali</button>
+      </div>
       <div class="onboard-admin-msg" id="onboardAdminMsg" style="display:none;">
-        Untuk akun Admin, hubungi Admin PPG agar akun Anda dibuatkan.
+        Untuk akun Admin Desa, hubungi Admin PPG agar akun Anda dibuatkan.
         <button class="btn btn-secondary" style="margin-top:14px; width:100%;" onclick="window.onboardBackToRole_()">Kembali</button>
       </div>
     </div>
@@ -151,9 +162,10 @@
       <div class="login-form-group">
         <input class="login-input" type="text" id="onboardNama">
       </div>
+      <div class="onboard-error" id="onboardNamaError" style="display:none;"></div>
       <div class="onboard-nav">
         <button class="btn btn-secondary" onclick="window.onboardGoStep_(2)">Kembali</button>
-        <button class="btn btn-primary" onclick="window.onboardNamaNext_()">Lanjut</button>
+        <button class="btn btn-primary" id="btnOnboardNamaNext" onclick="window.onboardNamaNext_()">Lanjut</button>
       </div>
     </div>
 

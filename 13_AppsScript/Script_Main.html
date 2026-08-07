@@ -198,6 +198,17 @@
       return;
     }
 
+    // Role 'admin_kelp' (akun mobile self-register — beda dari 'admin_kelompok'
+    // desktop) — dikunci ke screen mobile juga, TAPI hanya lihat Dashboard
+    // Kehadiran semua kelas Kelompoknya (belum ada menu lain, lihat
+    // window.initAdminKelpDashboard_ di bawah).
+    if (user.role === 'admin_kelp') {
+      document.getElementById('appLayout').style.display = 'none';
+      document.getElementById('screenInputAbsen').style.display = 'flex';
+      window.initAdminKelpDashboard_();
+      return;
+    }
+
     document.getElementById('appLayout').style.display = 'flex';
 
     // Menu Desa (browse Kelompok lintas Desa) hanya untuk Admin PPG
@@ -226,15 +237,17 @@
 
   /* ═════ ONBOARDING WIZARD (akun baru daftar, role masih kosong) ═════ */
 
-  window.onboardState_ = { step: 1, role: null, kelompokId: null, kelompokNama: null };
+  window.onboardState_ = { step: 1, role: null, adminType: null, kelompokId: null, kelompokNama: null };
 
   window.initOnboarding_ = function () {
-    window.onboardState_ = { step: 1, role: null, kelompokId: null, kelompokNama: null };
+    window.onboardState_ = { step: 1, role: null, adminType: null, kelompokId: null, kelompokNama: null };
     document.getElementById('onboardAdminMsg').style.display = 'none';
+    document.getElementById('onboardAdminTypeGrid').style.display = 'none';
     document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'grid';
     document.getElementById('onboardNama').value = '';
     document.getElementById('onboardKelas').value = '';
     document.getElementById('onboardError').style.display = 'none';
+    document.getElementById('onboardNamaError').style.display = 'none';
     window.onboardGoStep_(1);
   };
 
@@ -251,6 +264,16 @@
     window.onboardState_.role = role;
     if (role === 'admin') {
       document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'none';
+      document.getElementById('onboardAdminTypeGrid').style.display = 'grid';
+      return;
+    }
+    window.onboardGoStep_(2);
+  };
+
+  window.onboardChooseAdminType_ = function (type) {
+    window.onboardState_.adminType = type;
+    if (type === 'desa') {
+      document.getElementById('onboardAdminTypeGrid').style.display = 'none';
       document.getElementById('onboardAdminMsg').style.display = 'block';
       return;
     }
@@ -259,6 +282,7 @@
 
   window.onboardBackToRole_ = function () {
     document.getElementById('onboardAdminMsg').style.display = 'none';
+    document.getElementById('onboardAdminTypeGrid').style.display = 'none';
     document.querySelector('#onboardStep1 .onboard-role-grid').style.display = 'grid';
   };
 
@@ -293,7 +317,42 @@
   window.onboardNamaNext_ = function () {
     const nama = document.getElementById('onboardNama').value.trim();
     if (!nama) return;
+    if (window.onboardState_.role === 'admin' && window.onboardState_.adminType === 'kelompok') {
+      window.onboardSubmitAdminKelompok_(nama);
+      return;
+    }
     window.onboardGoStep_(4);
+  };
+
+  window.onboardSubmitAdminKelompok_ = function (nama) {
+    const btn = document.getElementById('btnOnboardNamaNext');
+    btn.disabled = true;
+    btn.textContent = 'Memeriksa...';
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        btn.disabled = false;
+        btn.textContent = 'Lanjut';
+
+        if (!result.success) {
+          const errorEl = document.getElementById('onboardNamaError');
+          errorEl.textContent = result.error;
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        window.currentUser = result.user;
+        window.currentKelompokId = result.user.scopeId;
+        renderApp(result.user);
+      })
+      .withFailureHandler(function () {
+        btn.disabled = false;
+        btn.textContent = 'Lanjut';
+        const errorEl = document.getElementById('onboardNamaError');
+        errorEl.textContent = 'Gagal memeriksa data. Coba lagi.';
+        errorEl.style.display = 'block';
+      })
+      .serverCompleteOnboardingAdminKelompok(window.currentToken, window.onboardState_.kelompokId, nama);
   };
 
   window.onboardSubmit_ = function () {
@@ -470,6 +529,97 @@
     window.iaLoadQuoteHariIni_();
     window.iaShowDashboardView_();
     window.iaPrefetchGateData_();
+  };
+
+  /* Admin Kelp (mobile self-register, lihat serverCompleteOnboardingAdminKelompok
+     di Code.js): SEMENTARA hanya menampilkan Dashboard Kehadiran semua kelas
+     Kelompoknya (urut PAUD/TK A → Remaja SMA via window.KG_KELAS_ORDER_,
+     didefinisikan di bagian Kehadiran Generus di bawah) — tidak ada menu lain
+     yang aktif, hamburger cuma berisi "Keluar". */
+  window.initAdminKelpDashboard_ = function () {
+    window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
+
+    document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Admin Kelompok';
+    document.getElementById('iaKelompokSelect').style.display = 'none';
+    document.getElementById('iaBellBtn').style.display = 'none';
+    document.getElementById('iaMenuDashboardBtn').style.display = 'none';
+    document.getElementById('iaMenuPilihKelasBtn').style.display = 'none';
+    document.getElementById('iaMenuJurnalBtn').style.display = 'none';
+    document.getElementById('iaMenuKurikulumBtn').style.display = 'none';
+    document.getElementById('iaMenuGuruIzinBtn').style.display = 'none';
+    document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
+    document.getElementById('iaMenuLaporanBtn').style.display = 'none';
+    document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'none';
+    document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
+    document.getElementById('iaCalendarBtn').style.display = 'none';
+    document.getElementById('iaHeaderDateLabel').textContent = 'Dashboard Kehadiran';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
+    document.getElementById('iaFilterBtn').style.display = 'none';
+
+    document.getElementById('iaDashboardView').style.display = 'block';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
+
+    window.iaLoadAdminKelpDashboard_();
+  };
+
+  window.iaLoadAdminKelpDashboard_ = function () {
+    const wrap = document.getElementById('iaDashboardCards');
+    window.showGlobalLoading_('Memuat ringkasan...');
+    const now = new Date();
+
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
+          return;
+        }
+        window.iaRenderAdminKelpDashboardCards_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat ringkasan: ' + (err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetKehadiranGenerusKategori(window.currentToken, window.iaState_.kelompokId, now.getFullYear(), now.getMonth() + 1);
+  };
+
+  window.iaRenderAdminKelpDashboardCards_ = function (data) {
+    const wrap = document.getElementById('iaDashboardCards');
+    const flatList = [];
+    (data || []).forEach(function (kat) { (kat.kelasList || []).forEach(function (k) { flatList.push(k); }); });
+    flatList.sort(function (a, b) {
+      const ra = window.kgKelasSortIndex_(a.kelas);
+      const rb = window.kgKelasSortIndex_(b.kelas);
+      if (ra !== rb) return ra - rb;
+      return String(a.kelas).localeCompare(String(b.kelas));
+    });
+
+    if (flatList.length === 0) {
+      wrap.innerHTML = '<div class="ia-dash-empty">Belum ada kelas (atur di Jadwal KBM).</div>';
+      return;
+    }
+
+    wrap.innerHTML = flatList.map(function (k) {
+      return `
+        <div class="ia-dash-card">
+          <div class="ia-dash-card-head">
+            <span class="ia-dash-card-kelas">Kelas ${k.kelas}</span>
+          </div>
+          <div class="ia-dash-card-info">${k.jumlahSantri} Santri${k.namaGuru ? ' · Kak ' + k.namaGuru : ''}</div>
+          <div class="ia-dash-stat-row">
+            <div class="ia-dash-stat hadir">
+              <span class="ia-dash-stat-num">${k.adaData ? k.avgPct + '%' : '–'}</span>
+              <span class="ia-dash-stat-label">Kehadiran</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
   };
 
   /* ─── Prefetch diam-diam daftar kelas Input Absen & Input Jurnal, dipanggil
