@@ -598,6 +598,7 @@
     document.getElementById('iaMenuMintaAksesBtn').style.display = 'none';
     document.getElementById('iaMenuLaporanBtn').style.display = 'none';
     document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'flex';
+    document.getElementById('iaMenuUserManagementBtn').style.display = 'flex';
     document.getElementById('iaMenuExitLabel').textContent = 'Kembali ke Dashboard';
     window.iaLoadQuoteHariIni_();
 
@@ -631,6 +632,16 @@
   window.closeInputAbsenAdmin_ = function () {
     document.getElementById('screenInputAbsen').style.display = 'none';
     document.getElementById('appLayout').style.display = 'flex';
+  };
+
+  /* Menu "User Management" di hamburger mobile (mode Admin PPG override,
+     tepat di bawah "Kelola Quote") — keluar dari shell mobile Input Absen,
+     lalu buka screen User Management desktop yang sudah ada (tabel +
+     tombol Hapus). */
+  window.iaMenuGoUserManagement_ = function () {
+    window.iaCloseMenu_();
+    window.closeInputAbsenAdmin_();
+    window.switchScreen('usermanagement');
   };
 
   window.iaOnKelompokChange_ = function () {
@@ -7969,7 +7980,11 @@
     if (screen) screen.classList.add('active');
 
     document.querySelectorAll('.sidebar-menu-link').forEach(link => link.classList.remove('active'));
-    event.target.closest('.sidebar-menu-link').classList.add('active');
+    // event.target bisa BUKAN sidebar link (mis. dipanggil dari menu hamburger
+    // mobile lewat window.iaMenuGoUserManagement_) -- jangan crash kalau tidak
+    // ketemu, cuma skip highlight sidebar-nya.
+    const triggeredLink = event && event.target ? event.target.closest('.sidebar-menu-link') : null;
+    if (triggeredLink) triggeredLink.classList.add('active');
 
     if (screenName === 'dashboard') window.loadDashboard();
     if (screenName === 'santri') window.loadSantriList();
