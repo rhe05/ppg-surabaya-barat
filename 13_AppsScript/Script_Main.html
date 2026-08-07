@@ -6073,6 +6073,7 @@
      detail per santri, lalu bisa diunduh sbg PDF (browser print, pola sama
      printStrukturPengurusPdf_). */
   window.LPS_STATUS_WARNA_HEX_ = { Hadir: '#1baf7a', Izin: '#c98500', Alfa: '#d03b3b', Sakit: '#3987e5', 'Belum Ada Data': '#94a3b8' };
+  window.LPS_HARI_AKTIF_WARNA_HEX_ = '#4F46E5';
   window.lastLaporanPerkembanganData_ = null;
 
   /* Sumber pilihan Guru = guru yang PUNYA kelas aktif di Jadwal KBM (tab
@@ -6211,7 +6212,8 @@
     const avgHadirSantri = (m.hadirPercent / 100 * m.totalSantri).toFixed(1);
     const pct = function (n) { return m.totalSantri > 0 ? Math.round((n / m.totalSantri) * 100) : 0; };
 
-    const cardsHtml = window.lpsMetricCardHtml_('Kehadiran', window.LPS_STATUS_WARNA_HEX_.Hadir, m.hadirPercent + '%', avgHadirSantri + ' / ' + m.totalSantri + ' santri')
+    const cardsHtml = window.lpsMetricCardHtml_('Hari Aktif', window.LPS_HARI_AKTIF_WARNA_HEX_, m.totalHariAktif, 'hari efektif bulan ini')
+      + window.lpsMetricCardHtml_('Kehadiran', window.LPS_STATUS_WARNA_HEX_.Hadir, m.hadirPercent + '%', avgHadirSantri + ' / ' + m.totalSantri + ' santri')
       + window.lpsMetricCardHtml_('Izin', window.LPS_STATUS_WARNA_HEX_.Izin, m.totalIzin, pct(m.totalIzin) + '% santri')
       + window.lpsMetricCardHtml_('Alfa', window.LPS_STATUS_WARNA_HEX_.Alfa, m.totalAlfa, pct(m.totalAlfa) + '% santri')
       + window.lpsMetricCardHtml_('Sakit', window.LPS_STATUS_WARNA_HEX_.Sakit, m.totalSakit, pct(m.totalSakit) + '% santri');
@@ -6406,6 +6408,7 @@
     });
 
     const metricDefs = [
+      { label: 'HARI AKTIF', value: String(m.totalHariAktif), sub: 'hari efektif bulan ini', color: window.LPS_HARI_AKTIF_WARNA_HEX_ },
       { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir },
       { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin },
       { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa },

@@ -269,6 +269,10 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
   const hadirPercent = countAdaData > 0 ? Math.round(sumHadirPersen / countAdaData) : 0;
   const totalSantri = santriList.length;
 
+  const hariAktifSet_ = {};
+  monthAbsensi.forEach(function (a) { hariAktifSet_[String(a.tanggal)] = true; });
+  const totalHariAktif = Object.keys(hariAktifSet_).length;
+
   return {
     success: true,
     data: {
@@ -278,6 +282,7 @@ function serverGetLaporanPerkembanganSantri(token, kelompokId, guruId, year, mon
       kelasInfo: kelasInfo,
       metrics: {
         totalSantri: totalSantri,
+        totalHariAktif: totalHariAktif,
         totalHadir: totalHadirSantri,
         totalIzin: totalIzinSantri,
         totalAlfa: totalAlfaSantri,
