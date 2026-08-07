@@ -641,7 +641,7 @@
   window.iaMenuGoUserManagement_ = function () {
     window.iaCloseMenu_();
     window.closeInputAbsenAdmin_();
-    window.switchScreen('usermanagement');
+    window.switchScreen('userManagement');
   };
 
   window.iaOnKelompokChange_ = function () {
@@ -7916,7 +7916,7 @@
 
     document.querySelectorAll('.sidebar-menu-link').forEach(link => link.classList.remove('active'));
 
-    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'userManagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -7970,7 +7970,7 @@
   };
 
   window.switchScreen = function (screenName) {
-    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'usermanagement'];
+    const screens = ['dashboard', 'santri', 'guru', 'guruDashboard', 'absensi', 'munaqosah', 'konseling', 'kalender', 'pustakUnduhan', 'laporan', 'statistics', 'userManagement'];
     screens.forEach(s => {
       const screen = document.getElementById('screen' + s.charAt(0).toUpperCase() + s.slice(1));
       if (screen) screen.classList.remove('active');
@@ -7995,7 +7995,7 @@
     if (screenName === 'pustakUnduhan') window.loadPustakUnduhScreen();
     if (screenName === 'laporan') window.initLaporanScreen();
     if (screenName === 'statistics') window.initStatisticsScreen();
-    if (screenName === 'usermanagement') window.loadUserManagement();
+    if (screenName === 'userManagement') window.loadUserManagement();
   };
 
   window.loadDashboard = function () {
