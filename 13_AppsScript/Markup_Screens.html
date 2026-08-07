@@ -273,11 +273,18 @@
   </div>
 
   <div class="ia-dashboard-view" id="iaDashboardView">
-    <!-- 3 kartu KPI ringkas (khusus Admin Kelp) -- Total Kelas/Generus/Caberawit -->
+    <!-- 7 kartu KPI ringkas (khusus Admin Kelp) -- baris 1: Total Kelas/Kls
+         Cbr/Generus (3 kolom); baris 2: Caberawit/Pra Rmj/Rmj SMA/Muda-i
+         (4 kolom). -->
     <div class="ia-kpi-hero-row" id="iaKpiHeroRow" style="display:none;">
       <div class="ia-kpi-hero-card ia-kpi-hero-indigo">
         <div class="ia-kpi-hero-label">Total Kelas</div>
         <div class="ia-kpi-hero-value" id="iaKpiTotalKelas">—</div>
+      </div>
+
+      <div class="ia-kpi-hero-card ia-kpi-hero-brass">
+        <div class="ia-kpi-hero-label">Total Kls Cbr</div>
+        <div class="ia-kpi-hero-value" id="iaKpiTotalKlsCbr">—</div>
       </div>
 
       <div class="ia-kpi-hero-card ia-kpi-hero-sage">
@@ -290,7 +297,9 @@
           </div>
         </div>
       </div>
+    </div>
 
+    <div class="ia-kpi-hero-row ia-kpi-hero-row-4" id="iaKpiHeroRow2" style="display:none;">
       <div class="ia-kpi-hero-card ia-kpi-hero-brass">
         <div class="ia-kpi-hero-label">Total Caberawit</div>
         <div class="ia-kpi-hero-value-row">

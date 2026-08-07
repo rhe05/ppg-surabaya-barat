@@ -986,6 +986,10 @@ function serverGetAdminKelpKpiSummary(token) {
   const totalPraRemaja = { total: 0, l: 0, p: 0 };
   const totalRemajaSma = { total: 0, l: 0, p: 0 };
   const totalMudaMudi = { total: 0, l: 0, p: 0 };
+  let totalKlsCaberawit = 0;
+  kelasList.forEach(function (meta) {
+    if (kategoriByKelas[meta.kelas.toLowerCase()] === 'Cabe Rawit') totalKlsCaberawit++;
+  });
 
   santriAll.forEach(function (s) {
     const gender = String(s.gender || '').trim().toUpperCase();
@@ -1004,6 +1008,7 @@ function serverGetAdminKelpKpiSummary(token) {
     success: true,
     data: {
       totalKelas: kelasList.length,
+      totalKlsCaberawit: totalKlsCaberawit,
       totalGenerus: totalGenerus,
       totalCaberawit: totalCaberawit,
       totalPraRemaja: totalPraRemaja,
