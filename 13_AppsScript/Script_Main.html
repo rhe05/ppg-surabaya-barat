@@ -538,15 +538,17 @@
      lewat pipeline yang SAMA (window.iaShowDashboardView_ → iaLoadDashboardSummary_
      → iaRenderDashboardCards_, keduanya dicabangkan via iaState_.mode di
      bawah) — bedanya cuma sumber data (semua kelas, bukan cuma kelas 1 guru)
-     dan diurutkan PAUD/TK A → Remaja SMA. Tidak ada menu lain yang aktif,
-     hamburger cuma berisi "Keluar". */
+     dan diurutkan PAUD/TK A → Remaja SMA. PLUS menu "User" (daftar akun
+     Guru Kelompok ini + hapus, lihat iaShowUserView_ di bawah). Menu lain
+     TIDAK aktif, hamburger cuma berisi Dashboard/User/Keluar. */
   window.initAdminKelpDashboard_ = function () {
     window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
 
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Admin Kelompok';
     document.getElementById('iaKelompokSelect').style.display = 'none';
     document.getElementById('iaBellBtn').style.display = 'none';
-    document.getElementById('iaMenuDashboardBtn').style.display = 'none';
+    document.getElementById('iaMenuDashboardBtn').style.display = 'flex';
+    document.getElementById('iaMenuUserBtn').style.display = 'flex';
     document.getElementById('iaMenuPilihKelasBtn').style.display = 'none';
     document.getElementById('iaMenuJurnalBtn').style.display = 'none';
     document.getElementById('iaMenuKurikulumBtn').style.display = 'none';
@@ -558,6 +560,110 @@
 
     iaSetTanggal_(iaToday_());
     window.iaShowDashboardView_();
+  };
+
+  /* ─── Menu "User" (khusus Admin Kelp): daftar akun Guru Kelompok ini + hapus ─── */
+
+  window.iaMenuGoUser_ = function () {
+    window.iaCloseMenu_();
+    window.iaShowUserView_();
+  };
+
+  window.iaShowUserView_ = function () {
+    window.iaState_.activeView = 'user';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaUserView').style.display = 'block';
+    document.getElementById('iaKelasRow').style.display = 'none';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
+    window.iaLoadUserList_();
+  };
+
+  window.iaLoadUserList_ = function () {
+    const wrap = document.getElementById('iaUserList');
+    window.showGlobalLoading_('Memuat daftar user...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        if (!result.success) {
+          wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
+          return;
+        }
+        window.iaRenderUserList_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat daftar user: ' + (err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetGuruUsersAdminKelp(window.currentToken);
+  };
+
+  window.iaRenderUserList_ = function (list) {
+    const wrap = document.getElementById('iaUserList');
+    if (!list || list.length === 0) {
+      wrap.innerHTML = '<div class="ia-dash-empty">Belum ada akun Guru yang daftar.</div>';
+      return;
+    }
+    // data-* + closest() (BUKAN nama mentah disisipkan ke string onclick) —
+    // nama guru bisa mengandung apostrof (mis. "Kak Fulan D'Aulia") yang akan
+    // memutus string JS kalau ditulis langsung ke onclick="...('...')".
+    wrap.innerHTML = list.map(function (u) {
+      const nama = u.nama || '(belum isi nama)';
+      const namaSafe = window.escapeHtmlExport_(nama);
+      return `
+        <div class="ia-user-card" data-user-id="${u.id}" data-user-nama="${namaSafe}">
+          <div class="ia-user-card-info">
+            <div class="ia-user-card-name">${namaSafe}</div>
+            <div class="ia-user-card-email">${window.escapeHtmlExport_(u.email || '-')}</div>
+            <div class="ia-user-card-kelompok">${window.escapeHtmlExport_(u.kelompokNama || '')}</div>
+          </div>
+          <button type="button" class="ia-user-card-delete-btn" onclick="window.iaOpenDeleteUserKelp_(this)" aria-label="Hapus akun">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+          </button>
+        </div>
+      `;
+    }).join('');
+  };
+
+  window.iaUserDeleteTarget_ = null;
+
+  window.iaOpenDeleteUserKelp_ = function (btnEl) {
+    const card = btnEl.closest('.ia-user-card');
+    window.iaUserDeleteTarget_ = card.dataset.userId;
+    document.getElementById('iaDeleteUserKelpName').textContent = card.dataset.userNama;
+    document.getElementById('iaDeleteUserKelpOverlay').style.display = 'flex';
+  };
+
+  window.iaCloseDeleteUserKelp_ = function () {
+    document.getElementById('iaDeleteUserKelpOverlay').style.display = 'none';
+    window.iaUserDeleteTarget_ = null;
+  };
+
+  window.iaConfirmDeleteUserKelp_ = function () {
+    const userId = window.iaUserDeleteTarget_;
+    if (!userId) return;
+    window.showGlobalLoading_('Menghapus akun...');
+    google.script.run
+      .withSuccessHandler(function (result) {
+        window.hideGlobalLoading_();
+        window.iaCloseDeleteUserKelp_();
+        if (!result.success) {
+          iaShowToast_(result.error, 'error');
+          return;
+        }
+        iaShowToast_('Akun guru berhasil dihapus.', 'success');
+        window.iaLoadUserList_();
+      })
+      .withFailureHandler(function (err) {
+        window.hideGlobalLoading_();
+        window.iaCloseDeleteUserKelp_();
+        iaShowToast_('Gagal menghapus akun: ' + (err && err.message ? err.message : err), 'error');
+      })
+      .serverDeleteGuruUserAdminKelp(window.currentToken, userId);
   };
 
   /* ─── Prefetch diam-diam daftar kelas Input Absen & Input Jurnal, dipanggil
@@ -1415,6 +1521,7 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaUserView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';

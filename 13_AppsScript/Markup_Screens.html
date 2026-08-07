@@ -225,6 +225,10 @@
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
         <span>Dashboard</span>
       </button>
+      <button type="button" class="ia-menu-item" id="iaMenuUserBtn" style="display:none;" onclick="window.iaMenuGoUser_()">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>User</span>
+      </button>
       <button type="button" class="ia-menu-item" id="iaMenuPilihKelasBtn" onclick="window.iaMenuGoPilihKelas_()">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
         <span>Kehadiran</span>
@@ -435,6 +439,11 @@
     </div>
   </div>
 
+  <!-- Menu "User" (khusus Admin Kelp): daftar akun Guru Kelompok ini + hapus -->
+  <div class="ia-dashboard-view" id="iaUserView" style="display:none;">
+    <div class="ia-user-list" id="iaUserList"></div>
+  </div>
+
   <div class="ia-toast" id="iaToast"></div>
 
   <!-- Popup status Simpan Absen (berhasil / sudah tersimpan / belum waktunya) -->
@@ -490,6 +499,25 @@
       <div class="ia-kg-footer" id="iaKelasGateFooter" style="display:none;">
         <button type="button" class="ia-kg-cancel-btn" onclick="window.iaCloseKelasGate_()">Batal</button>
         <button type="button" class="ia-kg-masuk-btn" id="iaKelasGateMasukBtn" disabled onclick="window.iaConfirmKelasGate_()">Masuk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup konfirmasi hapus akun Guru (menu "User" khusus Admin Kelp) -->
+  <div class="ia-kg-overlay" id="iaDeleteUserKelpOverlay" style="display:none;">
+    <div class="ia-kg-modal">
+      <button type="button" class="ia-riwayat-filter-close-btn" onclick="window.iaCloseDeleteUserKelp_()" aria-label="Tutup">×</button>
+      <div class="ia-kg-modal-header">
+        <div class="ia-kg-modal-icon">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </div>
+        <div class="ia-kg-modal-title">Hapus Akun Guru?</div>
+        <div class="ia-kg-modal-subtitle">Akun <strong id="iaDeleteUserKelpName"></strong> akan dinonaktifkan dan tidak bisa login lagi.</div>
+      </div>
+
+      <div class="ia-kg-footer">
+        <button type="button" class="ia-kg-cancel-btn" onclick="window.iaCloseDeleteUserKelp_()">Batal</button>
+        <button type="button" class="ia-kg-masuk-btn ia-kg-masuk-btn-danger" onclick="window.iaConfirmDeleteUserKelp_()">Ya, Hapus</button>
       </div>
     </div>
   </div>
