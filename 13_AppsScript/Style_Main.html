@@ -5379,33 +5379,12 @@
     .ia-kpi-hero-sage::before { background: linear-gradient(90deg, var(--sage), var(--brand-green)); }
     .ia-kpi-hero-brass::before { background: linear-gradient(90deg, var(--brass), #F59E0B); }
 
-    .ia-kpi-hero-icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 30px;
-      height: 30px;
-      border-radius: 9px;
-      margin-bottom: 9px;
-    }
-    .ia-kpi-hero-indigo .ia-kpi-hero-icon { background: rgba(79, 70, 229, 0.1); color: var(--indigo); }
-    .ia-kpi-hero-sage .ia-kpi-hero-icon { background: rgba(5, 150, 105, 0.1); color: var(--sage); }
-    .ia-kpi-hero-brass .ia-kpi-hero-icon { background: rgba(217, 119, 6, 0.1); color: var(--brass); }
-
-    .ia-kpi-hero-value {
-      font-size: clamp(20px, 6vw, 25px);
-      font-weight: 800;
-      line-height: 1.05;
-      color: var(--text);
-      font-variant-numeric: tabular-nums;
-      letter-spacing: -0.01em;
-    }
-
+    /* Label nama kartu -- di ATAS (menggantikan posisi icon lama), teks
+       HITAM (bukan abu-abu var(--text-faint) spt sebelumnya). */
     .ia-kpi-hero-label {
-      margin-top: 3px;
       font-size: 10px;
       font-weight: 700;
-      color: var(--text-faint);
+      color: #000;
       text-transform: uppercase;
       letter-spacing: 0.055em;
       white-space: nowrap;
@@ -5413,34 +5392,52 @@
       text-overflow: ellipsis;
     }
 
-    .ia-kpi-hero-gender-row {
+    .ia-kpi-hero-value {
+      margin-top: 4px;
+      font-size: clamp(20px, 6vw, 25px);
+      font-weight: 800;
+      line-height: 1.05;
+      color: #000;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.01em;
+    }
+
+    /* Ruang kanan disediakan khusus utk kartu yang punya stack L/P, supaya
+       label/angka di kiri tidak tertindih. */
+    .ia-kpi-hero-has-gender { padding-right: 40px; }
+
+    /* Stack L di atas, P di bawahnya -- pojok kanan ATAS kartu. */
+    .ia-kpi-hero-gender-stack {
+      position: absolute;
+      top: 12px;
+      right: 10px;
       display: flex;
-      gap: 6px;
-      margin-top: 9px;
+      flex-direction: column;
+      gap: 4px;
+      align-items: stretch;
     }
 
     .ia-kpi-hero-gender-pill {
-      flex: 1;
       display: flex;
       align-items: baseline;
       justify-content: center;
       gap: 3px;
-      padding: 3px 0;
+      padding: 2.5px 7px;
       border-radius: 999px;
-      font-size: 10.5px;
+      font-size: 10px;
       font-weight: 600;
       background: var(--panel-2);
-      color: var(--text-dim);
+      color: #000;
+      white-space: nowrap;
     }
     .ia-kpi-hero-gender-pill b {
-      font-size: 12px;
+      font-size: 11.5px;
       font-weight: 800;
       font-variant-numeric: tabular-nums;
-      color: var(--text);
+      color: #000;
     }
     .ia-kpi-hero-gender-l { border: 1px solid rgba(79, 70, 229, 0.16); }
     .ia-kpi-hero-gender-p { border: 1px solid rgba(219, 39, 119, 0.16); }
-    .ia-kpi-hero-gender-p b { color: #DB2777; }
 
     .ia-dash-empty {
       text-align: center;
