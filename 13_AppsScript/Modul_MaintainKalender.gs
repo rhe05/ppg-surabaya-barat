@@ -32,10 +32,10 @@ function serverGetCalendarEvents(token, tahun, bulan, kelompokId = null) {
 
     if (user.role === 'admin_desa') {
       accessibleKelompokIds = kelompokData
-        .filter(k => k.desa_id == user.scope_id)
+        .filter(k => k.desa_id == user.scopeId)
         .map(k => k.id);
     } else {
-      accessibleKelompokIds = [user.scope_id];
+      accessibleKelompokIds = [user.scopeId];
     }
 
     eventData = eventData.filter(e => accessibleKelompokIds.includes(Number(e.kelompok_id)));
@@ -218,10 +218,10 @@ function serverGetCalendarEventSummary(token, tahun, bulan, kelompokId = null) {
 
     if (user.role === 'admin_desa') {
       accessibleKelompokIds = kelompokData
-        .filter(k => k.desa_id == user.scope_id)
+        .filter(k => k.desa_id == user.scopeId)
         .map(k => k.id);
     } else {
-      accessibleKelompokIds = [user.scope_id];
+      accessibleKelompokIds = [user.scopeId];
     }
 
     eventData = eventData.filter(e => accessibleKelompokIds.includes(Number(e.kelompok_id)));

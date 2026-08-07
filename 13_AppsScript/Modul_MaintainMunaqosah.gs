@@ -53,11 +53,11 @@ function serverGetMunaqosahList(token, periodeId, filters = {}) {
   } else if (user.role === 'admin_desa') {
     // Kelompok di desa user
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
-      .filter(k => k.desa_id == user.scope_id)
+      .filter(k => k.desa_id == user.scopeId)
       .map(k => k.id);
   } else if (user.role === 'admin_kelompok') {
     // Kelompok user saja
-    accessibleKelompokIds = [user.scope_id];
+    accessibleKelompokIds = [user.scopeId];
   } else {
     // guru: view-only
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
@@ -298,10 +298,10 @@ function serverGetSantriTeladan(token, periodeId, minScore = 90) {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
   } else if (user.role === 'admin_desa') {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
-      .filter(k => k.desa_id == user.scope_id)
+      .filter(k => k.desa_id == user.scopeId)
       .map(k => k.id);
   } else if (user.role === 'admin_kelompok') {
-    accessibleKelompokIds = [user.scope_id];
+    accessibleKelompokIds = [user.scopeId];
   } else {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
   }
@@ -359,10 +359,10 @@ function serverGetMunaqosahStats(token, periodeId, filters = {}) {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
   } else if (user.role === 'admin_desa') {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
-      .filter(k => k.desa_id == user.scope_id)
+      .filter(k => k.desa_id == user.scopeId)
       .map(k => k.id);
   } else if (user.role === 'admin_kelompok') {
-    accessibleKelompokIds = [user.scope_id];
+    accessibleKelompokIds = [user.scopeId];
   }
 
   const munaqosahData = readSheetAsObjects(SHEET_NAMES.MUNAQOSAH)

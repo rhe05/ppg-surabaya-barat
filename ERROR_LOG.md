@@ -1144,6 +1144,50 @@ kode) — kelas "1A" berubah dari `adaData:false` → `avgPct:86`.
 
 ---
 
+## #32 — Munaqosah/Konseling/Kalender RBAC baca `user.scope_id` (snake_case) padahal session pakai `user.scopeId` — admin_desa/admin_kelompok dapat data kosong/salah (ditemukan sambil kerja Sprint 2 caching, 2026-08-07)
+
+**Gejala**: tidak dilaporkan user — ditemukan tidak sengaja saat menambah
+cache key `user.scopeId` di 6 fungsi server (Sprint 2 read optimization).
+
+**Akar masalah**: `getCurrentUser()` (Modul_Utilities.gs) & `serverLogin`/
+`serverCompleteOnboarding*` (Code.js) SELALU mengisi session object dengan
+field camelCase `scopeId` (mis. `scopeId: found.scope_id`) — field
+`scope_id` (snake_case) TIDAK PERNAH ada di session object. Tapi
+`serverGetMunaqosahList`/`serverGetSantriTeladan`/`serverGetMunaqosahStats`
+(Modul_MaintainMunaqosah.gs), `serverGetKonselingList`/
+`serverGetKonselingStats` (Modul_MaintainKonseling.gs), dan
+`serverGetCalendarEvents`/`serverGetCalendarEventSummary`
+(Modul_MaintainKalender.gs) semua membangun filter RBAC pakai
+`user.scope_id` (`undefined`) bukan `user.scopeId`. Akibat berbeda per
+file: Munaqosah — cabang admin_kelompok `[undefined]` (tidak match apa
+pun, list kosong), cabang else (fallback) malah kebuka utk SEMUA
+kelompok; Konseling — cabang admin_kelompok `[undefined]` sama, list
+kosong; Kalender — filter `k.desa_id == undefined` juga tidak pernah
+match utk admin_desa, admin_kelompok dapat `[undefined]`.
+
+**Catatan tambahan (BUKAN diperbaiki, di luar scope)**: role kelompok-admin
+produksi saat ini bernama `admin_kelp` (akun mobile self-register), BUKAN
+`admin_kelompok` yang dicek ketiga file ini — jadi user admin_kelp yang
+ada sekarang sebenarnya jatuh ke cabang `else`/fallback di masing-masing
+fungsi (lihat rincian di atas), bukan cabang admin_kelompok yang baru
+diperbaiki. Ini pola RBAC alias yang disengaja (lihat komentar
+Modul_Utilities.gs baris ~383 & Modul_InputAbsen.gs baris ~881,
+`admin_kelp` memang dibedakan dari `admin_kelompok`) — tidak diubah di
+sini krn di luar permintaan & butuh keputusan desain terpisah. Belum ada
+akun `admin_desa` di produksi saat ini (dicek via
+`node tools/diag_query.js rows users 200`), jadi cabang admin_desa di
+ketiga file ini masih laten/belum pernah teruji nyata.
+
+**Perbaikan**: semua `user.scope_id` → `user.scopeId` di 3 file (14 titik
+total: Kalender ×4, Konseling ×4, Munaqosah ×6).
+
+**Cara verifikasi**: `node tools/check_local.js` lolos. Belum ada akun
+admin_desa/admin_kelompok aktif di produksi utk uji end-to-end lewat login
+sungguhan — tunggu konfirmasi user kalau ada akun kelompok-admin (role
+`admin_kelompok`, bukan `admin_kelp`) yang bisa dipakai tes langsung.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

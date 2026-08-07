@@ -31,10 +31,10 @@ function serverGetKonselingList(token, filters = {}) {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
   } else if (user.role === 'admin_desa') {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
-      .filter(k => k.desa_id == user.scope_id)
+      .filter(k => k.desa_id == user.scopeId)
       .map(k => k.id);
   } else if (user.role === 'admin_kelompok' || user.role === 'guru') {
-    accessibleKelompokIds = [user.scope_id];
+    accessibleKelompokIds = [user.scopeId];
   } else {
     return { success: false, error: 'Anda tidak memiliki akses.' };
   }
@@ -326,10 +326,10 @@ function serverGetKonselingStats(token, filters = {}) {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK).map(k => k.id);
   } else if (user.role === 'admin_desa') {
     accessibleKelompokIds = readSheetAsObjects(SHEET_NAMES.KELOMPOK)
-      .filter(k => k.desa_id == user.scope_id)
+      .filter(k => k.desa_id == user.scopeId)
       .map(k => k.id);
   } else if (user.role === 'admin_kelompok' || user.role === 'guru') {
-    accessibleKelompokIds = [user.scope_id];
+    accessibleKelompokIds = [user.scopeId];
   }
 
   let konselingData = readSheetAsObjects(SHEET_NAMES.KONSELING)
