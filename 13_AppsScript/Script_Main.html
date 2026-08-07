@@ -576,7 +576,11 @@
     document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'none';
     document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
 
-    iaSetTanggal_(iaToday_());
+    // Toolbar "Bulan - Tahun" lama disembunyikan -- Admin Kelp filter-nya
+    // SATU PINTU lewat icon kalender header (lihat window.iaHeaderCalendarClick_/
+    // iaAkFilterOverlay di bawah), bukan dua kontrol terpisah lagi.
+    document.getElementById('iaFilterBtn').style.display = 'none';
+
     window.iaShowDashboardView_();
   };
 
@@ -1881,6 +1885,7 @@
   window.iaLoadDashboardSummary_ = function () {
     if (!window.iaState_.dashboardFilter) window.iaState_.dashboardFilter = window.iaCurrentMonthFilter_();
     window.iaUpdateFilterLabel_();
+    if (window.iaState_.mode === 'admin_kelp') window.iaAkUpdateHeaderDateLabel_();
 
     const wrap = document.getElementById('iaDashboardCards');
     const key = iaDashboardCacheKey_();
@@ -1951,6 +1956,98 @@
     window.iaState_.dashboardFilter = { mulai: mulai, selesai: selesai, bulan: bulan, tahun: tahun };
     window.iaCloseFilterOverlay_();
     window.iaLoadDashboardSummary_();
+  };
+
+  /* ─── Filter Dashboard KHUSUS Admin Kelp -- 1 pintu (icon kalender header)
+     utk 2 mode: "Bulan & Tahun" (rentang sebulan, sama seperti filter guru
+     di atas) ATAU "Tanggal" (1 hari spesifik). Terpisah total dari
+     iaFilterOverlay/iaApplyFilter_ guru (TIDAK disentuh) supaya tidak
+     saling pengaruh. ─── */
+
+  window.iaAkFilterTab_ = 'bulan';
+
+  window.iaHeaderCalendarClick_ = function () {
+    if (window.iaState_.mode === 'admin_kelp') {
+      window.iaAkOpenFilter_();
+      return;
+    }
+    window.toggleDatePicker('iaTanggal', 'iaCalendarBtn');
+  };
+
+  window.iaAkOpenFilter_ = function () {
+    const filter = window.iaState_.dashboardFilter;
+    const tab = (filter && filter.mode === 'tanggal') ? 'tanggal' : 'bulan';
+    window.iaAkSwitchTab_(tab);
+
+    // Isi ulang select Bulan/Tahun (id KHUSUS Admin Kelp, beda dari
+    // #iaFilterBulan/#iaFilterTahun milik guru).
+    const bulanSel = document.getElementById('iaAkFilterBulan');
+    const tahunSel = document.getElementById('iaAkFilterTahun');
+    const curYear = new Date().getFullYear();
+    if (bulanSel.options.length === 0) {
+      bulanSel.innerHTML = IA_FILTER_NAMA_BULAN_.map(function (nm, idx) { return `<option value="${idx + 1}">${nm}</option>`; }).join('');
+    }
+    if (tahunSel.options.length === 0) {
+      tahunSel.innerHTML = [curYear - 1, curYear].map(function (y) { return `<option value="${y}">${y}</option>`; }).join('');
+    }
+    const monthFilter = (filter && filter.mode !== 'tanggal') ? filter : window.iaCurrentMonthFilter_();
+    bulanSel.value = String(monthFilter.bulan);
+    tahunSel.value = String(monthFilter.tahun);
+
+    if (filter && filter.mode === 'tanggal') {
+      const monthNames = IA_FILTER_NAMA_BULAN_;
+      const d = new Date(filter.tanggal + 'T00:00:00');
+      document.getElementById('iaAkTanggal').value = filter.tanggal;
+      document.getElementById('iaAkTanggalDisplay').value = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+    }
+
+    document.getElementById('iaAkFilterOverlay').style.display = 'flex';
+  };
+
+  window.iaAkCloseFilter_ = function () {
+    document.getElementById('iaAkFilterOverlay').style.display = 'none';
+  };
+
+  window.iaAkSwitchTab_ = function (tab) {
+    window.iaAkFilterTab_ = tab;
+    document.getElementById('iaAkTabBulan').classList.toggle('active', tab === 'bulan');
+    document.getElementById('iaAkTabTanggal').classList.toggle('active', tab === 'tanggal');
+    document.getElementById('iaAkBulanFields').style.display = tab === 'bulan' ? 'flex' : 'none';
+    document.getElementById('iaAkTanggalFields').style.display = tab === 'tanggal' ? 'flex' : 'none';
+  };
+
+  window.iaAkApplyFilter_ = function () {
+    if (window.iaAkFilterTab_ === 'tanggal') {
+      const tgl = document.getElementById('iaAkTanggal').value;
+      if (!tgl) { iaShowToast_('Pilih tanggal dulu.', 'error'); return; }
+      window.iaState_.dashboardFilter = { mode: 'tanggal', tanggal: tgl, mulai: tgl, selesai: tgl };
+    } else {
+      const bulan = Number(document.getElementById('iaAkFilterBulan').value);
+      const tahun = Number(document.getElementById('iaAkFilterTahun').value);
+      const pad = function (n) { return String(n).padStart(2, '0'); };
+      const mulai = tahun + '-' + pad(bulan) + '-01';
+      const lastDay = new Date(tahun, bulan, 0).getDate();
+      const selesai = tahun + '-' + pad(bulan) + '-' + pad(lastDay);
+      window.iaState_.dashboardFilter = { mode: 'bulan', mulai: mulai, selesai: selesai, bulan: bulan, tahun: tahun };
+    }
+    window.iaAkCloseFilter_();
+    window.iaLoadDashboardSummary_();
+  };
+
+  /* Label di bawah icon kalender header (#iaHeaderDateLabel) -- otomatis
+     "Agustus 2026" kalau filter Bulan & Tahun, atau "Jumat, 7 Agustus 2026"
+     kalau filter Tanggal spesifik. */
+  window.iaAkUpdateHeaderDateLabel_ = function () {
+    const filter = window.iaState_.dashboardFilter;
+    const label = document.getElementById('iaHeaderDateLabel');
+    if (!filter || !label) return;
+    if (filter.mode === 'tanggal') {
+      const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const d = new Date(filter.tanggal + 'T00:00:00');
+      label.textContent = `${dayNames[d.getDay()]}, ${d.getDate()} ${IA_FILTER_NAMA_BULAN_[d.getMonth()]} ${d.getFullYear()}`;
+    } else {
+      label.textContent = IA_FILTER_NAMA_BULAN_[filter.bulan - 1] + ' ' + filter.tahun;
+    }
   };
 
   window.iaRenderDashboardCards_ = function (list) {
