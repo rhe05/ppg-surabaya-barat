@@ -854,6 +854,70 @@ function serverGetGuruDashboardSummaryRange(token, tanggalMulai, tanggalSelesai)
 }
 
 /**
+ * Validasi token adalah akun 'admin_kelp' (mobile self-register, lihat
+ * serverCompleteOnboardingAdminKelompok di Code.js — BEDA dari 'admin_kelompok'
+ * desktop). Kembalikan {user, kelompokId} atau {success:false, error}.
+ */
+function requireAdminKelpContext_(token) {
+  const user = getCurrentUser(token);
+  if (!user) return { success: false, error: 'Sesi tidak valid.' };
+  if (user.role !== 'admin_kelp') return { success: false, error: 'Fitur ini khusus akun Admin Kelompok.' };
+  return { success: true, user: user, kelompokId: user.scopeId };
+}
+
+/**
+ * GET ringkasan kehadiran SEMUA kelas di Kelompok (bukan cuma milik 1 guru,
+ * beda dari serverGetGuruDashboardSummaryRange di atas) — dipakai Dashboard
+ * Kehadiran akun 'admin_kelp'. Tampilan kartu & filter Bulan-Tahun-nya SAMA
+ * dengan dashboard guru (Script_Main.html → iaRenderDashboardCards_), cuma
+ * sumber kelasnya "semua kelas Kelompok" (lihat getAllKelasInKelompok_ di
+ * bawah), bukan "kelas milik guru_id ini".
+ */
+function serverGetAdminKelpDashboardSummaryRange(token, tanggalMulai, tanggalSelesai) {
+  const ctx = requireAdminKelpContext_(token);
+  if (!ctx.success) return ctx;
+  if (!String(tanggalMulai).match(/^\d{4}-\d{2}-\d{2}$/) || !String(tanggalSelesai).match(/^\d{4}-\d{2}-\d{2}$/)) {
+    return { success: false, error: 'Format tanggal tidak valid.' };
+  }
+  if (tanggalSelesai < tanggalMulai) {
+    return { success: false, error: 'Tanggal selesai tidak boleh sebelum tanggal mulai.' };
+  }
+
+  const kelasList = getAllKelasInKelompok_(ctx.kelompokId);
+  const tabelKelas_ = iaReadKelompokTablesParallel_([SHEET_NAMES.JADWAL_KBM, SHEET_NAMES.GURU, SHEET_NAMES.SANTRI], ctx.kelompokId);
+  const jadwalRowsAll = tabelKelas_[SHEET_NAMES.JADWAL_KBM];
+  const guruRowsAll = tabelKelas_[SHEET_NAMES.GURU];
+  const santriAll = tabelKelas_[SHEET_NAMES.SANTRI];
+  const absensiRange = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }), tanggalMulai, tanggalSelesai);
+
+  const result = kelasList.map(function (meta) {
+    const kelasLower = meta.kelas.toLowerCase();
+    const santriIdsKelas = santriAll
+      .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
+      .map(function (s) { return Number(s.id); });
+    const info = getKelasSessionInfo_(ctx.kelompokId, meta.kelas, jadwalRowsAll, guruRowsAll) || {};
+    const summary = {
+      kelas: meta.kelas, total: santriIdsKelas.length, hadir: 0, izin: 0, sakit: 0, alpa: 0,
+      ruangan: info.ruangan || '', jamMulai: info.jamMulai || '', jamSelesai: info.jamSelesai || '',
+      kategori: info.kategori || '', namaGuru: info.namaGuru || '',
+    };
+    const tanggalDiisi = {};
+    absensiRange.forEach(function (a) {
+      if (santriIdsKelas.indexOf(Number(a.santri_id)) === -1) return;
+      if (a.status === 'hadir') summary.hadir++;
+      else if (a.status === 'izin') summary.izin++;
+      else if (a.status === 'sakit') summary.sakit++;
+      else if (a.status === 'alpa') summary.alpa++;
+      tanggalDiisi[tanggalKeString_(a.tanggal)] = true;
+    });
+    summary.hariAktif = Object.keys(tanggalDiisi).length;
+    return summary;
+  });
+
+  return { success: true, data: result };
+}
+
+/**
  * ═════ MODE ADMIN (admin_ppg) — akses ke SEMUA Kelompok/Guru/Kelas ═════
  *
  * Admin PPG boleh pakai screen Input Absen yang sama, tapi TANPA dikunci ke

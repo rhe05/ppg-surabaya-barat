@@ -532,10 +532,14 @@
   };
 
   /* Admin Kelp (mobile self-register, lihat serverCompleteOnboardingAdminKelompok
-     di Code.js): SEMENTARA hanya menampilkan Dashboard Kehadiran semua kelas
-     Kelompoknya (urut PAUD/TK A → Remaja SMA via window.KG_KELAS_ORDER_,
-     didefinisikan di bagian Kehadiran Generus di bawah) — tidak ada menu lain
-     yang aktif, hamburger cuma berisi "Keluar". */
+     di Code.js): SEMENTARA hanya menampilkan Dashboard Kehadiran SEMUA kelas
+     Kelompoknya — TAMPILAN SAMA PERSIS dashboard guru (5 kartu Hari
+     Aktif/Hadir/Izin/Sakit/Alpa, filter Bulan-Tahun, icon kalender header),
+     lewat pipeline yang SAMA (window.iaShowDashboardView_ → iaLoadDashboardSummary_
+     → iaRenderDashboardCards_, keduanya dicabangkan via iaState_.mode di
+     bawah) — bedanya cuma sumber data (semua kelas, bukan cuma kelas 1 guru)
+     dan diurutkan PAUD/TK A → Remaja SMA. Tidak ada menu lain yang aktif,
+     hamburger cuma berisi "Keluar". */
   window.initAdminKelpDashboard_ = function () {
     window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
 
@@ -551,75 +555,9 @@
     document.getElementById('iaMenuLaporanBtn').style.display = 'none';
     document.getElementById('iaMenuKelolaQuoteBtn').style.display = 'none';
     document.getElementById('iaMenuExitLabel').textContent = 'Keluar';
-    document.getElementById('iaCalendarBtn').style.display = 'none';
-    document.getElementById('iaHeaderDateLabel').textContent = 'Dashboard Kehadiran';
-    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
-    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
-    document.getElementById('iaFilterBtn').style.display = 'none';
 
-    document.getElementById('iaDashboardView').style.display = 'block';
-    document.getElementById('iaKelasView').style.display = 'none';
-    document.getElementById('iaLaporanView').style.display = 'none';
-    document.getElementById('iaJurnalView').style.display = 'none';
-    document.getElementById('iaRiwayatView').style.display = 'none';
-    document.getElementById('iaKelasRow').style.display = 'none';
-
-    window.iaLoadAdminKelpDashboard_();
-  };
-
-  window.iaLoadAdminKelpDashboard_ = function () {
-    const wrap = document.getElementById('iaDashboardCards');
-    window.showGlobalLoading_('Memuat ringkasan...');
-    const now = new Date();
-
-    google.script.run
-      .withSuccessHandler(function (result) {
-        window.hideGlobalLoading_();
-        if (!result.success) {
-          wrap.innerHTML = '<div class="ia-dash-empty">' + result.error + '</div>';
-          return;
-        }
-        window.iaRenderAdminKelpDashboardCards_(result.data);
-      })
-      .withFailureHandler(function (err) {
-        window.hideGlobalLoading_();
-        wrap.innerHTML = '<div class="ia-dash-empty">Gagal memuat ringkasan: ' + (err && err.message ? err.message : err) + '</div>';
-      })
-      .serverGetKehadiranGenerusKategori(window.currentToken, window.iaState_.kelompokId, now.getFullYear(), now.getMonth() + 1);
-  };
-
-  window.iaRenderAdminKelpDashboardCards_ = function (data) {
-    const wrap = document.getElementById('iaDashboardCards');
-    const flatList = [];
-    (data || []).forEach(function (kat) { (kat.kelasList || []).forEach(function (k) { flatList.push(k); }); });
-    flatList.sort(function (a, b) {
-      const ra = window.kgKelasSortIndex_(a.kelas);
-      const rb = window.kgKelasSortIndex_(b.kelas);
-      if (ra !== rb) return ra - rb;
-      return String(a.kelas).localeCompare(String(b.kelas));
-    });
-
-    if (flatList.length === 0) {
-      wrap.innerHTML = '<div class="ia-dash-empty">Belum ada kelas (atur di Jadwal KBM).</div>';
-      return;
-    }
-
-    wrap.innerHTML = flatList.map(function (k) {
-      return `
-        <div class="ia-dash-card">
-          <div class="ia-dash-card-head">
-            <span class="ia-dash-card-kelas">Kelas ${k.kelas}</span>
-          </div>
-          <div class="ia-dash-card-info">${k.jumlahSantri} Santri${k.namaGuru ? ' · Kak ' + k.namaGuru : ''}</div>
-          <div class="ia-dash-stat-row">
-            <div class="ia-dash-stat hadir">
-              <span class="ia-dash-stat-num">${k.adaData ? k.avgPct + '%' : '–'}</span>
-              <span class="ia-dash-stat-label">Kehadiran</span>
-            </div>
-          </div>
-        </div>
-      `;
-    }).join('');
+    iaSetTanggal_(iaToday_());
+    window.iaShowDashboardView_();
   };
 
   /* ─── Prefetch diam-diam daftar kelas Input Absen & Input Jurnal, dipanggil
@@ -1932,6 +1870,13 @@
     };
 
     const filter = window.iaState_.dashboardFilter;
+    // Admin Kelp (dashboard SEMUA kelas Kelompok, bukan cuma kelas 1 guru) —
+    // sumber data beda, tapi render kartu & filter Bulan-Tahun-nya SAMA.
+    if (window.iaState_.mode === 'admin_kelp') {
+      google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
+        .serverGetAdminKelpDashboardSummaryRange(window.currentToken, filter.mulai, filter.selesai);
+      return;
+    }
     google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail)
       .serverGetGuruDashboardSummaryRange(window.currentToken, filter.mulai, filter.selesai);
   };
@@ -1979,12 +1924,28 @@
 
   window.iaRenderDashboardCards_ = function (list) {
     const wrap = document.getElementById('iaDashboardCards');
+    const isAdminKelp = window.iaState_.mode === 'admin_kelp';
     if (!list || list.length === 0) {
-      wrap.innerHTML = '<div class="ia-dash-empty">Anda belum mengampu kelas apa pun.</div>';
+      wrap.innerHTML = isAdminKelp
+        ? '<div class="ia-dash-empty">Belum ada kelas (atur di Jadwal KBM).</div>'
+        : '<div class="ia-dash-empty">Anda belum mengampu kelas apa pun.</div>';
       return;
+    }
+    // Admin Kelp lihat SEMUA kelas Kelompok sekaligus — urutkan PAUD/TK A →
+    // Remaja SMA (window.kgKelasSortIndex_, dari bagian Kehadiran Generus di
+    // bawah) supaya konsisten dgn urutan kelas di seluruh app. Guru cuma
+    // punya 1-2 kelas sendiri, urutan bawaan server sudah cukup — tidak diubah.
+    if (isAdminKelp) {
+      list = list.slice().sort(function (a, b) {
+        const ra = window.kgKelasSortIndex_(a.kelas);
+        const rb = window.kgKelasSortIndex_(b.kelas);
+        if (ra !== rb) return ra - rb;
+        return String(a.kelas).localeCompare(String(b.kelas));
+      });
     }
     wrap.innerHTML = list.map(function (item) {
       const infoParts = [];
+      if (item.namaGuru) infoParts.push('Kak ' + item.namaGuru);
       if (item.ruangan) infoParts.push(item.ruangan);
       infoParts.push(item.total + ' Santri');
       if (item.jamMulai && item.jamSelesai) {
