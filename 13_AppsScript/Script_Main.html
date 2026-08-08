@@ -1882,7 +1882,7 @@
           return;
         }
         window.lastLaporanPerkembanganData_ = res.data;
-        window.unduhLaporanPerkembanganSantriPdf_();
+        window.openLpsPdfPreview_();
       })
       .withFailureHandler(function (err) {
         window.hideGlobalLoading_();
@@ -6274,6 +6274,49 @@
     document.getElementById('laporanPerkembanganResult').innerHTML = '<div class="lps-report">' + window.lpsBuildBodyHtml_(data) + '</div>';
   };
 
+  /* ═════ Modal Preview PDF (checklist validasi + preview isi laporan)
+     sebelum benar-benar unduh — dipanggil dari tombol "Unduh PDF" desktop
+     admin (#lpsUnduhBtn) MAUPUN mobile guru (iaLaporanUnduhPdf_ setelah data
+     laporan berhasil dimuat). SATU modal global (#modalLpsPdfPreview,
+     Markup_Screens.html, top-level spt #modalGuruIzin) dipakai kedua screen
+     — reuse lpsBuildBodyHtml_ yg sama, TIDAK duplikasi tampilan. */
+  window.lpsPdfPreviewData_ = null;
+
+  window.lpsBuildPreviewChecklistHtml_ = function (data) {
+    const total = data.santriDetail.length;
+    const incomplete = data.santriDetail.filter(function (s) { return s.status === 'Belum Ada Data'; }).length;
+    const lengkapOk = incomplete === 0;
+    const now = new Date();
+    const todayStr = now.getDate() + ' ' + IA_LAPORAN_NAMA_BULAN_[now.getMonth()] + ' ' + now.getFullYear();
+    const row = function (ok, text) {
+      return '<div class="lps-pdf-check-row' + (ok ? '' : ' lps-pdf-check-warn') + '">' + (ok ? '✅' : '⚠️') + ' <span>' + text + '</span></div>';
+    };
+    return row(true, total + ' santri terload')
+      + row(lengkapOk, lengkapOk ? 'Semua nilai lengkap' : (incomplete + ' santri belum ada data'))
+      + row(true, 'Kelompok: ' + data.kelompok)
+      + row(true, 'Tanggal: ' + todayStr);
+  };
+
+  window.openLpsPdfPreview_ = function () {
+    const data = window.lastLaporanPerkembanganData_;
+    if (!data) return;
+    window.lpsPdfPreviewData_ = data;
+    document.getElementById('lpsPdfChecklist').innerHTML = window.lpsBuildPreviewChecklistHtml_(data);
+    document.getElementById('lpsPdfPreviewBody').innerHTML = '<div class="lps-report">' + window.lpsBuildBodyHtml_(data) + '</div>';
+    document.getElementById('modalLpsPdfPreview').classList.add('active');
+  };
+
+  window.closeLpsPdfPreview_ = function () {
+    document.getElementById('modalLpsPdfPreview').classList.remove('active');
+  };
+
+  window.confirmDownloadLpsPdf_ = function () {
+    if (!window.lpsPdfPreviewData_) return;
+    window.lastLaporanPerkembanganData_ = window.lpsPdfPreviewData_;
+    window.closeLpsPdfPreview_();
+    window.unduhLaporanPerkembanganSantriPdf_();
+  };
+
   /* ═════ Unduh PDF — pdfmake (100% client-side, TIDAK ada proses PDF di
      server) ═════ Kop surat (logo+teks+warna+garis, lihat Modul_KopSurat.gs)
      HANYA diambil dari Firestore saat tombol Unduh diklik DAN santri guru ini
@@ -6502,6 +6545,7 @@
 
     const filename = 'Laporan_' + String(data.guru).replace(/\s+/g, '_') + '_' + String(data.periode).replace(/\s+/g, '_') + '.pdf';
     pdfMake.createPdf(docDefinition).download(filename);
+    window.showToast_('✅ PDF berhasil diunduh!');
   };
 
   /* ═════ Modal Kop Surat (input logo + teks + warna + garis) ═════

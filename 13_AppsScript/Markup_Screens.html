@@ -931,6 +931,27 @@
   </div>
 </div>
 
+<!-- Modal Preview PDF Laporan Perkembangan Santri (shared: dipakai desktop
+     admin Kelp tab "Laporan" & mobile menu "Laporan" guru — GLOBAL/top-level
+     spt modalGuruIzin di atas, supaya reachable dari kedua screen. -->
+<div class="modal-overlay" id="modalLpsPdfPreview">
+  <div class="modal-content">
+    <div class="modal-header">
+      <span>Preview Laporan PDF</span>
+      <button class="modal-close-btn" onclick="window.closeLpsPdfPreview_()">✕</button>
+    </div>
+
+    <div class="lps-pdf-checklist" id="lpsPdfChecklist"></div>
+
+    <div class="lps-pdf-preview-scroll" id="lpsPdfPreviewBody"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="window.closeLpsPdfPreview_()">Batal</button>
+      <button class="btn btn-primary" id="lpsPdfConfirmBtn" onclick="window.confirmDownloadLpsPdf_()">Download PDF</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Permintaan Akses Masuk (approve/reject) -->
 <div class="modal-overlay" id="modalIncomingRequests">
   <div class="modal-content">
@@ -3299,7 +3320,7 @@
               <option value="2027">2027</option>
             </select>
             <button type="button" class="btn btn-primary" onclick="window.loadLaporanPerkembanganSantri_()">Buat Laporan</button>
-            <button type="button" class="btn btn-secondary" id="lpsUnduhBtn" onclick="window.unduhLaporanPerkembanganSantriPdf_()" disabled>Unduh PDF</button>
+            <button type="button" class="btn btn-secondary" id="lpsUnduhBtn" onclick="window.openLpsPdfPreview_()" disabled>Unduh PDF</button>
             <button type="button" class="btn btn-secondary" onclick="window.openModalKopSurat_()">Kop Surat</button>
           </div>
 

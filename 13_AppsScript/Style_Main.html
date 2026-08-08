@@ -3519,6 +3519,47 @@
       letter-spacing: 0.04em;
     }
 
+    /* ═════ Modal Preview PDF Laporan Perkembangan Santri ═════ */
+    #modalLpsPdfPreview .modal-content {
+      max-width: 720px;
+    }
+
+    .lps-pdf-checklist {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .lps-pdf-check-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 13px;
+      color: #000;
+    }
+
+    .lps-pdf-check-row.lps-pdf-check-warn {
+      color: var(--brass);
+    }
+
+    .lps-pdf-preview-scroll {
+      max-height: 50vh;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 4px;
+    }
+
+    .lps-pdf-preview-scroll .lps-report {
+      border: none;
+      padding: 18px;
+    }
+
     /* ═════ Matrix Detail Kehadiran (santri × hari efektif) — sticky header + kolom nama/kelas ═════ */
     .kg-matrix-scroll {
       max-height: 560px;
