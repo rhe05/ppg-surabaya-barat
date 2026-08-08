@@ -321,3 +321,74 @@ function diagPerfCleanup_(kelompokId, kelas, tanggal) {
 
   return { success: true, data: result };
 }
+
+/* ═════ Tambahan (2026-08-08, lanjutan) — jalur GURU NORMAL asli ═════
+ * `serverSaveAbsensiKelas` (BUKAN admin) menolak tanggal masa depan by
+ * design (iaValidateWaktuAbsen_) — jadi tidak bisa dipakai dgn tanggal
+ * "jauh ke depan" spt jalur admin sebelumnya. Dipakai tanggal LAMPAU yang
+ * dipastikan KOSONG (dicek diagPerfCheckAbsensiEmpty_ dulu) — SELALU
+ * diizinkan oleh iaValidateWaktuAbsen_ tanpa syarat jam, dan tidak pernah
+ * menyentuh tanggal operasional yang sudah dipakai krn dicek eksplisit. */
+
+/** ?diag=perfcheckempty&kelompok=1&kelas=&tanggal= — cek AMAN sebelum test tulis. */
+function diagPerfCheckAbsensiEmpty_(kelompokId, kelas, tanggal) {
+  const santriKelas = iaReadKelompokTable_(SHEET_NAMES.SANTRI, kelompokId).filter(function (s) {
+    return String(s.kelas_ngaji || '').trim().toLowerCase() === String(kelas).trim().toLowerCase();
+  });
+  const rows = iaReadAbsensiKelompokRange_(kelompokId, santriKelas.map(function (s) { return s.id; }), tanggal, tanggal);
+  return { success: true, empty: rows.length === 0, existingCount: rows.length, santriCountKelas: santriKelas.length };
+}
+
+/** ?diag=perfmeta&kelompok=1&guruid= — isolasi serverGetInputAbsenMeta saja. */
+function diagPerfMeta_(kelompokId, guruId) {
+  const token = perfMintSession_('guru', kelompokId, guruId, 300);
+  const t0 = Date.now();
+  const res = serverGetInputAbsenMeta(token);
+  const t1 = Date.now();
+  return { success: true, ms: t1 - t0, callSuccess: res.success };
+}
+
+/** ?diag=perfquote&kelompok=1&guruid= — isolasi serverGetQuoteHariIni saja. */
+function diagPerfQuote_(kelompokId, guruId) {
+  const token = perfMintSession_('guru', kelompokId, guruId, 300);
+  const t0 = Date.now();
+  const res = serverGetQuoteHariIni(token);
+  const t1 = Date.now();
+  return { success: true, ms: t1 - t0, callSuccess: res.success };
+}
+
+/** ?diag=perfdashsummary&kelompok=1&guruid=&tahun=&bulan= — isolasi
+ *  serverGetGuruDashboardSummaryRange saja (bukan bagian dari chain sequential). */
+function diagPerfDashboardSummary_(kelompokId, guruId, tahun, bulan) {
+  const token = perfMintSession_('guru', kelompokId, guruId, 300);
+  const mulai = tahun + '-' + String(bulan).padStart(2, '0') + '-01';
+  const lastDay = new Date(Number(tahun), Number(bulan), 0).getDate();
+  const selesai = tahun + '-' + String(bulan).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0');
+  const t0 = Date.now();
+  const res = serverGetGuruDashboardSummaryRange(token, mulai, selesai);
+  const t1 = Date.now();
+  return { success: true, ms: t1 - t0, callSuccess: res.success };
+}
+
+/**
+ * ?diag=perfsaveguru&kelompok=1&guruid=&kelas=&tanggal=&santriids=[...]
+ * REAL serverSaveAbsensiKelas (jalur guru asli, BUKAN admin) — baca field
+ * `_perf` dari respons (ditambahkan sbg instrumentasi temp langsung di
+ * fungsi itu, lihat Modul_InputAbsen.gs).
+ */
+function diagPerfSaveGuru_(kelompokId, guruId, kelas, tanggal, santriIds) {
+  const token = perfMintSession_('guru', kelompokId, guruId, 300);
+  const statuses = ['hadir', 'izin', 'sakit', 'alpa'];
+  const absensiList = santriIds.map(function (id, idx) { return { santri_id: id, status: statuses[idx % statuses.length] }; });
+
+  const tCall0 = Date.now();
+  const res = serverSaveAbsensiKelas(token, kelas, tanggal, absensiList);
+  const tCall1 = Date.now();
+
+  return {
+    success: res.success,
+    error: res.error,
+    callTotalMs: tCall1 - tCall0,
+    perf: res._perf || null,
+  };
+}

@@ -328,6 +328,21 @@ function doGet(e) {
         case 'perfguruizin':
           result = diagPerfGuruIzin_(p.guruid, p.tanggal);
           break;
+        case 'perfcheckempty':
+          result = diagPerfCheckAbsensiEmpty_(kelompokId, p.kelas, p.tanggal);
+          break;
+        case 'perfmeta':
+          result = diagPerfMeta_(kelompokId, p.guruid);
+          break;
+        case 'perfquote':
+          result = diagPerfQuote_(kelompokId, p.guruid);
+          break;
+        case 'perfdashsummary':
+          result = diagPerfDashboardSummary_(kelompokId, p.guruid, p.tahun, p.bulan);
+          break;
+        case 'perfsaveguru':
+          result = diagPerfSaveGuru_(kelompokId, p.guruid, p.kelas, p.tanggal, JSON.parse(p.santriids || '[]'));
+          break;
         case 'perfcleanup':
           result = diagPerfCleanup_(kelompokId, p.kelas, p.tanggal);
           break;
