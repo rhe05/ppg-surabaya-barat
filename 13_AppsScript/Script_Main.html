@@ -6310,15 +6310,37 @@
     document.getElementById('modalLpsPdfPreview').classList.remove('active');
   };
 
-  window.confirmDownloadLpsPdf_ = function () {
+  /* Ganti total dari pdfmake ke window.print() + CSS @media print (lihat
+     Style_Main.html) — hasil browser-rendered asli, bukan lagi
+     screenshot/canvas, jadi PDF 100% sama persis tampilan web (kolom tabel
+     tidak lagi sempit/collapse spt html2canvas). Modal preview JANGAN
+     ditutup sebelum/selama print — `.modal-overlay` tanpa class `.active`
+     otomatis `display:none`, yg berarti `#lpsPdfPreviewBody` (target print)
+     ikut lenyap total dari render tree → hasil cetak jadi halaman kosong. */
+  window.confirmPrintLpsPdf_ = function () {
     if (!window.lpsPdfPreviewData_) return;
-    window.lastLaporanPerkembanganData_ = window.lpsPdfPreviewData_;
-    window.closeLpsPdfPreview_();
-    window.unduhLaporanPerkembanganSantriPdf_();
+    const data = window.lpsPdfPreviewData_;
+    const originalTitle = document.title;
+    document.title = 'Laporan_' + String(data.guru).replace(/\s+/g, '_') + '_' + String(data.periode).replace(/\s+/g, '_');
+
+    const restoreTitle_ = function () {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restoreTitle_);
+    };
+    window.addEventListener('afterprint', restoreTitle_);
+    setTimeout(restoreTitle_, 5000); // jaring pengaman kalau 'afterprint' tidak terpicu (browser lama)
+
+    window.print();
   };
 
   /* ═════ Unduh PDF — pdfmake (100% client-side, TIDAK ada proses PDF di
-     server) ═════ Kop surat (logo+teks+warna+garis, lihat Modul_KopSurat.gs)
+     server) ═════ ⚠️ SUDAH TIDAK DIPAKAI tombol "Unduh PDF" lagi (diganti
+     window.print() di atas, 2026-08-08) — TETAP DIPERTAHANKAN krn Kop Surat
+     (letterhead, Modul_KopSurat.gs) dibangun khusus utk jalur pdfmake ini,
+     belum ada padanannya di jalur print. Kalau kelak Kop Surat mau
+     diikutkan ke hasil print juga, baru fungsi2 di bawah ini perlu
+     direvisi/dipanggil ulang dari confirmPrintLpsPdf_ — jangan dihapus
+     duluan sebelum itu diputuskan. Kop surat (logo+teks+warna+garis)
      HANYA diambil dari Firestore saat tombol Unduh diklik DAN santri guru ini
      ada di kategori Cabe Rawit (window.KOP_SURAT_KATEGORI_, MVP) — bukan saat
      render laporan biasa, supaya read Firestore sehemat mungkin. */

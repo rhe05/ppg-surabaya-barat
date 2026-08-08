@@ -3560,6 +3560,77 @@
       padding: 18px;
     }
 
+    /* ═════ Print-to-PDF Laporan Perkembangan Santri (window.print(), ganti
+       total dari pdfmake — hasil = rendering browser asli jadi 100% sama
+       persis tampilan web, bukan screenshot/canvas). Trik "sembunyikan body,
+       tampilkan hanya target": `html,body{overflow:hidden;height:100%}` di
+       atas (baris ~30) WAJIB di-reset di sini juga, kalau tidak konten
+       ke-crop 1 halaman viewport doang saat print multi-halaman. Ancestor
+       modal (`.modal-overlay` position:fixed, `.modal-content`
+       max-height:90vh overflow-y:auto, `#lpsPdfPreviewBody` sendiri
+       max-height:50vh overflow-y:auto) SEMUA WAJIB direset ke static/visible
+       jg — overflow:hidden/auto pada ancestor tetap meng-clip descendant yg
+       dipaksa visibility:visible, terlepas dari posisi elemennya. ═════ */
+    @media print {
+      html, body {
+        height: auto !important;
+        overflow: visible !important;
+      }
+
+      body * { visibility: hidden !important; }
+      #lpsPdfPreviewBody, #lpsPdfPreviewBody * { visibility: visible !important; }
+
+      .modal-overlay {
+        position: static !important;
+        background: none !important;
+      }
+
+      #modalLpsPdfPreview .modal-content {
+        position: static !important;
+        max-height: none !important;
+        max-width: none !important;
+        width: auto !important;
+        overflow: visible !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+      }
+
+      #lpsPdfPreviewBody {
+        max-height: none !important;
+        overflow: visible !important;
+        border: none !important;
+        padding: 0 !important;
+      }
+
+      #lpsPdfPreviewBody .lps-report {
+        border: none !important;
+        padding: 0 !important;
+      }
+
+      #lpsPdfPreviewBody, #lpsPdfPreviewBody * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      #lpsPdfPreviewBody .lps-metric-grid,
+      #lpsPdfPreviewBody .lps-metric-card {
+        page-break-inside: avoid;
+      }
+
+      #lpsPdfPreviewBody .lps-detail-table thead {
+        display: table-header-group;
+      }
+
+      #lpsPdfPreviewBody .lps-detail-table tr {
+        page-break-inside: avoid;
+      }
+
+      @page {
+        size: A4;
+        margin: 14mm;
+      }
+    }
+
     /* ═════ Matrix Detail Kehadiran (santri × hari efektif) — sticky header + kolom nama/kelas ═════ */
     .kg-matrix-scroll {
       max-height: 560px;
