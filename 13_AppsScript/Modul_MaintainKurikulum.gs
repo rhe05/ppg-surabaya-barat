@@ -121,6 +121,50 @@ function serverGetProta(token, kelompokId, tahun, kelas) {
 // kosong per kelas), bukan 1 baris "Umum" tergabung spt sebelumnya.
 const KURIKULUM_KELAS_LIST_ = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 
+// Rentang kelas yang ditampilkan menu "Kurikulum > Prota" di mobile guru
+// (2026-08-09) -- SENGAJA dibatasi 1-6 saja sesuai instruksi user, PAUD-TK
+// dan 7-9 tidak dimunculkan di sana walau datanya ada.
+const KURIKULUM_MOBILE_KELAS_RANGE_ = ['1', '2', '3', '4', '5', '6'];
+
+/**
+ * Daftar Kelas 1-6 (kode kanonik kurikulum_prota.kelas) yang benar-benar
+ * diampu guru ini -- dipakai gerbang pilih kelas menu "Kurikulum" mobile.
+ *
+ * ⚠️ jadwal_kbm.kelas (nama kelas guru sungguhan, mis. "2A" atau "2 dan 3a"
+ * -- field bebas teks, lihat placeholder modal Jadwal KBM) BUKAN namespace
+ * yang sama dengan kurikulum_prota.kelas (kode kanonik '1'-'9'/'PAUD-TK'
+ * yang dipilih admin manual saat Tambah Materi Prota di desktop). TIDAK ADA
+ * kolom yang menghubungkan keduanya secara eksplisit. Sebagai jembatan,
+ * SEMUA angka di dalam nama kelas guru diekstrak (regex \d+) dan yang jatuh
+ * di rentang 1-6 dianggap kelas kanonik yang relevan -- "2A" -> kelas '2',
+ * "2 dan 3a" -> kelas '2' DAN '3' (guru itu dianggap mengampu keduanya),
+ * "PAUD/TK" -> tidak ada (dikecualikan, di luar rentang 1-6). Heuristik ini
+ * cukup untuk pola penamaan kelas yang ada saat ini; kalau pola penamaan
+ * baru muncul yang tidak tertangkap (mis. kelas ditulis dgn angka romawi),
+ * revisi regex di sini SAJA -- jangan duplikasi logic di tempat lain.
+ */
+function serverGetKurikulumKelasGuru(token) {
+  const ctx = requireGuruContext_(token);
+  if (!ctx.success) return ctx;
+
+  const jadwalRowsAll = iaReadKelompokTable_(SHEET_NAMES.JADWAL_KBM, ctx.kelompokId);
+  const kelasNames = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
+
+  const kelasIntiSet = {};
+  kelasNames.forEach(function (nama) {
+    const digits = String(nama).match(/\d+/g) || [];
+    digits.forEach(function (d) {
+      if (KURIKULUM_MOBILE_KELAS_RANGE_.indexOf(d) !== -1) kelasIntiSet[d] = true;
+    });
+  });
+
+  const data = KURIKULUM_MOBILE_KELAS_RANGE_
+    .filter(function (k) { return kelasIntiSet[k]; })
+    .map(function (k) { return { kelas: k, label: 'Kelas ' + k }; });
+
+  return { success: true, data: data };
+}
+
 /**
  * Tambah materi (Prota) -- HANYA Tahun + Kelas + Materi (Target diisi
  * belakangan lewat serverUpdateProtaSemesters via tombol Edit materi).

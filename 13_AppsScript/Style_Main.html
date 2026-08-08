@@ -6876,6 +6876,202 @@
 
     .ia-laporan-note.show { display: flex; }
 
+    /* Tema teal popup pilih kelas Kurikulum > Prota — override warna SAJA
+       dari .ia-kg-* (pola sama .ia-jr-theme indigo di atas), sengaja BUKAN
+       hijau/indigo/amber yang sudah dipakai Input Absen/Jurnal supaya guru
+       langsung mengenali "ini konteks lain" (referensi materi, bukan input
+       data harian). */
+    .ia-kur-theme .ia-kg-modal-icon {
+      background: var(--teal);
+      box-shadow: 0 8px 20px rgba(13, 148, 136, 0.3);
+    }
+
+    .ia-kur-theme .ia-kg-spinner {
+      border-color: rgba(13, 148, 136, 0.16);
+      border-top-color: var(--teal);
+    }
+
+    .ia-kur-theme .ia-kg-card.selected {
+      background: rgba(13, 148, 136, 0.08);
+      border-color: var(--teal);
+      box-shadow: 0 6px 18px rgba(13, 148, 136, 0.18);
+    }
+
+    .ia-kur-theme .ia-kg-card.selected .ia-kg-card-check {
+      background: var(--teal);
+      border-color: var(--teal);
+    }
+
+    .ia-kur-theme .ia-kg-masuk-btn {
+      background: var(--teal);
+      box-shadow: 0 6px 16px rgba(13, 148, 136, 0.26);
+    }
+
+    /* ═════ KURIKULUM > PROTA (guru mobile, read-only) — gaya editorial/
+       silabus tenang, sengaja BUKAN gaya dashboard KPI: tipografi besar jadi
+       elemen utama, list flat bergaris pemisah tipis (bukan kartu bertumpuk
+       shadow tebal), tanpa gradient/emoji dekoratif. Expand detail pakai
+       transisi max-height halus (bukan modal popup) — kesan "buka buku",
+       bukan "buka form". ═════ */
+    .ia-kur-view {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 16px 18px 28px;
+    }
+
+    .ia-kur-topbar {
+      margin-bottom: 6px;
+    }
+
+    .ia-kur-back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: none;
+      border: none;
+      padding: 8px 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+
+    .ia-kur-hero {
+      padding: 10px 0 18px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .ia-kur-hero-eyebrow {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 6px;
+    }
+
+    .ia-kur-hero-kelas {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.2;
+    }
+
+    .ia-kur-ganti-btn {
+      margin-top: 12px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-button);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--teal);
+      cursor: pointer;
+    }
+
+    .ia-kur-list {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .ia-kur-item {
+      border-bottom: 1px solid var(--border);
+      padding: 15px 2px;
+      cursor: pointer;
+    }
+
+    .ia-kur-item-head {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .ia-kur-item-num {
+      font-size: 19px;
+      font-weight: 300;
+      color: var(--text-faint);
+      min-width: 26px;
+      flex-shrink: 0;
+    }
+
+    .ia-kur-item-title {
+      flex: 1;
+      font-size: 14.5px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .ia-kur-item-chevron {
+      flex-shrink: 0;
+      font-size: 18px;
+      color: var(--text-faint);
+      transition: transform 0.25s ease, color 0.25s ease;
+    }
+
+    .ia-kur-item.open .ia-kur-item-chevron {
+      transform: rotate(90deg);
+      color: var(--teal);
+    }
+
+    .ia-kur-item-detail {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      padding-left: 40px;
+    }
+
+    .ia-kur-item.open .ia-kur-item-detail {
+      max-height: 600px;
+      padding-top: 10px;
+      padding-bottom: 2px;
+    }
+
+    .ia-kur-detail-label {
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 3px;
+    }
+
+    .ia-kur-detail-label:not(:first-child) {
+      margin-top: 10px;
+    }
+
+    .ia-kur-detail-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .ia-kur-detail-empty {
+      color: var(--text-faint);
+      font-style: italic;
+    }
+
+    .ia-kur-empty {
+      text-align: center;
+      padding: 44px 20px;
+      color: var(--text-faint);
+      font-size: 13px;
+    }
+
+    .ia-kur-loading {
+      display: flex;
+      justify-content: center;
+      padding: 44px 0;
+    }
+
+    .ia-kur-loading .ia-kg-spinner {
+      border-color: rgba(13, 148, 136, 0.16);
+      border-top-color: var(--teal);
+    }
+
     .ia-toast {
       position: absolute;
       left: 50%;

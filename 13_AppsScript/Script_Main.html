@@ -951,9 +951,13 @@
   };
 
   /* ═══ Menu "Kurikulum" (guru mobile) — dibawah "Jurnal Mengajar" di menu
-     hamburger. Sementara cuma popup pilihan Prota/Promes/Probul (placeholder
-     toast, isinya menyusul instruksi lanjutan) — tampilan desktop Kurikulum
-     (Dashboard Kelompok, tab Kurikulum) TIDAK disentuh sama sekali. ═══ */
+     hamburger. Popup pilihan Prota/Promes/Probul — HANYA Prota yang sudah
+     diimplementasi (2026-08-09, read-only, khusus Kelas 1-6); Promes/Probul
+     masih placeholder toast, menyusul instruksi lanjutan. Tampilan desktop
+     Kurikulum (Dashboard Kelompok, tab Kurikulum) TIDAK disentuh sama
+     sekali — mobile ini panggil server function yang SAMA (serverGetProta)
+     tapi render terpisah total (tema teal `.ia-kur-*`, TANPA tombol
+     tambah/edit/hapus — guru cuma lihat, bukan kelola). ═══ */
   window.iaMenuGoKurikulum_ = function () {
     window.iaCloseMenu_();
     window.iaKurikulumOpenChooser_();
@@ -969,8 +973,179 @@
 
   window.iaKurikulumChooseMode_ = function (mode) {
     window.iaKurikulumCloseChooser_();
-    const label = mode === 'prota' ? 'Program Tahunan (Prota)' : mode === 'promes' ? 'Program Semester (Promes)' : 'Program Bulanan (Probul)';
+    if (mode === 'prota') {
+      window.iaKurikulumProtaOpenGate_();
+      return;
+    }
+    const label = mode === 'promes' ? 'Program Semester (Promes)' : 'Program Bulanan (Probul)';
     iaShowToast_(label + ' segera hadir', 'info');
+  };
+
+  /* ─── Kurikulum > Program Tahunan (Prota), read-only guru mobile ───
+     Gerbang pilih kelas HANYA menampilkan Kelas 1-6 yang benar-benar
+     diampu guru ini (server serverGetKurikulumKelasGuru, Modul_MaintainKurikulum.gs
+     — kelas jadwal_kbm guru dinormalisasi ke kode kelas kanonik 1-6 lewat
+     ekstraksi digit, lihat komentar di server). Isi materi pakai
+     serverGetProta yang SAMA dipakai desktop (tidak ada endpoint baru utk
+     konten), tahun berjalan otomatis (tanpa selector tahun — beda dari
+     desktop yang punya dropdown 2025-2027, disederhanakan sesuai instruksi
+     "hyper premium tapi jangan norak", guru tidak perlu urus tahun lampau). */
+  window.iaKurikulumProtaState_ = { kelas: null };
+  window.iaKurikulumProtaGateSelected_ = null;
+
+  window.iaKurikulumProtaOpenGate_ = function () {
+    const overlay = document.getElementById('iaKurikulumProtaGateOverlay');
+    const loadingEl = document.getElementById('iaKurikulumProtaGateLoading');
+    const listEl = document.getElementById('iaKurikulumProtaGateList');
+    const footerEl = document.getElementById('iaKurikulumProtaGateFooter');
+    overlay.style.display = 'flex';
+    loadingEl.style.display = 'flex';
+    listEl.style.display = 'none';
+    listEl.innerHTML = '';
+    footerEl.style.display = 'none';
+    document.getElementById('iaKurikulumProtaGateMasukBtn').disabled = true;
+    window.iaKurikulumProtaGateSelected_ = null;
+
+    const onResult = function (result) {
+      if (!result.success || !result.data || result.data.length === 0) {
+        window.iaKurikulumProtaCloseGate_();
+        window.iaShowKurikulumProtaView_();
+        window.iaKurikulumProtaRenderEmpty_(!result.success ? result.error : 'Anda belum mengampu Kelas 1-6.');
+        return;
+      }
+      if (result.data.length === 1) {
+        window.iaKurikulumProtaCloseGate_();
+        window.iaKurikulumProtaEnterKelas_(result.data[0].kelas);
+        return;
+      }
+      loadingEl.style.display = 'none';
+      window.iaKurikulumProtaRenderGateCards_(result.data);
+    };
+    const onFail = function (err) {
+      window.iaKurikulumProtaCloseGate_();
+      iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
+    };
+
+    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetKurikulumKelasGuru(window.currentToken);
+  };
+
+  window.iaKurikulumProtaRenderGateCards_ = function (data) {
+    const listEl = document.getElementById('iaKurikulumProtaGateList');
+    const footerEl = document.getElementById('iaKurikulumProtaGateFooter');
+    listEl.style.display = 'flex';
+    footerEl.style.display = 'flex';
+    listEl.innerHTML = '';
+    data.forEach(function (item) {
+      const card = document.createElement('div');
+      card.className = 'ia-kg-card';
+      card.innerHTML = `
+        <div class="ia-kg-card-check"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <div class="ia-kg-card-main">
+          <div class="ia-kg-card-top">
+            <span class="ia-kg-card-nama">${item.label}</span>
+          </div>
+        </div>
+      `;
+      card.onclick = function () {
+        document.querySelectorAll('#iaKurikulumProtaGateList .ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
+        card.classList.add('selected');
+        window.iaKurikulumProtaGateSelected_ = item.kelas;
+        document.getElementById('iaKurikulumProtaGateMasukBtn').disabled = false;
+      };
+      listEl.appendChild(card);
+    });
+  };
+
+  window.iaKurikulumProtaConfirmGate_ = function () {
+    if (!window.iaKurikulumProtaGateSelected_) return;
+    const kelas = window.iaKurikulumProtaGateSelected_;
+    window.iaKurikulumProtaCloseGate_();
+    window.iaKurikulumProtaEnterKelas_(kelas);
+  };
+
+  window.iaKurikulumProtaCloseGate_ = function () {
+    document.getElementById('iaKurikulumProtaGateOverlay').style.display = 'none';
+  };
+
+  window.iaKurikulumProtaEnterKelas_ = function (kelas) {
+    window.iaKurikulumProtaState_.kelas = kelas;
+    window.iaShowKurikulumProtaView_();
+    window.iaKurikulumProtaLoad_();
+  };
+
+  window.iaKurikulumProtaGantiKelas_ = function () {
+    window.iaKurikulumProtaOpenGate_();
+  };
+
+  window.iaShowKurikulumProtaView_ = function () {
+    window.iaState_.activeView = 'kurikulumProta';
+    document.getElementById('iaDashboardView').style.display = 'none';
+    document.getElementById('iaKelasView').style.display = 'none';
+    document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaLaporanView').style.display = 'none';
+    document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKelasRow').style.display = 'none';
+    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
+    document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
+    document.getElementById('iaKurikulumProtaView').style.display = 'block';
+    const label = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas];
+    document.getElementById('iaKurikulumProtaKelasLabel').textContent = label || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
+  };
+
+  window.iaKurikulumProtaLoad_ = function () {
+    const listEl = document.getElementById('iaKurikulumProtaList');
+    listEl.innerHTML = '<div class="ia-kur-loading"><div class="ia-kg-spinner"></div></div>';
+    const tahun = new Date().getFullYear();
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          listEl.innerHTML = '<div class="ia-kur-empty">Gagal memuat: ' + window.escapeHtmlExport_(result.error) + '</div>';
+          return;
+        }
+        window.iaKurikulumProtaRender_(result.data);
+      })
+      .withFailureHandler(function (err) {
+        listEl.innerHTML = '<div class="ia-kur-empty">Error: ' + window.escapeHtmlExport_(err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetProta(window.currentToken, window.currentKelompokId, tahun, window.iaKurikulumProtaState_.kelas);
+  };
+
+  window.iaKurikulumProtaRender_ = function (data) {
+    const listEl = document.getElementById('iaKurikulumProtaList');
+    if (!data || data.length === 0) {
+      listEl.innerHTML = '<div class="ia-kur-empty">Belum ada program tahunan untuk kelas ini.</div>';
+      return;
+    }
+    listEl.innerHTML = data.map(function (prota, i) {
+      const kategori = window.escapeHtmlExport_(prota.kategori || '—');
+      const target = prota.target ? window.escapeHtmlExport_(prota.target) : '';
+      const deskripsi = prota.deskripsi ? window.escapeHtmlExport_(prota.deskripsi) : '';
+      const detailBody = (target || deskripsi)
+        ? (target ? '<div class="ia-kur-detail-label">Target</div><div class="ia-kur-detail-text">' + target + '</div>' : '')
+          + (deskripsi ? '<div class="ia-kur-detail-label">Deskripsi</div><div class="ia-kur-detail-text">' + deskripsi + '</div>' : '')
+        : '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum ada detail target/deskripsi.</div>';
+      return `
+        <div class="ia-kur-item" onclick="window.iaKurikulumProtaToggle_(this)">
+          <div class="ia-kur-item-head">
+            <span class="ia-kur-item-num">${String(i + 1).padStart(2, '0')}</span>
+            <span class="ia-kur-item-title">${kategori}</span>
+            <span class="ia-kur-item-chevron">›</span>
+          </div>
+          <div class="ia-kur-item-detail">${detailBody}</div>
+        </div>
+      `;
+    }).join('');
+  };
+
+  window.iaKurikulumProtaToggle_ = function (el) {
+    el.classList.toggle('open');
+  };
+
+  window.iaKurikulumProtaRenderEmpty_ = function (msg) {
+    document.getElementById('iaKurikulumProtaKelasLabel').textContent = '';
+    document.getElementById('iaKurikulumProtaList').innerHTML = '<div class="ia-kur-empty">' + window.escapeHtmlExport_(msg || 'Anda belum mengampu Kelas 1-6.') + '</div>';
   };
 
   window.iaJurnalCacheKey_ = function () {
@@ -983,6 +1158,7 @@
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1519,6 +1695,7 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1534,6 +1711,7 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasView').style.display = 'flex';
     document.getElementById('iaKelasRow').style.display = 'flex';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
@@ -1562,6 +1740,7 @@
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
+    document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
@@ -1677,6 +1856,7 @@
     document.getElementById('iaKelasView').style.display = 'none';
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaJurnalView').style.display = 'none';
+    document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
     document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
