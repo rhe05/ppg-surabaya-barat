@@ -96,6 +96,16 @@ function diagPerfAccessCheck_(kelompokId, guruId, kelas, tanggal) {
   return { success: true, ms: t1 - t0, allowed: allowed };
 }
 
+/** ?diag=perfaksesreadonly&kelompok= — ISOLASI baca akses_kelas_request SAJA
+ *  (iaReadKelompokTable_, cache-first) — apple-to-apple dgn baseline lama
+ *  yg mengukur readSheetAsObjects(AKSES_KELAS_REQUEST) SAJA (Tahap 2 §12). */
+function diagPerfAksesReadOnly_(kelompokId) {
+  const t0 = Date.now();
+  const rows = iaReadKelompokTable_(SHEET_NAMES.AKSES_KELAS_REQUEST, kelompokId);
+  const t1 = Date.now();
+  return { success: true, ms: t1 - t0, rowCount: rows.length };
+}
+
 /**
  * ?diag=perfsaveguru&kelompok=1&guruid=&kelas=&tanggal=&santriids=[...]
  * REAL serverSaveAbsensiKelas (jalur guru asli) — utk Save Total after.

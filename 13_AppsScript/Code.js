@@ -306,6 +306,9 @@ function doGet(e) {
         case 'perfaccesscheck':
           result = diagPerfAccessCheck_(kelompokId, p.guruid, p.kelas, p.tanggal);
           break;
+        case 'perfaksesreadonly':
+          result = diagPerfAksesReadOnly_(kelompokId);
+          break;
         case 'perfsaveguru':
           result = diagPerfSaveGuru_(kelompokId, p.guruid, p.kelas, p.tanggal, JSON.parse(p.santriids || '[]'));
           break;
