@@ -573,10 +573,20 @@ function iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, upsertList, t
  * (guru_izin TIDAK ADA approval — self-declared, jadi begitu diajukan
  * langsung berlaku). Dipakai serverSaveAbsensiKelas supaya guru yang lagi
  * izin tidak bisa input absen di tanggal yang sama.
+ *
+ * Tahap 7 (2026-08-08): baca lewat iaReadKelompokTable_ (cache-first,
+ * scoped 1 kelompok, pola sama santri/guru/jadwal_kbm/akses_kelas_request),
+ * BUKAN readSheetAsObjects generik (full-scan semua kelompok tiap
+ * panggilan) — makanya `kelompokId` jadi parameter baru (dulu tidak
+ * dibutuhkan krn baca generik). Filter guru_id + rentang tanggal DI BAWAH
+ * ini SAMA PERSIS TIDAK BERUBAH. Lihat GURU_IZIN_OPTIMIZATION_REPORT.md
+ * §Cache Safety Analysis (aman: guru_izin tidak punya status/approval,
+ * TIDAK ADA fungsi cancel/update/delete, satu-satunya titik tulis
+ * serverSubmitGuruIzin sudah di-cacheDrop_).
  * @returns {Object|null} baris guru_izin yang cocok, atau null kalau tidak izin.
  */
-function iaCekGuruSedangIzin_(guruId, tanggal) {
-  const izinAktif = readSheetAsObjects(SHEET_NAMES.GURU_IZIN).find(function (r) {
+function iaCekGuruSedangIzin_(kelompokId, guruId, tanggal) {
+  const izinAktif = iaReadKelompokTable_(SHEET_NAMES.GURU_IZIN, kelompokId).find(function (r) {
     if (r.guru_id != guruId) return false;
     const mulai = tanggalKeString_(r.tanggal_mulai);
     const selesai = tanggalKeString_(r.tanggal_selesai) || mulai;
@@ -616,7 +626,7 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
     return { success: false, error: waktuCheck.error, code: waktuCheck.code };
   }
 
-  const izinAktif = iaCekGuruSedangIzin_(ctx.user.guruId, tanggal);
+  const izinAktif = iaCekGuruSedangIzin_(ctx.kelompokId, ctx.user.guruId, tanggal);
   if (izinAktif) {
     return {
       success: false,
@@ -1275,6 +1285,7 @@ function serverSubmitGuruIzin(token, payload) {
       new Date().toISOString(),
     ]);
   });
+  cacheDrop_(IA_KELOMPOK_TABLE_CACHE_KEY_.guru_izin(ctx.kelompokId));
 
   logAudit('guru_izin', String(newId), 'create', ctx.user.id, `Ajukan ${jenis === 'cuti' ? 'Cuti' : 'Izin Harian'} (${tanggalMulai} s/d ${tanggalSelesai})`);
   return { success: true, message: (jenis === 'cuti' ? 'Cuti' : 'Izin') + ' berhasil diajukan.' };

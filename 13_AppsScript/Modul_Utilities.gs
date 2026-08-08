@@ -107,6 +107,15 @@ const IA_KELOMPOK_TABLE_CACHE_KEY_ = {
   // (serverRequestAksesKelas & serverRespondAksesRequest) supaya perubahan status
   // langsung terlihat tanpa menunggu TTL sama sekali.
   akses_kelas_request: function (kelompokId) { return 'akseskelasrequest_k' + kelompokId; },
+  // Tahap 7 (2026-08-08, GURU_IZIN_OPTIMIZATION_REPORT.md): guru_izin TIDAK
+  // PUNYA kolom status/approval sama sekali (self-declared, "TIDAK ADA
+  // approval" per komentar iaCekGuruSedangIzin_) dan TIDAK ADA fungsi
+  // cancel/update/delete di codebase ini — SATU-SATUNYA titik tulis adalah
+  // serverSubmitGuruIzin (create-only), jadi SATU-SATUNYA titik yang perlu
+  // cacheDrop_. Pakai tanggalKeString_ yang SUDAH diperbaiki (Tahap 6,
+  // commit c3ba1da) utk perbandingan tanggal_mulai/tanggal_selesai —
+  // aman thd bug Date->ISO-string round-trip CacheService.
+  guru_izin: function (kelompokId) { return 'guruizin_k' + kelompokId; },
 };
 
 /** TTL cache tabel master (detik) — samakan dgn cache santri/guru lama. */
