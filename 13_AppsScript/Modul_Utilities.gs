@@ -401,8 +401,22 @@ function validateUserAccess(token, resourceType, resourceId) {
  * ⚠️ WAJIB dipanggil DI DALAM withScriptLock_() bersama appendRow-nya —
  * tanpa lock, dua pengguna yang menyimpan bersamaan mendapat id yang sama
  * (ERROR_LOG.md #5).
+ *
+ * Pengecualian: `audit_log` (AUDIT_LOG) pakai `Utilities.getUuid()`,
+ * BUKAN MAX(id)+1 — dikonfirmasi (AUDIT_LOG_OPTIMIZATION_PROPOSAL.md,
+ * Tahap 4) tidak ada satu pun kode lain yang membaca `audit_log.id`
+ * (bukan foreign key, tidak ditampilkan UI, tidak dipakai sequence/laporan
+ * apa pun — satu-satunya "pembaca" adalah baris ini sendiri). Menghilangkan
+ * full-table-scan `readSheetAsObjects(AUDIT_LOG)` (±572ms saat 429 baris)
+ * DAN race condition MAX(id)+1 di luar lock (logAudit() dipanggil di luar
+ * withScriptLock_ di semua ±40 caller-nya) SEKALIGUS, tanpa mengubah baris
+ * lama (append-only, id lama tetap integer, tidak di-migrasi). ID tabel
+ * LAIN tidak terpengaruh — cabang ini HANYA aktif utk AUDIT_LOG.
  */
 function generateId(sheetName) {
+  if (sheetName === SHEET_NAMES.AUDIT_LOG) {
+    return Utilities.getUuid();
+  }
   const objects = readSheetAsObjects(sheetName);
   if (objects.length === 0) return 1;
   const maxId = Math.max(...objects.map(obj => parseInt(obj.id) || 0));
