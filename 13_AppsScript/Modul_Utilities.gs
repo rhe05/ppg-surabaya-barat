@@ -437,10 +437,27 @@ function generateId(sheetName) {
  * sebelum membandingkan tanggal dari readSheetAsObjects() dgn string
  * (`===`, sort, dsb) — kalau tidak, perbandingan SELALU false walau
  * nilainya sama secara kalender.
+ *
+ * ⚠️ Tahap 6 (2026-08-08, ditemukan lewat regression test caching
+ * akses_kelas_request): `CacheService` (cachePut_/cacheGet_,
+ * Modul_Utilities.gs) menyimpan lewat `JSON.stringify`/`JSON.parse` —
+ * objek `Date` asli dari Sheets JADI STRING ISO ("2020-03-04T17:00:00.000Z")
+ * setelah lolos cache SEKALI (cache-hit berikutnya), jadi TIDAK LAGI lolos
+ * cek `instanceof Date` di bawah, padahal bentuknya masih perlu di-parse
+ * ulang sbg tanggal (BUKAN dibandingkan sbg string mentah). Tanpa baris
+ * regex di bawah, baris cached dgn kolom tanggal akan SELALU gagal cocok
+ * dgn string 'yyyy-MM-dd' begitu cache warm — bug diam-diam (silent),
+ * baru ketahuan lewat test eksplisit. Berlaku utk SEMUA tabel yg lewat
+ * cache (`iaReadKelompokTable_`) dan sekaligus punya kolom `tanggal`
+ * (saat ini: akses_kelas_request, jadwal_kbm — jadwal_kbm belum pernah
+ * kena krn belum ada kode yg membandingkan tanggal-nya lewat fungsi ini).
  */
 function tanggalKeString_(v) {
   if (v instanceof Date) {
     return Utilities.formatDate(v, SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
+  }
+  if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(v)) {
+    return Utilities.formatDate(new Date(v), SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetTimeZone(), 'yyyy-MM-dd');
   }
   return v ? String(v) : '';
 }
