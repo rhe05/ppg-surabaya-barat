@@ -288,47 +288,6 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
-  // ⚠️⚠️ TEMPORARY (2026-08-08, Tahap 6) — dispatch diag=perf* →
-  // Modul_PerfAudit.gs. HAPUS blok ini + file itu setelah before/after
-  // measurement akses_kelas_request selesai. Lihat AKSES_KELAS_REQUEST_OPTIMIZATION_REPORT.md §Cleanup.
-  if (e && e.parameter && e.parameter.diag && e.parameter.diag.indexOf('perf') === 0) {
-    let result;
-    try {
-      const p = e.parameter;
-      const kelompokId = p.kelompok || '1';
-      switch (p.diag) {
-        case 'perfcheckempty':
-          result = diagPerfCheckAbsensiEmpty_(kelompokId, p.kelas, p.tanggal);
-          break;
-        case 'perfsetup':
-          result = diagPerfSetup_(kelompokId, p.kelas, p.tanggal);
-          break;
-        case 'perfaccesscheck':
-          result = diagPerfAccessCheck_(kelompokId, p.guruid, p.kelas, p.tanggal);
-          break;
-        case 'perfaksesreadonly':
-          result = diagPerfAksesReadOnly_(kelompokId);
-          break;
-        case 'perfsaveguru':
-          result = diagPerfSaveGuru_(kelompokId, p.guruid, p.kelas, p.tanggal, JSON.parse(p.santriids || '[]'));
-          break;
-        case 'perfcleanup':
-          result = diagPerfCleanup_(kelompokId, p.kelas, p.tanggal);
-          break;
-        case 'perfaksesrequestrawcount':
-          result = diagPerfAksesRequestRowCount_(kelompokId);
-          break;
-        default:
-          result = { success: false, error: 'diag perf* tidak dikenal: ' + p.diag };
-      }
-    } catch (err) {
-      result = { success: false, error: err.message, stack: err.stack };
-    }
-    return ContentService
-      .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
