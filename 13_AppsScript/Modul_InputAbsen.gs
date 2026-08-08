@@ -261,13 +261,22 @@ function getKelasOwnerGuruId_(kelompokId, kelas) {
 /**
  * Cek apakah guru boleh input absen kelas tsb pada tanggal tsb:
  * pemilik kelas ATAU ada permintaan akses berstatus 'approved' utk tanggal itu.
+ *
+ * Tahap 6 (2026-08-08): baca akses_kelas_request lewat iaReadKelompokTable_
+ * (cache-first + scoped 1 kelompok, pola sama santri/guru/jadwal_kbm),
+ * BUKAN readSheetAsObjects generik (full-scan semua kelompok tiap
+ * panggilan). Filter/keputusan authorization DI BAWAH ini SAMA PERSIS
+ * TIDAK BERUBAH — cuma sumber baris yang berubah. Lihat
+ * AKSES_KELAS_REQUEST_OPTIMIZATION_REPORT.md §Cache Analysis utk analisis
+ * staleness (aman: 'approved' tidak pernah bisa jadi tidak-approved lagi,
+ * dan cache di-drop di 2 titik tulis).
  */
 function canGuruAccessKelas_(kelompokId, guruId, kelas, tanggal, jadwalRowsAll) {
   const owned = getKelasOwnedByGuru_(kelompokId, guruId, jadwalRowsAll).map(function (k) { return k.toLowerCase(); });
   if (owned.indexOf(String(kelas).trim().toLowerCase()) !== -1) return true;
 
   const kelasLower = String(kelas).trim().toLowerCase();
-  const approved = readSheetAsObjects(SHEET_NAMES.AKSES_KELAS_REQUEST).some(function (r) {
+  const approved = iaReadKelompokTable_(SHEET_NAMES.AKSES_KELAS_REQUEST, kelompokId).some(function (r) {
     return r.kelompok_id == kelompokId && r.requester_guru_id == guruId &&
       String(r.kelas || '').trim().toLowerCase() === kelasLower &&
       tanggalKeString_(r.tanggal) === tanggal && r.status === 'approved';
@@ -314,7 +323,7 @@ function serverGetInputAbsenMeta(token) {
   if (!ctx.success) return ctx;
 
   const kelasOwned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId);
-  const pendingIncoming = readSheetAsObjects(SHEET_NAMES.AKSES_KELAS_REQUEST).filter(function (r) {
+  const pendingIncoming = iaReadKelompokTable_(SHEET_NAMES.AKSES_KELAS_REQUEST, ctx.kelompokId).filter(function (r) {
     return r.kelompok_id == ctx.kelompokId && r.owner_guru_id == ctx.user.guruId && r.status === 'pending';
   }).length;
 
@@ -357,7 +366,7 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
   const owned = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
   const list = owned.map(function (k) { return { kelas: k, isOwn: true }; });
 
-  const approvedExtra = readSheetAsObjects(SHEET_NAMES.AKSES_KELAS_REQUEST).filter(function (r) {
+  const approvedExtra = iaReadKelompokTable_(SHEET_NAMES.AKSES_KELAS_REQUEST, ctx.kelompokId).filter(function (r) {
     return r.kelompok_id == ctx.kelompokId && r.requester_guru_id == ctx.user.guruId &&
       r.status === 'approved' && tanggalKeString_(r.tanggal) === tanggal;
   });
@@ -705,6 +714,7 @@ function serverRequestAksesKelas(token, kelas, tanggal, keterangan) {
       'pending', keterangan || '', new Date().toISOString(), '',
     ]);
   });
+  cacheDrop_(IA_KELOMPOK_TABLE_CACHE_KEY_.akses_kelas_request(ctx.kelompokId));
 
   return { success: true, message: 'Permintaan akses terkirim, menunggu persetujuan guru pemilik kelas.' };
 }
@@ -774,6 +784,7 @@ function serverRespondAksesRequest(token, requestId, decision) {
       diputuskan_pada: new Date().toISOString(),
     });
   });
+  cacheDrop_(IA_KELOMPOK_TABLE_CACHE_KEY_.akses_kelas_request(ctx.kelompokId));
 
   return { success: true, message: decision === 'approved' ? 'Permintaan disetujui.' : 'Permintaan ditolak.' };
 }

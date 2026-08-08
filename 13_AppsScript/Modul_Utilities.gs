@@ -99,6 +99,14 @@ const IA_KELOMPOK_TABLE_CACHE_KEY_ = {
   guru: function (kelompokId) { return 'guru_k' + kelompokId; },
   jadwal_kbm: function (kelompokId) { return 'jadwalkbm_k' + kelompokId; },
   jadwal_kategori_hari: function (kelompokId) { return 'jadwalkategorihari_k' + kelompokId; },
+  // Tahap 6 (2026-08-08, AKSES_KELAS_REQUEST_OPTIMIZATION_REPORT.md): akses_kelas_request
+  // TIDAK PERNAH bisa "approved" jadi tidak-approved lagi (serverRespondAksesRequest
+  // cuma pending->approved/rejected, TIDAK ADA fungsi revoke di codebase ini) — jadi
+  // TTL/cache tidak bisa menyebabkan stale-ALLOW (fail-open), paling buruk stale-DENY
+  // sesaat (fail-closed, aman). DIPERKUAT dgn cacheDrop_ di KEDUA titik tulis
+  // (serverRequestAksesKelas & serverRespondAksesRequest) supaya perubahan status
+  // langsung terlihat tanpa menunggu TTL sama sekali.
+  akses_kelas_request: function (kelompokId) { return 'akseskelasrequest_k' + kelompokId; },
 };
 
 /** TTL cache tabel master (detik) — samakan dgn cache santri/guru lama. */
