@@ -312,6 +312,9 @@ function doGet(e) {
         case 'perfauditlograwcount':
           result = diagPerfAuditLogRowCount_();
           break;
+        case 'perfauditlogtail':
+          result = diagPerfAuditLogTail_(p.n);
+          break;
         default:
           result = { success: false, error: 'diag perf* tidak dikenal: ' + p.diag };
       }

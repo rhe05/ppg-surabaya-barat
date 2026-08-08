@@ -166,3 +166,16 @@ function diagPerfAuditLogRowCount_() {
   const rows = readSheetAsObjects(SHEET_NAMES.AUDIT_LOG);
   return { success: true, rowCount: rows.length };
 }
+
+/** ?diag=perfauditlogtail&n=5 — baca-saja N baris TERAKHIR audit_log (verifikasi format id UUID/uniqueness, tanpa mengubah apa pun). */
+function diagPerfAuditLogTail_(n) {
+  const rows = readSheetAsObjects(SHEET_NAMES.AUDIT_LOG);
+  const tail = rows.slice(-1 * (parseInt(n, 10) || 5));
+  const ids = tail.map(function (r) { return r.id; });
+  return {
+    success: true,
+    totalRows: rows.length,
+    tail: tail,
+    idsUnique: new Set(ids.map(String)).size === ids.length,
+  };
+}
