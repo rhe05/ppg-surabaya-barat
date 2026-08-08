@@ -1112,13 +1112,24 @@
       .serverGetProta(window.currentToken, window.currentKelompokId, tahun, window.iaKurikulumProtaState_.kelas);
   };
 
+  // Sementara HANYA kategori "Bacaan Al-Qur'an" yang ditampilkan di mobile
+  // (2026-08-09, instruksi user "fokus tampilkan bacaan quran saja dulu") —
+  // kategori lain (Tulis Huruf Arab/Hafalan Surat/dst) TETAP ADA di data
+  // desktop, cuma disembunyikan di layar guru ini sampai ada instruksi
+  // lanjutan. Ubah/lepas filter ini SAJA kalau nanti diminta tampilkan
+  // kategori lain lagi -- jangan sentuh serverGetProta.
+  window.IA_KUR_PROTA_KATEGORI_FILTER_ = "Bacaan Al-Qur'an";
+
   window.iaKurikulumProtaRender_ = function (data) {
     const listEl = document.getElementById('iaKurikulumProtaList');
-    if (!data || data.length === 0) {
-      listEl.innerHTML = '<div class="ia-kur-empty">Belum ada program tahunan untuk kelas ini.</div>';
+    const filtered = (data || []).filter(function (prota) {
+      return prota.kategori === window.IA_KUR_PROTA_KATEGORI_FILTER_;
+    });
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="ia-kur-empty">Belum ada program tahunan Bacaan Al-Qur\'an untuk kelas ini.</div>';
       return;
     }
-    listEl.innerHTML = data.map(function (prota, i) {
+    listEl.innerHTML = filtered.map(function (prota, i) {
       const kategori = window.escapeHtmlExport_(prota.kategori || '—');
       const target = prota.target ? window.escapeHtmlExport_(prota.target) : '';
       const deskripsi = prota.deskripsi ? window.escapeHtmlExport_(prota.deskripsi) : '';
