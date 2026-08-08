@@ -288,6 +288,60 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ⚠️⚠️ TEMPORARY (2026-08-08) — dispatch diag=perf* → Modul_PerfAudit.gs.
+  // Lihat catatan hapus/revert lengkap di awal Modul_PerfAudit.gs +
+  // ATTENDANCE_REAL_PERFORMANCE_MEASUREMENT.md §Cleanup. HAPUS blok ini +
+  // file itu bersamaan setelah laporan pengukuran diverifikasi user.
+  if (e && e.parameter && e.parameter.diag && e.parameter.diag.indexOf('perf') === 0) {
+    let result;
+    try {
+      const p = e.parameter;
+      const kelompokId = p.kelompok || '1';
+      switch (p.diag) {
+        case 'perfkelaslist':
+          result = diagPerfKelasList_(kelompokId);
+          break;
+        case 'perfsetup':
+          result = diagPerfSetup_(kelompokId, p.kelas, p.tanggal);
+          break;
+        case 'perflogin':
+          result = diagPerfLogin_(p.username, p.password);
+          break;
+        case 'perfdashboard':
+          result = diagPerfDashboard_(kelompokId, p.guruid, p.tahun, p.bulan);
+          break;
+        case 'perfswitchclass':
+          result = diagPerfSwitchClass_(kelompokId, p.guruid, p.kelas, p.tanggal);
+          break;
+        case 'perfstudentlist':
+          result = diagPerfStudentList_(kelompokId, p.guruid, p.kelas, p.tanggal);
+          break;
+        case 'perfsave':
+          result = diagPerfSave_(kelompokId, p.kelas, p.tanggal, JSON.parse(p.santriids || '[]'));
+          break;
+        case 'perfaksesrequest':
+          result = diagPerfAksesRequest_(kelompokId);
+          break;
+        case 'perfauditlog':
+          result = diagPerfAuditLogScan_();
+          break;
+        case 'perfguruizin':
+          result = diagPerfGuruIzin_(p.guruid, p.tanggal);
+          break;
+        case 'perfcleanup':
+          result = diagPerfCleanup_(kelompokId, p.kelas, p.tanggal);
+          break;
+        default:
+          result = { success: false, error: 'diag perf* tidak dikenal: ' + p.diag };
+      }
+    } catch (err) {
+      result = { success: false, error: err.message, stack: err.stack };
+    }
+    return ContentService
+      .createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Ruang Ngaji')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
