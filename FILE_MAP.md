@@ -19,7 +19,7 @@
 | `13_AppsScript/Style_Main.html` | Seluruh CSS (isi `<style>...</style>`, ±1900 baris) | Perubahan tampilan/CSS |
 | `13_AppsScript/Markup_Screens.html` | Seluruh HTML screens & modal (±2190 baris) | Tambah/ubah screen atau modal |
 | `13_AppsScript/Script_Main.html` | Seluruh JS utama (isi `<script>...</script>`, ±3290 baris) | Tambah/ubah logika frontend |
-| `13_AppsScript/Code.js` | Entry `doGet` (`createTemplateFromFile`), `include(filename)` (helper penggabung), login (`serverLogin`), sesi, `DEV_MODE_SKIP_LOGIN` | Auth/akses/struktur shell |
+| `13_AppsScript/Code.js` | Entry `doGet` (`createTemplateFromFile`), `include(filename)` (helper penggabung), login (`serverLogin`), sesi, `DEV_MODE_SKIP_LOGIN`, "Ingat saya" (`issueRememberToken_`/`serverLoginWithRememberToken`, sheet `remember_tokens`, 30 hari) | Auth/akses/struktur shell |
 | `13_AppsScript/Modul_Utilities.gs` | `SHEET_NAMES`, `readSheetAsObjects`, `findRowByQuery` (compare via String — ERROR_LOG #2), `updateRowByQuery`, `deleteRowByQuery`, `getCurrentUser`, `validateUserAccess`, **`withScriptLock_` (wajib untuk semua mutasi — ERROR_LOG #5)**, **cache: `cacheGet_`/`cachePut_`/`cacheDrop_`** (kunci: `guru_k<id>`, `santri_k<id>`) | Helper DB/RBAC/lock/cache |
 | `13_AppsScript/Setup_Database.gs` | Skema semua sheet + `migrateGuruSchemaAddFields_` + `migrateSantriSchemaAddFields_` + `migrateJadwalKbmSchemaAddFields_` + `migrateUsersSchemaAddFields_` (⚠️ perlu run manual `setupDatabaseStructure()` di editor Apps Script tiap tambah kolom/sheet) — **BELUM DIJALANKAN untuk sheet baru `guru_izin` (2026-07-27)** | Perubahan skema |
 | `13_AppsScript/Modul_MaintainGuru.gs` | CRUD guru (`serverGetGuruList/Add/Update/Delete`) | Fitur guru |

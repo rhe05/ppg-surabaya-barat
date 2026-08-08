@@ -39,10 +39,15 @@
         const token = sessionStorage.getItem('ppg_token');
         if (token) {
           verifySession(token);
-        } else {
-          window.hideGlobalLoading_();
-          document.getElementById('screenLogin').style.display = 'flex';
+          return;
         }
+        const rememberToken = localStorage.getItem('ppg_remember_token');
+        if (rememberToken) {
+          loginWithRememberToken_(rememberToken);
+          return;
+        }
+        window.hideGlobalLoading_();
+        document.getElementById('screenLogin').style.display = 'flex';
       })
       .withFailureHandler(function () {
         window.hideGlobalLoading_();
@@ -144,13 +149,42 @@
         }
 
         sessionStorage.setItem('ppg_token', result.token);
+        if (result.rememberToken) {
+          localStorage.setItem('ppg_remember_token', result.rememberToken);
+        }
         window.currentToken = result.token;
         window.currentUser = result.user;
         window.currentKelompokId = result.user.scopeId;
         renderApp(result.user);
       })
-      .serverLogin(username, password);
+      .serverLogin(username, password, document.getElementById('loginRememberMe').checked);
   };
+
+  /* Dipanggil saat boot kalau tidak ada sesi CacheService aktif (>6 jam,
+     batas maksimum platform) tapi ada remember-token tersimpan lokal
+     ("Ingat saya di perangkat ini" saat login). Gagal → jatuh balik ke
+     layar login normal, remember-token yang sudah kedaluwarsa dibuang. */
+  function loginWithRememberToken_(rememberToken) {
+    google.script.run
+      .withSuccessHandler(function (result) {
+        if (!result.success) {
+          localStorage.removeItem('ppg_remember_token');
+          window.hideGlobalLoading_();
+          document.getElementById('screenLogin').style.display = 'flex';
+          return;
+        }
+        sessionStorage.setItem('ppg_token', result.token);
+        window.currentToken = result.token;
+        window.currentUser = result.user;
+        window.currentKelompokId = result.user.scopeId;
+        renderApp(result.user);
+      })
+      .withFailureHandler(function () {
+        window.hideGlobalLoading_();
+        document.getElementById('screenLogin').style.display = 'flex';
+      })
+      .serverLoginWithRememberToken(rememberToken);
+  }
 
   function verifySession(token) {
     google.script.run
@@ -222,8 +256,10 @@
 
   window.handleLogout = function () {
     const token = sessionStorage.getItem('ppg_token') || window.currentToken;
-    google.script.run.serverLogout(token);
+    const rememberToken = localStorage.getItem('ppg_remember_token');
+    google.script.run.serverLogout(token, rememberToken);
     sessionStorage.removeItem('ppg_token');
+    localStorage.removeItem('ppg_remember_token');
     window.currentToken = null;
     window.currentUser = null;
     document.getElementById('screenLogin').style.display = 'flex';

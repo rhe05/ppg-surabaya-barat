@@ -338,9 +338,15 @@ function hashPassword_(password) {
 
 /**
  * Dipanggil dari Index.html lewat google.script.run.serverLogin(...)
- * Mengembalikan { success, token, user } atau { success:false, error }.
+ * Mengembalikan { success, token, user, rememberToken? } atau { success:false, error }.
+ *
+ * `rememberMe` opsional (checkbox "Ingat saya di perangkat ini" login guru) —
+ * kalau true, selain token sesi 6-jam biasa (CacheService, batas maksimum
+ * platform) juga diterbitkan `rememberToken` acak 30-hari yang klien simpan
+ * di localStorage (bukan sessionStorage → bertahan lintas sesi browser).
+ * Lihat serverLoginWithRememberToken di bawah utk alur pemakaiannya.
  */
-function serverLogin(username, password) {
+function serverLogin(username, password, rememberMe) {
   const users = readSheetAsObjects(SHEET_NAMES.USERS);
   const found = users.find((u) => u.username === username);
 
@@ -368,6 +374,75 @@ function serverLogin(username, password) {
     guruId: found.guru_id || null,
   };
   CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600); // 6 jam
+
+  const result = { success: true, token: token, user: sessionData };
+  if (rememberMe) {
+    result.rememberToken = issueRememberToken_(found.id);
+  }
+  return result;
+}
+
+/**
+ * Masa berlaku remember-token ("Ingat saya di perangkat ini") dalam hari.
+ */
+const REMEMBER_TOKEN_DAYS_ = 30;
+
+/**
+ * Terbitkan remember-token acak utk 1 user, simpan HASH-nya saja (pola sama
+ * dgn password_hash) di sheet remember_tokens, kembalikan token mentah utk
+ * disimpan klien di localStorage.
+ */
+function issueRememberToken_(userId) {
+  const raw = Utilities.getUuid() + Utilities.getUuid();
+  const expiresAt = new Date(Date.now() + REMEMBER_TOKEN_DAYS_ * 24 * 60 * 60 * 1000).toISOString();
+  withScriptLock_(function () {
+    const newId = generateId(SHEET_NAMES.REMEMBER_TOKENS);
+    appendRowToSheet(SHEET_NAMES.REMEMBER_TOKENS, [
+      newId, userId, hashPassword_(raw), expiresAt, new Date().toISOString(),
+    ]);
+  });
+  return raw;
+}
+
+/**
+ * Dipanggil dari Index.html lewat google.script.run.serverLoginWithRememberToken(...)
+ * saat tidak ada sesi CacheService aktif (mis. browser baru dibuka lagi
+ * setelah lebih dari 6 jam) TAPI ada remember-token tersimpan di
+ * localStorage. Kalau valid & belum kedaluwarsa, terbitkan sesi baru
+ * (sama seperti serverLogin) tanpa minta username/password lagi.
+ */
+function serverLoginWithRememberToken(rememberToken) {
+  if (!rememberToken) return { success: false, error: 'Token tidak ada.' };
+
+  const hashed = hashPassword_(rememberToken);
+  const rows = readSheetAsObjects(SHEET_NAMES.REMEMBER_TOKENS);
+  const found = rows.find((r) => r.token_hash === hashed);
+
+  if (!found || new Date(found.expires_at) < new Date()) {
+    if (found) {
+      withScriptLock_(function () {
+        deleteRowByQuery(SHEET_NAMES.REMEMBER_TOKENS, { id: found.id });
+      });
+    }
+    return { success: false, error: 'Sesi tersimpan sudah kedaluwarsa. Silakan login kembali.' };
+  }
+
+  const users = readSheetAsObjects(SHEET_NAMES.USERS);
+  const user = users.find((u) => String(u.id) === String(found.user_id));
+  if (!user || String(user.status).toLowerCase() === 'inactive') {
+    return { success: false, error: 'Akun tidak ditemukan atau tidak aktif.' };
+  }
+
+  const token = Utilities.getUuid();
+  const sessionData = {
+    id: user.id,
+    nama: user.nama,
+    role: user.role,
+    scopeType: user.scope_type,
+    scopeId: user.scope_id,
+    guruId: user.guru_id || null,
+  };
+  CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
 
   return { success: true, token: token, user: sessionData };
 }
@@ -615,9 +690,17 @@ function serverGetSession(token) {
 }
 
 /**
- * Dipanggil dari Index.html saat logout.
+ * Dipanggil dari Index.html saat logout. `rememberToken` opsional — kalau
+ * dikirim, baris remember_tokens terkait ikut dihapus (logout eksplisit
+ * = benar-benar keluar, bukan cuma tutup tab).
  */
-function serverLogout(token) {
+function serverLogout(token, rememberToken) {
   CacheService.getUserCache().remove('session_' + token);
+  if (rememberToken) {
+    const hashed = hashPassword_(rememberToken);
+    withScriptLock_(function () {
+      deleteRowByQuery(SHEET_NAMES.REMEMBER_TOKENS, { token_hash: hashed });
+    });
+  }
   return { success: true };
 }

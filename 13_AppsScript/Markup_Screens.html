@@ -38,7 +38,12 @@
         </div>
       </div>
 
-      <div class="login-forgot-link" onclick="window.openModalLupaPassword_()">Lupa Password?</div>
+      <div class="login-form-group" style="display:flex; align-items:center; justify-content:space-between; margin-top:-4px;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+          <input type="checkbox" id="loginRememberMe"> Ingat saya di perangkat ini
+        </label>
+        <div class="login-forgot-link" onclick="window.openModalLupaPassword_()" style="margin:0;">Lupa Password?</div>
+      </div>
 
       <div class="login-error" id="loginError"></div>
 

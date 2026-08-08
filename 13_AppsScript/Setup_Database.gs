@@ -78,6 +78,9 @@ function setupDatabaseStructure() {
   // 20. QUOTE HARIAN (pool quote Admin PPG, tampil di popup sukses Simpan Absen — rotasi harian, lihat Modul_QuoteHarian.gs)
   createSheetIfNotExists(ss, 'quote_harian', ['id', 'teks', 'dibuat_oleh', 'dibuat_pada']);
 
+  // 21. REMEMBER TOKENS ("Ingat saya di perangkat ini" — token persisten di localStorage, lihat serverLoginWithRememberToken di Code.js)
+  createSheetIfNotExists(ss, 'remember_tokens', ['id', 'user_id', 'token_hash', 'expires_at', 'created_at']);
+
   console.log('✅ Semua 24 sheet berhasil dibuat atau sudah ada.');
 
   // Migrasi: tambah kolom baru ke sheet 'guru'/'santri'/'jadwal_kbm'/'pengumuman'/'users' yang sudah ada (aman dijalankan berulang)
