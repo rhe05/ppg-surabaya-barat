@@ -459,27 +459,14 @@ function absensiDocId_(tanggal, santriId) {
  * (b) salah-baris pada delete/update karena index baris bergeser saat
  * pengguna lain menghapus di waktu yang sama. (ERROR_LOG.md #5)
  */
-/**
- * ⚠️ TEMPORARY (2026-08-08, lihat Modul_PerfAudit.gs): param `perfObj` opsional
- * ditambah HANYA utk instrumentasi ATTENDANCE_REAL_PERFORMANCE_MEASUREMENT.md
- * — additive & backward-compatible (semua pemanggil lama tetap kirim 1 arg,
- * perilaku lock sama sekali tidak berubah). Kalau `perfObj` diisi, diisi
- * `lockWaitMs` (waktu tryLock menunggu) & `lockHeldMs` (waktu fn() jalan di
- * dalam lock). REVERT: hapus parameter kedua + 2 baris `if (perfObj)` di
- * bawah, kembalikan ke bentuk aslinya `function withScriptLock_(fn) { ... }`.
- */
-function withScriptLock_(fn, perfObj) {
+function withScriptLock_(fn) {
   const lock = LockService.getScriptLock();
-  const _perfLockT0 = Date.now();
   if (!lock.tryLock(10000)) {
     throw new Error('Sistem sedang sibuk (banyak yang menyimpan bersamaan). Silakan coba lagi.');
   }
-  if (perfObj) perfObj.lockWaitMs = Date.now() - _perfLockT0;
-  const _perfLockT1 = Date.now();
   try {
     return fn();
   } finally {
-    if (perfObj) perfObj.lockHeldMs = Date.now() - _perfLockT1;
     lock.releaseLock();
   }
 }

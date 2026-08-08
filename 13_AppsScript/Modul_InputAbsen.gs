@@ -582,18 +582,11 @@ function iaCekGuruSedangIzin_(guruId, tanggal) {
  * tidak menimpa input kelas lain di tanggal yang sama.
  */
 function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
-  // ⚠️ TEMPORARY (2026-08-08, lihat Modul_PerfAudit.gs): _perfT0.._perfT6 +
-  // field `_perf` di return sukses HANYA instrumentasi timing utk
-  // ATTENDANCE_REAL_PERFORMANCE_MEASUREMENT.md — TIDAK mengubah urutan/logic
-  // apa pun di bawah, murni Date.now() checkpoint tambahan. REVERT: hapus
-  // semua baris `const _perfT*`/`if (perfObj)` dan field `_perf` di return.
-  const _perfT0 = Date.now();
   const ctx = requireGuruContext_(token);
   if (!ctx.success) return ctx;
   if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
     return { success: false, error: 'Format tanggal tidak valid.' };
   }
-  const _perfT1 = Date.now();
 
   // JADWAL_KBM/GURU/SANTRI dibaca SEKALI & PARALEL di sini, dipakai ulang oleh
   // canGuruAccessKelas_/iaValidateWaktuAbsen_/santriIdsKelas di bawah --
@@ -604,18 +597,15 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   const jadwalRowsAll = tabelAbsen_[SHEET_NAMES.JADWAL_KBM];
   const guruRowsAll = tabelAbsen_[SHEET_NAMES.GURU];
   const santriAll = tabelAbsen_[SHEET_NAMES.SANTRI];
-  const _perfT2 = Date.now();
 
   if (!canGuruAccessKelas_(ctx.kelompokId, ctx.user.guruId, kelas, tanggal, jadwalRowsAll)) {
     return { success: false, error: 'Anda belum memiliki akses ke kelas ini pada tanggal tersebut.' };
   }
-  const _perfT3 = Date.now();
 
   const waktuCheck = iaValidateWaktuAbsen_(ctx.kelompokId, kelas, tanggal, jadwalRowsAll, guruRowsAll);
   if (!waktuCheck.valid) {
     return { success: false, error: waktuCheck.error, code: waktuCheck.code };
   }
-  const _perfT4 = Date.now();
 
   const izinAktif = iaCekGuruSedangIzin_(ctx.user.guruId, tanggal);
   if (izinAktif) {
@@ -625,7 +615,6 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
       code: 'guru-izin',
     };
   }
-  const _perfT5 = Date.now();
 
   const kelasLower = String(kelas).trim().toLowerCase();
   const santriIdsKelas = santriAll
@@ -639,31 +628,12 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   // tiap simpan tetap tercatat logAudit di bawah, jadi tidak "diam-diam".
 
   let count = 0;
-  const _perfLock = {};
   withScriptLock_(function () {
     count = iaRewriteAbsensiKelas_(ctx.kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id);
-  }, _perfLock);
-  const _perfT6 = Date.now();
+  });
 
   logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen kelas "${kelas}": ${count} santri`);
-  const _perfT7 = Date.now();
-
-  return {
-    success: true,
-    message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.`,
-    _perf: {
-      authMs: _perfT1 - _perfT0,
-      readMasterMs: _perfT2 - _perfT1,
-      accessCheckMs: _perfT3 - _perfT2,
-      waktuValidateMs: _perfT4 - _perfT3,
-      guruIzinMs: _perfT5 - _perfT4,
-      lockWaitMs: _perfLock.lockWaitMs,
-      writeMs: _perfLock.lockHeldMs,
-      auditLogMs: _perfT7 - _perfT6,
-      serverTotalMs: _perfT7 - _perfT0,
-      santriCount: count,
-    },
-  };
+  return { success: true, message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.` };
 }
 
 /**
