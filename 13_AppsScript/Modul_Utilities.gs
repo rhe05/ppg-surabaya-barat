@@ -501,6 +501,23 @@ function absensiDocId_(tanggal, santriId) {
 }
 
 /**
+ * ID dokumen header "sesi absensi" (Tahap 12, 2026-08-08) — 1 dokumen per
+ * kelas+tanggal, TERPISAH dari dokumen absensi per-santri di atas. Menyimpan
+ * `version` (counter) dipakai optimistic concurrency check di
+ * iaRewriteAbsensiKelasFirestore_ (Modul_InputAbsen.gs) supaya 2 guru yang
+ * menyimpan kelas+tanggal yang sama tidak saling menimpa diam-diam (lost
+ * update, dibuktikan ATTENDANCE_CONCURRENCY_ANALYSIS.md). Kelas dinormalkan
+ * trim+lowercase (SAMA seperti filter santri.kelas_ngaji di seluruh
+ * Modul_InputAbsen.gs) supaya "PAUD/TK A" dan " paud/tk a " tetap 1 sesi yang
+ * sama. Path lengkapnya (kelompok/{kelompokId}/absensi_sesi/{id ini}) sudah
+ * membuat kelompok berbeda otomatis tidak collision — tidak perlu diulang di
+ * id ini. Lihat FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §3/§18.
+ */
+function absensiSesiDocId_(kelas, tanggal) {
+  return tanggal + '_' + String(kelas).trim().toLowerCase();
+}
+
+/**
  * Jalankan fungsi mutasi di dalam ScriptLock (antri maks 10 detik).
  * WAJIB membungkus SEMUA operasi tulis (add/update/delete) supaya aman
  * dipakai banyak pengguna bersamaan. Mencegah: (a) id ganda dari generateId,

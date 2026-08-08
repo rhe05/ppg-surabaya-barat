@@ -5388,6 +5388,19 @@
       font-size: 12.5px;
       font-weight: 600;
       color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    /* Tahap 18 (2026-08-08): klarifikasi periode kartu "Hari Aktif" --
+       angka di ia-dash-stat-row DI BAWAH ini SELALU dihitung dari rentang
+       filter Bulan-Tahun yang sedang aktif (BUKAN kumulatif all-time),
+       lihat DASHBOARD_PERIOD_UX_DECISION_NEIZA.md. Ditaruh 1x per kartu
+       (bukan diulang di tiap kotak 1/5-grid sempit di bawahnya) supaya
+       tidak menyempitkan/menambah tinggi grid stat yang sudah padat. */
+    .ia-dash-card-period {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-faint);
       margin-bottom: 12px;
     }
 

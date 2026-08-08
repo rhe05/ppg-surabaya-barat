@@ -458,7 +458,7 @@
 
   /* ═════ INPUT ABSEN (khusus role='guru') — Modul_InputAbsen.gs ═════ */
 
-  window.iaState_ = { mode: 'guru', kelompokId: null, kelas: null, list: [], santriCount: 0 };
+  window.iaState_ = { mode: 'guru', kelompokId: null, kelas: null, list: [], santriCount: 0, expectedVersion: 0 };
 
   function iaToday_() {
     const d = new Date();
@@ -513,7 +513,7 @@
 
   /* Guru: dikunci ke kelas miliknya sendiri (dipanggil dari renderApp). */
   window.initInputAbsen_ = function () {
-    window.iaState_ = { mode: 'guru', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
+    window.iaState_ = { mode: 'guru', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard', expectedVersion: 0 };
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Guru';
     document.getElementById('iaKelompokSelect').style.display = 'none';
     document.getElementById('iaBellBtn').style.display = 'flex';
@@ -561,7 +561,7 @@
      dan diurutkan sesuai IA_ADMIN_KELP_KELAS_ORDER_ di atas. Tidak ada menu
      lain yang aktif, hamburger cuma berisi "Keluar". */
   window.initAdminKelpDashboard_ = function () {
-    window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard' };
+    window.iaState_ = { mode: 'admin_kelp', kelompokId: window.currentUser.scopeId, kelas: null, list: [], activeView: 'dashboard', expectedVersion: 0 };
 
     document.getElementById('iaNamaGuru').textContent = window.currentUser.nama || 'Admin Kelompok';
     document.getElementById('iaKelompokSelect').style.display = 'none';
@@ -643,7 +643,7 @@
 
   /* Admin PPG: bebas pilih Kelompok > Kelas mana pun (dipanggil dari sidebar). */
   window.openInputAbsenAsAdmin_ = function () {
-    window.iaState_ = { mode: 'admin', kelompokId: null, kelas: null, list: [], activeView: 'kelas' };
+    window.iaState_ = { mode: 'admin', kelompokId: null, kelas: null, list: [], activeView: 'kelas', expectedVersion: 0 };
     document.getElementById('appLayout').style.display = 'none';
     document.getElementById('screenInputAbsen').style.display = 'flex';
 
@@ -2110,12 +2110,27 @@
         return String(a.kelas).localeCompare(String(b.kelas));
       });
     }
+    // Tahap 18 (2026-08-08, klarifikasi UX "Hari Aktif" — lihat
+    // DASHBOARD_PERIOD_UX_DECISION_NEIZA.md): pakai ULANG state filter yang
+    // SUDAH ADA (window.iaState_.dashboardFilter, sudah dihitung
+    // iaLoadDashboardSummary_ SEBELUM fungsi ini dipanggil) + formatter bulan
+    // yang SUDAH ADA (IA_FILTER_NAMA_BULAN_) — TIDAK ada sumber tanggal baru,
+    // TIDAK ada request server baru. HANYA presentasi, angka hariAktif/hadir/
+    // izin/sakit/alpa SAMA SEKALI TIDAK disentuh di bawah.
+    const dashFilter = window.iaState_.dashboardFilter;
+    const periodLabel = dashFilter ? (IA_FILTER_NAMA_BULAN_[dashFilter.bulan - 1] + ' ' + dashFilter.tahun) : '';
     wrap.innerHTML = list.map(function (item) {
       const infoParts = [];
       // Admin Kelp: nama guru pindah ke baris judul (sejajar dgn kelas &
       // kategori), JANGAN dobel ditampilkan lagi di baris info bawah.
       if (item.namaGuru && !isAdminKelp) infoParts.push('Kak ' + item.namaGuru);
       if (item.ruangan) infoParts.push(item.ruangan);
+      // Tahap 20 (2026-08-08, klarifikasi UX — lihat
+      // DASHBOARD_METRIC_SEMANTICS_UX_REPORT.md): "(saat ini)" krn item.total
+      // dihitung dari roster SANTRI SEKARANG (bukan santri pada bulan filter
+      // Dashboard) — TIDAK diberi format "N Santri • Bulan Tahun" spt Hari
+      // Aktif krn metric ini SENGAJA period-independent, BUKAN dari
+      // absensiRange (lihat serverGetGuruDashboardSummaryRange, Modul_InputAbsen.gs).
       infoParts.push(item.total + ' Santri');
       if (item.jamMulai && item.jamSelesai) {
         const durasi = window.iaDurasiMenit_(item.jamMulai, item.jamSelesai);
@@ -2248,6 +2263,10 @@
       document.getElementById('iaEmptyState').style.display = 'none';
       window.iaState_.list = result.formData;
       window.iaState_.sudahTersimpan = !!result.formSudahTersimpan;
+      // Tahap 12 (concurrency): expectedVersion SELALU ditimpa dari respons
+      // server kelas+tanggal yang BARU dipilih -- tidak pernah membawa
+      // version kelas/tanggal sebelumnya (lihat FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §9).
+      window.iaState_.expectedVersion = result.formExpectedVersion || 0;
       window.iaRenderSantriList_();
     } else {
       window.iaSelectKelas_(chosenKelas, chosenChip);
@@ -2360,6 +2379,7 @@
       }
       window.iaState_.list = result.data;
       window.iaState_.sudahTersimpan = !!result.sudahTersimpan;
+      window.iaState_.expectedVersion = result.expectedVersion || 0;
       window.iaRenderSantriList_();
     };
 
@@ -2481,7 +2501,11 @@
     warning: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v5"/><path d="M12 16h.01"/></svg>',
   };
 
-  window.iaShowStatusModal_ = function (tone, title, message, quote) {
+  // Tahap 12 (concurrency): parameter `action` OPSIONAL — {label, onClick}.
+  // Kalau diisi, tombol bawah modal berubah label/perilaku (dipakai conflict
+  // "Muat Ulang Data"); kalau tidak diisi (SEMUA pemanggil existing, tidak
+  // berubah), tombol tetap "Mengerti"/tutup seperti sebelumnya.
+  window.iaShowStatusModal_ = function (tone, title, message, quote, action) {
     const modal = document.getElementById('iaStatusModal');
     modal.className = 'ia-status-modal tone-' + tone;
     document.getElementById('iaStatusModalIcon').innerHTML = IA_STATUS_MODAL_ICONS_[tone] || IA_STATUS_MODAL_ICONS_.warning;
@@ -2498,6 +2522,15 @@
       quoteEl.style.display = 'none';
       messageEl.textContent = message;
       messageEl.style.display = 'block';
+    }
+
+    const btn = document.getElementById('iaStatusModalBtn');
+    if (action && action.label && action.onClick) {
+      btn.textContent = action.label;
+      btn.onclick = function () { window.iaCloseStatusModal_(); action.onClick(); };
+    } else {
+      btn.textContent = 'Mengerti';
+      btn.onclick = window.iaCloseStatusModal_;
     }
 
     document.getElementById('iaStatusModalOverlay').style.display = 'flex';
@@ -2562,13 +2595,26 @@
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
     btn.textContent = 'Menyimpan...';
-    window.showGlobalLoading_('Menyimpan kehadiran... Mohon tunggu sebentar.');
+    window.showGlobalLoading_('Memeriksa data terbaru...');
+
+    // Teks loading berubah bertahap mengikuti PERKIRAAN durasi tiap tahap
+    // proses simpan (cek versi → tulis absensi → naikkan versi, ~0.4 detik
+    // per tahap dari hasil pengukuran production) — SEKADAR estimasi waktu,
+    // BUKAN sinyal progres asli dari server (google.script.run tidak bisa
+    // melapor progres di tengah 1 panggilan yang sama). Timer WAJIB
+    // dibersihkan di endSaving_ supaya tidak nyangkut mengubah teks
+    // spinner global setelah proses ini selesai/ditutup.
+    const loadingTimers_ = [
+      setTimeout(function () { window.showGlobalLoading_('Menyimpan kehadiran...'); }, 700),
+      setTimeout(function () { window.showGlobalLoading_('Menyelesaikan...'); }, 1400),
+    ];
 
     const absensiList = window.iaState_.list.map(function (s) { return { santri_id: s.santri_id, status: s.status }; });
 
     // Dipanggil di SETIAP jalur keluar (sukses, gagal, error) — guard TIDAK
     // BOLEH tersangkut permanen kalau request gagal (lihat Tahap 9 §5).
     const endSaving_ = function () {
+      loadingTimers_.forEach(function (id) { clearTimeout(id); });
       window.iaState_.saving = false;
       window.hideGlobalLoading_();
       btn.disabled = false;
@@ -2579,6 +2625,10 @@
       endSaving_();
       if (result.success) {
         btn.textContent = 'Simpan Kehadiran';
+        // Tahap 12 (concurrency): sinkronkan expectedVersion dgn version BARU
+        // dari server -- guru bisa langsung Save lagi (koreksi) tanpa dianggap
+        // conflict thd dirinya sendiri.
+        window.iaState_.expectedVersion = (result.newVersion != null) ? result.newVersion : window.iaState_.expectedVersion;
         window.iaShowStatusModal_('success', 'Alhamdulillah, Absen Berhasil Disimpan', result.message, window.iaPickRandomQuote_());
         // Ringkasan Dashboard (hadir/izin/sakit/alpa) sekarang basi karena
         // absen baru saja disimpan — paksa reload sekali berikutnya kali
@@ -2601,6 +2651,16 @@
       } else if (result.code === 'guru-izin') {
         btn.textContent = 'Simpan Kehadiran';
         window.iaShowStatusModal_('warning', 'Sedang Mengajukan Izin', result.error);
+      } else if (result.code === 'attendance-conflict') {
+        // Tahap 12 (concurrency): JANGAN reset window.iaState_.list (edit lokal
+        // guru dipertahankan) -- guru sendiri yang memilih Muat Ulang Data,
+        // TIDAK otomatis. Reuse window.iaSelectKelas_ (fetch ulang form +
+        // expectedVersion terbaru utk kelas+tanggal aktif) sbg aksi reload.
+        btn.textContent = 'Simpan Kehadiran';
+        window.iaShowStatusModal_('warning', 'Data Absen Berubah', result.error, null, {
+          label: 'Muat Ulang Data',
+          onClick: function () { window.iaSelectKelas_(kelas, null); },
+        });
       } else {
         btn.textContent = 'Simpan Kehadiran';
         iaShowToast_(result.error, 'error');
@@ -2616,12 +2676,12 @@
       google.script.run
         .withSuccessHandler(onSaveResult)
         .withFailureHandler(onSaveFailure)
-        .serverSaveAbsensiKelasAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal, absensiList);
+        .serverSaveAbsensiKelasAdmin(window.currentToken, window.iaState_.kelompokId, kelas, tanggal, absensiList, window.iaState_.expectedVersion);
     } else {
       google.script.run
         .withSuccessHandler(onSaveResult)
         .withFailureHandler(onSaveFailure)
-        .serverSaveAbsensiKelas(window.currentToken, kelas, tanggal, absensiList);
+        .serverSaveAbsensiKelas(window.currentToken, kelas, tanggal, absensiList, window.iaState_.expectedVersion);
     }
   };
 
@@ -6027,6 +6087,9 @@
           return;
         }
         window.lastIkgFormData_ = result.data;
+        // Tahap 15 (secondary write-path concurrency): simpan snapshot version
+        // per-kelas, dibawa balik saat saveIkgForm_ (lihat serverSaveAbsensiDaily).
+        window.lastIkgExpectedVersions_ = result.expectedVersions || {};
         const santriMap = {};
         (window.lastSantriListData || []).forEach(function (s) { santriMap[String(s.id)] = s; });
 
@@ -6074,6 +6137,13 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (!result || !result.success) {
+          // Tahap 15: conflict -- JANGAN tutup modal/reset edit lokal secara
+          // otomatis, tawarkan Muat Ulang Data (guru/admin yang memutuskan).
+          if (result && result.code === 'attendance-conflict') {
+            const muatUlang = confirm((result.error || 'Data absensi sudah diperbarui oleh guru lain.') + '\n\nMuat ulang data sekarang?');
+            if (muatUlang) window.loadIkgForm_();
+            return;
+          }
           alert((result && result.error) || 'Gagal menyimpan.');
           return;
         }
@@ -6082,7 +6152,7 @@
         if (document.getElementById('kgDetailWrapper').style.display !== 'none') window.loadKgDetailTable_();
       })
       .withFailureHandler(function (err) { alert('Gagal menyimpan: ' + err); })
-      .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, merged);
+      .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, merged, window.lastIkgExpectedVersions_ || {});
   };
 
   /* ═════ LAPORAN PERKEMBANGAN SANTRI — Section A: Kehadiran (tab Laporan) ═════
@@ -6491,7 +6561,7 @@
     });
 
     const metricDefs = [
-      { label: 'HARI AKTIF', value: String(m.totalHariAktif), sub: 'hari efektif bulan ini', color: window.LPS_HARI_AKTIF_WARNA_HEX_ },
+      { label: 'HARI AKTIF', value: String(m.totalHariAktif), sub: 'hari efektif bulan ini', subFontSize: 7.5, color: window.LPS_HARI_AKTIF_WARNA_HEX_ },
       { label: 'KEHADIRAN', value: m.hadirPercent + '%', sub: avgHadirSantri + ' / ' + m.totalSantri + ' santri', color: window.LPS_STATUS_WARNA_HEX_.Hadir },
       { label: 'IZIN', value: String(m.totalIzin), sub: pct(m.totalIzin) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Izin },
       { label: 'ALFA', value: String(m.totalAlfa), sub: pct(m.totalAlfa) + '% santri', color: window.LPS_STATUS_WARNA_HEX_.Alfa },
@@ -6515,7 +6585,7 @@
               stack: [
                 { text: mc.label, fontSize: 9, bold: true, color: '#000000', margin: [0, 5, 0, 7] },
                 { text: mc.value, fontSize: 26, bold: true, color: mc.color },
-                { text: mc.sub, fontSize: 9.5, color: '#000000', margin: [0, 5, 0, 5] },
+                { text: mc.sub, fontSize: mc.subFontSize || 9.5, color: '#000000', margin: [0, 5, 0, 5] },
               ],
             }]],
           },
@@ -8595,6 +8665,9 @@
     google.script.run
       .withSuccessHandler(function (result) {
         if (result.success) {
+          // Tahap 15 (secondary write-path concurrency): simpan snapshot
+          // version per-kelas, dibawa balik saat saveAbsensi (lihat serverSaveAbsensiDaily).
+          window.lastAbsensiExpectedVersions_ = result.expectedVersions || {};
           const container = document.getElementById('absensiListContainer');
           container.innerHTML = '';
 
@@ -8673,11 +8746,16 @@
         if (result.success) {
           showAlert('absensiSuccess', result.message, 'success');
           window.loadAbsensiForm();
+        } else if (result.code === 'attendance-conflict') {
+          // Tahap 15: conflict -- JANGAN reset form otomatis, tawarkan Muat
+          // Ulang Data.
+          const muatUlang = confirm((result.error || 'Data absensi sudah diperbarui oleh guru lain.') + '\n\nMuat ulang data sekarang?');
+          if (muatUlang) window.loadAbsensiForm();
         } else {
           showAlert('absensiError', result.error, 'error');
         }
       })
-      .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, absensiList);
+      .serverSaveAbsensiDaily(window.currentToken, window.currentKelompokId, tanggal, absensiList, window.lastAbsensiExpectedVersions_ || {});
   };
 
   /* ═════ LAPORAN & EXPORT FUNCTIONS ═════ */

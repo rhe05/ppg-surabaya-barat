@@ -51,14 +51,37 @@ function serverGetAbsensiForm(token, kelompokId, tanggal) {
     status: absensiMap[s.id] || 'hadir', // default hadir jika tidak ada record
   }));
 
-  return { success: true, data: formData };
+  // Tahap 15 (secondary write-path concurrency): expectedVersions -- map
+  // {kelasLower: version} SEMUA kelas yang punya santri di kelompok ini,
+  // dibawa balik client saat serverSaveAbsensiDaily (proteksi conflict
+  // lintas-kelas, lihat FIRESTORE_SECONDARY_ATTENDANCE_CONCURRENCY_PROPOSAL.md
+  // §7/§15). HANYA utk kelompok yang absensinya sudah Firestore (sama
+  // scoping Tahap 12 -- kelompok Sheets belum punya proteksi ini).
+  let expectedVersions = {};
+  if (isKelompokTableOnFirestore_('absensi', kelompokId)) {
+    const affectedKelas = santriData.map(s => String(s.kelas_ngaji || '').trim()).filter(k => k !== '');
+    expectedVersions = iaGetAbsensiSesiVersionsBatch_(kelompokId, affectedKelas, tanggal);
+  }
+
+  return { success: true, data: formData, expectedVersions: expectedVersions };
 }
 
 /**
  * SAVE absensi untuk satu hari (daily entry).
  * Input: array [{santri_id, status}, ...] untuk tanggal tertentu.
+ *
+ * Tahap 15 (2026-08-08, secondary write-path concurrency): `expectedVersions`
+ * BARU -- map {kelasLower: version} yang client bawa dari
+ * `serverGetAbsensiForm`. Karena operasi ini menyentuh SEMUA kelas di
+ * kelompok sekaligus (bukan 1 kelas spt `serverSaveAbsensiKelas`), version
+ * SEMUA kelas terdampak dibaca+dibandingkan SEBELUM delete APA PUN --
+ * SATU kelas mismatch = TOLAK SELURUH operasi (all-or-nothing), TIDAK ADA
+ * delete/write parsial. Lihat
+ * FIRESTORE_SECONDARY_ATTENDANCE_CONCURRENCY_PROPOSAL.md §7 Option A / §15.
+ * HANYA berlaku utk kelompok Firestore (`onFirestore`) -- jalur Sheets TIDAK
+ * BERUBAH (di luar cakupan Tahap 12/14/15, sama seperti Main path).
  */
-function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
+function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList, expectedVersions) {
   const user = getCurrentUser(token);
   if (!user) return { success: false, error: 'Sesi tidak valid.' };
 
@@ -73,9 +96,8 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
 
   const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
 
-  const santriIds = readSheetAsObjects(SHEET_NAMES.SANTRI)
-    .filter(s => s.kelompok_id == kelompokId)
-    .map(s => s.id);
+  const santriRows = readSheetAsObjects(SHEET_NAMES.SANTRI).filter(s => s.kelompok_id == kelompokId);
+  const santriIds = santriRows.map(s => s.id);
 
   let count = 0;
 
@@ -86,9 +108,41 @@ function serverSaveAbsensiDaily(token, kelompokId, tanggal, absensiList) {
     const upsertList = absensiList.filter(item => santriIds.includes(Number(item.santri_id)));
     const upsertSantriIds = upsertList.map(item => String(item.santri_id));
     const deleteSantriIds = santriIds.map(String).filter(id => upsertSantriIds.indexOf(id) === -1);
+
+    // "Affected classes" = SEMUA kelas yang punya santri di kelompok ini
+    // (Daily menyentuh SELURUH kelompok, bukan 1 kelas -- proposal §7/§15).
+    const affectedKelas = santriRows.map(s => String(s.kelas_ngaji || '').trim()).filter(k => k !== '');
+
+    let conflict = null;
     withScriptLock_(function () {
+      const currentVersions = iaGetAbsensiSesiVersionsBatch_(kelompokId, affectedKelas, tanggal);
+      const expected = expectedVersions || {};
+      const mismatchKelas = Object.keys(currentVersions).filter(function (kelasKey) {
+        const exp = Number(expected[kelasKey]);
+        return (isNaN(exp) ? 0 : exp) !== currentVersions[kelasKey];
+      });
+
+      if (mismatchKelas.length > 0) {
+        // STOP -- SEBELUM delete/write apa pun (invariant #1/#2 Tahap 15).
+        conflict = { mismatchKelas: mismatchKelas, currentVersions: currentVersions };
+        return;
+      }
+
       count = iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, upsertList, tanggal, user.id);
+      // Kalau baris di atas throw (partial-failure Firestore), baris di bawah
+      // TIDAK PERNAH tereksekusi -- version TIDAK naik (invariant #3 Tahap 15,
+      // konsisten pola Tahap 12).
+      iaIncrementAbsensiSesiVersionsBatch_(kelompokId, affectedKelas, tanggal, currentVersions, user.id);
     });
+
+    if (conflict) {
+      return {
+        success: false,
+        code: 'attendance-conflict',
+        error: 'Data absensi sudah diperbarui oleh guru lain.',
+        currentVersions: conflict.currentVersions,
+      };
+    }
   } else {
     // Baca+filter di-scope 1 kelompok (via santriIds) & 1 tanggal
     // (iaReadAbsensiKelompokRange_, Modul_InputAbsen.gs) -- BUKAN
@@ -152,6 +206,9 @@ function serverSetAbsensiSatuSantri(token, kelompokId, santriId, tanggal, status
 
   const onFirestore = isKelompokTableOnFirestore_('absensi', kelompokId);
   const path = 'kelompok/' + kelompokId + '/absensi';
+  // Tahap 15: kelas SAAT INI santri ini -- dipakai increment header sesi
+  // kelas terkait SETELAH write dokumen berhasil (lihat blok di bawah).
+  const kelasSantri = String(santri.kelas_ngaji || '').trim();
 
   try {
     return withScriptLock_(function () {
@@ -161,17 +218,49 @@ function serverSetAbsensiSatuSantri(token, kelompokId, santriId, tanggal, status
         // atau upsert (PATCH menimpa/membuat) by id (analisis performa
         // 2026-08-05, opsi A).
         const docId = absensiDocId_(tanggal, santriId);
+        let result;
         if (!status) {
           firestoreDeleteDoc_(path, docId);
           logAudit('absensi', santriId + '_' + tanggal, 'delete', user.id, 'Hapus via Detail Kehadiran');
-          return { success: true, status: '' };
+          result = { success: true, status: '' };
+        } else {
+          firestoreUpdateDoc_(path, docId, {
+            id: docId, santri_id: santriId, tanggal: tanggal, status: status,
+            dicatat_oleh: user.id, kelompok_id: String(kelompokId),
+          });
+          logAudit('absensi', santriId + '_' + tanggal, 'update', user.id, 'status=' + status + ' via Detail Kehadiran');
+          result = { success: true, status: status };
         }
-        firestoreUpdateDoc_(path, docId, {
-          id: docId, santri_id: santriId, tanggal: tanggal, status: status,
-          dicatat_oleh: user.id, kelompok_id: String(kelompokId),
-        });
-        logAudit('absensi', santriId + '_' + tanggal, 'update', user.id, 'status=' + status + ' via Detail Kehadiran');
-        return { success: true, status: status };
+
+        // Tahap 15 (secondary write-path concurrency): increment header sesi
+        // kelas santri ini SETELAH write dokumen di atas BERHASIL (kalau baris
+        // di atas throw, baris ini TIDAK PERNAH tereksekusi -- version tidak
+        // naik kalau write gagal). Ini membuat perubahan 1-sel ini TERLIHAT
+        // oleh serverSaveAbsensiKelas/Admin/Daily berikutnya TANPA mengubah
+        // fungsi-fungsi itu sama sekali (mereka SUDAH membaca header yang
+        // sama). Operasi ini TIDAK PERNAH menyentuh dokumen santri LAIN --
+        // hanya 1 dokumen absensi (di atas) + 1 dokumen header (di bawah),
+        // jadi TIDAK perlu pre-write version-check thd dirinya sendiri (lihat
+        // FIRESTORE_SECONDARY_ATTENDANCE_CONCURRENCY_PROPOSAL.md §8 Option A).
+        // Santri tanpa kelas_ngaji (kosong) TIDAK punya header relevan --
+        // dilewati (edge case sama dgn Daily path).
+        if (kelasSantri !== '') {
+          const sesiPath = iaAbsensiSesiPath_(kelompokId);
+          const sesiDocId = absensiSesiDocId_(kelasSantri, tanggal);
+          const sesiHeader = firestoreGetDoc_(sesiPath, sesiDocId);
+          const newVersion = (sesiHeader ? Number(sesiHeader.version) || 0 : 0) + 1;
+          const headerFields = {
+            version: newVersion, kelas: kelasSantri, tanggal: tanggal,
+            kelompok_id: String(kelompokId), updated_by: user.id,
+          };
+          if (sesiHeader) {
+            firestoreUpdateDoc_(sesiPath, sesiDocId, headerFields);
+          } else {
+            firestoreCreateDoc_(sesiPath, sesiDocId, headerFields);
+          }
+        }
+
+        return result;
       }
 
       // Di-scope 1 santri & 1 tanggal (iaReadAbsensiKelompokRange_, Modul_InputAbsen.gs)

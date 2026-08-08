@@ -398,6 +398,7 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
   let formKelas = null;
   let formData = null;
   let formSudahTersimpan = false;
+  let formExpectedVersion = 0;
   if (list.length > 0) {
     let idx = -1;
     if (preferKelas) {
@@ -407,7 +408,18 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     formKelas = list[idx].kelas;
     const kelasLower = formKelas.toLowerCase();
     const santriKelas = santriAll.filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; });
-    const absensiExisting = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }), tanggal, tanggal);
+
+    // Tahap: baca absensi + version sesi PARALEL (1 fetchAll) kalau kelompok
+    // ini sudah Firestore -- sebelumnya 2 round-trip berurutan (lihat
+    // iaReadAbsensiRangeDanVersiParalel_ di atas utk detail pengukuran).
+    let absensiExisting;
+    if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, ctx.kelompokId)) {
+      const paralel = iaReadAbsensiRangeDanVersiParalel_(ctx.kelompokId, formKelas, tanggal);
+      absensiExisting = paralel.absensiRows;
+      formExpectedVersion = paralel.version;
+    } else {
+      absensiExisting = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriAll.map(function (s) { return s.id; }), tanggal, tanggal);
+    }
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
@@ -416,7 +428,7 @@ function serverGetKelasAbsenList(token, tanggal, preferKelas) {
     // Simpan di klien tidak pernah terkunci lagi krn flag ini.
   }
 
-  return { success: true, data: list, formKelas: formKelas, formData: formData, formSudahTersimpan: formSudahTersimpan };
+  return { success: true, data: list, formKelas: formKelas, formData: formData, formSudahTersimpan: formSudahTersimpan, formExpectedVersion: formExpectedVersion };
 }
 
 /**
@@ -437,7 +449,19 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
     return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower;
   });
 
-  const absensiExisting = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriKelas.map(function (s) { return s.id; }), tanggal, tanggal);
+  // Baca absensi + version sesi PARALEL (1 fetchAll) kalau kelompok ini
+  // sudah Firestore -- sebelumnya 2 round-trip berurutan (diukur 2026-08-08,
+  // ~1-2 detik per klik "pilih kelas" di Input Kehadiran guru -- lihat
+  // iaReadAbsensiRangeDanVersiParalel_ utk detail).
+  let absensiExisting, expectedVersion;
+  if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, ctx.kelompokId)) {
+    const paralel = iaReadAbsensiRangeDanVersiParalel_(ctx.kelompokId, kelas, tanggal);
+    absensiExisting = paralel.absensiRows;
+    expectedVersion = paralel.version;
+  } else {
+    absensiExisting = iaReadAbsensiKelompokRange_(ctx.kelompokId, santriKelas.map(function (s) { return s.id; }), tanggal, tanggal);
+    expectedVersion = 0;
+  }
   const statusMap = {};
   absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
 
@@ -447,7 +471,7 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
 
   // sudahTersimpan SENGAJA selalu false -- guru boleh mengoreksi absen
   // kelasnya sendiri kapan pun (lihat serverSaveAbsensiKelas).
-  return { success: true, data: formData, sudahTersimpan: false };
+  return { success: true, data: formData, sudahTersimpan: false, expectedVersion: expectedVersion };
 }
 
 /**
@@ -458,14 +482,24 @@ function serverGetAbsensiKelasForm(token, kelas, tanggal) {
  * memblokir SEMUA guru lain di seluruh aplikasi. Lihat ERROR_LOG.md #22).
  * WAJIB dipanggil di dalam withScriptLock_. Otomatis pakai jalur Firestore
  * kalau kelompokId sudah migrasi (isKelompokTableOnFirestore_).
- * @returns {number} jumlah baris baru yang ditulis
+ *
+ * Tahap 12 (2026-08-08, concurrency): `kelas`+`expectedVersion` BARU —
+ * dibutuhkan jalur Firestore utk optimistic-concurrency check (lihat
+ * iaRewriteAbsensiKelasFirestore_ di bawah). Jalur Sheets (kelompok yang
+ * BELUM migrasi) SENGAJA TIDAK diberi proteksi ini (di luar cakupan Tahap
+ * 10/11/12, lihat FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §Executive
+ * Summary — hanya Kelp Petemon yang absensinya di Firestore saat ini).
+ *
+ * @returns {{conflict:boolean, count:number, newVersion:(number|null), currentVersion:(number|undefined)}}
+ *   `conflict:true` → TIDAK ADA delete/write yang dieksekusi sama sekali.
+ *   Jalur Sheets SELALU `conflict:false, newVersion:null` (tidak berlaku).
  */
-function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, dicatatOleh) {
+function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, dicatatOleh, kelas, expectedVersion) {
   const santriIdSet = santriIdsKelas.map(function (id) { return String(id); });
   const relevantList = absensiList.filter(function (item) { return santriIdSet.indexOf(String(item.santri_id)) !== -1; });
 
   if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, kelompokId)) {
-    return iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh);
+    return iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh, kelas, expectedVersion);
   }
 
   const NUM_COLS = 5; // id, santri_id, tanggal, status, dicatat_oleh — Setup_Database.gs
@@ -494,7 +528,7 @@ function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList
   if (finalRows.length > 0) {
     sheet.getRange(2, 1, finalRows.length, NUM_COLS).setValues(finalRows);
   }
-  return newRows.length;
+  return { conflict: false, count: newRows.length, newVersion: null };
 }
 
 /**
@@ -505,11 +539,230 @@ function iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList
  * kelompok cuma utk cari baris yang mau dihapus + hitung id berikutnya —
  * biaya itu tumbuh terus seiring riwayat kelompok bertambah (lihat analisis
  * performa 2026-08-05, opsi A).
+ *
+ * Tahap 12 (2026-08-08, concurrency): SEBELUM delete/write apa pun, baca
+ * dokumen header "sesi absensi" (1 per kelas+tanggal, TERPISAH dari dokumen
+ * absensi per-santri) dan bandingkan `version`-nya dgn `expectedVersion` yang
+ * guru bawa dari saat form dibuka. TIDAK MATCH → return conflict SEBELUM
+ * baris delete/write mana pun dieksekusi (invariant #1/#2,
+ * FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §6/§18). Fungsi ini SELALU
+ * dipanggil di dalam withScriptLock_ (oleh serverSaveAbsensiKelas/Admin) —
+ * lock itulah yang menjamin hanya SATU eksekusi bisa berada di titik
+ * baca-header→tulis-header pada satu waktu (invariant #3), BUKAN Firestore
+ * native transaction (lihat proposal §7/§8 kenapa transaction tidak
+ * diperlukan di sini).
  */
-function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh) {
+function iaRewriteAbsensiKelasFirestore_(kelompokId, santriIdSet, tanggal, relevantList, dicatatOleh, kelas, expectedVersion) {
+  const sesiPath = iaAbsensiSesiPath_(kelompokId);
+  const sesiDocId = absensiSesiDocId_(kelas, tanggal);
+  const sesiHeader = firestoreGetDoc_(sesiPath, sesiDocId);
+  const currentVersion = sesiHeader ? (Number(sesiHeader.version) || 0) : 0;
+
+  if (Number(expectedVersion) !== currentVersion) {
+    return { conflict: true, count: 0, newVersion: null, currentVersion: currentVersion };
+  }
+
   const relevantSantriIds = relevantList.map(function (item) { return String(item.santri_id); });
   const deleteSantriIds = santriIdSet.filter(function (id) { return relevantSantriIds.indexOf(id) === -1; });
-  return iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, relevantList, tanggal, dicatatOleh);
+  // Kalau baris di bawah throw (mis. sebagian request Firestore gagal — lihat
+  // ATTENDANCE_CONCURRENCY_ANALYSIS.md §6 Failure Scenarios), eksekusi
+  // TIDAK PERNAH sampai ke penulisan header di bawah — version TIDAK naik,
+  // sesuai FINAL RULE Tahap 12 poin 7/8 ("save gagal → version tidak boleh naik").
+  const count = iaBulkWriteAbsensiFirestore_(kelompokId, deleteSantriIds, relevantList, tanggal, dicatatOleh);
+
+  const newVersion = currentVersion + 1;
+  const headerFields = {
+    version: newVersion, kelas: kelas, tanggal: tanggal,
+    kelompok_id: String(kelompokId), updated_by: dicatatOleh,
+  };
+  if (sesiHeader) {
+    firestoreUpdateDoc_(sesiPath, sesiDocId, headerFields);
+  } else {
+    firestoreCreateDoc_(sesiPath, sesiDocId, headerFields);
+  }
+
+  return { conflict: false, count: count, newVersion: newVersion };
+}
+
+/** Path Firestore koleksi header "sesi absensi" (1 kelompok). Lihat
+ *  iaRewriteAbsensiKelasFirestore_ di atas. */
+function iaAbsensiSesiPath_(kelompokId) {
+  return 'kelompok/' + kelompokId + '/absensi_sesi';
+}
+
+/**
+ * Baca `version` sesi absensi (kelas+tanggal) SAAT INI — dipakai
+ * serverGetAbsensiKelasForm/serverGetKelasAbsenList (+ varian Admin) supaya
+ * client tahu `expectedVersion` sebelum guru mulai edit. Header belum pernah
+ * ada (belum ada Save sejak fitur ini aktif) → 0 (lazy initialization, TIDAK
+ * membuat dokumen apa pun hanya karena form dibuka — lihat proposal §4/§9).
+ * @returns {number}
+ */
+function iaGetAbsensiSesiVersion_(kelompokId, kelas, tanggal) {
+  const doc = firestoreGetDoc_(iaAbsensiSesiPath_(kelompokId), absensiSesiDocId_(kelas, tanggal));
+  return doc ? (Number(doc.version) || 0) : 0;
+}
+
+/**
+ * Versi PARALEL dari "baca absensi 1 tanggal" + "baca version header sesi 1
+ * kelas" — dua request Firestore (structured query range absensi + GET
+ * dokumen absensi_sesi) dikirim BERSAMAAN via UrlFetchApp.fetchAll, BUKAN
+ * berurutan. Sebelumnya `serverGetKelasAbsenList`/`serverGetAbsensiKelasForm`
+ * memanggil `iaReadAbsensiKelompokRange_` lalu `iaGetAbsensiSesiVersion_`
+ * SATU-PER-SATU (2x round-trip Firestore berurutan, masing-masing ~0.9-2
+ * detik) — diukur 2026-08-08 (popup "pilih kelas" Input Kehadiran guru
+ * terasa lambat ~1-2 detik tiap klik kelas yang bukan kelas ter-prefetch).
+ * Digabung jadi 1 fetchAll = ~1x latency, bukan 2x dijumlah.
+ * HANYA dipakai kalau kelompok ini sudah Firestore utk absensi (dicek
+ * pemanggil) — kelompok Sheets tidak melakukan Firestore call sama sekali
+ * di jalur ini, tidak perlu diparalelkan.
+ * @returns {{absensiRows: Array, version: number}}
+ */
+function iaReadAbsensiRangeDanVersiParalel_(kelompokId, kelas, tanggal) {
+  const token = firestoreGetAccessToken_();
+  const baseUrl = firestoreBaseUrl_();
+
+  const query = firestoreRangeQuery_('absensi', 'tanggal', tanggal, tanggal);
+  const queryReq = {
+    url: baseUrl + '/kelompok/' + kelompokId + ':runQuery',
+    method: 'post',
+    contentType: 'application/json',
+    headers: { Authorization: 'Bearer ' + token },
+    payload: JSON.stringify({ structuredQuery: query }),
+    muteHttpExceptions: true,
+  };
+
+  const sesiDocId = absensiSesiDocId_(kelas, tanggal);
+  const sesiReq = {
+    url: baseUrl + '/' + iaAbsensiSesiPath_(kelompokId) + '/' + encodeURIComponent(sesiDocId),
+    method: 'get',
+    headers: { Authorization: 'Bearer ' + token },
+    muteHttpExceptions: true,
+  };
+
+  const responses = UrlFetchApp.fetchAll([queryReq, sesiReq]);
+
+  const queryResp = responses[0];
+  const queryCode = queryResp.getResponseCode();
+  if (queryCode < 200 || queryCode >= 300) {
+    throw new Error('Gagal baca absensi Firestore (paralel): ' + queryResp.getContentText());
+  }
+  const queryBody = JSON.parse(queryResp.getContentText() || '[]');
+  const absensiRows = queryBody
+    .filter(function (item) { return item.document; })
+    .map(function (item) { return firestoreDocToObject_(item.document); });
+
+  const sesiResp = responses[1];
+  const sesiCode = sesiResp.getResponseCode();
+  let version = 0;
+  if (sesiCode === 200) {
+    version = Number(firestoreDocToObject_(JSON.parse(sesiResp.getContentText())).version) || 0;
+  } else if (sesiCode !== 404) {
+    throw new Error('Gagal baca versi sesi absensi Firestore (paralel): ' + sesiResp.getContentText());
+  }
+
+  return { absensiRows: absensiRows, version: version };
+}
+
+/**
+ * Tahap 15 (2026-08-08, secondary write-path concurrency): baca `version`
+ * SEMUA kelas berbeda sekaligus, PARALEL via UrlFetchApp.fetchAll (GET per
+ * dokumen header) — dipakai `serverSaveAbsensiDaily`/`serverGetAbsensiForm`
+ * (Modul_MaintainAbsensi.gs) yang scope-nya SELURUH kelompok (banyak kelas
+ * sekaligus), BEDA dari `iaGetAbsensiSesiVersion_` di atas yang cuma 1 kelas
+ * (dipakai jalur per-kelas Tahap 12). Lihat
+ * FIRESTORE_SECONDARY_ATTENDANCE_CONCURRENCY_PROPOSAL.md §7 Option A —
+ * "multiple class versions", diparalelkan spy latency tidak tumbuh linear
+ * per kelas.
+ * @param {Array<string>} kelasList - boleh mengandung duplikat/case berbeda,
+ *   di-dedupe internal (dibandingkan trim+lowercase, sama normalisasi
+ *   `absensiSesiDocId_`).
+ * @returns {Object} map { kelasLower: version } — key SELALU trim+lowercase.
+ */
+function iaGetAbsensiSesiVersionsBatch_(kelompokId, kelasList, tanggal) {
+  const uniqueKelas = [];
+  const seen = {};
+  kelasList.forEach(function (k) {
+    const key = String(k).trim().toLowerCase();
+    if (key && !seen[key]) { seen[key] = true; uniqueKelas.push(k); }
+  });
+  if (uniqueKelas.length === 0) return {};
+
+  const path = iaAbsensiSesiPath_(kelompokId);
+  const token = firestoreGetAccessToken_();
+  const baseUrl = firestoreBaseUrl_();
+  const requests = uniqueKelas.map(function (kelas) {
+    return {
+      url: baseUrl + '/' + path + '/' + encodeURIComponent(absensiSesiDocId_(kelas, tanggal)),
+      method: 'get',
+      headers: { Authorization: 'Bearer ' + token },
+      muteHttpExceptions: true,
+    };
+  });
+
+  const responses = UrlFetchApp.fetchAll(requests);
+  const result = {};
+  uniqueKelas.forEach(function (kelas, idx) {
+    const resp = responses[idx];
+    const code = resp.getResponseCode();
+    const key = String(kelas).trim().toLowerCase();
+    if (code === 404) { result[key] = 0; return; }
+    if (code < 200 || code >= 300) {
+      throw new Error('Gagal baca versi sesi absensi kelas "' + kelas + '": ' + resp.getContentText());
+    }
+    const doc = JSON.parse(resp.getContentText());
+    result[key] = Number(firestoreDocToObject_(doc).version) || 0;
+  });
+  return result;
+}
+
+/**
+ * Tahap 15: increment SEMUA header kelas terdampak sekaligus, PARALEL via
+ * fetchAll (upsert PATCH per dokumen) — WAJIB dipanggil SETELAH delete/write
+ * attendance-nya sukses (kalau dipanggil sebelum/gagal di tengah,
+ * version akan naik padahal data belum tentu berubah — lihat kontrak di
+ * `serverSaveAbsensiDaily`).
+ * @param {Object} currentVersions - HASIL `iaGetAbsensiSesiVersionsBatch_`
+ *   yang SAMA (versi SEBELUM increment), dipakai basis +1 per kelas.
+ */
+function iaIncrementAbsensiSesiVersionsBatch_(kelompokId, kelasList, tanggal, currentVersions, dicatatOleh) {
+  const uniqueKelas = [];
+  const seen = {};
+  kelasList.forEach(function (k) {
+    const key = String(k).trim().toLowerCase();
+    if (key && !seen[key]) { seen[key] = true; uniqueKelas.push(k); }
+  });
+  if (uniqueKelas.length === 0) return;
+
+  const path = iaAbsensiSesiPath_(kelompokId);
+  const token = firestoreGetAccessToken_();
+  const baseUrl = firestoreBaseUrl_();
+  const requests = uniqueKelas.map(function (kelas) {
+    const key = String(kelas).trim().toLowerCase();
+    const newVersion = (Number(currentVersions[key]) || 0) + 1;
+    const docId = absensiSesiDocId_(kelas, tanggal);
+    const fields = {
+      version: newVersion, kelas: kelas, tanggal: tanggal,
+      kelompok_id: String(kelompokId), updated_by: dicatatOleh,
+    };
+    const mask = Object.keys(fields).map(function (k2) { return 'updateMask.fieldPaths=' + encodeURIComponent(k2); }).join('&');
+    return {
+      url: baseUrl + '/' + path + '/' + encodeURIComponent(docId) + '?' + mask,
+      method: 'patch',
+      contentType: 'application/json',
+      headers: { Authorization: 'Bearer ' + token },
+      payload: JSON.stringify({ fields: firestoreEncodeFields_(fields) }),
+      muteHttpExceptions: true,
+    };
+  });
+
+  const responses = UrlFetchApp.fetchAll(requests);
+  responses.forEach(function (resp, idx) {
+    const code = resp.getResponseCode();
+    if (code < 200 || code >= 300) {
+      throw new Error('Gagal update versi sesi absensi kelas "' + uniqueKelas[idx] + '": ' + resp.getContentText());
+    }
+  });
 }
 
 /**
@@ -599,8 +852,15 @@ function iaCekGuruSedangIzin_(kelompokId, guruId, tanggal) {
  * SAVE absensi satu kelas pada satu tanggal. Hanya menghapus/menulis ulang
  * baris absensi milik santri DI KELAS INI (bukan seluruh Kelompok) supaya
  * tidak menimpa input kelas lain di tanggal yang sama.
+ *
+ * Tahap 12 (2026-08-08, concurrency): `expectedVersion` BARU — guru bawa nilai
+ * ini dari saat form dibuka (serverGetAbsensiKelasForm/serverGetKelasAbsenList).
+ * Kalau sudah tidak cocok dgn version SAAT INI (guru lain sudah menyimpan
+ * kelas+tanggal yang sama sejak form ini dibuka), TIDAK ADA delete/write yang
+ * dieksekusi -- return conflict. Lihat
+ * FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §18/§6.
  */
-function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
+function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList, expectedVersion) {
   const ctx = requireGuruContext_(token);
   if (!ctx.success) return ctx;
   if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -646,13 +906,22 @@ function serverSaveAbsensiKelas(token, kelas, tanggal, absensiList) {
   // menimpa per kelas+tanggal (hapus+tulis ulang), jadi aman tanpa duplikat;
   // tiap simpan tetap tercatat logAudit di bawah, jadi tidak "diam-diam".
 
-  let count = 0;
+  let result = null;
   withScriptLock_(function () {
-    count = iaRewriteAbsensiKelas_(ctx.kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id);
+    result = iaRewriteAbsensiKelas_(ctx.kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id, kelas, expectedVersion);
   });
 
-  logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen kelas "${kelas}": ${count} santri`);
-  return { success: true, message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.` };
+  if (result.conflict) {
+    return {
+      success: false,
+      code: 'attendance-conflict',
+      error: 'Data absensi sudah diperbarui oleh guru lain.',
+      currentVersion: result.currentVersion,
+    };
+  }
+
+  logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen kelas "${kelas}": ${result.count} santri`);
+  return { success: true, message: `Absensi kelas "${kelas}" (${result.count} santri) berhasil disimpan.`, newVersion: result.newVersion };
 }
 
 /**
@@ -1121,6 +1390,7 @@ function serverGetKelasAbsenListAdmin(token, kelompokId, tanggal, preferKelas) {
 
   let formKelas = null;
   let formData = null;
+  let formExpectedVersion = 0;
   if (list.length > 0) {
     let idx = -1;
     if (preferKelas) {
@@ -1134,9 +1404,12 @@ function serverGetKelasAbsenListAdmin(token, kelompokId, tanggal, preferKelas) {
     const statusMap = {};
     absensiExisting.forEach(function (a) { statusMap[a.santri_id] = a.status; });
     formData = santriKelas.map(function (s) { return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' }; });
+    if (isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, kelompokId)) {
+      formExpectedVersion = iaGetAbsensiSesiVersion_(kelompokId, formKelas, tanggal);
+    }
   }
 
-  return { success: true, data: list, formKelas: formKelas, formData: formData };
+  return { success: true, data: list, formKelas: formKelas, formData: formData, formExpectedVersion: formExpectedVersion };
 }
 
 function serverGetAbsensiKelasFormAdmin(token, kelompokId, kelas, tanggal) {
@@ -1159,10 +1432,19 @@ function serverGetAbsensiKelasFormAdmin(token, kelompokId, kelas, tanggal) {
     return { santri_id: s.id, nama: s.nama, status: statusMap[s.id] || 'hadir' };
   });
 
-  return { success: true, data: formData };
+  const expectedVersion = isKelompokTableOnFirestore_(SHEET_NAMES.ABSENSI, kelompokId)
+    ? iaGetAbsensiSesiVersion_(kelompokId, kelas, tanggal)
+    : 0;
+  return { success: true, data: formData, expectedVersion: expectedVersion };
 }
 
-function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiList) {
+/**
+ * Tahap 12 (2026-08-08): `expectedVersion` BARU -- admin override memakai
+ * `withScriptLock_` yang SAMA + iaRewriteAbsensiKelas_ yang SAMA persis
+ * dgn jalur guru, jadi mendapat proteksi concurrency yang SAMA (TIDAK ada
+ * bypass version-check utk admin -- FIRESTORE_ATTENDANCE_CONCURRENCY_PROPOSAL.md §6).
+ */
+function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiList, expectedVersion) {
   const ctx = requireAdminPpg_(token);
   if (!ctx.success) return ctx;
   if (!String(tanggal).match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -1174,13 +1456,22 @@ function serverSaveAbsensiKelasAdmin(token, kelompokId, kelas, tanggal, absensiL
     .filter(function (s) { return String(s.kelas_ngaji || '').trim().toLowerCase() === kelasLower; })
     .map(function (s) { return s.id; });
 
-  let count = 0;
+  let result = null;
   withScriptLock_(function () {
-    count = iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id);
+    result = iaRewriteAbsensiKelas_(kelompokId, santriIdsKelas, tanggal, absensiList, ctx.user.id, kelas, expectedVersion);
   });
 
-  logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen (Admin) kelas "${kelas}": ${count} santri`);
-  return { success: true, message: `Absensi kelas "${kelas}" (${count} santri) berhasil disimpan.` };
+  if (result.conflict) {
+    return {
+      success: false,
+      code: 'attendance-conflict',
+      error: 'Data absensi sudah diperbarui oleh guru lain.',
+      currentVersion: result.currentVersion,
+    };
+  }
+
+  logAudit('absensi', 'kelas_' + kelas + '_' + tanggal, 'create', ctx.user.id, `Input Absen (Admin) kelas "${kelas}": ${result.count} santri`);
+  return { success: true, message: `Absensi kelas "${kelas}" (${result.count} santri) berhasil disimpan.`, newVersion: result.newVersion };
 }
 
 /**
