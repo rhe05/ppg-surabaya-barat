@@ -321,6 +321,9 @@ function doGet(e) {
         case 'perfizinrawcount':
           result = diagPerfIzinRowCount_(kelompokId);
           break;
+        case 'perfizindeletebyguru':
+          result = diagPerfIzinDeleteByGuru_(kelompokId, p.guruid);
+          break;
         default:
           result = { success: false, error: 'diag perf* tidak dikenal: ' + p.diag };
       }

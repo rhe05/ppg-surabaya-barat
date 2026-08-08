@@ -196,3 +196,20 @@ function diagPerfIzinRowCount_(kelompokId) {
   const rows = readSheetAsObjects(SHEET_NAMES.GURU_IZIN).filter(function (r) { return String(r.kelompok_id) === String(kelompokId); });
   return { success: true, rowCount: rows.length };
 }
+
+/** ?diag=perfizindeletebyguru&guruid= — hapus SEMUA baris guru_izin milik guru_id tsb
+ *  (cleanup targeted, dipakai kalau tag [PERFAUDIT TEMP] hilang krn alasan_kategori='sakit'
+ *  memaksa alasan_detail kosong — HANYA aman dipakai utk guru_id QA yg sudah tidak ada). */
+function diagPerfIzinDeleteByGuru_(kelompokId, guruId) {
+  let removed = 0;
+  withScriptLock_(function () {
+    readSheetAsObjects(SHEET_NAMES.GURU_IZIN).forEach(function (r) {
+      if (String(r.guru_id) === String(guruId)) {
+        deleteRowByQuery(SHEET_NAMES.GURU_IZIN, { id: r.id });
+        removed++;
+      }
+    });
+  });
+  cacheDrop_(IA_KELOMPOK_TABLE_CACHE_KEY_.guru_izin(kelompokId));
+  return { success: true, removed: removed };
+}
