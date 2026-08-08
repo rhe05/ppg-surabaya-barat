@@ -276,11 +276,22 @@ function serverDeleteSantri(token, kelompokId, santriId) {
  * Helper: log audit trail.
  */
 function logAudit(tableName, recordId, action, userId, detail) {
+  // ⚠️ TEMPORARY (2026-08-08, Tahap 5 measurement — lihat Modul_PerfAudit.gs):
+  // side-channel timing TIDAK mengubah signature/behavior/return logAudit()
+  // sama sekali (40 caller lain tidak terpengaruh). REVERT: hapus 5 baris
+  // `_perfT*`/`LOG_AUDIT_LAST_PERF_` di bawah, kembalikan ke bentuk asli 3 baris.
+  const _perfT0 = Date.now();
   const id = generateId(SHEET_NAMES.AUDIT_LOG);
+  const _perfT1 = Date.now();
   const timestamp = new Date().toISOString();
 
   appendRowToSheet(SHEET_NAMES.AUDIT_LOG, [id, tableName, recordId, action, userId, timestamp, detail]);
+  const _perfT2 = Date.now();
+  LOG_AUDIT_LAST_PERF_ = { idGenMs: _perfT1 - _perfT0, appendMs: _perfT2 - _perfT1, totalMs: _perfT2 - _perfT0 };
 }
+
+/** ⚠️ TEMPORARY (2026-08-08, Tahap 5) — side-channel utk diag measurement, lihat logAudit() di atas. REVERT: hapus baris ini. */
+let LOG_AUDIT_LAST_PERF_ = null;
 
 /**
  * BULK IMPORT santri dari CSV/Excel (array of objects).
