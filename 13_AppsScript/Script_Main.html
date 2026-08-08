@@ -2532,6 +2532,15 @@
   };
 
   window.saveInputAbsen_ = function () {
+    // ⚠️ Tahap 9 (2026-08-08, UX): guard eksplisit TIDAK bergantung SEMATA
+    // pada `btn.disabled` (browser memang menolak event klik pada button
+    // disabled, tapi ini lapis pertahanan KEDUA yang independen dari DOM —
+    // menutup celah kalau handler ini suatu saat dipanggil dari jalur lain
+    // selain klik langsung, mis. keyboard Enter di elemen lain, atau race
+    // ekstrem sebelum `btn.disabled` sempat ter-set). TIDAK mengubah
+    // server/validasi/payload sama sekali — murni state klien.
+    if (window.iaState_.saving) return;
+
     const kelas = window.iaState_.kelas;
     const tanggal = document.getElementById('iaTanggal').value;
     const btn = document.getElementById('iaSaveBtn');
@@ -2549,15 +2558,25 @@
       }
     }
 
+    window.iaState_.saving = true;
     btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
     btn.textContent = 'Menyimpan...';
-    window.showGlobalLoading_('Menyimpan absen...');
+    window.showGlobalLoading_('Menyimpan kehadiran... Mohon tunggu sebentar.');
 
     const absensiList = window.iaState_.list.map(function (s) { return { santri_id: s.santri_id, status: s.status }; });
 
-    const onSaveResult = function (result) {
+    // Dipanggil di SETIAP jalur keluar (sukses, gagal, error) — guard TIDAK
+    // BOLEH tersangkut permanen kalau request gagal (lihat Tahap 9 §5).
+    const endSaving_ = function () {
+      window.iaState_.saving = false;
       window.hideGlobalLoading_();
       btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    };
+
+    const onSaveResult = function (result) {
+      endSaving_();
       if (result.success) {
         btn.textContent = 'Simpan Kehadiran';
         window.iaShowStatusModal_('success', 'Alhamdulillah, Absen Berhasil Disimpan', result.message, window.iaPickRandomQuote_());
@@ -2588,8 +2607,7 @@
       }
     };
     const onSaveFailure = function () {
-      window.hideGlobalLoading_();
-      btn.disabled = false;
+      endSaving_();
       btn.textContent = 'Simpan Kehadiran';
       iaShowToast_('Gagal menyimpan. Coba lagi.', 'error');
     };
