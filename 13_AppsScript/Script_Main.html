@@ -681,11 +681,48 @@
   /* Prefetch diam-diam gerbang Kurikulum > Prota (2026-08-09) -- SAMA pola
      dgn iaPrefetchGateData_ di atas, tapi TIDAK terikat tanggal (Prota =
      program per Kelas, bukan per hari) jadi cukup dipanggil SEKALI saat app
-     dibuka (initInputAbsen_), tidak perlu diulang tiap ganti tanggal. */
+     dibuka (initInputAbsen_), tidak perlu diulang tiap ganti tanggal. Hasilnya
+     (kategori guru + nama Kelompok) SEKALIGUS dipakai isi baris info di
+     header ATAS (iaHeaderInfo_/iaApplyHeaderInfo_ di bawah) — dipakai baik
+     oleh layar Kurikulum > Prota MAUPUN Dashboard Kehadiran guru (2026-08-09,
+     instruksi "info header Dashboard sama seperti Kurikulum Prota"). */
+  window.iaHeaderInfo_ = { guruKategori: '', kelompokNama: '' };
+
+  window.iaApplyHeaderInfo_ = function () {
+    const roleLine = window.currentUser.role === 'admin_kelp'
+      ? 'Admin Kelp'
+      : (window.currentUser.role === 'guru' ? (window.iaHeaderInfo_.guruKategori || '') : '');
+    const roleInfoEl = document.getElementById('iaGreetingKelasInfo');
+    if (roleLine) {
+      roleInfoEl.textContent = roleLine;
+      roleInfoEl.style.display = 'block';
+    } else {
+      roleInfoEl.style.display = 'none';
+    }
+
+    const kelInfoEl = document.getElementById('iaGreetingWaktuInfo');
+    if (window.iaHeaderInfo_.kelompokNama) {
+      kelInfoEl.textContent = window.iaHeaderInfo_.kelompokNama;
+      kelInfoEl.style.display = 'block';
+    } else {
+      kelInfoEl.style.display = 'none';
+    }
+  };
+
   window.iaPrefetchKurikulumProtaGate_ = function () {
     if (window.iaState_.mode !== 'guru') return;
     google.script.run
-      .withSuccessHandler(function (result) { window.iaKurikulumProtaGatePrefetch_ = result; })
+      .withSuccessHandler(function (result) {
+        window.iaKurikulumProtaGatePrefetch_ = result;
+        window.iaHeaderInfo_.guruKategori = result.guruKategori || '';
+        window.iaHeaderInfo_.kelompokNama = result.kelompokNama || '';
+        // Prefetch ini selesai belakangan (Dashboard sudah tampil duluan saat
+        // app dibuka) -- kalau guru MASIH di Dashboard/Kurikulum Prota begitu
+        // hasilnya datang, refresh header-nya sekarang juga.
+        if (window.iaState_.activeView === 'dashboard' || window.iaState_.activeView === 'kurikulumProta') {
+          window.iaApplyHeaderInfo_();
+        }
+      })
       .withFailureHandler(function () { /* diam saja — gate jatuh balik ke fetch biasa */ })
       .serverGetKurikulumKelasGuru(window.currentToken);
   };
@@ -1003,7 +1040,7 @@
      konten), tahun berjalan otomatis (tanpa selector tahun — beda dari
      desktop yang punya dropdown 2025-2027, disederhanakan sesuai instruksi
      "hyper premium tapi jangan norak", guru tidak perlu urus tahun lampau). */
-  window.iaKurikulumProtaState_ = { kelas: null, kategori: '', kelompokNama: '', guruKategori: '' };
+  window.iaKurikulumProtaState_ = { kelas: null, kategori: '' };
   window.iaKurikulumProtaGateSelected_ = null;
 
   window.iaKurikulumProtaOpenGate_ = function () {
@@ -1044,8 +1081,8 @@
   };
 
   window.iaKurikulumProtaGateHandleResult_ = function (result) {
-    window.iaKurikulumProtaState_.kelompokNama = result.kelompokNama || '';
-    window.iaKurikulumProtaState_.guruKategori = result.guruKategori || '';
+    window.iaHeaderInfo_.kelompokNama = result.kelompokNama || '';
+    window.iaHeaderInfo_.guruKategori = result.guruKategori || '';
     if (!result.success || !result.data || result.data.length === 0) {
       window.iaKurikulumProtaCloseGate_();
       window.iaShowKurikulumProtaView_();
@@ -1122,34 +1159,12 @@
     document.getElementById('iaKurikulumProtaView').style.display = 'block';
 
     // Header ATAS (bukan body kartu, nama guru sudah tampil sekali di
-    // iaGreetingName) — 2 baris di bawah nama, numpang elemen greeting
-    // header yang sudah ada (sama pola dgn Input Absen/Jurnal pakai elemen
-    // ini utk info kontekstual, lihat iaJurnalRenderInfoCard_):
-    //   1) iaGreetingKelasInfo -- peran: kategori guru polos ("MT"/"GB"/"MS"
-    //      dari sheet guru) utk role='guru', "Admin Kelp" utk role='admin_kelp'
-    //      (dihitung client-side dari window.currentUser.role, BUKAN dari
-    //      serverGetKurikulumKelasGuru -- endpoint itu khusus role='guru'
-    //      via requireGuruContext_, admin_kelp tidak pernah berhasil
-    //      memanggilnya).
-    //   2) iaGreetingWaktuInfo -- nama Kelompok polos ("Kelp Petemon").
-    const roleLine = window.currentUser.role === 'admin_kelp'
-      ? 'Admin Kelp'
-      : (window.currentUser.role === 'guru' ? (window.iaKurikulumProtaState_.guruKategori || '') : '');
-    const roleInfoEl = document.getElementById('iaGreetingKelasInfo');
-    if (roleLine) {
-      roleInfoEl.textContent = roleLine;
-      roleInfoEl.style.display = 'block';
-    } else {
-      roleInfoEl.style.display = 'none';
-    }
-
-    const kelInfoEl = document.getElementById('iaGreetingWaktuInfo');
-    if (window.iaKurikulumProtaState_.kelompokNama) {
-      kelInfoEl.textContent = window.iaKurikulumProtaState_.kelompokNama;
-      kelInfoEl.style.display = 'block';
-    } else {
-      kelInfoEl.style.display = 'none';
-    }
+    // iaGreetingName) — 2 baris di bawah nama (kategori guru/"Admin Kelp" +
+    // nama Kelompok), numpang elemen greeting header yang sudah ada (sama
+    // pola dgn Input Absen/Jurnal pakai elemen ini utk info kontekstual,
+    // lihat iaJurnalRenderInfoCard_) — window.iaApplyHeaderInfo_ (SAMA
+    // fungsi dipakai Dashboard Kehadiran guru, lihat iaShowDashboardView_).
+    window.iaApplyHeaderInfo_();
 
     const kelasLabel = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas]
       || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
@@ -1879,10 +1894,21 @@
     document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKurikulumProtaView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
-    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
-    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
+
+    // Dashboard Kehadiran guru (mode='guru') — SAMA 2 baris info header dgn
+    // Kurikulum > Prota (kategori guru + nama Kelompok, lihat
+    // iaApplyHeaderInfo_), 2026-08-09. Dashboard Admin Kelp (mode='admin_kelp')
+    // & Admin PPG (mode='admin') TIDAK diubah — baris ini tetap disembunyikan
+    // spt sebelumnya, di luar fokus instruksi ("khusus guru").
+    if (window.iaState_.mode === 'guru') {
+      window.iaApplyHeaderInfo_();
+    } else {
+      document.getElementById('iaGreetingKelasInfo').style.display = 'none';
+      document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
+    }
+
     if (window.iaState_.dashboardLoadedKey === iaDashboardCacheKey_()) return;
     window.iaLoadDashboardSummary_();
   };
