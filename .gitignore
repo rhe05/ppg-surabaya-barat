@@ -17,6 +17,11 @@ dist/
 .clasprc.json
 **/.clasprc.json
 
+# ── Extract engine service account key (JANGAN pernah di-commit!) ──
+service-account-key.json
+*-service-account*.json
+extracted_data.json
+
 # ── Logs & OS junk ──
 *.log
 npm-debug.log*

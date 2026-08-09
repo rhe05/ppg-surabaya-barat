@@ -1,0 +1,14 @@
+{
+  "name": "ruang-ngaji-extract-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone Extract prototype for Ruang Ngaji -> Supabase migration (see extract_engine.js header comment for scope notes).",
+  "scripts": {
+    "extract": "node extract_engine.js"
+  },
+  "dependencies": {
+    "googleapis": "^140.0.0",
+    "firebase-admin": "^12.0.0",
+    "dotenv": "^16.4.0"
+  }
+}
