@@ -565,6 +565,7 @@
     window.iaLoadQuoteHariIni_();
     window.iaShowDashboardView_();
     window.iaPrefetchGateData_();
+    window.iaPrefetchKurikulumProtaGate_();
   };
 
   /* Urutan kartu Dashboard Kehadiran Admin Kelp (TERPISAH dari
@@ -675,6 +676,18 @@
       .withSuccessHandler(function (result) { window.iaJurnalGatePrefetch_ = { tanggal: tanggal, result: result }; })
       .withFailureHandler(function () { /* diam saja */ })
       .serverGetJurnalKelasList(window.currentToken, tanggal, null);
+  };
+
+  /* Prefetch diam-diam gerbang Kurikulum > Prota (2026-08-09) -- SAMA pola
+     dgn iaPrefetchGateData_ di atas, tapi TIDAK terikat tanggal (Prota =
+     program per Kelas, bukan per hari) jadi cukup dipanggil SEKALI saat app
+     dibuka (initInputAbsen_), tidak perlu diulang tiap ganti tanggal. */
+  window.iaPrefetchKurikulumProtaGate_ = function () {
+    if (window.iaState_.mode !== 'guru') return;
+    google.script.run
+      .withSuccessHandler(function (result) { window.iaKurikulumProtaGatePrefetch_ = result; })
+      .withFailureHandler(function () { /* diam saja — gate jatuh balik ke fetch biasa */ })
+      .serverGetKurikulumKelasGuru(window.currentToken);
   };
 
   /* Admin PPG: bebas pilih Kelompok > Kelas mana pun (dipanggil dari sidebar). */
@@ -994,6 +1007,22 @@
   window.iaKurikulumProtaGateSelected_ = null;
 
   window.iaKurikulumProtaOpenGate_ = function () {
+    // Fast path: data sudah di-prefetch diam-diam saat app dibuka
+    // (iaPrefetchKurikulumProtaGate_, dipanggil dari initInputAbsen_ -- pola
+    // SAMA dgn iaKelasGatePrefetch_/iaJurnalGatePrefetch_ Input Absen/Jurnal)
+    // -- kalau belum pernah pilih kelas sesi ini, langsung render TANPA
+    // google.script.run sama sekali (instan). Sebelumnya gate ini SATU-
+    // SATUNYA yang tidak diprefetch, jadi terasa jauh lebih lambat dibanding
+    // popup Kehadiran/Jurnal Mengajar yang sudah instan (2026-08-09, laporan
+    // user). Data ini TIDAK terikat tanggal (beda dari 2 gate lain) jadi
+    // cukup diprefetch SEKALI saat app dibuka, tidak perlu refresh tiap
+    // ganti tanggal.
+    const prefetch = window.iaKurikulumProtaGatePrefetch_;
+    if (!window.iaKurikulumProtaState_.kelas && prefetch) {
+      window.iaKurikulumProtaGateHandleResult_(prefetch);
+      return;
+    }
+
     const overlay = document.getElementById('iaKurikulumProtaGateOverlay');
     const loadingEl = document.getElementById('iaKurikulumProtaGateLoading');
     const listEl = document.getElementById('iaKurikulumProtaGateList');
@@ -1006,28 +1035,32 @@
     document.getElementById('iaKurikulumProtaGateMasukBtn').disabled = true;
     window.iaKurikulumProtaGateSelected_ = null;
 
-    const onResult = function (result) {
-      window.iaKurikulumProtaState_.kelompokNama = result.kelompokNama || '';
-      if (!result.success || !result.data || result.data.length === 0) {
-        window.iaKurikulumProtaCloseGate_();
-        window.iaShowKurikulumProtaView_();
-        window.iaKurikulumProtaRenderEmpty_(!result.success ? result.error : 'Anda belum mengampu Kelas 1-6.');
-        return;
-      }
-      if (result.data.length === 1) {
-        window.iaKurikulumProtaCloseGate_();
-        window.iaKurikulumProtaEnterKelas_(result.data[0].kelas, result.data[0].kategori);
-        return;
-      }
-      loadingEl.style.display = 'none';
-      window.iaKurikulumProtaRenderGateCards_(result.data);
-    };
     const onFail = function (err) {
       window.iaKurikulumProtaCloseGate_();
       iaShowToast_('Gagal memuat kelas: ' + (err && err.message ? err.message : err), 'error');
     };
 
-    google.script.run.withSuccessHandler(onResult).withFailureHandler(onFail).serverGetKurikulumKelasGuru(window.currentToken);
+    google.script.run.withSuccessHandler(window.iaKurikulumProtaGateHandleResult_).withFailureHandler(onFail).serverGetKurikulumKelasGuru(window.currentToken);
+  };
+
+  window.iaKurikulumProtaGateHandleResult_ = function (result) {
+    window.iaKurikulumProtaState_.kelompokNama = result.kelompokNama || '';
+    if (!result.success || !result.data || result.data.length === 0) {
+      window.iaKurikulumProtaCloseGate_();
+      window.iaShowKurikulumProtaView_();
+      window.iaKurikulumProtaRenderEmpty_(!result.success ? result.error : 'Anda belum mengampu Kelas 1-6.');
+      return;
+    }
+    if (result.data.length === 1) {
+      window.iaKurikulumProtaCloseGate_();
+      window.iaKurikulumProtaEnterKelas_(result.data[0].kelas, result.data[0].kategori);
+      return;
+    }
+    document.getElementById('iaKurikulumProtaGateOverlay').style.display = 'flex';
+    document.getElementById('iaKurikulumProtaGateLoading').style.display = 'none';
+    document.getElementById('iaKurikulumProtaGateMasukBtn').disabled = true;
+    window.iaKurikulumProtaGateSelected_ = null;
+    window.iaKurikulumProtaRenderGateCards_(result.data);
   };
 
   window.iaKurikulumProtaRenderGateCards_ = function (data) {
