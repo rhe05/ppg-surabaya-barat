@@ -1090,7 +1090,10 @@
     const kelasLabel = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas]
       || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
     const kategori = window.iaKurikulumProtaState_.kategori;
-    document.getElementById('iaKurikulumProtaContext').textContent = kategori ? (kategori + ' · ' + kelasLabel) : kelasLabel;
+    const kelasHtml = '<span class="ia-kur-hero-context-kelas">' + window.escapeHtmlExport_(kelasLabel) + '</span>';
+    document.getElementById('iaKurikulumProtaContext').innerHTML = kategori
+      ? '<span class="ia-kur-hero-context-kategori">' + window.escapeHtmlExport_(kategori) + '</span><span class="ia-kur-hero-context-sep">·</span>' + kelasHtml
+      : kelasHtml;
   };
 
   window.iaKurikulumProtaLoad_ = function () {
