@@ -169,7 +169,11 @@ function serverGetKurikulumKelasGuru(token) {
     .filter(function (k) { return kelasIntiKategori_.hasOwnProperty(k); })
     .map(function (k) { return { kelas: k, label: 'Kelas ' + k, kategori: kelasIntiKategori_[k] }; });
 
-  return { success: true, data: data };
+  // Nama Kelompok (mis. "Kelp Petemon") -- dipakai baris "Kelompok" di
+  // header mobile, sama utk semua kelas jadi dikirim 1x di level atas.
+  const kelompokRow = readSheetAsObjects(SHEET_NAMES.KELOMPOK).find(function (k) { return String(k.id) === String(ctx.kelompokId); });
+
+  return { success: true, data: data, guruNama: ctx.user.nama || '', kelompokNama: kelompokRow ? kelompokRow.nama : '' };
 }
 
 /**
