@@ -688,10 +688,23 @@
      instruksi "info header Dashboard sama seperti Kurikulum Prota"). */
   window.iaHeaderInfo_ = { guruKategori: '', kelompokNama: '' };
 
+  // guru.kategori (sheet master) isinya teks LENGKAP ("Muballigh Tugasan",
+  // dst — lihat dropdown #guruKategori, Markup_Screens.html), BUKAN
+  // singkatan -- disingkat di sini SAJA utk baris header ("Guru Generus -
+  // MT"), data mentahnya di sheet TIDAK diubah.
+  window.IA_GURU_KATEGORI_SINGKATAN_ = {
+    'Muballigh Tugasan': 'MT',
+    'Muballigh Setempat': 'MS',
+    'Guru Mutu': 'GM',
+    'Guru Bantu': 'GB',
+  };
+
   window.iaApplyHeaderInfo_ = function () {
+    const kategoriRaw = window.iaHeaderInfo_.guruKategori || '';
+    const kategoriSingkat = window.IA_GURU_KATEGORI_SINGKATAN_[kategoriRaw] || kategoriRaw;
     const roleLine = window.currentUser.role === 'admin_kelp'
       ? 'Admin Kelp'
-      : (window.currentUser.role === 'guru' ? (window.iaHeaderInfo_.guruKategori || '') : '');
+      : (window.currentUser.role === 'guru' && kategoriSingkat ? 'Guru Generus - ' + kategoriSingkat : '');
     const roleInfoEl = document.getElementById('iaGreetingKelasInfo');
     if (roleLine) {
       roleInfoEl.textContent = roleLine;
