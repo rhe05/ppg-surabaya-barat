@@ -1201,22 +1201,40 @@
       const rincianLines = promes && promes.deskripsi
         ? String(promes.deskripsi).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
         : [];
+      const semMod = sem === '2' ? 'ia-kur-sem-block-ii' : 'ia-kur-sem-block-i';
+      const semRoman = sem === '2' ? 'II' : 'I';
 
-      const body = target
-        ? '<div class="ia-kur-sem-field-label">Target</div>'
-          + '<div class="ia-kur-sem-target">' + window.escapeHtmlExport_(target) + '</div>'
-          + (rincianLines.length
-            ? '<div class="ia-kur-sem-field-label ia-kur-sem-field-label-rincian">Rincian Target</div>'
-              + '<div class="ia-kur-sem-rincian-list">'
-              + rincianLines.map(function (line, i) {
-                  return '<div class="ia-kur-sem-rincian-item"><span class="ia-kur-sem-rincian-num">' + (i + 1) + '</span><span class="ia-kur-sem-rincian-text">' + window.escapeHtmlExport_(line) + '</span></div>';
-                }).join('')
-              + '</div>'
-            : '')
-        : '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum diisi.</div>';
+      if (!target) {
+        return '<div class="ia-kur-sem-block ' + semMod + '"><div class="ia-kur-sem-label">Semester ' + semRoman + '</div>'
+          + '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum diisi.</div></div>';
+      }
 
-      return '<div class="ia-kur-sem-block"><div class="ia-kur-sem-label">Semester ' + (sem === '2' ? 'II' : 'I') + '</div>' + body + '</div>';
+      // Rincian Target collapsed by default -- guru quick-scan Target dulu,
+      // baru buka rincian kalau perlu detail (event.stopPropagation() supaya
+      // klik tombol ini TIDAK ikut menutup/membuka materi induk di atasnya).
+      const rincianHtml = rincianLines.length
+        ? '<div class="ia-kur-rincian-wrap">'
+          + '<button type="button" class="ia-kur-rincian-toggle" onclick="event.stopPropagation(); window.iaKurikulumProtaToggleRincian_(this)">'
+          + '<span>Rincian Target</span>'
+          + '<svg class="ia-kur-rincian-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
+          + '</button>'
+          + '<div class="ia-kur-rincian-content"><ol class="ia-kur-rincian-list">'
+          + rincianLines.map(function (line) { return '<li>' + window.escapeHtmlExport_(line) + '</li>'; }).join('')
+          + '</ol></div></div>'
+        : '';
+
+      return '<div class="ia-kur-sem-block ' + semMod + '">'
+        + '<div class="ia-kur-sem-label">Semester ' + semRoman + '</div>'
+        + '<div class="ia-kur-sem-target-card"><p class="ia-kur-sem-target">' + window.escapeHtmlExport_(target) + '</p></div>'
+        + rincianHtml
+        + '</div>';
     }).join('');
+  };
+
+  window.iaKurikulumProtaToggleRincian_ = function (btn) {
+    btn.classList.toggle('open');
+    const content = btn.nextElementSibling;
+    if (content) content.classList.toggle('open');
   };
 
   window.iaKurikulumProtaRenderEmpty_ = function (msg) {
