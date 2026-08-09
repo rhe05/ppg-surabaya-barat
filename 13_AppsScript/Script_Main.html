@@ -1147,27 +1147,76 @@
     }
     listEl.innerHTML = filtered.map(function (prota, i) {
       const kategori = window.escapeHtmlExport_(prota.kategori || '—');
-      const target = prota.target ? window.escapeHtmlExport_(prota.target) : '';
-      const deskripsi = prota.deskripsi ? window.escapeHtmlExport_(prota.deskripsi) : '';
-      const detailBody = (target || deskripsi)
-        ? (target ? '<div class="ia-kur-detail-label">Target</div><div class="ia-kur-detail-text">' + target + '</div>' : '')
-          + (deskripsi ? '<div class="ia-kur-detail-label">Deskripsi</div><div class="ia-kur-detail-text">' + deskripsi + '</div>' : '')
-        : '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum ada detail target/deskripsi.</div>';
       return `
-        <div class="ia-kur-item" onclick="window.iaKurikulumProtaToggle_(this)">
+        <div class="ia-kur-item" data-prota-id="${prota.id}" onclick="window.iaKurikulumProtaToggle_(this)">
           <div class="ia-kur-item-head">
             <span class="ia-kur-item-num">${String(i + 1).padStart(2, '0')}</span>
             <span class="ia-kur-item-title">${kategori}</span>
             <span class="ia-kur-item-chevron">›</span>
           </div>
-          <div class="ia-kur-item-detail">${detailBody}</div>
+          <div class="ia-kur-item-detail" id="iaKurikulumProtaDetail_${prota.id}"></div>
         </div>
       `;
     }).join('');
   };
 
+  // Detail per materi = Semester I & II (data Promes, serverGetPromes --
+  // SAMA sumber dgn tab Semester desktop), dimuat lazy sekali per materi
+  // saat pertama kali di-expand (pola sama desktop toggleMateriDetail_/
+  // kurikulumRefreshMateriDetail_), BUKAN sekaligus semua materi di awal.
   window.iaKurikulumProtaToggle_ = function (el) {
+    const wasOpen = el.classList.contains('open');
     el.classList.toggle('open');
+    if (wasOpen || el.dataset.loaded === '1') return;
+    window.iaKurikulumProtaLoadSemester_(el);
+  };
+
+  window.iaKurikulumProtaLoadSemester_ = function (itemEl) {
+    const protaId = itemEl.dataset.protaId;
+    const detailEl = document.getElementById('iaKurikulumProtaDetail_' + protaId);
+    if (!detailEl) return;
+    detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Memuat semester...</div>';
+    google.script.run
+      .withSuccessHandler(function (result) {
+        itemEl.dataset.loaded = '1';
+        if (!result.success) {
+          detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Gagal memuat: ' + window.escapeHtmlExport_(result.error) + '</div>';
+          return;
+        }
+        window.iaKurikulumProtaRenderSemester_(detailEl, result.data);
+      })
+      .withFailureHandler(function (err) {
+        detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Error: ' + window.escapeHtmlExport_(err && err.message ? err.message : err) + '</div>';
+      })
+      .serverGetPromes(window.currentToken, protaId);
+  };
+
+  window.iaKurikulumProtaRenderSemester_ = function (containerEl, data) {
+    const bySemester = {};
+    (data || []).forEach(function (p) { bySemester[String(p.semester)] = p; });
+
+    containerEl.innerHTML = ['1', '2'].map(function (sem) {
+      const promes = bySemester[sem];
+      const target = promes && promes.target ? String(promes.target).trim() : '';
+      const rincianLines = promes && promes.deskripsi
+        ? String(promes.deskripsi).split('\n').map(function (v) { return v.trim(); }).filter(function (v) { return v !== ''; })
+        : [];
+
+      const body = target
+        ? '<div class="ia-kur-sem-field-label">Target</div>'
+          + '<div class="ia-kur-sem-target">' + window.escapeHtmlExport_(target) + '</div>'
+          + (rincianLines.length
+            ? '<div class="ia-kur-sem-field-label ia-kur-sem-field-label-rincian">Rincian Target</div>'
+              + '<div class="ia-kur-sem-rincian-list">'
+              + rincianLines.map(function (line, i) {
+                  return '<div class="ia-kur-sem-rincian-item"><span class="ia-kur-sem-rincian-num">' + (i + 1) + '</span><span class="ia-kur-sem-rincian-text">' + window.escapeHtmlExport_(line) + '</span></div>';
+                }).join('')
+              + '</div>'
+            : '')
+        : '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum diisi.</div>';
+
+      return '<div class="ia-kur-sem-block"><div class="ia-kur-sem-label">Semester ' + (sem === '2' ? 'II' : 'I') + '</div>' + body + '</div>';
+    }).join('');
   };
 
   window.iaKurikulumProtaRenderEmpty_ = function (msg) {

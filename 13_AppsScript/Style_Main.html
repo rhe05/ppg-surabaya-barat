@@ -7037,22 +7037,9 @@
     }
 
     .ia-kur-item.open .ia-kur-item-detail {
-      max-height: 600px;
+      max-height: 2400px;
       padding-top: 10px;
       padding-bottom: 2px;
-    }
-
-    .ia-kur-detail-label {
-      font-size: 10.5px;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      color: var(--teal);
-      margin-bottom: 3px;
-    }
-
-    .ia-kur-detail-label:not(:first-child) {
-      margin-top: 10px;
     }
 
     .ia-kur-detail-text {
@@ -7065,6 +7052,81 @@
     .ia-kur-detail-empty {
       color: var(--text-faint);
       font-style: italic;
+    }
+
+    /* Detail materi Bacaan Al-Qur'an = 2 blok Semester I/II (data Promes,
+       serverGetPromes -- SAMA sumber data dgn desktop tab Semester, TIDAK
+       ada endpoint baru), tiap blok: "Target" (1 baris tegas) + "Rincian
+       Target" (list bernomor tipis, BUKAN tabel border/zebra spt desktop --
+       disederhanakan sesuai gaya editorial layar ini). Dimuat lazy (fetch
+       sekali per materi saat pertama kali expand), bukan sekaligus semua
+       materi -- sama pola dgn desktop toggleMateriDetail_. */
+    .ia-kur-sem-block {
+      margin-bottom: 16px;
+    }
+
+    .ia-kur-sem-block:last-child {
+      margin-bottom: 0;
+    }
+
+    .ia-kur-sem-block + .ia-kur-sem-block {
+      padding-top: 16px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .ia-kur-sem-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      color: var(--teal);
+      margin-bottom: 8px;
+    }
+
+    .ia-kur-sem-field-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      color: var(--text-faint);
+      margin-bottom: 3px;
+    }
+
+    .ia-kur-sem-field-label-rincian {
+      margin-top: 12px;
+    }
+
+    .ia-kur-sem-target {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .ia-kur-sem-rincian-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .ia-kur-sem-rincian-item {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+    }
+
+    .ia-kur-sem-rincian-num {
+      flex-shrink: 0;
+      min-width: 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--teal);
+    }
+
+    .ia-kur-sem-rincian-text {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.55;
     }
 
     .ia-kur-empty {
