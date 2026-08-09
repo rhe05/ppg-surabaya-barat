@@ -990,9 +990,8 @@
      konten), tahun berjalan otomatis (tanpa selector tahun — beda dari
      desktop yang punya dropdown 2025-2027, disederhanakan sesuai instruksi
      "hyper premium tapi jangan norak", guru tidak perlu urus tahun lampau). */
-  window.iaKurikulumProtaState_ = { kelas: null, kategori: '', guruNama: '', kelompokNama: '' };
+  window.iaKurikulumProtaState_ = { kelas: null, kategori: '', kelompokNama: '' };
   window.iaKurikulumProtaGateSelected_ = null;
-  window.iaKurikulumProtaGateMeta_ = null;
 
   window.iaKurikulumProtaOpenGate_ = function () {
     const overlay = document.getElementById('iaKurikulumProtaGateOverlay');
@@ -1008,7 +1007,7 @@
     window.iaKurikulumProtaGateSelected_ = null;
 
     const onResult = function (result) {
-      window.iaKurikulumProtaGateMeta_ = { guruNama: result.guruNama || '', kelompokNama: result.kelompokNama || '' };
+      window.iaKurikulumProtaState_.kelompokNama = result.kelompokNama || '';
       if (!result.success || !result.data || result.data.length === 0) {
         window.iaKurikulumProtaCloseGate_();
         window.iaShowKurikulumProtaView_();
@@ -1072,9 +1071,6 @@
   window.iaKurikulumProtaEnterKelas_ = function (kelas, kategori) {
     window.iaKurikulumProtaState_.kelas = kelas;
     window.iaKurikulumProtaState_.kategori = kategori || '';
-    const meta = window.iaKurikulumProtaGateMeta_ || {};
-    window.iaKurikulumProtaState_.guruNama = meta.guruNama || '';
-    window.iaKurikulumProtaState_.kelompokNama = meta.kelompokNama || '';
     window.iaShowKurikulumProtaView_();
     window.iaKurikulumProtaLoad_();
   };
@@ -1087,11 +1083,24 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
-    document.getElementById('iaGreetingKelasInfo').style.display = 'none';
     document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaKurikulumProtaView').style.display = 'block';
+
+    // Nama Kelompok TIDAK diulang di body (guru pengajar sudah tampil sekali
+    // di iaGreetingName atas) -- cuma "Kelp Petemon" polos tanpa label
+    // "Kelompok", numpang di elemen greeting kelas header ATAS (sama seperti
+    // Input Absen/Jurnal pakai elemen ini utk info kelas, lihat komentar
+    // iaJurnalRenderInfoCard_) supaya tidak ada baris nama/info dobel.
+    const kelInfoEl = document.getElementById('iaGreetingKelasInfo');
+    if (window.iaKurikulumProtaState_.kelompokNama) {
+      kelInfoEl.textContent = window.iaKurikulumProtaState_.kelompokNama;
+      kelInfoEl.style.display = 'block';
+    } else {
+      kelInfoEl.style.display = 'none';
+    }
+
     const kelasLabel = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas]
       || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
     const kategori = window.iaKurikulumProtaState_.kategori;
@@ -1099,8 +1108,6 @@
     document.getElementById('iaKurikulumProtaContext').innerHTML = kategori
       ? '<span class="ia-kur-hero-context-kategori">' + window.escapeHtmlExport_(kategori) + '</span><span class="ia-kur-hero-context-sep">·</span>' + kelasHtml
       : kelasHtml;
-    document.getElementById('iaKurikulumProtaGuruName').textContent = window.iaKurikulumProtaState_.guruNama || '—';
-    document.getElementById('iaKurikulumProtaKelompokName').textContent = window.iaKurikulumProtaState_.kelompokNama || '—';
   };
 
   window.iaKurikulumProtaLoad_ = function () {
@@ -1165,8 +1172,6 @@
 
   window.iaKurikulumProtaRenderEmpty_ = function (msg) {
     document.getElementById('iaKurikulumProtaContext').textContent = '';
-    document.getElementById('iaKurikulumProtaGuruName').textContent = '';
-    document.getElementById('iaKurikulumProtaKelompokName').textContent = '';
     document.getElementById('iaKurikulumProtaList').innerHTML = '<div class="ia-kur-empty">' + window.escapeHtmlExport_(msg || 'Anda belum mengampu Kelas 1-6.') + '</div>';
   };
 

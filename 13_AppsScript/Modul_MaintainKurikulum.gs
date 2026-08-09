@@ -169,11 +169,13 @@ function serverGetKurikulumKelasGuru(token) {
     .filter(function (k) { return kelasIntiKategori_.hasOwnProperty(k); })
     .map(function (k) { return { kelas: k, label: 'Kelas ' + k, kategori: kelasIntiKategori_[k] }; });
 
-  // Nama Kelompok (mis. "Kelp Petemon") -- dipakai baris "Kelompok" di
-  // header mobile, sama utk semua kelas jadi dikirim 1x di level atas.
+  // Nama Kelompok (mis. "Kelp Petemon") -- ditampilkan polos tanpa label di
+  // header ATAS (elemen #iaGreetingKelasInfo, bareng nama guru yang SUDAH
+  // ada di situ, BUKAN diulang lagi di body kartu) sama utk semua kelas jadi
+  // dikirim 1x di level atas.
   const kelompokRow = readSheetAsObjects(SHEET_NAMES.KELOMPOK).find(function (k) { return String(k.id) === String(ctx.kelompokId); });
 
-  return { success: true, data: data, guruNama: ctx.user.nama || '', kelompokNama: kelompokRow ? kelompokRow.nama : '' };
+  return { success: true, data: data, kelompokNama: kelompokRow ? kelompokRow.nama : '' };
 }
 
 /**
