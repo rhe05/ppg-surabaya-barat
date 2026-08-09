@@ -7113,39 +7113,11 @@
       margin: 0;
     }
 
-    /* Rincian Target -- collapsed by default, toggle sendiri per semester
-       (independen dari expand/collapse materi induk, event.stopPropagation()
-       di onclick tombolnya). */
-    .ia-kur-rincian-wrap {
-      margin-top: 10px;
-    }
-
-    .ia-kur-rincian-toggle {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: none;
-      border: none;
-      padding: 0;
+    /* Kartu target ITU SENDIRI jadi tombol expand/collapse Rincian Target --
+       polos, tanpa chevron/label/indikator visual apa pun (instruksi user,
+       2026-08-09). cursor:pointer satu-satunya penanda bisa diklik. */
+    .ia-kur-sem-target-card-clickable {
       cursor: pointer;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      text-transform: uppercase;
-      color: var(--text-faint);
-    }
-
-    .ia-kur-rincian-toggle.open {
-      color: var(--text-dim);
-    }
-
-    .ia-kur-rincian-chevron {
-      flex-shrink: 0;
-      transition: transform 0.2s ease;
-    }
-
-    .ia-kur-rincian-toggle.open .ia-kur-rincian-chevron {
-      transform: rotate(180deg);
     }
 
     .ia-kur-rincian-content {

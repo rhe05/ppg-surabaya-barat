@@ -1209,31 +1209,30 @@
           + '<div class="ia-kur-detail-text ia-kur-detail-empty">Belum diisi.</div></div>';
       }
 
-      // Rincian Target collapsed by default -- guru quick-scan Target dulu,
-      // baru buka rincian kalau perlu detail (event.stopPropagation() supaya
-      // klik tombol ini TIDAK ikut menutup/membuka materi induk di atasnya).
-      const rincianHtml = rincianLines.length
-        ? '<div class="ia-kur-rincian-wrap">'
-          + '<button type="button" class="ia-kur-rincian-toggle" onclick="event.stopPropagation(); window.iaKurikulumProtaToggleRincian_(this)">'
-          + '<span>Rincian Target</span>'
-          + '<svg class="ia-kur-rincian-chevron" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>'
-          + '</button>'
-          + '<div class="ia-kur-rincian-content"><ol class="ia-kur-rincian-list">'
+      // Rincian Target collapsed by default, tanpa tombol/label terpisah --
+      // kartu target aksen semester ITU SENDIRI jadi tombolnya (klik utk
+      // buka/tutup, event.stopPropagation() supaya tidak ikut menutup/
+      // membuka materi induk di atasnya). Sengaja polos, tanpa chevron atau
+      // indikator visual apa pun (instruksi user).
+      const hasRincian = rincianLines.length > 0;
+      const cardClass = 'ia-kur-sem-target-card' + (hasRincian ? ' ia-kur-sem-target-card-clickable' : '');
+      const cardOnClick = hasRincian ? ' onclick="event.stopPropagation(); window.iaKurikulumProtaToggleRincian_(this)"' : '';
+      const rincianHtml = hasRincian
+        ? '<div class="ia-kur-rincian-content"><ol class="ia-kur-rincian-list">'
           + rincianLines.map(function (line) { return '<li>' + window.escapeHtmlExport_(line) + '</li>'; }).join('')
-          + '</ol></div></div>'
+          + '</ol></div>'
         : '';
 
       return '<div class="ia-kur-sem-block ' + semMod + '">'
         + '<div class="ia-kur-sem-label">Semester ' + semRoman + '</div>'
-        + '<div class="ia-kur-sem-target-card"><p class="ia-kur-sem-target">' + window.escapeHtmlExport_(target) + '</p></div>'
+        + '<div class="' + cardClass + '"' + cardOnClick + '><p class="ia-kur-sem-target">' + window.escapeHtmlExport_(target) + '</p></div>'
         + rincianHtml
         + '</div>';
     }).join('');
   };
 
-  window.iaKurikulumProtaToggleRincian_ = function (btn) {
-    btn.classList.toggle('open');
-    const content = btn.nextElementSibling;
+  window.iaKurikulumProtaToggleRincian_ = function (card) {
+    const content = card.nextElementSibling;
     if (content) content.classList.toggle('open');
   };
 
