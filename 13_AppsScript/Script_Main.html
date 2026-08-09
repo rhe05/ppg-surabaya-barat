@@ -990,7 +990,7 @@
      konten), tahun berjalan otomatis (tanpa selector tahun — beda dari
      desktop yang punya dropdown 2025-2027, disederhanakan sesuai instruksi
      "hyper premium tapi jangan norak", guru tidak perlu urus tahun lampau). */
-  window.iaKurikulumProtaState_ = { kelas: null };
+  window.iaKurikulumProtaState_ = { kelas: null, kategori: '' };
   window.iaKurikulumProtaGateSelected_ = null;
 
   window.iaKurikulumProtaOpenGate_ = function () {
@@ -1015,7 +1015,7 @@
       }
       if (result.data.length === 1) {
         window.iaKurikulumProtaCloseGate_();
-        window.iaKurikulumProtaEnterKelas_(result.data[0].kelas);
+        window.iaKurikulumProtaEnterKelas_(result.data[0].kelas, result.data[0].kategori);
         return;
       }
       loadingEl.style.display = 'none';
@@ -1049,7 +1049,7 @@
       card.onclick = function () {
         document.querySelectorAll('#iaKurikulumProtaGateList .ia-kg-card').forEach(function (c) { c.classList.remove('selected'); });
         card.classList.add('selected');
-        window.iaKurikulumProtaGateSelected_ = item.kelas;
+        window.iaKurikulumProtaGateSelected_ = item;
         document.getElementById('iaKurikulumProtaGateMasukBtn').disabled = false;
       };
       listEl.appendChild(card);
@@ -1057,18 +1057,19 @@
   };
 
   window.iaKurikulumProtaConfirmGate_ = function () {
-    if (!window.iaKurikulumProtaGateSelected_) return;
-    const kelas = window.iaKurikulumProtaGateSelected_;
+    const item = window.iaKurikulumProtaGateSelected_;
+    if (!item) return;
     window.iaKurikulumProtaCloseGate_();
-    window.iaKurikulumProtaEnterKelas_(kelas);
+    window.iaKurikulumProtaEnterKelas_(item.kelas, item.kategori);
   };
 
   window.iaKurikulumProtaCloseGate_ = function () {
     document.getElementById('iaKurikulumProtaGateOverlay').style.display = 'none';
   };
 
-  window.iaKurikulumProtaEnterKelas_ = function (kelas) {
+  window.iaKurikulumProtaEnterKelas_ = function (kelas, kategori) {
     window.iaKurikulumProtaState_.kelas = kelas;
+    window.iaKurikulumProtaState_.kategori = kategori || '';
     window.iaShowKurikulumProtaView_();
     window.iaKurikulumProtaLoad_();
   };
@@ -1090,8 +1091,10 @@
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaKurikulumProtaView').style.display = 'block';
-    const label = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas];
-    document.getElementById('iaKurikulumProtaKelasLabel').textContent = label || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
+    const kelasLabel = (window.KURIKULUM_PROBUL_KELAS_LABEL_ || {})[window.iaKurikulumProtaState_.kelas]
+      || ('Kelas ' + (window.iaKurikulumProtaState_.kelas || '—'));
+    const kategori = window.iaKurikulumProtaState_.kategori;
+    document.getElementById('iaKurikulumProtaContext').textContent = kategori ? (kategori + ' · ' + kelasLabel) : kelasLabel;
   };
 
   window.iaKurikulumProtaLoad_ = function () {
@@ -1155,7 +1158,7 @@
   };
 
   window.iaKurikulumProtaRenderEmpty_ = function (msg) {
-    document.getElementById('iaKurikulumProtaKelasLabel').textContent = '';
+    document.getElementById('iaKurikulumProtaContext').textContent = '';
     document.getElementById('iaKurikulumProtaList').innerHTML = '<div class="ia-kur-empty">' + window.escapeHtmlExport_(msg || 'Anda belum mengampu Kelas 1-6.') + '</div>';
   };
 

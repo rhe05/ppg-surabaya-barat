@@ -6943,20 +6943,31 @@
       border-bottom: 1px solid var(--border);
     }
 
-    .ia-kur-hero-eyebrow {
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      color: var(--teal);
-      margin-bottom: 6px;
+    /* Baris masthead: "Program Tahunan" (identitas layar, kiri, menonjol) vs
+       "Cabe Rawit · Kelas 1" (konteks kelas yang sedang dilihat, kanan, kecil
+       & teal) -- sejajar di baseline yang sama, dipisah rule tipis di bawah
+       hero (border-bottom .ia-kur-hero). */
+    .ia-kur-hero-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
     }
 
-    .ia-kur-hero-kelas {
-      font-size: 26px;
+    .ia-kur-hero-title {
+      font-size: 20px;
       font-weight: 800;
       color: var(--text);
-      line-height: 1.2;
+      line-height: 1.3;
+    }
+
+    .ia-kur-hero-context {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--teal);
+      white-space: nowrap;
+      text-align: right;
     }
 
     .ia-kur-ganti-btn {

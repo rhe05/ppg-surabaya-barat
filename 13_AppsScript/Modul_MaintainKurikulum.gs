@@ -148,19 +148,26 @@ function serverGetKurikulumKelasGuru(token) {
   if (!ctx.success) return ctx;
 
   const jadwalRowsAll = iaReadKelompokTable_(SHEET_NAMES.JADWAL_KBM, ctx.kelompokId);
-  const kelasNames = getKelasOwnedByGuru_(ctx.kelompokId, ctx.user.guruId, jadwalRowsAll);
+  const guruRows = jadwalRowsAll.filter(function (j) {
+    return j.kelompok_id == ctx.kelompokId && j.guru_id == ctx.user.guruId &&
+      (j.status || 'Aktif') === 'Aktif' && String(j.kelas || '').trim() !== '';
+  });
 
-  const kelasIntiSet = {};
-  kelasNames.forEach(function (nama) {
-    const digits = String(nama).match(/\d+/g) || [];
+  // digit -> kategori (mis. "Cabe Rawit") dari baris jadwal_kbm PERTAMA yang
+  // memuat digit itu -- dipakai header "Cabe Rawit · Kelas N" di mobile.
+  const kelasIntiKategori_ = {};
+  guruRows.forEach(function (j) {
+    const digits = String(j.kelas).match(/\d+/g) || [];
     digits.forEach(function (d) {
-      if (KURIKULUM_MOBILE_KELAS_RANGE_.indexOf(d) !== -1) kelasIntiSet[d] = true;
+      if (KURIKULUM_MOBILE_KELAS_RANGE_.indexOf(d) !== -1 && !kelasIntiKategori_.hasOwnProperty(d)) {
+        kelasIntiKategori_[d] = j.kategori || '';
+      }
     });
   });
 
   const data = KURIKULUM_MOBILE_KELAS_RANGE_
-    .filter(function (k) { return kelasIntiSet[k]; })
-    .map(function (k) { return { kelas: k, label: 'Kelas ' + k }; });
+    .filter(function (k) { return kelasIntiKategori_.hasOwnProperty(k); })
+    .map(function (k) { return { kelas: k, label: 'Kelas ' + k, kategori: kelasIntiKategori_[k] }; });
 
   return { success: true, data: data };
 }
