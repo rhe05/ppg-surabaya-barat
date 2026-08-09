@@ -1191,6 +1191,29 @@
         </div>
       `;
     }).join('');
+
+    window.iaKurikulumProtaPrefetchSemester_(filtered);
+  };
+
+  // Detail per materi (biasanya cuma 1 baris -- kategori sudah difilter ke
+  // "Bacaan Al-Qur'an" saja) di-prefetch diam-diam begitu list tampil, SAMA
+  // pola dgn iaPrefetchKurikulumProtaGate_ (gerbang pilih kelas) -- supaya
+  // waktu guru betulan tap materi, data Semester I/II sudah ada, TIDAK
+  // perlu nunggu google.script.run lagi (instan). Bukan soal boros
+  // Firestore -- kurikulum_prota/kurikulum_promes TIDAK ADA di daftar
+  // migrasi Firestore (FIRESTORE_TABLES_/FIRESTORE_KELOMPOK_TABLES_,
+  // Modul_Utilities.gs), 100% masih Sheets biasa -- lambatnya murni krn
+  // TIDAK ada prefetch sebelum perbaikan ini, tiap tap nunggu 1 round-trip
+  // penuh google.script.run.
+  window.iaKurikulumProtaPromesCache_ = {};
+
+  window.iaKurikulumProtaPrefetchSemester_ = function (filtered) {
+    (filtered || []).forEach(function (prota) {
+      google.script.run
+        .withSuccessHandler(function (result) { window.iaKurikulumProtaPromesCache_[prota.id] = result; })
+        .withFailureHandler(function () { /* diam saja — tap materi jatuh balik ke fetch biasa */ })
+        .serverGetPromes(window.currentToken, prota.id);
+    });
   };
 
   // Detail per materi = Semester I & II (data Promes, serverGetPromes --
@@ -1208,10 +1231,26 @@
     const protaId = itemEl.dataset.protaId;
     const detailEl = document.getElementById('iaKurikulumProtaDetail_' + protaId);
     if (!detailEl) return;
+
+    // Fast path: sudah di-prefetch diam-diam saat list tampil
+    // (iaKurikulumProtaPrefetchSemester_) -- langsung render TANPA
+    // google.script.run sama sekali (instan).
+    const cached = window.iaKurikulumProtaPromesCache_[protaId];
+    if (cached) {
+      itemEl.dataset.loaded = '1';
+      if (!cached.success) {
+        detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Gagal memuat: ' + window.escapeHtmlExport_(cached.error) + '</div>';
+        return;
+      }
+      window.iaKurikulumProtaRenderSemester_(detailEl, cached.data);
+      return;
+    }
+
     detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Memuat semester...</div>';
     google.script.run
       .withSuccessHandler(function (result) {
         itemEl.dataset.loaded = '1';
+        window.iaKurikulumProtaPromesCache_[protaId] = result;
         if (!result.success) {
           detailEl.innerHTML = '<div class="ia-kur-detail-text ia-kur-detail-empty">Gagal memuat: ' + window.escapeHtmlExport_(result.error) + '</div>';
           return;
