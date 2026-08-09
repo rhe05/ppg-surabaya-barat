@@ -170,12 +170,18 @@ function serverGetKurikulumKelasGuru(token) {
     .map(function (k) { return { kelas: k, label: 'Kelas ' + k, kategori: kelasIntiKategori_[k] }; });
 
   // Nama Kelompok (mis. "Kelp Petemon") -- ditampilkan polos tanpa label di
-  // header ATAS (elemen #iaGreetingKelasInfo, bareng nama guru yang SUDAH
+  // header ATAS (elemen #iaGreetingWaktuInfo, bareng nama guru yang SUDAH
   // ada di situ, BUKAN diulang lagi di body kartu) sama utk semua kelas jadi
   // dikirim 1x di level atas.
   const kelompokRow = readSheetAsObjects(SHEET_NAMES.KELOMPOK).find(function (k) { return String(k.id) === String(ctx.kelompokId); });
 
-  return { success: true, data: data, kelompokNama: kelompokRow ? kelompokRow.nama : '' };
+  // Kategori guru (MT/GB/MS, dari sheet 'guru' -- BEDA dari kategori jadwal
+  // di atas) -- dipakai baris "Guru Generus - <kategori>" di header ATAS
+  // (elemen #iaGreetingKelasInfo, 2026-08-09).
+  const guruMasterRows = iaReadKelompokTable_(SHEET_NAMES.GURU, ctx.kelompokId);
+  const guruRow = guruMasterRows.find(function (g) { return String(g.id) === String(ctx.user.guruId); });
+
+  return { success: true, data: data, kelompokNama: kelompokRow ? kelompokRow.nama : '', guruKategori: guruRow ? guruRow.kategori : '' };
 }
 
 /**

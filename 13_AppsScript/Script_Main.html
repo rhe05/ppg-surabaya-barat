@@ -1003,7 +1003,7 @@
      konten), tahun berjalan otomatis (tanpa selector tahun — beda dari
      desktop yang punya dropdown 2025-2027, disederhanakan sesuai instruksi
      "hyper premium tapi jangan norak", guru tidak perlu urus tahun lampau). */
-  window.iaKurikulumProtaState_ = { kelas: null, kategori: '', kelompokNama: '' };
+  window.iaKurikulumProtaState_ = { kelas: null, kategori: '', kelompokNama: '', guruKategori: '' };
   window.iaKurikulumProtaGateSelected_ = null;
 
   window.iaKurikulumProtaOpenGate_ = function () {
@@ -1045,6 +1045,7 @@
 
   window.iaKurikulumProtaGateHandleResult_ = function (result) {
     window.iaKurikulumProtaState_.kelompokNama = result.kelompokNama || '';
+    window.iaKurikulumProtaState_.guruKategori = result.guruKategori || '';
     if (!result.success || !result.data || result.data.length === 0) {
       window.iaKurikulumProtaCloseGate_();
       window.iaShowKurikulumProtaView_();
@@ -1116,17 +1117,35 @@
     document.getElementById('iaLaporanView').style.display = 'none';
     document.getElementById('iaRiwayatView').style.display = 'none';
     document.getElementById('iaKelasRow').style.display = 'none';
-    document.getElementById('iaGreetingWaktuInfo').style.display = 'none';
     document.getElementById('iaHeaderRoot').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaHeaderHero').classList.remove('jr-active', 'jr-edit-active');
     document.getElementById('iaKurikulumProtaView').style.display = 'block';
 
-    // Nama Kelompok TIDAK diulang di body (guru pengajar sudah tampil sekali
-    // di iaGreetingName atas) -- cuma "Kelp Petemon" polos tanpa label
-    // "Kelompok", numpang di elemen greeting kelas header ATAS (sama seperti
-    // Input Absen/Jurnal pakai elemen ini utk info kelas, lihat komentar
-    // iaJurnalRenderInfoCard_) supaya tidak ada baris nama/info dobel.
-    const kelInfoEl = document.getElementById('iaGreetingKelasInfo');
+    // Header ATAS (bukan body kartu, nama guru sudah tampil sekali di
+    // iaGreetingName) — 2 baris di bawah nama, numpang elemen greeting
+    // header yang sudah ada (sama pola dgn Input Absen/Jurnal pakai elemen
+    // ini utk info kontekstual, lihat iaJurnalRenderInfoCard_):
+    //   1) iaGreetingKelasInfo -- peran: "Guru Generus - <kategori guru
+    //      MT/GB/MS dari sheet guru>" utk role='guru', "Admin Kelp" utk
+    //      role='admin_kelp' (dihitung client-side dari window.currentUser.role,
+    //      BUKAN dari serverGetKurikulumKelasGuru -- endpoint itu khusus
+    //      role='guru' via requireGuruContext_, admin_kelp tidak pernah
+    //      berhasil memanggilnya).
+    //   2) iaGreetingWaktuInfo -- nama Kelompok polos ("Kelp Petemon").
+    const roleLine = window.currentUser.role === 'admin_kelp'
+      ? 'Admin Kelp'
+      : (window.currentUser.role === 'guru'
+        ? 'Guru Generus' + (window.iaKurikulumProtaState_.guruKategori ? ' - ' + window.iaKurikulumProtaState_.guruKategori : '')
+        : '');
+    const roleInfoEl = document.getElementById('iaGreetingKelasInfo');
+    if (roleLine) {
+      roleInfoEl.textContent = roleLine;
+      roleInfoEl.style.display = 'block';
+    } else {
+      roleInfoEl.style.display = 'none';
+    }
+
+    const kelInfoEl = document.getElementById('iaGreetingWaktuInfo');
     if (window.iaKurikulumProtaState_.kelompokNama) {
       kelInfoEl.textContent = window.iaKurikulumProtaState_.kelompokNama;
       kelInfoEl.style.display = 'block';
