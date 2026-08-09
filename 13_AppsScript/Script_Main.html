@@ -1125,18 +1125,16 @@
     // iaGreetingName) — 2 baris di bawah nama, numpang elemen greeting
     // header yang sudah ada (sama pola dgn Input Absen/Jurnal pakai elemen
     // ini utk info kontekstual, lihat iaJurnalRenderInfoCard_):
-    //   1) iaGreetingKelasInfo -- peran: "Guru Generus - <kategori guru
-    //      MT/GB/MS dari sheet guru>" utk role='guru', "Admin Kelp" utk
-    //      role='admin_kelp' (dihitung client-side dari window.currentUser.role,
-    //      BUKAN dari serverGetKurikulumKelasGuru -- endpoint itu khusus
-    //      role='guru' via requireGuruContext_, admin_kelp tidak pernah
-    //      berhasil memanggilnya).
+    //   1) iaGreetingKelasInfo -- peran: kategori guru polos ("MT"/"GB"/"MS"
+    //      dari sheet guru) utk role='guru', "Admin Kelp" utk role='admin_kelp'
+    //      (dihitung client-side dari window.currentUser.role, BUKAN dari
+    //      serverGetKurikulumKelasGuru -- endpoint itu khusus role='guru'
+    //      via requireGuruContext_, admin_kelp tidak pernah berhasil
+    //      memanggilnya).
     //   2) iaGreetingWaktuInfo -- nama Kelompok polos ("Kelp Petemon").
     const roleLine = window.currentUser.role === 'admin_kelp'
       ? 'Admin Kelp'
-      : (window.currentUser.role === 'guru'
-        ? 'Guru Generus' + (window.iaKurikulumProtaState_.guruKategori ? ' - ' + window.iaKurikulumProtaState_.guruKategori : '')
-        : '');
+      : (window.currentUser.role === 'guru' ? (window.iaKurikulumProtaState_.guruKategori || '') : '');
     const roleInfoEl = document.getElementById('iaGreetingKelasInfo');
     if (roleLine) {
       roleInfoEl.textContent = roleLine;
