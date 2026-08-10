@@ -1,0 +1,16 @@
+{
+  "status": "COMPLETE",
+  "summary": {
+    "tables_processed": 14,
+    "orphaned_absensi_dropped": 483,
+    "santri_normalized": 130,
+    "duplicates_found": 0,
+    "kelp_petemon_id_range": {
+      "min": 201,
+      "max": 270,
+      "count": 69
+    }
+  },
+  "warnings": [],
+  "kelp_petemon_status": "OK"
+}

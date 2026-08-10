@@ -1,0 +1,469 @@
+{
+  "kurikulum_prota": {
+    "supabase_columns": [
+      {
+        "name": "id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelompok_id",
+        "type": "bigint"
+      },
+      {
+        "name": "tahun",
+        "type": "smallint"
+      },
+      {
+        "name": "kategori_kbm_id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelas_id",
+        "type": "bigint"
+      },
+      {
+        "name": "urutan",
+        "type": "smallint"
+      },
+      {
+        "name": "target",
+        "type": "text"
+      },
+      {
+        "name": "deskripsi",
+        "type": "text"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone"
+      }
+    ],
+    "transformed_data_columns": [
+      "id",
+      "kelompok_id",
+      "tahun",
+      "kategori",
+      "target",
+      "deskripsi",
+      "created_by",
+      "created_at",
+      "updated_at",
+      "kelas",
+      "urutan"
+    ],
+    "mismatches": [
+      {
+        "source_col": "kategori",
+        "target_col_or_missing": "kategori_kbm_id",
+        "action": "rename kategori -> kategori_kbm_id (fuzzy (substring match, verify manually))"
+      },
+      {
+        "source_col": "kelas",
+        "target_col_or_missing": "kelas_id",
+        "action": "rename kelas -> kelas_id (fuzzy (substring match, verify manually))"
+      }
+    ]
+  },
+  "kurikulum_promes": {
+    "supabase_columns": [
+      {
+        "name": "id",
+        "type": "bigint"
+      },
+      {
+        "name": "prota_id",
+        "type": "bigint"
+      },
+      {
+        "name": "semester",
+        "type": "smallint"
+      },
+      {
+        "name": "target",
+        "type": "text"
+      },
+      {
+        "name": "deskripsi",
+        "type": "text"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone"
+      }
+    ],
+    "transformed_data_columns": [
+      "id",
+      "kelompok_id",
+      "prota_id",
+      "semester",
+      "target",
+      "deskripsi",
+      "created_by",
+      "created_at",
+      "updated_at"
+    ],
+    "mismatches": [
+      {
+        "source_col": "kelompok_id",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      }
+    ]
+  },
+  "kurikulum_probul": {
+    "supabase_columns": [
+      {
+        "name": "id",
+        "type": "bigint"
+      },
+      {
+        "name": "promes_id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelompok_id",
+        "type": "bigint"
+      },
+      {
+        "name": "kategori_kbm_id",
+        "type": "bigint"
+      },
+      {
+        "name": "tahun",
+        "type": "smallint"
+      },
+      {
+        "name": "bulan",
+        "type": "smallint"
+      },
+      {
+        "name": "jilid",
+        "type": "text"
+      },
+      {
+        "name": "target",
+        "type": "text"
+      },
+      {
+        "name": "deskripsi",
+        "type": "text"
+      },
+      {
+        "name": "created_by",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone"
+      }
+    ],
+    "transformed_data_columns": [
+      "id",
+      "kelompok_id",
+      "promes_id",
+      "tahun",
+      "bulan",
+      "kategori",
+      "target",
+      "deskripsi",
+      "created_by",
+      "created_at",
+      "updated_at",
+      "jilid",
+      "minggu1",
+      "minggu2",
+      "minggu3",
+      "minggu4"
+    ],
+    "mismatches": [
+      {
+        "source_col": "kategori",
+        "target_col_or_missing": "kategori_kbm_id",
+        "action": "rename kategori -> kategori_kbm_id (fuzzy (substring match, verify manually))"
+      },
+      {
+        "source_col": "minggu1",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": "minggu2",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": "minggu3",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": "minggu4",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      }
+    ]
+  },
+  "santri": {
+    "supabase_columns": [
+      {
+        "name": "id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelompok_id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelas_id",
+        "type": "bigint"
+      },
+      {
+        "name": "nama",
+        "type": "text"
+      },
+      {
+        "name": "nama_panggilan",
+        "type": "text"
+      },
+      {
+        "name": "nis",
+        "type": "text"
+      },
+      {
+        "name": "gender",
+        "type": "USER-DEFINED"
+      },
+      {
+        "name": "tanggal_lahir",
+        "type": "date"
+      },
+      {
+        "name": "tempat_lahir",
+        "type": "text"
+      },
+      {
+        "name": "jenjang_saat_ini",
+        "type": "USER-DEFINED"
+      },
+      {
+        "name": "pendidikan",
+        "type": "text"
+      },
+      {
+        "name": "kelas_sekolah",
+        "type": "text"
+      },
+      {
+        "name": "alamat",
+        "type": "text"
+      },
+      {
+        "name": "nama_ayah",
+        "type": "text"
+      },
+      {
+        "name": "nama_ibu",
+        "type": "text"
+      },
+      {
+        "name": "rt",
+        "type": "text"
+      },
+      {
+        "name": "rw",
+        "type": "text"
+      },
+      {
+        "name": "kelurahan",
+        "type": "text"
+      },
+      {
+        "name": "kode_pos",
+        "type": "text"
+      },
+      {
+        "name": "kabupaten_kota",
+        "type": "text"
+      },
+      {
+        "name": "provinsi",
+        "type": "text"
+      },
+      {
+        "name": "kecamatan",
+        "type": "text"
+      },
+      {
+        "name": "nomor_wa",
+        "type": "text"
+      },
+      {
+        "name": "nomor_wa_ayah",
+        "type": "text"
+      },
+      {
+        "name": "nomor_wa_ibu",
+        "type": "text"
+      },
+      {
+        "name": "status_nikah",
+        "type": "text"
+      },
+      {
+        "name": "mulai_ngaji",
+        "type": "date"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "deleted_at",
+        "type": "timestamp with time zone"
+      }
+    ],
+    "transformed_data_columns": [
+      "id",
+      "kelompok_id",
+      "nama",
+      "nis",
+      "gender",
+      "tanggal_lahir",
+      "jenjang_saat_ini",
+      "nama_panggilan",
+      "tempat_lahir",
+      "pendidikan",
+      "kelas_sekolah",
+      "kelas_ngaji",
+      "alamat",
+      "nama_ayah",
+      "nama_ibu",
+      "rt",
+      "rw",
+      "kelurahan",
+      "kode_pos",
+      "kabupaten_kota",
+      "provinsi",
+      "nomor_wa_ayah",
+      "nomor_wa_ibu",
+      "kecamatan",
+      "nomor_wa",
+      "status_nikah",
+      "mulai_ngaji"
+    ],
+    "mismatches": [
+      {
+        "source_col": "kelas_ngaji",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "kelas_id",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "created_at",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "updated_at",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "deleted_at",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      }
+    ]
+  },
+  "jadwal_kategori_hari": {
+    "supabase_columns": [
+      {
+        "name": "id",
+        "type": "bigint"
+      },
+      {
+        "name": "kelompok_id",
+        "type": "bigint"
+      },
+      {
+        "name": "kategori_kbm_id",
+        "type": "bigint"
+      },
+      {
+        "name": "diubah_oleh",
+        "type": "uuid"
+      },
+      {
+        "name": "created_at",
+        "type": "timestamp with time zone"
+      },
+      {
+        "name": "updated_at",
+        "type": "timestamp with time zone"
+      }
+    ],
+    "transformed_data_columns": [
+      "id",
+      "kelompok_id",
+      "kategori",
+      "hari_aktif",
+      "diubah_oleh",
+      "diubah_pada"
+    ],
+    "mismatches": [
+      {
+        "source_col": "kategori",
+        "target_col_or_missing": "kategori_kbm_id",
+        "action": "rename kategori -> kategori_kbm_id (fuzzy (substring match, verify manually))"
+      },
+      {
+        "source_col": "hari_aktif",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": "diubah_pada",
+        "target_col_or_missing": "MISSING (no matching Supabase column)",
+        "action": "needs manual decision — drop, or add column to Supabase"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "created_at",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      },
+      {
+        "source_col": null,
+        "target_col_or_missing": "updated_at",
+        "action": "Supabase column with no data source — will stay null/default on insert"
+      }
+    ]
+  }
+}

@@ -21,6 +21,14 @@ dist/
 service-account-key.json
 *-service-account*.json
 extracted_data.json
+transformed_data.json
+
+# ── Supabase credentials (JANGAN pernah di-commit!) ──
+supabase_key.txt
+*supabase_key*
+
+# ── Contains real user row samples incl. password_hash — JANGAN di-commit ──
+schema_mapping_report.json
 
 # ── Logs & OS junk ──
 *.log
