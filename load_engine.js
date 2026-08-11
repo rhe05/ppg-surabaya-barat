@@ -52,15 +52,128 @@ function stripInternal(row) {
   return rest;
 }
 
-async function loadTable(supabase, table, rows) {
+// kategori_kbm text -> id, loaded from the live table at startup (not
+// hardcoded) so it always matches what's actually seeded in Supabase.
+async function loadKategoriMap(supabase) {
+  const { data, error } = await supabase.from('kategori_kbm').select('id, nama');
+  if (error) {
+    throw new Error(`Failed to load kategori_kbm for mapping: ${error.message}`);
+  }
+  const map = {};
+  for (const row of data) map[row.nama] = row.id;
+  return map;
+}
+
+// kurikulum_prota/kurikulum_promes/kurikulum_probul use synthetic string ids
+// (e.g. "prota_1_2026_..."), incompatible with the `bigint` id columns, and
+// promes/probul reference their parent via those same synthetic strings
+// (prota_id/promes_id). We drop the synthetic id (let the DB auto-generate a
+// real bigint) and remap the child FK to the newly generated parent id
+// captured during that parent's own insert, below.
+const protaIdMap = {}; // old synthetic prota id -> new bigint id
+const promesIdMap = {}; // old synthetic promes id -> new bigint id
+
+// uuid columns whose source data is a leftover numeric/placeholder user
+// reference ("seed", "1", 0, ...) from the old Sheets/Firestore side —
+// there's no migrated auth.users row those could resolve to (users aren't
+// migrated 1:1, see ppg-supabase-migration-status memory), so drop them
+// rather than fail the insert.
+const UUID_COLUMNS_TO_DROP = {
+  kurikulum_prota: ['created_by'],
+  kurikulum_promes: ['created_by'],
+  kurikulum_probul: ['created_by'],
+  jadwal_kategori_hari: ['diubah_oleh'],
+  absensi: ['dicatat_oleh'],
+};
+
+function transformRow(table, row, kategoriMap) {
+  const out = { ...row };
+  // Empty-string values from Sheets blow up typed columns (date/enum/uuid
+  // reject "" outright) — treat "" as "not provided" everywhere.
+  for (const key of Object.keys(out)) {
+    if (out[key] === '') delete out[key];
+  }
+  for (const col of UUID_COLUMNS_TO_DROP[table] || []) {
+    delete out[col];
+  }
+  if (table === 'absensi' && typeof out.id === 'string' && !/^\d+$/.test(out.id)) {
+    // Firestore-sourced rows use composite string ids ("tanggal_santriId",
+    // e.g. "2026-07-13_201") — not valid for the bigint id column. Sheets-
+    // sourced rows use plain numeric-string ids ("71"), which coerce fine
+    // and are left as-is. Drop only the non-numeric ones to auto-generate.
+    delete out.id;
+  }
+  if (table === 'jadwal_kategori_hari') {
+    delete out.id; // GENERATED ALWAYS AS IDENTITY — rejects explicit id
+  }
+  if (table === 'santri' && typeof out.tanggal_lahir === 'string') {
+    // Source is "D/M/YYYY" (ambiguous under Postgres's default MDY
+    // datestyle, e.g. "20/2/2017" has no valid month 20) — normalize to ISO.
+    const m = out.tanggal_lahir.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (m) {
+      const [, d, mo, y] = m;
+      out.tanggal_lahir = `${y}-${mo.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+  }
+  if (table === 'jadwal_kategori_hari' || table === 'kurikulum_probul') {
+    if (out.kategori !== undefined) {
+      const id = kategoriMap[out.kategori];
+      if (id === undefined) throw new Error(`Unknown kategori "${out.kategori}"`);
+      out.kategori_kbm_id = id;
+      delete out.kategori;
+    }
+  }
+  if (table === 'kurikulum_prota') {
+    if (out.kategori !== undefined) {
+      const id = kategoriMap[out.kategori];
+      if (id === undefined) throw new Error(`Unknown kategori "${out.kategori}"`);
+      out.kategori_kbm_id = id;
+      delete out.kategori;
+    }
+    // `kelas` (free-text "1".."9"/"PAUD-TK") has no seeded `kelas` table to
+    // map onto yet (0 rows) — kelas_id is nullable, so leave it unset
+    // rather than block the load; a known gap to fix once kelas is seeded.
+    delete out.kelas;
+    delete out.id;
+  }
+  if (table === 'kurikulum_promes') {
+    delete out.id;
+    const newProtaId = protaIdMap[out.prota_id];
+    if (newProtaId === undefined) {
+      throw new Error(`No mapped id for prota_id "${out.prota_id}"`);
+    }
+    out.prota_id = newProtaId;
+  }
+  if (table === 'kurikulum_probul') {
+    delete out.id;
+    const newPromesId = promesIdMap[out.promes_id];
+    if (newPromesId === undefined) {
+      throw new Error(`No mapped id for promes_id "${out.promes_id}"`);
+    }
+    out.promes_id = newPromesId;
+  }
+  return out;
+}
+
+async function loadTable(supabase, table, rows, kategoriMap) {
   const result = { rows_attempted: rows.length, rows_inserted: 0, errors: [] };
   for (let i = 0; i < rows.length; i++) {
-    const row = stripInternal(rows[i]);
-    const { error } = await supabase.from(table).insert(row);
+    const raw = stripInternal(rows[i]);
+    const originalId = raw.id;
+    let row;
+    try {
+      row = transformRow(table, raw, kategoriMap);
+    } catch (e) {
+      result.errors.push({ table, row_index: i, error_message: e.message });
+      continue;
+    }
+    const { data, error } = await supabase.from(table).insert(row).select();
     if (error) {
       result.errors.push({ table, row_index: i, error_message: error.message });
     } else {
       result.rows_inserted += 1;
+      if (table === 'kurikulum_prota') protaIdMap[originalId] = data[0].id;
+      if (table === 'kurikulum_promes') promesIdMap[originalId] = data[0].id;
     }
   }
   return result;
@@ -97,6 +210,9 @@ async function main() {
   console.log('Load Engine (prototype) — starting...\n');
   console.log(`Load order: ${LOAD_ORDER.join(' -> ')}\n`);
 
+  const kategoriMap = await loadKategoriMap(supabase);
+  console.log(`kategori_kbm map loaded: ${Object.keys(kategoriMap).length} entries.\n`);
+
   const tablesLoaded = {};
   const allErrors = [];
   let totalAttempted = 0;
@@ -113,7 +229,7 @@ async function main() {
       continue;
     }
     console.log(`Loading ${table}: ${rows.length} row(s)...`);
-    const result = await loadTable(supabase, table, rows);
+    const result = await loadTable(supabase, table, rows, kategoriMap);
     tablesLoaded[table] = {
       rows_attempted: result.rows_attempted,
       rows_inserted: result.rows_inserted,

@@ -10,6 +10,7 @@ hari
 jabatan_pengurus
 jadwal_kategori_hari
 jadwal_kategori_hari_aktif
+jadwal_kbm
 jurnal_kbm
 kategori_kbm
 kategori_pengumuman
