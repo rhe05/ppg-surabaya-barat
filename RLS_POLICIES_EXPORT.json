@@ -1,0 +1,103 @@
+{
+  "_meta": {
+    "generated_at": "2026-08-13T08:56:42+07:00",
+    "project_ref": "fnhqtkqswxsqmjxynldg",
+    "project_name": "ruang-ngaji-dev",
+    "supabase_url": "https://fnhqtkqswxsqmjxynldg.supabase.co",
+    "status": "BLOCKED_NOT_EXPORTED — SUPERSEDED",
+    "superseded_note": "Blokir ini SUDAH TERATASI kemudian pada hari yang sama. Setelah SUPABASE_ACCESS_TOKEN ditambahkan ke .env, policy berhasil diambil lewat Management API. Hasil final ada di: (1) snapshot/AUDIT_RLS_RAW.json — 36 policy live per tabel, dan (2) migrasi 003 di 08_Development/tpq-app/supabase/migrations/20260813125217_rls_policies_and_functions.sql — 37 policy (36 live + kategori_kbm baru). File ini dipertahankan sebagai jejak audit kondisi saat masih terblokir, BUKAN sebagai status terkini.",
+    "policies_exported": 0,
+    "warning": "This file contains ZERO live policy rows. The `policies` array is empty because the pg_policies query could not be executed. Do NOT treat the `documented_claims` section below as an export — it is repo documentation, not database truth."
+  },
+
+  "_note_on_project_ref": "The ref given in the request was 'fnhqtkqswxsqmjxynjdg'. The actual linked project ref is 'fnhqtkqswxsqmjxynldg' (letter 'l', not 'j', in position 17). Source: 08_Development/tpq-app/supabase/.temp/linked-project.json and .temp/project-ref, cross-checked against the 'ref' claim inside the service_role JWT in root .env.",
+
+  "policies": [],
+
+  "why_blocked": {
+    "reason": "pg_policies is a view in the pg_catalog schema. PostgREST only exposes the schemas configured for the API (public, graphql_public), so pg_catalog is unreachable over the REST endpoint even when authenticating with the service_role key. service_role bypasses row-level security; it does not expose new schemas.",
+    "paths_attempted": [
+      {
+        "path": "PostgREST /rest/v1/ with service_role key from root .env",
+        "result": "HTTP 200 — succeeded, but only enumerates the 37 exposed public tables and 4 RPCs. pg_policies is not among them. Cannot run arbitrary SQL.",
+        "usable": false
+      },
+      {
+        "path": "Existing RPC helpers in the live DB (pg_list_public_tables, pg_table_columns, auth_profile, rls_auto_enable)",
+        "result": "pg_list_public_tables called successfully (returned 37 table names). None of the four RPCs reads pg_policies or accepts arbitrary SQL. rls_auto_enable was deliberately NOT called — it is a mutation, and this task is verify-only.",
+        "usable": false
+      },
+      {
+        "path": "Supabase Management API POST /v1/projects/{ref}/database/query",
+        "result": "No Personal Access Token present in the environment (checked SUPABASE_ACCESS_TOKEN and SUPABASE_PAT). This endpoint CAN run the pg_policies query and is the cleanest unblock.",
+        "usable": false,
+        "unblock": "Provide a Supabase Personal Access Token."
+      },
+      {
+        "path": "Direct Postgres connection via session pooler",
+        "result": "08_Development/tpq-app/supabase/.temp/pooler-url stores the host/user/port but contains NO password. No `pg` driver is installed in the project either, and no psql binary is on PATH.",
+        "usable": false
+      },
+      {
+        "path": "Supabase CLI (installed at AppData/Roaming/npm/supabase)",
+        "result": "Not evaluated — `supabase projects list` and the access-token file check were both denied by the local permission classifier. CLI db commands would need the DB password regardless.",
+        "usable": false
+      }
+    ],
+    "query_that_should_be_run": "SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename, policyname;"
+  },
+
+  "documented_claims": {
+    "_disclaimer": "Sourced from repo markdown written in prior sessions, NOT from a live query. Recorded here only so the real export can be diffed against what the docs assert. Treat every number as unverified.",
+    "claimed_total": "~35 policies",
+    "breakdown_claimed": [
+      {
+        "group": "original batch",
+        "count": 32,
+        "tables": "8 tables (specific names not recorded anywhere in the repo)",
+        "source": "GOLIVE_CHECKLIST.md item 4; testing/RLS_TEST_PLAN.md line 27",
+        "captured_in_migration_file": false
+      },
+      {
+        "group": "profiles self-read",
+        "count": 1,
+        "tables": "profiles",
+        "policy_name_claimed": "profiles_select_own",
+        "definition_available_locally": "testing/profiles_self_read_policy.sql — file header says 'NOT EXECUTED', but GOLIVE_CHECKLIST.md item 13 lists it among policies that ARE live. These two statements contradict each other; the live query is what settles it.",
+        "captured_in_migration_file": false
+      },
+      {
+        "group": "reference-table reads",
+        "count": 3,
+        "tables": "kelompok, desa, ppg",
+        "source": "GOLIVE_CHECKLIST.md item 13 + item 5 (added after admin_desa returned 0 rows because these tables had RLS enabled with no policies)",
+        "definition_available_locally": false,
+        "captured_in_migration_file": false
+      }
+    ],
+    "helper_functions_claimed_live_but_absent_from_migration": [
+      "auth_profile()",
+      "auth_role()",
+      "auth_kelompok_id()",
+      "auth_desa_id()",
+      "is_admin_ppg()"
+    ],
+    "helper_functions_confirmed_present_in_live_db_via_postgrest": [
+      "auth_profile",
+      "pg_list_public_tables",
+      "pg_table_columns",
+      "rls_auto_enable"
+    ]
+  },
+
+  "verified_facts": {
+    "_note": "These WERE established live or by reading files this session.",
+    "rls_enabled_statements_in_migration": 36,
+    "create_policy_statements_in_migration": 0,
+    "create_policy_statements_anywhere_in_repo": 1,
+    "create_policy_location": "testing/profiles_self_read_policy.sql",
+    "tables_exposed_via_postgrest": 37,
+    "tables_reported_by_pg_list_public_tables_rpc": 37,
+    "migration_files_on_disk": 1
+  }
+}

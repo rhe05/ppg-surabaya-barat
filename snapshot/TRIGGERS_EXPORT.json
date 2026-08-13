@@ -1,0 +1,183 @@
+{
+  "_meta": {
+    "generated_at": "2026-08-13T05:40:53.305Z",
+    "project_ref": "fnhqtkqswxsqmjxynldg",
+    "endpoint": "https://api.supabase.com/v1/projects/fnhqtkqswxsqmjxynldg/database/query",
+    "mode": "READ-ONLY (SELECT only)",
+    "query_a_status": 201,
+    "query_b_status": 201
+  },
+  "query_a_sql": "SELECT pg_get_triggerdef(t.oid) || ';' AS ddl\nFROM pg_trigger t\nJOIN pg_class c     ON c.oid = t.tgrelid\nJOIN pg_namespace n ON n.oid = c.relnamespace\nWHERE NOT t.tgisinternal\n  AND n.nspname IN ('public', 'auth')\nORDER BY n.nspname, c.relname, t.tgname;",
+  "query_b_sql": "SELECT evtname, evtevent, evtenabled, p.proname\nFROM pg_event_trigger e\nJOIN pg_proc p ON p.oid = e.evtfoid;",
+  "triggers": [
+    {
+      "ddl": "CREATE TRIGGER trg_auth_user_provision_profile AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_auth_user();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_absensi_sync_kelompok_id BEFORE INSERT OR UPDATE OF santri_id ON public.absensi FOR EACH ROW EXECUTE FUNCTION sync_absensi_kelompok_id();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_absensi_updated_at BEFORE UPDATE ON public.absensi FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_calendar_events_updated_at BEFORE UPDATE ON public.calendar_events FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_desa_updated_at BEFORE UPDATE ON public.desa FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_files_updated_at BEFORE UPDATE ON public.files FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_guru_updated_at BEFORE UPDATE ON public.guru FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_jadwal_kategori_hari_updated_at BEFORE UPDATE ON public.jadwal_kategori_hari FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_jurnal_kbm_updated_at BEFORE UPDATE ON public.jurnal_kbm FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kelas_updated_at BEFORE UPDATE ON public.kelas FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kelompok_updated_at BEFORE UPDATE ON public.kelompok FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_konseling_updated_at BEFORE UPDATE ON public.konseling FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kop_surat_updated_at BEFORE UPDATE ON public.kop_surat FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_akhlaq_updated_at BEFORE UPDATE ON public.kurikulum_akhlaq FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_pencapaian_santri_updated_at BEFORE UPDATE ON public.kurikulum_pencapaian_santri FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_probul_updated_at BEFORE UPDATE ON public.kurikulum_probul FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_probul_minggu_updated_at BEFORE UPDATE ON public.kurikulum_probul_minggu FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_promes_updated_at BEFORE UPDATE ON public.kurikulum_promes FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_kurikulum_prota_updated_at BEFORE UPDATE ON public.kurikulum_prota FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_munaqosah_updated_at BEFORE UPDATE ON public.munaqosah FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_pengumuman_updated_at BEFORE UPDATE ON public.pengumuman FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_pengurus_kelp_updated_at BEFORE UPDATE ON public.pengurus_kelp FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_periode_munaqosah_updated_at BEFORE UPDATE ON public.periode_munaqosah FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_ppg_updated_at BEFORE UPDATE ON public.ppg FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_profiles_updated_at BEFORE UPDATE ON public.profiles FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    },
+    {
+      "ddl": "CREATE TRIGGER trg_santri_updated_at BEFORE UPDATE ON public.santri FOR EACH ROW EXECUTE FUNCTION set_updated_at();"
+    }
+  ],
+  "triggers_error": null,
+  "event_triggers": [
+    {
+      "evtname": "issue_graphql_placeholder",
+      "evtevent": "sql_drop",
+      "evtenabled": "O",
+      "proname": "set_graphql_placeholder"
+    },
+    {
+      "evtname": "pgrst_ddl_watch",
+      "evtevent": "ddl_command_end",
+      "evtenabled": "O",
+      "proname": "pgrst_ddl_watch"
+    },
+    {
+      "evtname": "pgrst_drop_watch",
+      "evtevent": "sql_drop",
+      "evtenabled": "O",
+      "proname": "pgrst_drop_watch"
+    },
+    {
+      "evtname": "issue_pg_cron_access",
+      "evtevent": "ddl_command_end",
+      "evtenabled": "O",
+      "proname": "grant_pg_cron_access"
+    },
+    {
+      "evtname": "issue_pg_net_access",
+      "evtevent": "ddl_command_end",
+      "evtenabled": "O",
+      "proname": "grant_pg_net_access"
+    },
+    {
+      "evtname": "issue_pg_graphql_access",
+      "evtevent": "ddl_command_end",
+      "evtenabled": "O",
+      "proname": "grant_pg_graphql_access"
+    },
+    {
+      "evtname": "ensure_rls",
+      "evtevent": "ddl_command_end",
+      "evtenabled": "O",
+      "proname": "rls_auto_enable"
+    }
+  ],
+  "event_triggers_error": null,
+  "supplementary_query_c_sql": "SELECT e.evtname, n.nspname AS function_schema, p.proname, pg_get_userbyid(e.evtowner) AS owner\nFROM pg_event_trigger e\nJOIN pg_proc p      ON p.oid = e.evtfoid\nJOIN pg_namespace n ON n.oid = p.pronamespace\nORDER BY n.nspname, e.evtname;",
+  "supplementary_event_trigger_schemas": [
+    {
+      "evtname": "issue_graphql_placeholder",
+      "function_schema": "extensions",
+      "proname": "set_graphql_placeholder",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "issue_pg_cron_access",
+      "function_schema": "extensions",
+      "proname": "grant_pg_cron_access",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "issue_pg_graphql_access",
+      "function_schema": "extensions",
+      "proname": "grant_pg_graphql_access",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "issue_pg_net_access",
+      "function_schema": "extensions",
+      "proname": "grant_pg_net_access",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "pgrst_ddl_watch",
+      "function_schema": "extensions",
+      "proname": "pgrst_ddl_watch",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "pgrst_drop_watch",
+      "function_schema": "extensions",
+      "proname": "pgrst_drop_watch",
+      "owner": "supabase_admin"
+    },
+    {
+      "evtname": "ensure_rls",
+      "function_schema": "public",
+      "proname": "rls_auto_enable",
+      "owner": "postgres"
+    }
+  ]
+}

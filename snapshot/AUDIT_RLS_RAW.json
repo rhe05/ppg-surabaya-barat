@@ -1,0 +1,556 @@
+{
+  "generated_at": "2026-08-13T07:31:23.264Z",
+  "tables": [
+    {
+      "table_name": "absensi",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 950,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "akses_kelas_request",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "audit_log",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "calendar_events",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "desa",
+      "rls_enabled": true,
+      "policy_count": 1,
+      "row_count": 5,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": true
+    },
+    {
+      "table_name": "files",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "guru",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 18,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "guru_izin",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "hari",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "jabatan_pengurus",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "jadwal_kategori_hari",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 4,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "jadwal_kategori_hari_aktif",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "jadwal_kbm",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 8,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "jurnal_kbm",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kategori_kbm",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 15,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kategori_pengumuman",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kelas",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kelompok",
+      "rls_enabled": true,
+      "policy_count": 1,
+      "row_count": 18,
+      "has_kelompok_id": false,
+      "has_desa_id": true,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "konseling",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kop_surat",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kop_surat_baris",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_akhlaq",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_pencapaian_santri",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_probul",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 163,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_probul_minggu",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_promes",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 186,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "kurikulum_prota",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 94,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "munaqosah",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "pengumuman",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "pengurus_kelp",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "periode_munaqosah",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "ppg",
+      "rls_enabled": true,
+      "policy_count": 1,
+      "row_count": 1,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "profiles",
+      "rls_enabled": true,
+      "policy_count": 1,
+      "row_count": 3,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "quote_harian",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "riwayat_jenjang",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": false,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "santri",
+      "rls_enabled": true,
+      "policy_count": 4,
+      "row_count": 199,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    },
+    {
+      "table_name": "siklus_generus",
+      "rls_enabled": true,
+      "policy_count": 0,
+      "row_count": 0,
+      "has_kelompok_id": true,
+      "has_desa_id": false,
+      "has_ppg_id": false
+    }
+  ],
+  "policies": [
+    {
+      "tablename": "absensi",
+      "policyname": "absensi_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "absensi",
+      "policyname": "absensi_insert_guru_admin",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "absensi",
+      "policyname": "absensi_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "absensi",
+      "policyname": "absensi_update_guru_admin",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "desa",
+      "policyname": "desa_read_authenticated",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "guru",
+      "policyname": "guru_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "guru",
+      "policyname": "guru_insert_admin",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "guru",
+      "policyname": "guru_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "guru",
+      "policyname": "guru_update_admin",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kategori_hari",
+      "policyname": "jadwal_kategori_hari_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kategori_hari",
+      "policyname": "jadwal_kategori_hari_insert_admin_only",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kategori_hari",
+      "policyname": "jadwal_kategori_hari_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kategori_hari",
+      "policyname": "jadwal_kategori_hari_update_admin_only",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kbm",
+      "policyname": "jadwal_kbm_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kbm",
+      "policyname": "jadwal_kbm_insert_admin_only",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kbm",
+      "policyname": "jadwal_kbm_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "jadwal_kbm",
+      "policyname": "jadwal_kbm_update_admin_only",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kelompok",
+      "policyname": "kelompok_read_authenticated",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "kurikulum_probul",
+      "policyname": "kurikulum_probul_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_probul",
+      "policyname": "kurikulum_probul_insert_admin_only",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_probul",
+      "policyname": "kurikulum_probul_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_probul",
+      "policyname": "kurikulum_probul_update_admin_only",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_promes",
+      "policyname": "kurikulum_promes_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_promes",
+      "policyname": "kurikulum_promes_insert_admin_only",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_promes",
+      "policyname": "kurikulum_promes_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_promes",
+      "policyname": "kurikulum_promes_update_admin_only",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_prota",
+      "policyname": "kurikulum_prota_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_prota",
+      "policyname": "kurikulum_prota_insert_admin_only",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_prota",
+      "policyname": "kurikulum_prota_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "kurikulum_prota",
+      "policyname": "kurikulum_prota_update_admin_only",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "ppg",
+      "policyname": "ppg_read_authenticated",
+      "cmd": "SELECT",
+      "roles": "{authenticated}"
+    },
+    {
+      "tablename": "profiles",
+      "policyname": "profiles_self_read",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "santri",
+      "policyname": "santri_delete_ppg_only",
+      "cmd": "DELETE",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "santri",
+      "policyname": "santri_insert_admin",
+      "cmd": "INSERT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "santri",
+      "policyname": "santri_select_scoped",
+      "cmd": "SELECT",
+      "roles": "{public}"
+    },
+    {
+      "tablename": "santri",
+      "policyname": "santri_update_admin",
+      "cmd": "UPDATE",
+      "roles": "{public}"
+    }
+  ]
+}

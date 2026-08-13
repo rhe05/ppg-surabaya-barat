@@ -1,0 +1,152 @@
+=== SUPABASE DB PULL RESULT ===
+Waktu: 2026-08-13 09:28:19 (UTC+7)
+Project ref: fnhqtkqswxsqmjxynldg ("ruang-ngaji-dev")
+Hasil akhir: ❌ GAGAL — tidak ada file skema yang ter-download.
+Tidak ada file migrasi yang dimodifikasi. Tidak ada DDL/script yang dijalankan.
+
+
+CLI STATUS:
+- supabase --version ....... 2.111.0 ✅ (sudah terinstall, tidak perlu npm install)
+- supabase login state ..... ✅ SUDAH LOGIN. `supabase projects list` mengembalikan
+                             data project tanpa diminta login, artinya ada Personal
+                             Access Token tersimpan di config CLI.
+                             Project: ACTIVE_HEALTHY, region ap-northeast-1,
+                             Postgres 17.6.1.155, host db.fnhqtkqswxsqmjxynldg.supabase.co
+- supabase link ............ ✅ SUCCESS (exit 0)
+                             {"project_ref":"fnhqtkqswxsqmjxynldg","message":""}
+                             Tidak diminta password DB.
+- supabase db pull (root) .. ❌ ERROR — LegacyDbPullMigrationConflictError
+- supabase db pull (tpq-app) ❌ ERROR — LegacyDeclarativeShadowDbError
+- supabase db dump ......... ❌ ERROR — LegacyDockerRunError
+
+
+KRONOLOGI KEGAGALAN (dua blocker berbeda, keduanya nyata):
+
+  [1] db pull DARI ROOT → konflik riwayat migrasi
+      "The remote database's migration history does not match local files in
+       supabase/migrations directory."
+
+      Sebabnya: remote punya catatan migrasi 20260805080137 di tabel
+      supabase_migrations.schema_migrations, sedangkan folder root tidak punya
+      file itu (file-nya ada di 08_Development/tpq-app/). CLI menolak jalan.
+
+      CLI menyarankan:
+        supabase migration repair --status reverted 20260805080137
+      ⚠️ TIDAK SAYA JALANKAN. Perintah itu memutasi riwayat migrasi di remote,
+      dan instruksi tugas ini eksplisit "jangan jalankan script atau DDL apa pun".
+      Menandai migrasi 002 sebagai "reverted" juga akan membuat state remote
+      berbohong tentang apa yang sebenarnya sudah diterapkan.
+
+  [2] db pull DARI 08_Development/tpq-app (via --workdir) → Docker tidak ada
+      Riwayat migrasi COCOK di sini, jadi blocker [1] hilang. CLI maju sampai:
+        Initialising login role...      ✅
+        Connecting to remote database...✅
+        Creating shadow database...     ❌
+      "failed to inspect docker image ... open //./pipe/docker_engine:
+       The system cannot find the file specified."
+
+      Sebabnya: kalau ada migrasi lokal, db pull menghitung DIFF, dan diff butuh
+      shadow database lokal = butuh Docker.
+
+  [3] db dump --linked (alternatif tanpa shadow DB) → Docker juga
+      "LegacyDockerRunError: failed to run docker."
+      CLI menjalankan pg_dump di dalam container supaya versinya cocok dengan
+      Postgres 17.6.1.155 di remote.
+
+  Verifikasi blocker Docker (bukan sekadar Docker mati, tapi memang tidak ada):
+    docker ......................... command not found
+    pg_dump ........................ tidak ada di PATH
+    psql ........................... tidak ada di PATH
+    C:\Program Files\PostgreSQL\ ... tidak ada
+
+  CATATAN PENTING: koneksi ke database SENDIRI tidak bermasalah. Langkah
+  "Initialising login role" + "Connecting to remote database" berhasil di
+  percobaan [2] — CLI v2.111 membuat login role sementara lewat Management API,
+  jadi password DB TIDAK dibutuhkan. Yang menghalangi murni ketiadaan Docker
+  untuk shadow DB / pg_dump, bukan kredensial dan bukan jaringan.
+
+
+FOLDER STRUCTURE AFTER PULL:
+- supabase/ (root) ......... TERBUAT, TAPI KOSONG dari isi berguna.
+                             Hanya berisi supabase/.temp/ (8 file state CLI:
+                             linked-project.json, pooler-url, project-ref,
+                             gotrue-version, postgres-version, rest-version,
+                             storage-migration, storage-version).
+                             Tidak ada config.toml. Tidak ada migrations/.
+- supabase/migrations/ ..... ❌ TIDAK TERBUAT
+- [timestamp]_remote_schema.sql ❌ TIDAK ADA
+
+- 08_Development/tpq-app/supabase/migrations/ ..... UTUH, tidak tersentuh:
+    20260805080137_database_foundation.sql   59.113 bytes   2026-08-05 17:19
+    (ukuran + timestamp identik dengan sebelum sesi ini)
+
+- git status: satu-satunya tambahan dari langkah ini adalah folder untracked
+  `supabase/` di root. Tidak ada file tracked yang berubah.
+
+
+MIGRATION FILE CONTENT:
+  Tidak berlaku — tidak ada file hasil pull untuk di-parse.
+
+  Angka di bawah ini adalah isi migrasi 002 YANG SUDAH ADA (bukan hasil pull),
+  supaya tetap ada baseline pembanding untuk nanti:
+  - Total baris ............... 952
+  - CREATE TABLE .............. 38
+  - CREATE POLICY ............. 0    ⚠️
+  - CREATE FUNCTION ........... 3    (handle_new_auth_user, set_updated_at,
+                                      sync_absensi_kelompok_id)
+  - auth_profile() included? .. ❌ NO — hanya disebut sebagai KOMENTAR di baris
+                                 880, dengan catatan sengaja ditunda ke "migrasi
+                                 keamanan terpisah" yang tidak pernah dibuat.
+  - Semua 4 RPC included? ..... ❌ NO — nol dari empat.
+
+
+KEY FINDINGS:
+- Nama policy yang ditemukan: TIDAK ADA YANG BISA DILAPORKAN.
+  Pull gagal, jadi daftar policy live masih belum pernah terbaca. Status ini
+  sama persis dengan RLS_POLICIES_EXPORT.json (BLOCKED_NOT_EXPORTED) — dua
+  pendekatan berbeda (REST API dan CLI), dua blocker berbeda, hasil akhir sama.
+
+- Nama function yang ditemukan (dari live DB, lewat PostgREST — bukan dari pull):
+    auth_profile             ← SECURITY DEFINER, fondasi semua policy scoping
+    pg_list_public_tables
+    pg_table_columns
+    rls_auto_enable          (mutasi — tidak dipanggil)
+  Keempatnya ADA di live DB tapi TIDAK ADA di file migrasi mana pun.
+
+- Yang bertambah pasti dari sesi ini: sekarang terkonfirmasi bahwa masalahnya
+  BUKAN kredensial dan BUKAN jaringan. CLI sudah login, link sukses, koneksi DB
+  sukses tanpa password. Satu-satunya penghalang jalur CLI adalah Docker.
+
+
+NEXT ACTION:
+  Ada tiga jalur. Nomor 1 paling murah dan sekaligus membuka dua deliverable
+  yang tertunda (export policy + penulisan migrasi 003).
+
+  1. PERSONAL ACCESS TOKEN → Management API  (~2 menit, tanpa install apa pun)
+     Buat token di https://supabase.com/dashboard/account/tokens
+     Simpan di root .env sebagai:  SUPABASE_ACCESS_TOKEN=sbp_xxx
+     Endpoint POST /v1/projects/{ref}/database/query bisa menjalankan SQL apa
+     pun secara read-only, tanpa Docker dan tanpa password DB. Dengan ini saya
+     bisa langsung mengisi RLS_POLICIES_EXPORT.json dan menarik definisi lengkap
+     kelima helper + empat RPC lewat pg_get_functiondef.
+     (CLI sudah menyimpan token semacam ini, tapi nilainya tidak bisa saya baca.)
+
+  2. INSTALL DOCKER DESKTOP  (~15-30 menit, hasil paling lengkap)
+     Setelah Docker jalan:
+       supabase db pull --workdir 08_Development/tpq-app
+     Ini menghasilkan file migrasi DIFF berisi persis apa yang hilang (policy +
+     function + RPC) — praktis langsung jadi migrasi 003, tanpa perlu disusun
+     manual. Jalankan dari tpq-app, JANGAN dari root (lihat blocker [1]).
+
+  3. MANUAL LEWAT STUDIO  (~5 menit, tanpa install)
+     Jalankan dua query yang sudah tertulis di bagian ACTION NEXT pada
+     STATE_SNAPSHOT_13_AUG.txt (pg_policies + pg_get_functiondef), lalu simpan
+     hasilnya. Saya susun jadi file migrasi dari situ.
+
+  4. BERSIH-BERSIH — folder `supabase/` di root sekarang cuma berisi state .temp
+     dan tidak akan pernah dipakai (project CLI yang asli ada di
+     08_Development/tpq-app/). Sebaiknya dihapus supaya tidak jadi sumber
+     kebingungan folder-ganda di kemudian hari. Belum saya hapus — bilang saja
+     kalau mau saya bereskan.
+
+=== END REPORT ===

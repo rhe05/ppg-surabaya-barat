@@ -1,0 +1,186 @@
+=== SNAPSHOT STATE PPG_SURABAYA_BARAT ===
+Waktu: 2026-08-13 08:56:42 (UTC+7)
+Metode: verify-only. Tidak ada migrasi/DDL/mutasi yang dieksekusi.
+Supabase project: fnhqtkqswxsqmjxynldg ("ruang-ngaji-dev")
+
+⚠️ KOREKSI REF: request menyebut "fnhqtkqswxsqmjxynjdg". Ref asli adalah
+   fnhqtkqswxsqmjxyn[l]dg — huruf ke-17 'l', bukan 'j'. Sumber: .temp/
+   linked-project.json, .temp/project-ref, dan klaim "ref" di dalam JWT
+   service_role pada root .env. Ketiganya cocok.
+
+
+FOLDER STRUCTURE:
+- supabase/ (di root project)      : BELUM ADA ❌
+- 08_Development/tpq-app/supabase/ : ADA ✅  <-- lokasi sebenarnya
+- testing/                         : ADA ✅
+- frontend/                        : ADA ✅ (Next.js, 30 file ter-track git)
+
+  Asumsi "supabase/ ada di root" TIDAK benar. Supabase CLI di-init di dalam
+  08_Development/tpq-app/, bukan di root repo. Konsekuensi praktis: perintah
+  `supabase db push` / `supabase migration new` HARUS dijalankan dari
+  08_Development/tpq-app/, bukan dari root. Kalau dijalankan dari root, CLI
+  tidak menemukan config.toml dan akan minta `supabase init` — yang kalau
+  diikuti akan membuat folder supabase/ KEDUA yang kosong di root.
+
+  Isi 08_Development/tpq-app/supabase/:
+    config.toml            15.572 bytes
+    seed.sql                  133 bytes  (kosong secara isi — cuma komentar)
+    migrations/                          (1 file, lihat di bawah)
+    functions/                           (kosong, cuma .gitkeep)
+    storage/                             (kosong, cuma .gitkeep)
+    .temp/                               (state CLI: linked-project.json,
+                                          pooler-url, versi-versi)
+
+  Isi testing/:
+    RLS_TEST_PLAN.md                5.452 bytes  2026-08-12 18:32
+    profiles_self_read_policy.sql   1.523 bytes  2026-08-12 16:02
+    seed_test_data.sql              4.365 bytes  2026-08-12 18:35
+
+
+MIGRASI EXISTING:
+- Total file migrasi: 1
+- Nama file:
+    20260805080137_database_foundation.sql   59.113 bytes   2026-08-05 17:19
+
+  Isi migrasi (hasil grep, bukan tebakan):
+    - CREATE TABLE ................................ 38 statement
+    - ENABLE ROW LEVEL SECURITY ................... 36 statement
+    - CREATE POLICY ............................... 0  statement  ⚠️
+    - CREATE FUNCTION ............................. 3  (handle_new_auth_user,
+                                                       set_updated_at,
+                                                       sync_absensi_kelompok_id)
+
+  Di baris 877-884 migrasi ini ada komentar eksplisit bahwa fungsi helper
+  auth (auth_profile / auth_role / auth_kelompok_id / auth_desa_id /
+  is_admin_ppg) SENGAJA tidak ditulis, karena "policy menyusul migrasi
+  keamanan terpisah". Migrasi terpisah itu TIDAK PERNAH DIBUAT sebagai file.
+
+
+POLICY STATUS DI DATABASE:
+- Total policy: TIDAK BISA DIVERIFIKASI ❌ (lihat bagian BLOCKER)
+- Tabel yang punya policy: TIDAK BISA DIVERIFIKASI ❌
+- Policy ada di migration file?: BELUM ADA ❌ (0 dari ~35 policy)
+
+  Yang BISA diverifikasi live sesi ini (pakai service_role key dari .env):
+    - PostgREST menjawab HTTP 200, project hidup dan reachable.
+    - 37 tabel ter-expose di schema public.
+    - RPC pg_list_public_tables() mengembalikan 37 tabel yang sama.
+    - Ada 4 RPC terpasang di DB: auth_profile, pg_list_public_tables,
+      pg_table_columns, rls_auto_enable.
+      ⚠️ Keempatnya TIDAK ADA di file migrasi — drift yang sama persis
+      dengan masalah policy. auth_profile khususnya penting: dia SECURITY
+      DEFINER dan jadi fondasi semua policy scoping. Kalau hilang, seluruh
+      RLS ikut runtuh.
+      (rls_auto_enable TIDAK dipanggil — itu mutasi, di luar scope verify.)
+
+  Klaim dokumen (BELUM terverifikasi terhadap DB):
+    GOLIVE_CHECKLIST.md item 4  : 32 policy di 8 tabel, "user-confirmed executed"
+    GOLIVE_CHECKLIST.md item 13 : total ~35 (32 + profiles self-read + 3
+                                  reference table: kelompok/desa/ppg)
+    testing/RLS_TEST_PLAN.md    : menyebut "32 RLS policies"
+
+  ⚠️ KONTRADIKSI yang ditemukan sesi ini:
+    testing/profiles_self_read_policy.sql baris 2 menyatakan "NOT EXECUTED",
+    tetapi GOLIVE_CHECKLIST.md item 13 memasukkannya sebagai policy yang
+    sudah live. Salah satu dari keduanya salah. Hanya query pg_policies yang
+    bisa memutuskan. Ini bukan detail sepele: kalau ternyata belum jalan,
+    setiap user yang login mendapat 0 baris untuk profilnya sendiri.
+
+
+SQL FILES TERSEBAR:
+  Total 5 file .sql di luar node_modules (semua sudah ter-track git):
+
+  1. 08_Development/tpq-app/supabase/migrations/20260805080137_database_foundation.sql
+       59.113 bytes — satu-satunya migrasi resmi
+  2. 08_Development/tpq-app/supabase/seed.sql
+          133 bytes — kosong (hanya komentar "Intentionally empty")
+  3. jadwal_kbm_create_table.sql                        (ROOT PROJECT ⚠️)
+          788 bytes — DDL ad-hoc, dibuat generate_jadwal_kbm_ddl.js saat
+          load engine kena schema mismatch. Nyasar di root, bukan di
+          migrations/.
+  4. testing/profiles_self_read_policy.sql
+        1.523 bytes — SATU-SATUNYA CREATE POLICY di seluruh repo
+  5. testing/seed_test_data.sql
+        4.365 bytes — profil test (test.guru / test.admindesa / test.adminppg)
+
+  Duplikat basi (JANGAN diedit, bukan sumber kebenaran):
+    .claude/worktrees/vibrant-jang-0cb304/08_Development/tpq-app/supabase/
+    berisi salinan migrations + seed.sql dari worktree lama (2026-08-07).
+
+
+BLOCKER — kenapa pg_policies belum ter-export:
+  pg_policies adalah view di schema pg_catalog. PostgREST hanya meng-expose
+  schema yang dikonfigurasi (public, graphql_public), jadi pg_catalog tidak
+  terjangkau lewat REST — bahkan dengan service_role. service_role mem-bypass
+  RLS, bukan membuka schema baru. Itu dua hal berbeda.
+
+  Jalur yang dicoba dan hasilnya:
+    [x] PostgREST + service_role ....... 200 OK, tapi cuma bisa lihat 37 tabel
+                                         public. Tidak bisa SQL bebas.
+    [x] 4 RPC yang sudah ada ........... tidak satupun baca pg_policies atau
+                                         terima SQL bebas.
+    [ ] Management API /database/query . BISA menjalankan query ini, tapi butuh
+                                         Personal Access Token — tidak ada di
+                                         environment (SUPABASE_ACCESS_TOKEN dan
+                                         SUPABASE_PAT dicek, kosong).
+    [ ] Koneksi Postgres langsung ...... .temp/pooler-url menyimpan host/user/
+                                         port TANPA password. Driver `pg` juga
+                                         tidak terpasang, psql tidak ada di PATH.
+    [ ] Supabase CLI ................... `supabase projects list` dan pengecekan
+                                         file access-token diblokir permission
+                                         classifier lokal. Tetap butuh password
+                                         DB juga.
+
+  File RLS_POLICIES_EXPORT.json TETAP DIBUAT, dengan array "policies" KOSONG
+  dan status BLOCKED_NOT_EXPORTED. Isinya sengaja tidak dikarang — yang ada
+  cuma fakta terverifikasi + klaim dokumen yang diberi label jelas sebagai
+  belum terverifikasi, supaya nanti bisa di-diff dengan export sungguhan.
+
+
+ACTION NEXT:
+  1. BUKA BLOKIR EXPORT (pilih satu, ~2 menit):
+     a. Buat Personal Access Token di
+        https://supabase.com/dashboard/account/tokens
+        lalu simpan sebagai SUPABASE_ACCESS_TOKEN di root .env.
+        Saya jalankan ulang export, RLS_POLICIES_EXPORT.json terisi otomatis.
+     b. Atau jalankan sendiri query ini di Supabase Studio > SQL Editor,
+        lalu "Download JSON" ke RLS_POLICIES_EXPORT.json:
+
+          SELECT schemaname, tablename, policyname, permissive,
+                 roles, cmd, qual, with_check
+          FROM pg_policies
+          WHERE schemaname = 'public'
+          ORDER BY tablename, policyname;
+
+     Sekalian ambil definisi fungsi helper-nya, karena sama-sama hilang dari
+     migrasi dan sama pentingnya:
+
+          SELECT proname, pg_get_functiondef(oid)
+          FROM pg_proc
+          WHERE pronamespace = 'public'::regnamespace
+            AND proname IN ('auth_profile','auth_role','auth_kelompok_id',
+                            'auth_desa_id','is_admin_ppg',
+                            'pg_list_public_tables','pg_table_columns',
+                            'rls_auto_enable');
+
+  2. SELESAIKAN KONTRADIKSI profiles_select_own — cek apakah policy itu benar
+     ada di hasil export. Kalau tidak ada, itu bug live (user login → 0 baris
+     untuk profil sendiri), bukan sekadar dokumentasi yang meleset.
+
+  3. TULIS MIGRASI 003 (GOLIVE_CHECKLIST item 13 — gap prioritas tertinggi).
+     Isi: seluruh policy hasil export + kelima fungsi helper + 4 RPC yang
+     ternyata juga tidak tercatat. Simpan sebagai
+       08_Development/tpq-app/supabase/migrations/<timestamp>_rls_policies.sql
+     Tanpa ini, `supabase db push` ke project baru menghasilkan DB dengan RLS
+     aktif tapi NOL policy — diam-diam menolak semua, atau lebih buruk lagi
+     ada yang "memperbaiki" dengan mematikan RLS.
+
+  4. RAPIKAN SQL NYASAR: pindahkan jadwal_kbm_create_table.sql dari root ke
+     migrations/ (atau hapus kalau perubahannya sudah tercakup di migrasi 002),
+     supaya skema benar-benar bisa direproduksi dari satu tempat.
+
+  5. BARU SETELAH ITU tutup checklist item lain: admin_ppg belum pernah dites,
+     6 user real belum dimigrasi (profiles 0 baris), 14 kelompok belum ada
+     datanya, dan limit 1000 baris PostgREST di absensi (sekarang 950).
+
+=== END SNAPSHOT ===
