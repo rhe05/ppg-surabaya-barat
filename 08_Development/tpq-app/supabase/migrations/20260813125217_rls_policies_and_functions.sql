@@ -4,7 +4,7 @@
 -- Dibuat       : 13 Agustus 2026
 --
 -- Sumber: dump pg_policies + pg_get_functiondef dari live DB.
--- Tujuan: 36 policy + 7 function yang selama ini HANYA ada sebagai SQL
+-- Tujuan: 37 policy + 7 function yang selama ini HANYA ada sebagai SQL
 --         ad-hoc di Dashboard, supaya `supabase db push` ke project baru
 --         menghasilkan DB yang benar-benar terkunci, bukan terbuka diam-diam.
 --
@@ -18,7 +18,7 @@
 -- hanya: auth_profile, rls_auto_enable, pg_list_public_tables,
 -- pg_table_columns.
 -- Urutan WAJIB: function -> trigger -> policy -> grant.
---   (32 dari 36 policy memanggil auth_profile(); kalau policy dibuat lebih
+--   (32 dari 37 policy memanggil auth_profile(); kalau policy dibuat lebih
 --    dulu, push gagal dengan 'function auth_profile() does not exist')
 -- =====================================================================
 
@@ -176,7 +176,7 @@ CREATE EVENT TRIGGER ensure_rls
 -- yang dibuat setelah ini lahir TANPA RLS -- persis lubang yang sedang
 -- kita tutup, dan tidak ada error yang muncul saat itu terjadi.
 
--- BAGIAN 3 : ROW LEVEL SECURITY POLICIES (36)
+-- BAGIAN 3 : ROW LEVEL SECURITY POLICIES (37)
 -- ---------------------------------------------------------------------
 
 -- [3.1] Tabel: absensi  (4 policy)
@@ -274,12 +274,20 @@ CREATE POLICY "jadwal_kbm_update_admin_only" ON public.jadwal_kbm AS PERMISSIVE 
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
--- [3.6] Tabel: kelompok  (1 policy)
+-- [3.6] Tabel: kategori_kbm  (1 policy)
+--   Tabel lookup: read-only untuk semua user terautentikasi. Tidak perlu
+--   scoping karena isinya referensi statis (tidak ada kolom kelompok_id/
+--   desa_id/ppg_id), sama seperti desa/kelompok/ppg di atas-bawah.
+ALTER TABLE public.kategori_kbm ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "kategori_kbm_read_authenticated" ON public.kategori_kbm;
+CREATE POLICY "kategori_kbm_read_authenticated" ON public.kategori_kbm AS PERMISSIVE FOR SELECT TO authenticated USING (true);
+
+-- [3.7] Tabel: kelompok  (1 policy)
 ALTER TABLE public.kelompok ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "kelompok_read_authenticated" ON public.kelompok;
 CREATE POLICY "kelompok_read_authenticated" ON public.kelompok AS PERMISSIVE FOR SELECT TO authenticated USING (true);
 
--- [3.7] Tabel: kurikulum_probul  (4 policy)
+-- [3.8] Tabel: kurikulum_probul  (4 policy)
 ALTER TABLE public.kurikulum_probul ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "kurikulum_probul_delete_ppg_only" ON public.kurikulum_probul;
 CREATE POLICY "kurikulum_probul_delete_ppg_only" ON public.kurikulum_probul AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
@@ -300,7 +308,7 @@ CREATE POLICY "kurikulum_probul_update_admin_only" ON public.kurikulum_probul AS
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
--- [3.8] Tabel: kurikulum_promes  (4 policy)
+-- [3.9] Tabel: kurikulum_promes  (4 policy)
 ALTER TABLE public.kurikulum_promes ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "kurikulum_promes_delete_ppg_only" ON public.kurikulum_promes;
 CREATE POLICY "kurikulum_promes_delete_ppg_only" ON public.kurikulum_promes AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
@@ -321,7 +329,7 @@ CREATE POLICY "kurikulum_promes_update_admin_only" ON public.kurikulum_promes AS
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
--- [3.9] Tabel: kurikulum_prota  (4 policy)
+-- [3.10] Tabel: kurikulum_prota  (4 policy)
 ALTER TABLE public.kurikulum_prota ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "kurikulum_prota_delete_ppg_only" ON public.kurikulum_prota;
 CREATE POLICY "kurikulum_prota_delete_ppg_only" ON public.kurikulum_prota AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
@@ -342,17 +350,17 @@ CREATE POLICY "kurikulum_prota_update_admin_only" ON public.kurikulum_prota AS P
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
--- [3.10] Tabel: ppg  (1 policy)
+-- [3.11] Tabel: ppg  (1 policy)
 ALTER TABLE public.ppg ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "ppg_read_authenticated" ON public.ppg;
 CREATE POLICY "ppg_read_authenticated" ON public.ppg AS PERMISSIVE FOR SELECT TO authenticated USING (true);
 
--- [3.11] Tabel: profiles  (1 policy)
+-- [3.12] Tabel: profiles  (1 policy)
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "profiles_self_read" ON public.profiles;
 CREATE POLICY "profiles_self_read" ON public.profiles AS PERMISSIVE FOR SELECT TO public USING ((id = auth.uid()));
 
--- [3.12] Tabel: santri  (4 policy)
+-- [3.13] Tabel: santri  (4 policy)
 ALTER TABLE public.santri ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "santri_delete_ppg_only" ON public.santri;
 CREATE POLICY "santri_delete_ppg_only" ON public.santri AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
@@ -395,7 +403,7 @@ COMMIT;
 
 -- =====================================================================
 -- VERIFIKASI (jalankan setelah push, harus cocok):
---   SELECT count(*) FROM pg_policies WHERE schemaname='public';  -- 36
+--   SELECT count(*) FROM pg_policies WHERE schemaname='public';  -- 37
 --   SELECT count(*) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
 --     WHERE n.nspname='public';                                  -- 7
 --   SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal;      -- 26
