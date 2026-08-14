@@ -1,0 +1,92 @@
+STATUS: FAIL - migrasi 003 gagal di statement 70, kolom kurikulum_promes.kelompok_id tidak ada di skema migrasi 001
+
+========== UJI PUSH MIGRASI 003 (retargeted) ==========
+Tanggal        : 2026-08-14
+Project test   : qaqhoibxcotjzgxdthfl (test-push-003-1786692354, ap-southeast-1)
+State awal     : schema_migrations=['20260805080137'], tabel=36, policy=0
+                 kelompok=0, guru=0, kategori_kbm=0  (konfirmasi 004 tidak bisa jadi migrasi)
+STATUS         : FAIL
+
+--- C3 PUSH ---
+supabase link --project-ref qaqhoibxcotjzgxdthfl      -> OK
+supabase db push --dry-run                             -> hanya 20260813125217 (001 sudah terpasang)  OK
+supabase db push --yes:
+  Applying migration 20260813125217_rls_policies_and_functions.sql...  GAGAL
+
+  {"_tag":"Error","error":{"code":"LegacyDbPushApplyError",
+   "message":"ERROR: column kurikulum_promes.kelompok_id does not exist (SQLSTATE 42703)
+   At statement: 70
+   CREATE POLICY \"kurikulum_promes_select_scoped\" ON public.kurikulum_promes
+   AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT 1
+      FROM auth_profile() p(...)
+     WHERE (p.is_active AND ((p.role = 'admin_ppg') OR ((p.role = 'admin_desa')
+       AND (p.scope_desa_id = ( SELECT k.desa_id FROM kelompok k
+       WHERE (k.id = kurikulum_promes.kelompok_id)))) OR ...)))))"}}
+
+  Statement 40 (kelas, hasil retarget B1) LOLOS. Perbaikan B1 TERBUKTI BENAR —
+  kegagalan kali ini di tempat yang sama sekali berbeda, 30 statement lebih jauh.
+
+--- C4 VERIFIKASI: TIDAK BISA DIJALANKAN (push gagal, rollback) ---
+pg_policies             : 0/37
+public functions        : 3/7    (3 = sisa pasca-001, bukan dari 003)
+non-internal trigger    : 30     (lihat CATATAN PREMIS di bawah)
+event trigger ensure_rls: BELUM TERBUKTI  <-- pertanyaan superuser MASIH TERBUKA
+policy tabel kelas      : 0/4
+policy tabel jadwal_kbm : 0/0   (sesuai — jadwal_kbm sudah tidak ada di DDL 003)
+kelas row count         : 0     (diharapkan — seed lewat Studio)
+
+ROLLBACK: BERSIH. schema_migrations tetap ['20260805080137'], policy 0.
+DB tidak setengah jadi. Transaksional, sama seperti kegagalan pertama.
+
+--- AKAR MASALAH: DRIFT SKEMA LIVE vs MIGRASI 001 ---
+Migrasi 003 di-dump dari LIVE DB. Live punya kolom yang TIDAK ADA di migrasi 001.
+Diff kolom (live MINUS skema-migrasi), 13 tabel yang disentuh 003:
+
+  kurikulum_promes  : +kelompok_id          <-- DIPAKAI policy 003 -> INI YANG GAGAL
+  jadwal_kategori_hari: +hari_aktif, +diubah_pada
+  kurikulum_probul  : +minggu1, +minggu2, +minggu3, +minggu4
+  santri            : +kelas_ngaji
+  (9 tabel lain identik)
+
+Cek apakah kolom drift lain juga dipakai policy 003:
+  kurikulum_promes.kelompok_id -> 1 hasil  (baris 331, badan select_scoped)
+  hari_aktif    -> 0 hasil
+  diubah_pada   -> 0 hasil
+  minggu1..4    -> 0 hasil
+  kelas_ngaji   -> 0 hasil
+=> HANYA SATU penghalang tersisa. Kalau kurikulum_promes.kelompok_id beres,
+   tidak ada lagi drift kolom yang menghadang 003.
+
+Ini pola yang IDENTIK dengan kegagalan jadwal_kbm: 003 = potret live,
+migrasi 001 = skema resmi, keduanya sudah menyimpang. Migrasi 001 tidak pernah
+mengejar perubahan ad-hoc yang dilakukan di live.
+
+--- CATATAN PREMIS YANG KELIRU (keempat kalinya) ---
+Ekspektasi "26 non-internal trigger" tidak bisa benar: project test yang BARU
+pasca-001 saja (tanpa 003) sudah punya 30. Angka 26 kemungkinan dihitung dari
+scope berbeda (mis. hanya schema public) atau dari live sebelum sesuatu berubah.
+Query `pg_trigger WHERE NOT tgisinternal` menghitung SEMUA schema, bukan public
+saja. Ekspektasi ini perlu ditetapkan ulang sebelum dipakai sebagai kriteria PASS.
+Demikian juga `pg_event_trigger`: pasca-001 sudah ada 6 baris (bawaan platform),
+jadi kriteria harus spesifik ke evtname='ensure_rls', bukan jumlah.
+
+--- C5 PULIHKAN LINK: OK ---
+Link dipulihkan ke : fnhqtkqswxsqmjxynldg  (terverifikasi via .temp/project-ref)
+
+--- CONSTRAINT YANG DIPATUHI ---
+absensi tidak disentuh (0 query tulis). Live DB read-only.
+seed_kelas_petemon.sql TIDAK dieksekusi. Migrasi 004 tidak dibuat.
+Data dummy 6/7/8 tidak dihapus. jadwal_kbm tidak di-drop.
+Migrasi 003 TIDAK diedit lagi setelah B1. Tidak ada retry, tidak ada
+migration repair. Project test tidak dihapus. Tidak ada git push.
+
+--- BACKLOG (dicatat, tidak dikerjakan) ---
+1. jadwal_kbm tanpa policy di migrasi manapun = konsekuensi sadar. Syarat mutlak:
+   jangan dihapus sebelum 8 baris ada di kelas dan terverifikasi.
+2. kelas.santri_count 0/2/7 tidak boleh dipercaya sampai santri.kelas_id terisi.
+   Jangan dipakai untuk tampilan apa pun.
+3. Data referensi (kelompok/desa/ppg/kategori_kbm) tidak ada di migrasi — masuk
+   lewat ETL, bukan git. Kembaran dari risiko "RLS tidak ada di migrasi".
+4. BARU: drift kolom live vs migrasi 001 (5 kolom di 4 tabel, lihat di atas).
+   Ini akar masalah yang sama yang sudah dua kali menggagalkan push.
+========================================================

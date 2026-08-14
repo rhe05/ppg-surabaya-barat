@@ -1,0 +1,60 @@
+STATUS: BLOCKED - tidak bisa membuat project uji baru (limit 2 free project tercapai; project uji lama BELUM dihapus)
+
+========== TEST PUSH 003 (retarget) — RESULT ==========
+Tanggal      : 2026-08-14
+Project ref  : (tidak ada — project gagal dibuat)
+STATUS       : BLOCKED, push belum dijalankan
+
+--- C1 backup state link: OK
+  linked ref saat ini = fnhqtkqswxsqmjxynldg (live). TIDAK diubah sama sekali
+  selama sesi ini, jadi tidak perlu dipulihkan.
+
+--- C2 buat project baru: GAGAL
+  perintah : supabase projects create "test-push-004-1786695639"
+             --org-id xjwuqakawlaviurwtmcd --region ap-southeast-1
+  error    : "The following organization members have reached their maximum
+              limits for the number of active free projects within organizations
+              where they are an administrator or owner: rhe05 (2 project limit).
+              To continue, these users will need to either delete, pause or
+              upgrade one or more of these projects."
+
+--- PREMIS CONTEXT YANG KELIRU ---
+  CONTEXT prompt menyatakan: "Project test lama qaqhoibxcotjzgxdthfl dihapus."
+  Kenyataan (GET /v1/projects, 2026-08-14):
+    fnhqtkqswxsqmjxynldg | ruang-ngaji-dev            | ACTIVE_HEALTHY | 2026-08-04
+    qaqhoibxcotjzgxdthfl | test-push-003-1786692354   | ACTIVE_HEALTHY | 2026-08-14
+  Project uji lama MASIH HIDUP. Itu yang memakan slot ke-2.
+
+--- C3, C4, C5 : TIDAK DIJALANKAN (blocked di C2)
+  pg_policies          : -/37
+  public functions     : -/7
+  non-internal trigger : -/26
+  event trigger        : BELUM TERBUKTI (pertanyaan CREATE EVENT TRIGGER tanpa
+                         superuser masih terbuka, sama seperti uji 003 pertama)
+  kelas row count      : -/0 (memang 0 di project bersih, sesuai keputusan
+                         004 = skrip Studio, bukan migrasi)
+  kelas policy count   : -/4
+
+--- YANG SUDAH SELESAI DI SESI INI (di luar C) ---
+  Bagian A : verifikasi prasyarat LENGKAP, tidak ada penghalang
+  Bagian B1: migrasi 003 di-retarget jadwal_kbm -> kelas
+             CREATE POLICY tetap 37, jadwal_kbm 0 hasil di DDL,
+             public.kelas 9 baris, kelas.kelompok_id di badan select_scoped
+  Bagian B2: dibuat sebagai skrip Studio (keputusan Rheza), BUKAN migrasi:
+             08_Development/tpq-app/supabase/scripts/seed_kelas_petemon.sql
+
+--- YANG DIBUTUHKAN AGAR C BISA LANJUT (wewenang Rheza) ---
+  Salah satu:
+   (a) hapus/pause project qaqhoibxcotjzgxdthfl via Dashboard, lalu jalankan
+       ulang Bagian C dari nol; atau
+   (b) izinkan push ke qaqhoibxcotjzgxdthfl yang sudah ada — DB-nya sekarang
+       persis pasca-001 (schema_migrations = ['20260805080137'], 0 policy,
+       36 tabel), jadi `supabase db push` di sana hanya akan menjalankan 003
+       dan itu setara dengan uji di project bersih.
+
+--- CONSTRAINT YANG DIPATUHI ---
+  absensi tidak disentuh (0 query tulis). Live DB read-only.
+  Data dummy 6/7/8 tidak dihapus. jadwal_kbm tidak di-drop.
+  Tidak ada `migration repair`. Project uji lama tidak dihapus.
+  Tidak ada git push.
+================================================

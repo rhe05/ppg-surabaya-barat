@@ -1,0 +1,79 @@
+STATUS: FAIL - migrasi 003 mereferensi tabel public.jadwal_kbm yang TIDAK dibuat oleh migrasi 001 (di 001 tabel itu sengaja diganti jadi public.kelas)
+
+========== TEST PUSH 003 - RESULT ==========
+Date start : 2026-08-14 13:18:18 WIB (2026-08-14T06:18:18Z)
+Date end   : 2026-08-14 13:26 WIB (approx)
+Project Ref: qaqhoibxcotjzgxdthfl  (name: test-push-003-1786692354)
+Region     : ap-southeast-1
+DB password: Tst003_bde7e622dd2fed62
+Project status: ACTIVE_HEALTHY, MASIH HIDUP (tidak dihapus, menunggu review Rheza)
+
+--- STEP 1 PRECONDITION: OK
+  .env berisi SUPABASE_ACCESS_TOKEN (44 char)                       OK
+  2 file migrasi ada di 08_Development/tpq-app/supabase/migrations/ OK
+  git status migrations/ = bersih (tidak ada uncommitted)           OK
+  supabase CLI 2.111.0                                              OK
+
+--- STEP 2 CREATE PROJECT: OK
+  ref qaqhoibxcotjzgxdthfl, org xjwuqakawlaviurwtmcd (Bang Rhe)
+
+--- STEP 3 VERIFY PROJECT STATE: OK
+  status = ACTIVE_HEALTHY
+  select count(*) from information_schema.tables where table_schema='public' -> 0
+
+--- STEP 4 DB PUSH: FAIL
+  supabase link --project-ref qaqhoibxcotjzgxdthfl   -> OK
+  supabase db push --dry-run                          -> akan push 2 migrasi
+  supabase db push --yes:
+    Applying migration 20260805080137_database_foundation.sql...   SUKSES
+    Applying migration 20260813125217_rls_policies_and_functions.sql...  GAGAL
+
+    {"_tag":"Error","error":{"code":"LegacyDbPushApplyError",
+     "message":"ERROR: relation \"public.jadwal_kbm\" does not exist (SQLSTATE 42P01)
+     At statement: 40
+     -- [3.5] Tabel: jadwal_kbm  (4 policy)
+     ALTER TABLE public.jadwal_kbm ENABLE ROW LEVEL SECURITY"}}
+
+--- STEP 5 VERIFY RESULTS (4 QUERIES): TIDAK DAPAT DIJALANKAN (push gagal)
+  Query 1 (Policies)      :  0/37  MISMATCH
+  Query 2 (Functions)     :  3/7   MISMATCH  (3 = bawaan/leftover, bukan dari 003)
+  Query 3 (Triggers)      :  tidak diukur (blocked)
+  Query 4 (Event Trigger) :  tidak ada (blocked)
+  supabase_migrations.schema_migrations = ['20260805080137'] saja
+  -> migrasi 003 ROLLBACK BERSIH (transaksional). DB tidak setengah jadi.
+
+--- ROOT CAUSE (bukti) ---
+  Migrasi 001 (database_foundation) membuat 36 tabel public dan TIDAK
+  membuat jadwal_kbm. Di 001 baris 280 tertulis eksplisit:
+      "-- SECTION 7 - Kelas (pengganti jadwal_kbm)"
+      comment on table kelas is 'Pengganti jadwal_kbm (Apps Script)...'
+  Jadi jadwal_kbm SENGAJA dihapus/diganti jadi `kelas` di skema baru.
+
+  Migrasi 003 di-dump dari LIVE DB (fnhqtkqswxsqmjxynldg) yang masih
+  punya tabel legacy jadwal_kbm. Akibatnya 003 memuat 4 policy untuk
+  public.jadwal_kbm -> tidak reproducible di DB bersih.
+
+  Konsekuensi kedua (LEBIH PENTING, belum ketahuan sebelum test ini):
+    grep 'public.kelas' di migrasi 003 = 0 hasil.
+    Artinya tabel `kelas` (skema baru, pengganti jadwal_kbm) TIDAK PUNYA
+    RLS POLICY SAMA SEKALI di migrasi 003. Angka target "37 policy" itu
+    sendiri sudah salah karena mencerminkan skema lama.
+
+  Tabel yang disentuh 003 (13): absensi, desa, guru, jadwal_kategori_hari,
+  jadwal_kbm, kategori_kbm, kelompok, kurikulum_probul, kurikulum_promes,
+  kurikulum_prota, ppg, profiles, santri
+
+--- YANG TIDAK DILAKUKAN (sesuai constraint) ---
+  - tidak retry otomatis
+  - tidak `migration repair`
+  - tidak menyentuh project live fnhqtkqswxsqmjxynldg
+  - project test TIDAK dihapus (menunggu review)
+  - local link sudah dikembalikan ke project live
+
+--- REKOMENDASI (perlu keputusan Rheza) ---
+  1. Ganti 4 policy jadwal_kbm di 003 menjadi policy untuk public.kelas
+     (sesuaikan nama kolom: cek apakah kelas punya kelompok_id).
+  2. Audit ulang: apakah ada tabel lain di 003 yang namanya juga sudah
+     berubah di 001, dan tabel baru di 001 yang belum punya policy.
+  3. Setelah diperbaiki, ulang test push ke project bersih baru.
+==========================================

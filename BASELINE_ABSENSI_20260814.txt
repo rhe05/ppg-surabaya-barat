@@ -1,0 +1,47 @@
+BASELINE ABSENSI — LIVE DB fnhqtkqswxsqmjxynldg
+Diambil: 2026-08-14 (read-only, Management API /database/query)
+Tujuan: angka acuan untuk membuktikan tidak ada baris absensi hilang
+        setelah perbaikan migrasi apapun. JANGAN diedit.
+
+--- TOTAL KESELURUHAN ---
+total_absensi   : 950
+tanggal_awal    : 2026-07-09
+tanggal_akhir   : 2026-08-07
+santri_unik     : 172
+soft_deleted    : 0
+
+--- PER KELOMPOK ---
+id | nama              | desa      | n   | rentang                  | santri_unik
+1  | Kelp Petemon      | Petemon   | 170 | 2026-07-13 s/d 2026-08-07 | 42
+6  | Kelp Bangun Rejo  | Purwodadi | 300 | 2026-07-09 s/d 2026-07-14 | 50
+7  | Kelp Purwodadi    | Purwodadi | 240 | 2026-07-09 s/d 2026-07-14 | 40
+8  | Kelp Dupak        | Purwodadi | 240 | 2026-07-09 s/d 2026-07-14 | 40
+
+Baris milik Petemon (kelompok 1)      : 170
+Baris milik kelompok lain (6,7,8)     : 780
+
+--- PER KELOMPOK x STATUS ---
+1 | hadir 115 | izin 14 | sakit 2  | alpa 39   (total 170)
+6 | hadir 260 | izin 26 | sakit 0  | alpa 14   (total 300)
+7 | hadir 209 | izin 17 | sakit 0  | alpa 14   (total 240)
+8 | hadir 213 | izin 15 | sakit 0  | alpa 12   (total 240)
+Catatan: status 'sakit' HANYA muncul di kelompok 1.
+
+--- PER BULAN x KELOMPOK ---
+2026-07 | kelompok 1 | 108
+2026-07 | kelompok 6 | 300
+2026-07 | kelompok 7 | 240
+2026-07 | kelompok 8 | 240
+2026-08 | kelompok 1 | 62
+
+--- KONTEKS PENDUKUNG ---
+santri per kelompok : 1=69, 6=50, 7=40, 8=40 (total 199)
+guru per kelompok   : 1=6,  6=4,  7=4,  8=4  (total 18)
+santri kelompok 1 yang punya absensi : 42 dari 69
+unique constraint absensi            : uq_absensi_santri_tanggal
+                                       UNIQUE (santri_id, tanggal) WHERE deleted_at IS NULL
+
+--- IDENTIFIKASI ---
+Kelompok Petemon = id 1 ("Kelp Petemon", desa Petemon, PPG Surabaya Barat).
+TERVERIFIKASI dari tabel kelompok/desa, bukan dari pola tanggal.
+Hipotesis awal (Petemon = id 1) COCOK.
