@@ -1,0 +1,160 @@
+STATUS: PASS - migrasi 003 terpasang penuh di project test, 37/37 policy, event trigger ensure_rls TERBUKTI BISA DIBUAT LEWAT db push
+
+========== UJI PUSH 003 (v2 -- promes via prota) ==========
+Tanggal        : 2026-08-14
+Project test   : qaqhoibxcotjzgxdthfl (ap-southeast-1)
+State awal     : schema_migrations=['20260805080137'], policy=0, function public=3
+STATUS         : PASS
+
+pg_policies public         : 37/37
+function public            : auth_profile, handle_new_auth_user, pg_list_public_tables,
+                             pg_table_columns, rls_auto_enable, set_updated_at,
+                             sync_absensi_kelompok_id   (7/7, sama persis dgn isi file)
+event trigger ensure_rls   : ADA          <-- pertanyaan superuser AKHIRNYA TERJAWAB
+policy kelas               : 4/4  (delete/insert/select/update)
+policy kurikulum_promes    : 4/4  (scoping lewat prota? YA -- diverifikasi dari pg_policies.qual)
+policy jadwal_kbm          : 0/0  (sesuai -- jadwal_kbm sudah tidak ada di DDL 003)
+kelas row count            : 0 (diharapkan -- seed lewat skrip Studio, wewenang Rheza)
+schema_migrations akhir    : ['20260805080137', '20260813125217']
+
+Link dipulihkan ke         : fnhqtkqswxsqmjxynldg  (diverifikasi via .temp/project-ref)
+===========================================================
+
+
+--- BAGIAN A: VERIFIKASI PRASYARAT (READ-ONLY) ---
+
+A2/A3 kurikulum_prota.kelompok_id ADA di KEDUA DB, identik:
+  LIVE : kolom #2, bigint, NOT NULL
+  TEST : kolom #2, bigint, NOT NULL
+Prasyarat mutlak TERPENUHI. Karena NOT NULL, scoping lewat prota tidak pernah
+menghasilkan NULL -- tidak ada baris yang diam-diam lolos filter.
+
+A3b kurikulum_promes.prota_id ADA di TEST : bigint, NOT NULL. (Kolom kelompok_id
+memang TIDAK ADA di TEST -- persis drift yang menggagalkan uji 2.)
+
+A4 pola rujukan: kurikulum_prota_select_scoped (baris 348-352) memakai bentuk
+   3-cabang admin_desa/admin_kelompok/guru + subquery ke kelompok utk desa_id.
+   Bentuk itu ditiru persis; hanya sumber kelompok_id yang diganti.
+
+A5 schema_migrations TEST = ['20260805080137'] saja. Pasca-001 murni. LANJUT.
+
+A4b kurikulum_probul memakai kolom kelompok_id-nya SENDIRI (bukan lewat promes),
+   jadi tidak ikut terdampak perubahan ini.
+
+
+--- BAGIAN B: PERUBAHAN (1 POLICY, 3 SUBSTITUSI TOKEN) ---
+
+File : 08_Development/tpq-app/supabase/migrations/20260813125217_rls_policies_and_functions.sql
+Baris: 331 (kini 337-347 setelah komentar disisipkan)
+
+3 kemunculan `kurikulum_promes.kelompok_id` diganti menjadi:
+
+    ( SELECT pr.kelompok_id
+       FROM kurikulum_prota pr
+      WHERE (pr.id = kurikulum_promes.prota_id))
+
+Kesetaraan semantik: prota_id NOT NULL + FK ON DELETE CASCADE -> subquery skalar
+SELALU mengembalikan tepat satu baris, tidak pernah NULL, tidak pernah multi-row.
+Tiga cabang peran (admin_desa se-desa, admin_kelompok se-kelompok, guru
+se-kelompok) tidak diubah bentuknya sama sekali; admin_ppg tetap tanpa filter.
+Tidak ada pelonggaran scope.
+
+Verifikasi B:
+  CREATE POLICY                       : 37   (tetap)
+  `kurikulum_promes.kelompok_id` DDL  : 0 hasil  (2 sisa hanya di baris komentar)
+  git diff                            : hanya blok kurikulum_promes yang berubah
+                                        (hunk kedua = retarget jadwal_kbm->kelas
+                                        dari sesi sebelumnya, belum ter-commit)
+
+Ditambahkan komentar 8 baris di atas policy, mengikuti gaya dokumentasi retarget
+jadwal_kbm yang sudah ada di file ini. 36 policy lain tidak disentuh.
+Tidak ada kolom ditambahkan ke migrasi manapun. Tidak ada yang di-drop.
+`TO public` sengaja TIDAK dirapikan (backlog terpisah).
+
+
+--- BAGIAN C: PUSH ---
+
+C1  supabase link --project-ref qaqhoibxcotjzgxdthfl   -> OK
+    supabase db push --dry-run   -> hanya 20260813125217   OK
+    supabase db push --yes       -> BERHASIL, tanpa error statement
+
+    Catatan: muncul warning "failed to cache migrations catalog: failed to run
+    docker". Ini HANYA soal cache katalog pg-delta lokal, BUKAN kegagalan apply.
+    Migrasi tercatat di schema_migrations dan semua objek terbentuk. Docker tetap
+    tidak terpasang di mesin ini (konsisten dgn catatan 13 Agt).
+
+C2  Semua kriteria PASS (versi yang sudah dikoreksi) terpenuhi -- lihat blok atas.
+
+    Isi kurikulum_promes_select_scoped sebagaimana DISIMPAN Postgres:
+      ... AND (p.scope_kelompok_id = ( SELECT pr.kelompok_id
+                                        FROM kurikulum_prota pr
+                                       WHERE (pr.id = kurikulum_promes.prota_id))) ...
+    Postgres menerima dan menyimpan scoping lewat prota. Kolom kelompok_id di
+    promes tidak lagi dirujuk policy manapun.
+
+    kurikulum_promes_insert_admin_only punya qual=NULL -- itu NORMAL, bukan cacat:
+    policy INSERT memakai WITH CHECK, bukan USING.
+
+C3  supabase link --project-ref fnhqtkqswxsqmjxynldg   -> OK
+    .temp/project-ref = fnhqtkqswxsqmjxynldg (diverifikasi)
+
+
+--- TEMUAN PALING PENTING: EVENT TRIGGER ---
+
+`CREATE EVENT TRIGGER ensure_rls` BERHASIL lewat `supabase db push` biasa.
+
+Tiga uji sebelumnya semuanya berhenti sebelum mencapai baris 169, jadi ini belum
+pernah terbukti. Kekhawatiran bahwa CREATE EVENT TRIGGER butuh superuser dan akan
+menggagalkan migrasi di Supabase: TIDAK TERBUKTI. Role migrasi Supabase punya hak
+yang cukup. Pertanyaan terbuka sejak 13 Agt ini sekarang TERTUTUP.
+
+Konsekuensinya: `rls_auto_enable` (yang otomatis meng-ENABLE RLS pada tabel baru)
+ikut reproducible lewat migrasi. Jaring pengaman "tabel baru tidak pernah lahir
+tanpa RLS" bukan lagi konfigurasi manual yang cuma ada di live.
+
+
+--- KEADAAN LIVE (READ-ONLY, TIDAK DISENTUH) ---
+
+  absensi                       : 950   (baseline UTUH)
+  kurikulum_promes              : 186 baris
+  kurikulum_promes.kelompok_id  : MASIH ADA (tidak di-drop, sesuai keputusan)
+  jadwal_kbm                    : 8 baris (tidak di-drop)
+  pg_policies public            : 37
+Nol DDL/DML dijalankan ke live. seed_kelas_petemon.sql TIDAK dieksekusi.
+Project test TIDAK dihapus. Tidak ada migrasi 004 dibuat.
+Tidak ada `migration repair`. Tidak ada push ke remote git.
+
+
+--- STATUS LATEN SETELAH PERUBAHAN INI ---
+
+`kurikulum_promes.kelompok_id` kini resmi LATEN (menyusul jadwal_kbm dan 7 kolom
+drift lain): ada di live, tidak dipakai policy manapun, tidak ada di migrasi.
+Akan hilang kalau live di-rebuild. Sengaja dibiarkan -- prinsip tambah-dulu,
+hapus-belakangan. Total objek LATEN sekarang: 9.
+
+Yang BERUBAH secara bermakna: kolom ini tidak lagi menjadi PENGHALANG. Kalau
+nilainya menyimpang dari prota induk besok, tidak ada policy yang salah membaca
+scope -- karena tidak ada policy yang membacanya lagi.
+
+
+--- BACKLOG (DICATAT, TIDAK DIKERJAKAN) ---
+
+PRIORITAS TERTINGGI setelah go-live -- RLS di LIVE tidak reproducible:
+  schema_migrations di LIVE = ['20260805080137'] SAJA. 37 policy + 4 function di
+  live tidak punya catatan migrasi apa pun. Kalau live perlu di-rebuild, seluruh
+  RLS hilang dan tabel terbuka TANPA GEJALA. Jalur di luar migrasi itu mungkin
+  masih aktif -- menambah policy lewat Studio besok akan menambah drift tanpa
+  tercatat. Uji ini membuktikan 003 BISA dipasang lewat push; menerapkannya ke
+  live (atau mencatatnya sbg applied) adalah keputusan Rheza.
+
+Lainnya:
+  - Seed data referensi (18 kelompok, 5 desa, 1 PPG, 15 kategori_kbm) tidak ada di
+    migrasi -> db push ke project baru hanya menghasilkan struktur kosong
+  - 9 objek LATEN -> rencana penghapusan bertahap, setelah kelas terisi & terverifikasi
+  - Desain periode: absensi tanpa kelas_id/guru_id; tidak ada tabel penempatan berperiode
+  - kelas.santri_count (0/2/7) tidak boleh dipercaya sampai santri.kelas_id terisi
+  - Nama sama sebagai guru & santri di kelompok 1 (Baban 21/207, Neiza 22/208)
+  - 27 dari 69 santri Petemon nol absensi
+  - 94 kurikulum_prota dengan kelas_id NULL
+  - `TO public` -> `TO authenticated` di 37 policy (kerapian, bukan celah:
+    auth_profile() sudah menolak anon)

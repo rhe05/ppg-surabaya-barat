@@ -253,24 +253,29 @@ CREATE POLICY "jadwal_kategori_hari_update_admin_only" ON public.jadwal_kategori
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
--- [3.5] Tabel: jadwal_kbm  (4 policy)
-ALTER TABLE public.jadwal_kbm ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "jadwal_kbm_delete_ppg_only" ON public.jadwal_kbm;
-CREATE POLICY "jadwal_kbm_delete_ppg_only" ON public.jadwal_kbm AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
+-- [3.5] Tabel: kelas  (4 policy)
+--   Di-retarget 2026-08-14 dari jadwal_kbm. Dump 003 diambil dari live DB yang
+--   masih punya tabel legacy jadwal_kbm (warisan ad-hoc Apps Script, tidak
+--   pernah dibuat migrasi manapun). Tabel resmi penggantinya = kelas
+--   (dibuat migrasi 001 Section 7). Semantik scoping TIDAK diubah, hanya
+--   nama tabel/kolom/policy. jadwal_kbm SENGAJA tidak di-drop di sini.
+ALTER TABLE public.kelas ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "kelas_delete_ppg_only" ON public.kelas;
+CREATE POLICY "kelas_delete_ppg_only" ON public.kelas AS PERMISSIVE FOR DELETE TO public USING ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = 'admin_ppg'::text)))));
-DROP POLICY IF EXISTS "jadwal_kbm_insert_admin_only" ON public.jadwal_kbm;
-CREATE POLICY "jadwal_kbm_insert_admin_only" ON public.jadwal_kbm AS PERMISSIVE FOR INSERT TO public WITH CHECK ((EXISTS ( SELECT 1
+DROP POLICY IF EXISTS "kelas_insert_admin_only" ON public.kelas;
+CREATE POLICY "kelas_insert_admin_only" ON public.kelas AS PERMISSIVE FOR INSERT TO public WITH CHECK ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
-DROP POLICY IF EXISTS "jadwal_kbm_select_scoped" ON public.jadwal_kbm;
-CREATE POLICY "jadwal_kbm_select_scoped" ON public.jadwal_kbm AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT 1
+DROP POLICY IF EXISTS "kelas_select_scoped" ON public.kelas;
+CREATE POLICY "kelas_select_scoped" ON public.kelas AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND ((p.role = 'admin_ppg'::text) OR ((p.role = 'admin_desa'::text) AND (p.scope_desa_id = ( SELECT k.desa_id
            FROM kelompok k
-          WHERE (k.id = jadwal_kbm.kelompok_id)))) OR ((p.role = 'admin_kelompok'::text) AND (p.scope_kelompok_id = jadwal_kbm.kelompok_id)) OR ((p.role = 'guru'::text) AND (p.scope_kelompok_id = jadwal_kbm.kelompok_id)))))));
-DROP POLICY IF EXISTS "jadwal_kbm_update_admin_only" ON public.jadwal_kbm;
-CREATE POLICY "jadwal_kbm_update_admin_only" ON public.jadwal_kbm AS PERMISSIVE FOR UPDATE TO public USING ((EXISTS ( SELECT 1
+          WHERE (k.id = kelas.kelompok_id)))) OR ((p.role = 'admin_kelompok'::text) AND (p.scope_kelompok_id = kelas.kelompok_id)) OR ((p.role = 'guru'::text) AND (p.scope_kelompok_id = kelas.kelompok_id)))))));
+DROP POLICY IF EXISTS "kelas_update_admin_only" ON public.kelas;
+CREATE POLICY "kelas_update_admin_only" ON public.kelas AS PERMISSIVE FOR UPDATE TO public USING ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
 
@@ -318,12 +323,26 @@ DROP POLICY IF EXISTS "kurikulum_promes_insert_admin_only" ON public.kurikulum_p
 CREATE POLICY "kurikulum_promes_insert_admin_only" ON public.kurikulum_promes AS PERMISSIVE FOR INSERT TO public WITH CHECK ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND (p.role = ANY (ARRAY['admin_ppg'::text, 'admin_desa'::text, 'admin_kelompok'::text]))))));
+-- Scoping di-retarget 2026-08-14 dari kurikulum_promes.kelompok_id ke prota
+-- induknya. Dump 003 diambil dari live DB yang punya kolom kelompok_id di
+-- promes -- kolom itu TIDAK ADA di migrasi 001, jadi policy versi live tidak
+-- bisa di-push. Kolom itu murni turunan: prota_id NOT NULL + FK ON DELETE
+-- CASCADE, dan pada 186 baris live nilainya selalu sama dengan prota induk
+-- (0 penyimpangan) tanpa trigger apa pun yang menjaganya. Scoping lewat prota
+-- menghilangkan duplikasi yang bisa menyimpang diam-diam. Semantik setara.
+-- kurikulum_promes.kelompok_id di live SENGAJA tidak di-drop di sini.
 DROP POLICY IF EXISTS "kurikulum_promes_select_scoped" ON public.kurikulum_promes;
 CREATE POLICY "kurikulum_promes_select_scoped" ON public.kurikulum_promes AS PERMISSIVE FOR SELECT TO public USING ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
   WHERE (p.is_active AND ((p.role = 'admin_ppg'::text) OR ((p.role = 'admin_desa'::text) AND (p.scope_desa_id = ( SELECT k.desa_id
            FROM kelompok k
-          WHERE (k.id = kurikulum_promes.kelompok_id)))) OR ((p.role = 'admin_kelompok'::text) AND (p.scope_kelompok_id = kurikulum_promes.kelompok_id)) OR ((p.role = 'guru'::text) AND (p.scope_kelompok_id = kurikulum_promes.kelompok_id)))))));
+          WHERE (k.id = ( SELECT pr.kelompok_id
+                   FROM kurikulum_prota pr
+                  WHERE (pr.id = kurikulum_promes.prota_id)))))) OR ((p.role = 'admin_kelompok'::text) AND (p.scope_kelompok_id = ( SELECT pr.kelompok_id
+                   FROM kurikulum_prota pr
+                  WHERE (pr.id = kurikulum_promes.prota_id)))) OR ((p.role = 'guru'::text) AND (p.scope_kelompok_id = ( SELECT pr.kelompok_id
+                   FROM kurikulum_prota pr
+                  WHERE (pr.id = kurikulum_promes.prota_id)))))))));
 DROP POLICY IF EXISTS "kurikulum_promes_update_admin_only" ON public.kurikulum_promes;
 CREATE POLICY "kurikulum_promes_update_admin_only" ON public.kurikulum_promes AS PERMISSIVE FOR UPDATE TO public USING ((EXISTS ( SELECT 1
    FROM auth_profile() p(role, scope_ppg_id, scope_desa_id, scope_kelompok_id, guru_id, is_active)
