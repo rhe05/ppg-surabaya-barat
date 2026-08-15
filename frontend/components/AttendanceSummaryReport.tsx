@@ -36,11 +36,21 @@ export default function AttendanceSummaryReport() {
       setLoading(true);
       setError(null);
       try {
-        const { data, error: queryError } = await supabase
-          .from('absensi')
-          .select('id, kelompok_id, status');
-        if (queryError) throw new Error(queryError.message);
-        if (!cancelled) setAbsensiList(data ?? []);
+        const UKURAN_HALAMAN = 1000;
+        const semua: Absensi[] = [];
+        for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+          const { data, error: queryError } = await supabase
+            .from('absensi')
+            .select('id, kelompok_id, status')
+            .is('deleted_at', null)
+            .order('id', { ascending: true })
+            .range(dari, dari + UKURAN_HALAMAN - 1);
+          if (queryError) throw new Error(queryError.message);
+          const batch: Absensi[] = data ?? [];
+          semua.push(...batch);
+          if (batch.length < UKURAN_HALAMAN) break;
+        }
+        if (!cancelled) setAbsensiList(semua);
       } catch {
         if (!cancelled) setError('Error loading data');
       } finally {

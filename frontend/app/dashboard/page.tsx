@@ -55,6 +55,27 @@ function DashboardContent() {
         {profileError && <p className="text-red-600">{profileError}</p>}
       </div>
 
+      <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <button
+          onClick={() => router.push('/absensi')}
+          className="rounded-lg bg-white p-4 text-left shadow hover:shadow-md transition-shadow"
+        >
+          <span className="block text-base font-semibold text-blue-700">Input Absensi</span>
+          <span className="mt-1 block text-sm text-gray-500">
+            Catat kehadiran santri per tanggal
+          </span>
+        </button>
+        <button
+          onClick={() => router.push('/kelas')}
+          className="rounded-lg bg-white p-4 text-left shadow hover:shadow-md transition-shadow"
+        >
+          <span className="block text-base font-semibold text-blue-700">Daftar Kelas</span>
+          <span className="mt-1 block text-sm text-gray-500">
+            Lihat jadwal, ruangan, dan guru pengajar
+          </span>
+        </button>
+      </div>
+
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <SantriList />
         <GuruList />
