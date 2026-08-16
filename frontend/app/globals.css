@@ -1,26 +1,85 @@
 @import "tailwindcss";
 
+/* Token desain aplikasi lama (GAS) — disalin verbatim dari
+   13_AppsScript/Style_Main.html:2-23. Nilai TIDAK boleh diubah;
+   rujukan lengkap ada di design-tokens-lama.md bagian 1. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --brass: #D97706;
+  --sage: #059669;
+  --brand-green: #6B9975;
+  --volt: #FBBF24;
+  --red: #DC2626;
+  --indigo: #4F46E5;
+  --teal: #0D9488;
+  --panel: #FFFFFF;
+  --panel-2: #F9FAFB;
+  --bg: #F8FAFC;
+  --border: #E2E8F0;
+  --text: #0F172A;
+  --text-dim: #64748B;
+  --text-faint: #94A3B8;
+  --radius: 8px;
+  --radius-lg: 14px;
+  --radius-button: 999px;
+  --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.08);
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.06);
+  --topbar-height: 56px;
+
+  /* Dipakai .ia-kehadiran-summary-card sebagai var(--radius-md, 10px).
+     Di app lama TIDAK pernah didefinisikan, jadi nilai efektifnya selalu
+     fallback 10px — ditulis eksplisit di sini agar hasilnya identik. */
+  --radius-md: 10px;
+
+  /* Alias kompatibilitas untuk @theme bawaan Next.js (tidak dipakai
+     halaman mana pun saat ini, dipertahankan agar tidak ada yang putus). */
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+
+  /* Palet app lama sebagai utility Tailwind: bg-brass, text-sage, dst. */
+  --color-brass: var(--brass);
+  --color-sage: var(--sage);
+  --color-brand-green: var(--brand-green);
+  --color-volt: var(--volt);
+  --color-red: var(--red);
+  --color-indigo: var(--indigo);
+  --color-teal: var(--teal);
+  --color-panel: var(--panel);
+  --color-panel-2: var(--panel-2);
+  --color-bg: var(--bg);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-text-dim: var(--text-dim);
+  --color-text-faint: var(--text-faint);
+
+  /* rounded-card = 14px (kartu/panel/modal), rounded-pill = 999px. */
+  --radius-card: var(--radius-lg);
+  --radius-pill: var(--radius-button);
+
+  /* Shadow sengaja TIDAK didaftarkan di sini. Tailwind v4 tetap meng-emit
+     variabel namespace --shadow-* walau memakai `inline`, sehingga
+     `--shadow-card: var(--shadow-card)` jadi rujukan-diri. Pakai nilai
+     arbitrer di halaman: shadow-[var(--shadow-card)]. */
+
+  /* App lama menulis "Inter" tapi tidak pernah memuatnya (tidak ada <link>
+     maupun @font-face di Index.html/Style_Main.html) — yang benar-benar
+     tampil di produksi adalah fallback berikutnya. Stack di bawah = stack
+     asli Style_Main.html:32 dikurangi "Inter" yang gagal load. */
+  --font-sans: system-ui, -apple-system, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Style_Main.html:27-37. Properti khusus SPA (height:100%, overflow:hidden)
+   sengaja TIDAK disalin — di Next.js itu akan mematikan scroll halaman. */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
 }
