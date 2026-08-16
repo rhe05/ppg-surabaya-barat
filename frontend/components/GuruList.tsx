@@ -41,29 +41,37 @@ export default function GuruList() {
   }, []);
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-800">Guru</h2>
+    <div>
+      {/* .dash-section-title — Style_Main.html:845-850 */}
+      <div className="mb-5 text-[20px] font-bold text-text">Guru</div>
 
-      {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+      {!loading && error && <p className="text-[13px] text-red">{error}</p>}
       {!loading && !error && guru.length === 0 && (
-        <p className="text-sm text-gray-500">No data available</p>
+        <p className="text-[13px] text-text-dim">No data available</p>
       )}
 
       {!loading && !error && guru.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-gray-500">
-                <th className="py-2 pr-4">Nama</th>
-                <th className="py-2 pr-4">Kategori</th>
+        /* .data-table-wrapper + .data-table — Style_Main.html:4250-4288 */
+        <div className="overflow-x-auto rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
+          <table className="w-full border-collapse text-left text-[13px]">
+            <thead className="border-b border-border bg-panel-2">
+              <tr>
+                <th className="px-4 py-3.5 text-[12px] font-semibold tracking-[0.3px] text-text-dim uppercase">
+                  Nama
+                </th>
+                <th className="px-4 py-3.5 text-[12px] font-semibold tracking-[0.3px] text-text-dim uppercase">
+                  Kategori
+                </th>
               </tr>
             </thead>
             <tbody>
               {guru.map((g) => (
-                <tr key={g.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-2 pr-4">{g.nama}</td>
-                  <td className="py-2 pr-4">{g.kategori ?? '-'}</td>
+                <tr key={g.id} className="hover:bg-panel-2">
+                  <td className="border-b border-border px-4 py-3.5 text-text">{g.nama}</td>
+                  <td className="border-b border-border px-4 py-3.5 text-text">
+                    {g.kategori ?? '-'}
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -56,64 +56,73 @@ export default function SantriList() {
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow">
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-gray-800">Santri</h2>
-        <input
-          type="text"
-          placeholder="Cari nama..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="w-40 rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        />
-      </div>
+    <div>
+      {/* .dash-section-title — Style_Main.html:845-850 */}
+      <div className="mb-5 text-[20px] font-bold text-text">Santri</div>
 
-      {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+      {/* .search-input — Style_Main.html:4290-4298 */}
+      <input
+        type="text"
+        placeholder="Cari nama..."
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+        className="mb-6 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+      />
+
+      {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+      {!loading && error && <p className="text-[13px] text-red">{error}</p>}
       {!loading && !error && filtered.length === 0 && (
-        <p className="text-sm text-gray-500">No data available</p>
+        <p className="text-[13px] text-text-dim">No data available</p>
       )}
 
       {!loading && !error && filtered.length > 0 && (
         <>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-200 text-gray-500">
-                  <th className="py-2 pr-4">Nama</th>
-                  <th className="py-2 pr-4">Kelompok</th>
+          {/* .data-table-wrapper + .data-table — Style_Main.html:4250-4288 */}
+          <div className="overflow-x-auto rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
+            <table className="w-full border-collapse text-left text-[13px]">
+              <thead className="border-b border-border bg-panel-2">
+                <tr>
+                  <th className="px-4 py-3.5 text-[12px] font-semibold tracking-[0.3px] text-text-dim uppercase">
+                    Nama
+                  </th>
+                  <th className="px-4 py-3.5 text-[12px] font-semibold tracking-[0.3px] text-text-dim uppercase">
+                    Kelompok
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {pageRows.map((s) => (
-                  <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2 pr-4">{s.nama}</td>
-                    <td className="py-2 pr-4">{s.kelompok_id ?? '-'}</td>
+                  <tr key={s.id} className="hover:bg-panel-2">
+                    <td className="border-b border-border px-4 py-3.5 text-text">{s.nama}</td>
+                    <td className="border-b border-border px-4 py-3.5 text-text">
+                      {s.kelompok_id ?? '-'}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
 
-          <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+          <div className="mt-4 flex items-center justify-between text-[13px] text-text-dim">
             <span>
               Halaman {page} / {totalPages}
             </span>
-            <div className="flex gap-2">
+            {/* .btn + .btn-secondary — Style_Main.html:4410-4438 */}
+            <div className="flex gap-3">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
+                className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:opacity-40"
               >
                 Prev
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                 disabled={page === totalPages}
-                className="rounded border border-gray-300 px-2 py-1 disabled:opacity-40"
+                className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:opacity-40"
               >
                 Next
               </button>

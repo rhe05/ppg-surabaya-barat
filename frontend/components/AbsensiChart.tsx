@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { supabase } from '@/lib/supabase';
 
 type Absensi = {
@@ -63,25 +63,54 @@ export default function AbsensiChart() {
     { name: 'Tidak Hadir', jumlah: tidakHadirCount },
   ];
 
-  return (
-    <div className="rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-800">Absensi</h2>
+  // Hadir = --sage, sama di ketiga komponen status app lama. "Tidak Hadir"
+  // bukan status di app lama (di sana terpisah izin/sakit/alpa), jadi tidak
+  // ada warna yang bisa disalin -- dipakai --text-faint yang netral.
+  const warnaBatang = ['var(--sage)', 'var(--text-faint)'];
 
-      {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+  return (
+    /* .kpi-card sebagai panel — Style_Main.html:859-866 */
+    <div className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
+      {/* .dash-section-title — Style_Main.html:845-850 */}
+      <div className="mb-5 text-[20px] font-bold text-text">Absensi</div>
+
+      {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+      {!loading && error && <p className="text-[13px] text-red">{error}</p>}
       {!loading && !error && absensi.length === 0 && (
-        <p className="text-sm text-gray-500">No data available</p>
+        <p className="text-[13px] text-text-dim">No data available</p>
       )}
 
       {!loading && !error && absensi.length > 0 && (
         <div className="h-64 w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="jumlah" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis
+                dataKey="name"
+                tick={{ fill: 'var(--text-dim)', fontSize: 12 }}
+                stroke="var(--border)"
+              />
+              <YAxis
+                allowDecimals={false}
+                tick={{ fill: 'var(--text-dim)', fontSize: 12 }}
+                stroke="var(--border)"
+              />
+              <Tooltip
+                cursor={{ fill: 'var(--panel-2)' }}
+                contentStyle={{
+                  background: 'var(--panel)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)',
+                  boxShadow: 'var(--shadow-card)',
+                  fontSize: 13,
+                  color: 'var(--text)',
+                }}
+              />
+              <Bar dataKey="jumlah" radius={[4, 4, 0, 0]}>
+                {chartData.map((baris, i) => (
+                  <Cell key={baris.name} fill={warnaBatang[i]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
