@@ -4,20 +4,35 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 
+// PostgREST mengembalikan relasi tersemat sebagai objek atau array satu elemen,
+// tergantung cara ia menyimpulkan kardinalitas. Pola yang sama sudah dipakai di
+// app/kelas/page.tsx (type Tersemat).
+type Tersemat<T> = T | T[] | null;
+
+function satuDari<T>(nilai: Tersemat<T>): T | null {
+  if (!nilai) return null;
+  return Array.isArray(nilai) ? (nilai[0] ?? null) : nilai;
+}
+
 type Profile = {
   id: string;
   display_name: string | null;
   role: string | null;
+  guru_id: number | null;
   scope_ppg_id: number | null;
   scope_desa_id: number | null;
   scope_kelompok_id: number | null;
   is_active: boolean;
+  kelompok: Tersemat<{ nama: string }>;
+  guru: Tersemat<{ kategori: string | null }>;
 };
 
 type AuthContextValue = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  namaKelompok: string | null;
+  kategoriGuru: string | null;
   profileError: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
@@ -63,7 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, display_name, role, scope_ppg_id, scope_desa_id, scope_kelompok_id, is_active')
+        .select(
+          'id, display_name, role, guru_id, scope_ppg_id, scope_desa_id, scope_kelompok_id, is_active, kelompok:scope_kelompok_id(nama), guru:guru_id(kategori)'
+        )
         .eq('id', session.user.id)
         .maybeSingle();
 
@@ -97,7 +114,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ session, user: session?.user ?? null, profile, profileError, loading, signIn, signOut }}
+      value={{
+        session,
+        user: session?.user ?? null,
+        profile,
+        namaKelompok: satuDari(profile?.kelompok ?? null)?.nama ?? null,
+        kategoriGuru: satuDari(profile?.guru ?? null)?.kategori ?? null,
+        profileError,
+        loading,
+        signIn,
+        signOut,
+      }}
     >
       {children}
     </AuthContext.Provider>

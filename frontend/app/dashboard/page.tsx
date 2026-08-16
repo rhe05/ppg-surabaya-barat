@@ -5,9 +5,10 @@ import SantriList from '@/components/SantriList';
 import GuruList from '@/components/GuruList';
 import AbsensiChart from '@/components/AbsensiChart';
 import RequireAuth from '@/components/RequireAuth';
+import GuruDashboard from '@/components/dashboard/GuruDashboard';
 import { useAuth } from '@/lib/auth-context';
 
-function DashboardContent() {
+function AdminDashboard() {
   const { user, profile, profileError, signOut } = useAuth();
   const router = useRouter();
 
@@ -93,6 +94,16 @@ function DashboardContent() {
       </div>
     </main>
   );
+}
+
+/* App lama memilih dashboard berdasarkan role (Script_Main.html:227-245):
+   role 'guru' dikunci ke layar mobile-nya sendiri dan tidak pernah melihat
+   shell admin. Percabangan di bawah meniru itu -- murni memilih markup,
+   tidak mengubah cara data di-fetch. */
+function DashboardContent() {
+  const { profile } = useAuth();
+  if (profile?.role === 'guru') return <GuruDashboard />;
+  return <AdminDashboard />;
 }
 
 export default function DashboardPage() {
