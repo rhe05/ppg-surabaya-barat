@@ -88,6 +88,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/kelola-absensi')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
+          >
+            <span className="block text-[16px] font-bold text-brass">Kelola Absensi</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Perbaiki catatan kehadiran yang sudah lewat
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/statistik')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
           >
