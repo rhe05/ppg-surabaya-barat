@@ -83,6 +83,31 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/pengurus')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
+          >
+            <span className="block text-[16px] font-bold text-sage">Pengurus Kelompok</span>
+            <span className="mt-2 block text-[13px] text-text-faint">Dapukan dan pemegangnya</span>
+          </button>
+          <button
+            onClick={() => router.push('/siklus-generus')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
+          >
+            <span className="block text-[16px] font-bold text-brass">Siklus Generus</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Kerja, kuliah, pindah, mondok, tugas
+            </span>
+          </button>
+          <button
+            onClick={() => router.push('/pengaturan')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
+          >
+            <span className="block text-[16px] font-bold text-sage">Pengaturan</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Kop surat laporan dan kutipan harian
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/kalender')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
           >
