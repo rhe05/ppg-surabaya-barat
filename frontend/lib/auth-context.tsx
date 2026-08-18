@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '@/lib/supabase';
+import { supabase, setIngatSaya } from '@/lib/supabase';
 
 // PostgREST mengembalikan relasi tersemat sebagai objek atau array satu elemen,
 // tergantung cara ia menyimpulkan kardinalitas. Pola yang sama sudah dipakai di
@@ -35,7 +35,13 @@ type AuthContextValue = {
   kategoriGuru: string | null;
   profileError: string | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string, ingat?: boolean) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string
+  ) => Promise<{ error: string | null; perluKonfirmasiEmail: boolean }>;
+  kirimTautanResetPassword: (email: string) => Promise<{ error: string | null }>;
+  gantiPassword: (passwordBaru: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -103,8 +109,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [session]);
 
-  async function signIn(email: string, password: string) {
+  async function signIn(email: string, password: string, ingat = true) {
+    // Ditetapkan SEBELUM login: penentu localStorage vs sessionStorage di
+    // lib/supabase.ts dibaca saat token sesi ditulis, yaitu di dalam
+    // signInWithPassword ini.
+    setIngatSaya(ingat);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error: error ? error.message : null };
+  }
+
+  /* Pendaftaran mandiri. Baris `profiles` TIDAK dibuat di sini — trigger
+     `handle_new_auth_user()` (migrasi 20260805080137, Section 6) sudah
+     menyalin setiap baris auth.users baru ke profiles dengan role = NULL.
+     Role & scope diisi admin belakangan; sampai itu terjadi akun tidak punya
+     akses ke data mana pun (semua RLS menolak profil ber-role NULL).
+
+     Kalau konfirmasi email menyala di project Supabase, signUp balik dengan
+     session = null — orangnya harus klik tautan di email dulu. Dibedakan lewat
+     perluKonfirmasiEmail supaya layar Masuk tidak menyuruh orang menunggu
+     email yang tidak pernah dikirim, atau sebaliknya. */
+  async function signUp(email: string, password: string) {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    return {
+      error: error ? error.message : null,
+      perluKonfirmasiEmail: !error && !data.session,
+    };
+  }
+
+  async function kirimTautanResetPassword(email: string) {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    });
+    return { error: error ? error.message : null };
+  }
+
+  async function gantiPassword(passwordBaru: string) {
+    const { error } = await supabase.auth.updateUser({ password: passwordBaru });
     return { error: error ? error.message : null };
   }
 
@@ -123,6 +163,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profileError,
         loading,
         signIn,
+        signUp,
+        kirimTautanResetPassword,
+        gantiPassword,
         signOut,
       }}
     >
