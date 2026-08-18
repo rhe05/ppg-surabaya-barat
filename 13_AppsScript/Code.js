@@ -306,7 +306,7 @@ function doGet(e) {
   //
   // Untuk MENGHIDUPKAN KEMBALI app lama: hapus blok if di bawah ini, lalu
   // push (CI/CD akan clasp push + deploy). Tidak ada data yang berubah.
-  var lihatRujukan = (e && e.parameter && e.parameter.rujukan === 'tampilan') || bolehLihatArsip_();
+  var lihatRujukan = e && e.parameter && e.parameter.rujukan === 'tampilan';
   if (!lihatRujukan) {
     return HtmlService.createHtmlOutput(halamanPindah_())
       .setTitle('Ruang Ngaji — Aplikasi Sudah Pindah')
@@ -318,33 +318,6 @@ function doGet(e) {
     .setTitle('Ruang Ngaji (arsip tampilan lama)')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-}
-
-/**
- * Daftar akun Google yang tetap boleh melihat layar app lama sebagai ARSIP
- * TAMPILAN — dipakai membandingkan gaya lama dengan app baru.
- *
- * Ini pemeriksaan identitas Google (siapa yang membuka tautan), BUKAN login
- * app lama. Login app lama tetap berlaku di baliknya, jadi ini tidak
- * memberi akses data apa pun yang tidak sudah dimiliki.
- *
- * ⚠️ SYARATNYA: deployment harus disetel "Who has access = Anyone with
- * Google account". Kalau setelannya "Anyone" (tanpa login Google), Apps
- * Script TIDAK bisa melihat email pembuka sama sekali dan fungsi ini selalu
- * mengembalikan false — bukan error, cuma tidak mengenali siapa pun. Untuk
- * kasus itu, jalur ?rujukan=tampilan tetap tersedia sebagai cadangan.
- */
-var ARSIP_TAMPILAN_EMAIL_ = ['rheza354@gmail.com'];
-
-function bolehLihatArsip_() {
-  try {
-    var email = Session.getActiveUser().getEmail();
-    if (!email) return false;
-    return ARSIP_TAMPILAN_EMAIL_.indexOf(String(email).trim().toLowerCase()) !== -1;
-  } catch (err) {
-    // Akses "Anyone" membuat pemanggilan ini melempar, bukan sekadar kosong.
-    return false;
-  }
 }
 
 /**
