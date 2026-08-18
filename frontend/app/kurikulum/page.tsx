@@ -30,6 +30,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { KATEGORI_JENJANG } from '@/lib/kategori';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
@@ -209,13 +210,18 @@ function KurikulumContent() {
     load();
   }, [kelompokId]);
 
+  /* ⚠️ Tabel `kategori_kbm` MENCAMPUR dua namespace: 11 mata pelajaran KBM
+     (yang dipakai kurikulum_prota) dan 4 kategori JENJANG "Cabe Rawit",
+     "Pra Remaja SMP", "Remaja SMA", "Muda-Mudi" (yang dipakai
+     jadwal_kategori_hari). Keempatnya tidak pernah dipakai satu baris prota
+     pun dan tidak boleh bisa dipilih sebagai materi kurikulum. */
   useEffect(() => {
     async function load() {
       const { data } = await supabase
         .from('kategori_kbm')
         .select('id, nama, urutan')
         .order('urutan');
-      setKategoriList(data ?? []);
+      setKategoriList((data ?? []).filter((k) => !KATEGORI_JENJANG.includes(k.nama)));
     }
     load();
   }, []);

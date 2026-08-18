@@ -83,6 +83,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/jadwal')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
+          >
+            <span className="block text-[16px] font-bold text-sage">Jadwal KBM</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Sesi pengajian per kategori dan hari aktifnya
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/kurikulum')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
           >
