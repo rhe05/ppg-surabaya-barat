@@ -26,6 +26,7 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import StatistikKonseling from '@/components/konseling/StatistikKonseling';
+import ImporKonseling from '@/components/konseling/ImporKonseling';
 
 /* Harus cocok persis dgn enum konseling_kategori & konseling_status. */
 const KATEGORI = ['akademik', 'perilaku', 'emosional', 'sosial', 'kesehatan', 'lainnya'];
@@ -253,6 +254,7 @@ function KonselingContent() {
   const [pesan, setPesan] = useState<string | null>(null);
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [sedangDiubah, setSedangDiubah] = useState<Konseling | null>(null);
+  const [imporTerbuka, setImporTerbuka] = useState(false);
 
   /* Semua peran aktif boleh mencatat, termasuk guru — sama seperti app lama. */
   const bolehCatat = !!profile?.is_active;
@@ -443,7 +445,12 @@ function KonselingContent() {
             ))}
           </select>
         </div>
-        <div className="flex items-end">
+        <div className="flex items-end gap-2">
+          {bolehCatat && kelompokId && (
+            <button onClick={() => setImporTerbuka(true)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
+              Impor CSV
+            </button>
+          )}
           {bolehCatat && kelompokId && (
             <button
               onClick={() => {
@@ -535,6 +542,16 @@ function KonselingContent() {
             </div>
           </div>
         ))}
+
+      {imporTerbuka && kelompokId && (
+        <ImporKonseling
+          kelompokId={kelompokId}
+          santriList={santriList}
+          pencatatId={profile?.id ?? null}
+          onSelesai={muat}
+          onTutup={() => setImporTerbuka(false)}
+        />
+      )}
 
       {formTerbuka && (
         <FormKonseling

@@ -7,6 +7,7 @@ import AbsensiChart from '@/components/AbsensiChart';
 import RequireAuth from '@/components/RequireAuth';
 import GuruDashboard from '@/components/dashboard/GuruDashboard';
 import RingkasanKpi from '@/components/dashboard/RingkasanKpi';
+import PohonWilayah from '@/components/dashboard/PohonWilayah';
 import { useAuth } from '@/lib/auth-context';
 
 function AdminDashboard() {
@@ -66,6 +67,8 @@ function AdminDashboard() {
         <div className="mb-10">
           <RingkasanKpi />
         </div>
+
+        <PohonWilayah />
 
         {/* Kartu navigasi: aksen mengikuti .kpi-card.accent-* (Style_Main.html:891-893) */}
         <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-2">

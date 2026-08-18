@@ -21,7 +21,7 @@ import { supabase } from '@/lib/supabase';
 
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string };
-type Kelas = { id: number; nama: string };
+type Kelas = { id: number; nama: string; kategori_kbm: { nama: string } | { nama: string }[] | null };
 
 const HURUF: Record<string, { huruf: string; kelas: string; label: string }> = {
   hadir: { huruf: 'H', kelas: 'text-sage', label: 'Hadir' },
@@ -101,7 +101,7 @@ export default function MatriksKehadiran({
           .order('nama'),
         supabase
           .from('kelas')
-          .select('id, nama')
+          .select('id, nama, kategori_kbm(nama)')
           .eq('kelompok_id', kelompokId)
           .is('deleted_at', null)
           .order('nama'),
@@ -127,6 +127,44 @@ export default function MatriksKehadiran({
     return peta;
   }, [absensi]);
 
+
+  /* Kehadiran per KATEGORI kelas — padanan
+     serverGetKehadiranGenerusKategori (Modul_Monitoring.gs:146).
+     Kategori diambil dari kelas yang diikuti santri, bukan dari jenjangnya:
+     itulah pembedaan yang dipakai app lama untuk laporan ini. Kalau santri
+     belum ditempatkan di kelas, ia tidak punya kategori dan memang tidak
+     dihitung di sini — jumlahnya dilaporkan terpisah supaya tidak terlihat
+     seperti data hilang. */
+  const perKategori = useMemo(() => {
+    const namaKategori = (k: Kelas) => {
+      const v = k.kategori_kbm;
+      const b = Array.isArray(v) ? v[0] : v;
+      return b?.nama ?? 'Tanpa kategori';
+    };
+    const peta = new Map<string, { hadir: number; total: number; santri: number }>();
+    for (const k of kelasList) {
+      const kat = namaKategori(k);
+      const anggota = santri.filter((s) => s.kelas_id === k.id);
+      const isi = peta.get(kat) ?? { hadir: 0, total: 0, santri: 0 };
+      isi.santri += anggota.length;
+      for (const s of anggota) {
+        for (const t of tanggalKerja) {
+          const st = status.get(`${s.id}|${t}`);
+          if (!st) continue;
+          isi.total += 1;
+          if (st === 'hadir') isi.hadir += 1;
+        }
+      }
+      peta.set(kat, isi);
+    }
+    return [...peta.entries()]
+      .filter(([, v]) => v.santri > 0)
+      .map(([kategori, v]) => ({
+        kategori,
+        santri: v.santri,
+        persen: v.total ? Math.round((v.hadir / v.total) * 100) : null,
+      }));
+  }, [kelasList, santri, status, tanggalKerja]);
   /* Dikelompokkan per kelas; santri tanpa kelas masuk kelompok terakhir
      supaya tetap terlihat, bukan hilang diam-diam. */
   const kelompokBaris = useMemo(() => {
@@ -164,6 +202,20 @@ export default function MatriksKehadiran({
         Hanya hari kerja (Senin–Jumat) yang ditampilkan; akhir pekan tidak pernah ada KBM.
       </p>
 
+      {perKategori.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-3">
+          {perKategori.map((k) => (
+            <div key={k.kategori} className="rounded-card border border-border bg-panel-2 px-4 py-2">
+              <div className="text-[16px] font-bold text-text">
+                {k.persen != null ? k.persen + '%' : '—'}
+              </div>
+              <div className="text-[11px] text-text-dim">
+                {k.kategori} · {k.santri} santri
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="overflow-x-auto rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
         <table className="border-collapse text-left text-[11px]">
           <thead className="border-b border-border bg-panel-2">
