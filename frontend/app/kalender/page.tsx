@@ -261,6 +261,15 @@ function KalenderContent() {
     muat();
   }, [muat]);
 
+
+  /* Ringkasan per tipe — padanan serverGetCalendarEventSummary
+     (Modul_MaintainKalender.gs:204). Dihitung dari event bulan yang sudah
+     dimuat, bukan query terpisah. */
+  const ringkasTipe = useMemo(() => {
+    const peta = new Map<string, number>();
+    for (const e of events) peta.set(e.tipe_event ?? 'lainnya', (peta.get(e.tipe_event ?? 'lainnya') ?? 0) + 1);
+    return TIPE.map((t) => ({ tipe: t, jumlah: peta.get(t) ?? 0 })).filter((x) => x.jumlah > 0);
+  }, [events]);
   const perTanggal = useMemo(() => {
     const peta = new Map<string, Event[]>();
     for (const e of events) peta.set(e.tanggal, [...(peta.get(e.tanggal) ?? []), e]);
@@ -371,6 +380,18 @@ function KalenderContent() {
 
       {kelompokId && !loading && (
         <>
+          {ringkasTipe.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2">
+              {ringkasTipe.map((r) => (
+                <span
+                  key={r.tipe}
+                  className={'rounded px-3 py-1.5 text-[12px] font-semibold ' + (WARNA_TIPE[r.tipe] ?? '')}
+                >
+                  {r.tipe.toUpperCase()} {r.jumlah}
+                </span>
+              ))}
+            </div>
+          )}
           <div className="mb-6 overflow-x-auto rounded-card border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
             <div className="grid min-w-[560px] grid-cols-7 gap-1">
               {KEPALA_HARI.map((h) => (

@@ -32,6 +32,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
+import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
@@ -46,6 +47,7 @@ type Prota = {
   id: number;
   kelompok_id: number;
   tahun: number;
+  kategori_kbm_id: number;
   kelas: string | null;
   urutan: number;
   target: string | null;
@@ -198,6 +200,8 @@ function KurikulumContent() {
   const [sibuk, setSibuk] = useState(false);
   /* Probul yang sedang dibuka panel pencapaian santrinya. */
   const [pencapaianUntuk, setPencapaianUntuk] = useState<{ id: number; judul: string } | null>(null);
+  /* Promes yang sedang dibuka panel target bulanannya. */
+  const [targetUntuk, setTargetUntuk] = useState<{ promes: Promes; prota: Prota } | null>(null);
 
   /* Hanya admin_ppg yang punya policy DELETE pada kurikulum_*
      (kurikulum_prota_delete_ppg_only). Tabel ini tidak punya deleted_at,
@@ -236,7 +240,7 @@ function KurikulumContent() {
     try {
       const { data: dProta, error: e1 } = await supabase
         .from('kurikulum_prota')
-        .select('id, kelompok_id, tahun, kelas, urutan, target, deskripsi, kategori_kbm(nama)')
+        .select('id, kelompok_id, tahun, kategori_kbm_id, kelas, urutan, target, deskripsi, kategori_kbm(nama)')
         .eq('kelompok_id', kelompokId)
         .eq('tahun', tahun)
         .eq('kelas', kelas)
@@ -629,6 +633,13 @@ function KurikulumContent() {
                             )}
                           </div>
                           {bolehTulis && (
+                            <div className="flex shrink-0 gap-2">
+                            <button
+                              onClick={() => setTargetUntuk({ promes: s, prota: p })}
+                              className={KELAS_TOMBOL_SEKUNDER}
+                            >
+                              Target Bulanan
+                            </button>
                             <button
                               onClick={() =>
                                 setUbah({
@@ -645,6 +656,7 @@ function KurikulumContent() {
                             >
                               Ubah
                             </button>
+                            </div>
                           )}
                         </div>
 
@@ -727,6 +739,19 @@ function KurikulumContent() {
             </div>
           );
         })}
+
+      {targetUntuk && kelompokId && (
+        <TargetBulanan
+          promesId={targetUntuk.promes.id}
+          kelompokId={kelompokId}
+          kategoriKbmId={targetUntuk.prota.kategori_kbm_id}
+          tahun={tahun}
+          semester={targetUntuk.promes.semester}
+          probulAda={probulPerPromes.get(targetUntuk.promes.id) ?? []}
+          onSelesai={muat}
+          onTutup={() => setTargetUntuk(null)}
+        />
+      )}
 
       {pencapaianUntuk && kelompokId && (
         <PencapaianSantri
