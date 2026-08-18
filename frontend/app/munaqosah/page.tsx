@@ -27,6 +27,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import SantriTeladan from '@/components/munaqosah/SantriTeladan';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 /* Ambang Santri Teladan — minScore bawaan serverGetSantriTeladan:287. */
@@ -476,6 +477,8 @@ function MunaqosahContent() {
       {!loading && periodeList.length > 0 && !kelompokId && (
         <p className="text-[13px] text-text-dim">Pilih kelompok dulu.</p>
       )}
+
+      {periodeId && <SantriTeladan periodeId={periodeId} />}
 
       {statistik && (
         <div className="mb-6 flex flex-wrap gap-3">

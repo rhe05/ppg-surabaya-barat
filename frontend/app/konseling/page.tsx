@@ -25,6 +25,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import StatistikKonseling from '@/components/konseling/StatistikKonseling';
 
 /* Harus cocok persis dgn enum konseling_kategori & konseling_status. */
 const KATEGORI = ['akademik', 'perilaku', 'emosional', 'sosial', 'kesehatan', 'lainnya'];
@@ -470,6 +471,8 @@ function KonselingContent() {
           ))}
         </div>
       )}
+
+      {kelompokId && daftar.length > 0 && <StatistikKonseling daftar={daftar} />}
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
