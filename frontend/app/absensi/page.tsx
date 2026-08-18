@@ -20,6 +20,10 @@ type AbsensiRow = {
   id: number;
   santri_id: number;
   status: Status;
+  /* Penanda versi baris. Dikirim balik saat menyimpan supaya Postgres bisa
+     menolak penyimpanan kalau baris ini sudah diubah sesi lain sejak layar
+     dimuat — lihat simpan_absensi_kelas (migrasi 20260818200000). */
+  updated_at: string;
 };
 
 type Kelompok = {
@@ -34,7 +38,9 @@ function tanggalHariIni() {
 }
 
 function AbsensiContent() {
-  const { user, profile } = useAuth();
+  /* `user` tidak lagi dipakai: pencatat diisi auth.uid() di dalam
+     simpan_absensi_kelas, bukan dikirim dari klien. */
+  const { profile } = useAuth();
 
   const [tanggal, setTanggal] = useState(tanggalHariIni);
   const [kelompokId, setKelompokId] = useState<number | null>(null);
@@ -99,7 +105,7 @@ function AbsensiContent() {
           .order('nama'),
         supabase
           .from('absensi')
-          .select('id, santri_id, status')
+          .select('id, santri_id, status, updated_at')
           .eq('kelompok_id', kelompokId)
           .eq('tanggal', tanggal)
           .is('deleted_at', null),
@@ -147,44 +153,45 @@ function AbsensiContent() {
     setSaveError(null);
     setSukses(null);
     try {
-      const stempel = new Date().toISOString();
-      const dasar = santri.map((s) => ({
+      /* Seluruh kelas disimpan lewat SATU panggilan RPC yang berjalan dalam
+         satu transaksi. Sebelumnya penyimpanan dilakukan dua langkah
+         (INSERT baris baru lalu UPSERT baris lama), yang punya dua cacat:
+         kalau langkah kedua gagal, langkah pertama sudah terlanjur masuk
+         separuh; dan UPSERT menimpa perubahan sesi lain tanpa peringatan.
+
+         `updated_at` yang dikirim adalah nilai yang TERLIHAT saat memuat.
+         Baris tanpa nilai itu berarti belum ada sama sekali. Postgres
+         menolak seluruh penyimpanan kalau ada satu saja yang sudah
+         bergeser. */
+      const baris = santri.map((s) => ({
         santri_id: s.id,
-        kelompok_id: kelompokId,
-        tanggal,
         status: pilihan[s.id] ?? 'hadir',
-        dicatat_oleh: user?.id ?? null,
-        updated_at: stempel,
+        updated_at: tersimpan[s.id]?.updated_at ?? null,
       }));
 
-      const barisBaru = dasar.filter((b) => !tersimpan[b.santri_id]);
-      const barisLama = dasar
-        .filter((b) => tersimpan[b.santri_id])
-        .map((b) => ({ ...b, id: tersimpan[b.santri_id].id }));
+      const { data, error: rpcError } = await supabase.rpc('simpan_absensi_kelas', {
+        p: { kelompok_id: kelompokId, tanggal, baris },
+      });
 
-      if (barisBaru.length > 0) {
-        const { error: insertError } = await supabase.from('absensi').insert(barisBaru);
-        if (insertError) {
-          if (insertError.code === '23505') {
-            const pilihanPengguna = { ...pilihan };
-            await load();
-            setPilihan((prev) => ({ ...prev, ...pilihanPengguna }));
-            setSaveError(
-              'Data tanggal ini baru saja diubah dari sesi lain. Tampilan sudah disegarkan — periksa lalu simpan ulang.'
-            );
-            return;
-          }
-          throw new Error(insertError.message);
+      if (rpcError) {
+        /* 40001 = penanda tabrakan yang dipasang fungsi itu. Pilihan yang
+           sedang diketik pengguna dipertahankan setelah menyegarkan supaya
+           pekerjaannya tidak hilang. */
+        if (rpcError.code === '40001' || /sesi lain/i.test(rpcError.message)) {
+          const pilihanPengguna = { ...pilihan };
+          await load();
+          setPilihan((prev) => ({ ...prev, ...pilihanPengguna }));
+          setSaveError(
+            'Data tanggal ini baru saja diubah dari sesi lain. Tidak ada yang tersimpan — tampilan sudah disegarkan, periksa lalu simpan ulang.'
+          );
+          return;
         }
+        throw new Error(rpcError.message);
       }
 
-      if (barisLama.length > 0) {
-        const { error: upsertError } = await supabase.from('absensi').upsert(barisLama);
-        if (upsertError) throw new Error(upsertError.message);
-      }
-
+      const hasil = (data ?? {}) as { baru?: number; diperbarui?: number };
       setSukses(
-        `Tersimpan: ${barisBaru.length} baru, ${barisLama.length} diperbarui, tanggal ${tanggal}.`
+        `Tersimpan: ${hasil.baru ?? 0} baru, ${hasil.diperbarui ?? 0} diperbarui, tanggal ${tanggal}.`
       );
       await load();
     } catch (e) {
