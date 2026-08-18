@@ -1,0 +1,473 @@
+'use client';
+
+/* Form tambah/ubah guru — 17 field, meniru modalGuruKelp app lama
+   (Markup_Screens.html:1805-1935 + saveGuruKelp di Script_Main.html:5468-5487),
+   BUKAN modalGuru lama yang cuma 2 field (nama + kategori).
+   Daftar field & nilai opsi diambil persis dari sana + serverAddGuru
+   (Modul_MaintainGuru.gs:60-120), tidak ada yang ditebak.
+
+   Beda yang disengaja dari app lama:
+   - Tidak ada RPC penambah seperti tambah_santri: guru tidak punya NIS
+     yang harus dibuat atomik, jadi tambah ditulis lewat .insert() biasa.
+     Penahan scope-nya adalah policy guru_insert_admin (migrasi
+     20260818090000), bukan fungsi.
+   - String kosong disimpan NULL, bukan '' seperti di Sheets.
+   - Hapus untuk admin_desa/admin_kelompok bersifat halus (deleted_at),
+     sama seperti santri — app lama menghapus permanen. */
+
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
+
+export type GuruRow = {
+  id: number;
+  kelompok_id: number | null;
+  nama: string;
+  kategori: string | null;
+  tempat_lahir: string | null;
+  tanggal_lahir: string | null;
+  jenis_kelamin: string | null;
+  mulai_mengajar: string | null;
+  alamat: string | null;
+  nomor_wa: string | null;
+  pendidikan: string | null;
+  rt: string | null;
+  rw: string | null;
+  kelurahan: string | null;
+  kode_pos: string | null;
+  kabupaten_kota: string | null;
+  provinsi: string | null;
+  kecamatan: string | null;
+  lama_mengajar: string | null;
+};
+
+export const KOLOM_GURU =
+  'id, kelompok_id, nama, kategori, tempat_lahir, tanggal_lahir, jenis_kelamin, ' +
+  'mulai_mengajar, alamat, nomor_wa, pendidikan, rt, rw, kelurahan, kode_pos, ' +
+  'kabupaten_kota, provinsi, kecamatan, lama_mengajar';
+
+/* "Guru Mutu" tidak ada di modalGuruKelp tapi ada di modalGuru lama DAN
+   dipakai 1 baris produksi — kalau dihilangkan, baris itu tidak bisa
+   disimpan ulang tanpa diam-diam berganti kategori. */
+const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Mutu', 'Guru Bantu'];
+const PENDIDIKAN = [
+  'SD/Sederajat',
+  'SMP/Sederajat',
+  'SMA/SMK/Sederajat',
+  'Pondok Pesantren',
+  'D3',
+  'S1',
+  'S2',
+  'S3',
+  'Lainnya',
+];
+
+type Kelompok = { id: number; nama: string };
+
+const KOSONG = {
+  kelompok_id: '',
+  nama: '',
+  kategori: '',
+  jenis_kelamin: '',
+  tempat_lahir: '',
+  tanggal_lahir: '',
+  mulai_mengajar: '',
+  pendidikan: '',
+  nomor_wa: '',
+  alamat: '',
+  rt: '',
+  rw: '',
+  kode_pos: '',
+  kelurahan: '',
+  kecamatan: '',
+  kabupaten_kota: '',
+  provinsi: '',
+};
+
+type Isian = typeof KOSONG;
+
+function dariBaris(g: GuruRow): Isian {
+  return {
+    kelompok_id: g.kelompok_id != null ? String(g.kelompok_id) : '',
+    nama: g.nama ?? '',
+    kategori: g.kategori ?? '',
+    jenis_kelamin: g.jenis_kelamin ?? '',
+    tempat_lahir: g.tempat_lahir ?? '',
+    tanggal_lahir: g.tanggal_lahir ?? '',
+    mulai_mengajar: g.mulai_mengajar ?? '',
+    pendidikan: g.pendidikan ?? '',
+    nomor_wa: g.nomor_wa ?? '',
+    alamat: g.alamat ?? '',
+    rt: g.rt ?? '',
+    rw: g.rw ?? '',
+    kode_pos: g.kode_pos ?? '',
+    kelurahan: g.kelurahan ?? '',
+    kecamatan: g.kecamatan ?? '',
+    kabupaten_kota: g.kabupaten_kota ?? '',
+    provinsi: g.provinsi ?? '',
+  };
+}
+
+function kosongJadiNull(v: string): string | null {
+  const t = v.trim();
+  return t === '' ? null : t;
+}
+
+/* Salinan window.calcDurasiDetail_ (Script_Main.html:5968-5989). Kolom
+   lama_mengajar memang disimpan sebagai teks hasil hitung saat simpan,
+   bukan dihitung ulang saat baca — perilaku app lama dipertahankan supaya
+   data lama & baru sebentuk. */
+export function hitungDurasi(tanggalMulai: string): string | null {
+  if (!tanggalMulai) return null;
+  const mulai = new Date(tanggalMulai);
+  if (Number.isNaN(mulai.getTime())) return null;
+  const kini = new Date();
+  if (mulai > kini) return '0 hari';
+
+  let t = kini.getFullYear() - mulai.getFullYear();
+  let b = kini.getMonth() - mulai.getMonth();
+  let h = kini.getDate() - mulai.getDate();
+
+  if (h < 0) {
+    b -= 1;
+    h += new Date(kini.getFullYear(), kini.getMonth(), 0).getDate();
+  }
+  if (b < 0) {
+    t -= 1;
+    b += 12;
+  }
+
+  const bagian: string[] = [];
+  if (t > 0) bagian.push(`${t} tahun`);
+  if (b > 0) bagian.push(`${b} bulan`);
+  if (h > 0 || bagian.length === 0) bagian.push(`${h} hari`);
+  return bagian.join(' ');
+}
+
+const KELAS_INPUT =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
+  'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
+const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+function Bagian({ judul, children }: { judul: string; children: React.ReactNode }) {
+  return (
+    <fieldset className="mb-6 rounded-card border border-border bg-panel-2 p-4">
+      <legend className="px-2 text-[13px] font-bold text-text">{judul}</legend>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </fieldset>
+  );
+}
+
+export default function GuruForm({
+  guru,
+  onSelesai,
+  onBatal,
+}: {
+  guru: GuruRow | null;
+  onSelesai: () => void;
+  onBatal: () => void;
+}) {
+  const { profile } = useAuth();
+  const modeUbah = guru !== null;
+
+  const [isian, setIsian] = useState<Isian>(guru ? dariBaris(guru) : KOSONG);
+  const [kelompok, setKelompok] = useState<Kelompok[]>([]);
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const kelompokTerkunci = profile?.role === 'admin_kelompok';
+
+  useEffect(() => {
+    if (kelompokTerkunci && profile?.scope_kelompok_id != null && !modeUbah) {
+      setIsian((s) => ({ ...s, kelompok_id: String(profile.scope_kelompok_id) }));
+    }
+  }, [kelompokTerkunci, profile?.scope_kelompok_id, modeUbah]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase.from('kelompok').select('id, nama').order('nama');
+      if (!cancelled) setKelompok(data ?? []);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  function ubah(field: keyof Isian, nilai: string) {
+    setIsian((s) => ({ ...s, [field]: nilai }));
+  }
+
+  async function simpan(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    /* Dua syarat wajib ini persis app lama (Modul_MaintainGuru.gs:73-75):
+       nama & kategori. Field lain opsional di sana, jadi opsional di sini. */
+    if (!isian.nama.trim()) return setError('Nama wajib diisi.');
+    if (!isian.kategori) return setError('Kategori wajib diisi.');
+    if (!modeUbah && !isian.kelompok_id) return setError('Kelompok wajib dipilih.');
+
+    const isi = {
+      nama: isian.nama.trim(),
+      kategori: isian.kategori,
+      jenis_kelamin: kosongJadiNull(isian.jenis_kelamin),
+      tempat_lahir: kosongJadiNull(isian.tempat_lahir),
+      tanggal_lahir: kosongJadiNull(isian.tanggal_lahir),
+      mulai_mengajar: kosongJadiNull(isian.mulai_mengajar),
+      lama_mengajar: hitungDurasi(isian.mulai_mengajar),
+      pendidikan: kosongJadiNull(isian.pendidikan),
+      nomor_wa: kosongJadiNull(isian.nomor_wa),
+      alamat: kosongJadiNull(isian.alamat),
+      rt: kosongJadiNull(isian.rt),
+      rw: kosongJadiNull(isian.rw),
+      kode_pos: kosongJadiNull(isian.kode_pos),
+      kelurahan: kosongJadiNull(isian.kelurahan),
+      kecamatan: kosongJadiNull(isian.kecamatan),
+      kabupaten_kota: kosongJadiNull(isian.kabupaten_kota),
+      provinsi: kosongJadiNull(isian.provinsi),
+    };
+
+    setMenyimpan(true);
+    try {
+      const { error: err } = modeUbah
+        ? await supabase.from('guru').update(isi).eq('id', guru.id)
+        : await supabase.from('guru').insert({ ...isi, kelompok_id: Number(isian.kelompok_id) });
+      if (err) throw new Error(err.message);
+      onSelesai();
+    } catch (e2) {
+      setError(e2 instanceof Error ? e2.message : 'Gagal menyimpan.');
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+      <form
+        onSubmit={simpan}
+        className="my-8 w-full max-w-3xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]"
+      >
+        <h2 className="mb-6 text-[20px] font-bold text-text">
+          {modeUbah ? 'Ubah Guru' : 'Tambah Guru'}
+        </h2>
+
+        <Bagian judul="Data Pokok">
+          <div>
+            <label className={KELAS_LABEL}>Kelompok *</label>
+            <select
+              className={KELAS_INPUT}
+              value={isian.kelompok_id}
+              disabled={modeUbah || kelompokTerkunci}
+              onChange={(e) => ubah('kelompok_id', e.target.value)}
+            >
+              <option value="">-- Pilih Kelompok --</option>
+              {kelompok.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Nama *</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nama}
+              onChange={(e) => ubah('nama', e.target.value)}
+              placeholder="Nama lengkap"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Kategori *</label>
+            <select
+              className={KELAS_INPUT}
+              value={isian.kategori}
+              onChange={(e) => ubah('kategori', e.target.value)}
+            >
+              <option value="">-- Pilih Kategori --</option>
+              {KATEGORI.map((k) => (
+                <option key={k} value={k}>
+                  {k}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Jenis Kelamin</label>
+            <select
+              className={KELAS_INPUT}
+              value={isian.jenis_kelamin}
+              onChange={(e) => ubah('jenis_kelamin', e.target.value)}
+            >
+              <option value="">-- Pilih Jenis Kelamin --</option>
+              <option value="L">Laki-laki</option>
+              <option value="P">Perempuan</option>
+            </select>
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Tempat Lahir</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.tempat_lahir}
+              onChange={(e) => ubah('tempat_lahir', e.target.value)}
+              placeholder="Misal: Surabaya"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Tanggal Lahir</label>
+            <input
+              type="date"
+              className={KELAS_INPUT}
+              value={isian.tanggal_lahir}
+              onChange={(e) => ubah('tanggal_lahir', e.target.value)}
+            />
+          </div>
+        </Bagian>
+
+        <Bagian judul="Riwayat Mengajar & Pendidikan">
+          <div>
+            <label className={KELAS_LABEL}>Mulai Mengajar</label>
+            <input
+              type="date"
+              className={KELAS_INPUT}
+              value={isian.mulai_mengajar}
+              onChange={(e) => ubah('mulai_mengajar', e.target.value)}
+            />
+            {isian.mulai_mengajar && (
+              <p className="mt-1.5 text-[12px] text-text-dim">
+                Lama mengajar: {hitungDurasi(isian.mulai_mengajar)}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Pendidikan</label>
+            <select
+              className={KELAS_INPUT}
+              value={isian.pendidikan}
+              onChange={(e) => ubah('pendidikan', e.target.value)}
+            >
+              <option value="">-- Pilih Pendidikan --</option>
+              {PENDIDIKAN.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+        </Bagian>
+
+        <Bagian judul="Kontak &amp; Alamat">
+          <div>
+            <label className={KELAS_LABEL}>Nomor WA</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nomor_wa}
+              onChange={(e) => ubah('nomor_wa', e.target.value)}
+              placeholder="0812-3456-7890"
+              inputMode="numeric"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Alamat</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.alamat}
+              onChange={(e) => ubah('alamat', e.target.value)}
+              placeholder="Alamat lengkap domisili saat ini"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>RT</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.rt}
+              onChange={(e) => ubah('rt', e.target.value)}
+              placeholder="RT"
+              inputMode="numeric"
+              maxLength={3}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>RW</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.rw}
+              onChange={(e) => ubah('rw', e.target.value)}
+              placeholder="RW"
+              inputMode="numeric"
+              maxLength={3}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Kelurahan</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.kelurahan}
+              onChange={(e) => ubah('kelurahan', e.target.value)}
+              placeholder="Nama desa/kelurahan"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Kecamatan</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.kecamatan}
+              onChange={(e) => ubah('kecamatan', e.target.value)}
+              placeholder="Misal: Sawahan"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Kabupaten/Kota</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.kabupaten_kota}
+              onChange={(e) => ubah('kabupaten_kota', e.target.value)}
+              placeholder="Misal: Surabaya"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Provinsi</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.provinsi}
+              onChange={(e) => ubah('provinsi', e.target.value)}
+              placeholder="Misal: Jawa Timur"
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Kode Pos</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.kode_pos}
+              onChange={(e) => ubah('kode_pos', e.target.value)}
+              placeholder="60123"
+              inputMode="numeric"
+              maxLength={5}
+            />
+          </div>
+        </Bagian>
+
+        {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onBatal}
+            className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
+          >
+            Batal
+          </button>
+          <button
+            type="submit"
+            disabled={menyimpan}
+            className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 disabled:opacity-50"
+          >
+            {menyimpan ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
