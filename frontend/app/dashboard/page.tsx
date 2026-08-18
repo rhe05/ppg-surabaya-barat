@@ -6,6 +6,7 @@ import GuruList from '@/components/GuruList';
 import AbsensiChart from '@/components/AbsensiChart';
 import RequireAuth from '@/components/RequireAuth';
 import GuruDashboard from '@/components/dashboard/GuruDashboard';
+import RingkasanKpi from '@/components/dashboard/RingkasanKpi';
 import { useAuth } from '@/lib/auth-context';
 
 function AdminDashboard() {
@@ -60,6 +61,10 @@ function AdminDashboard() {
             </>
           )}
           {profileError && <p className="text-red">{profileError}</p>}
+        </div>
+
+        <div className="mb-10">
+          <RingkasanKpi />
         </div>
 
         {/* Kartu navigasi: aksen mengikuti .kpi-card.accent-* (Style_Main.html:891-893) */}
