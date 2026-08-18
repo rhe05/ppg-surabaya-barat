@@ -83,6 +83,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/jurnal')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
+          >
+            <span className="block text-[16px] font-bold text-sage">Jurnal KBM</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Catatan materi tiap sesi per kelas
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/monitoring')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
           >
