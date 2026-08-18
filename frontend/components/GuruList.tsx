@@ -118,6 +118,14 @@ export default function GuruList() {
     return [...rows].sort((a, b) => (a.kelompok_id ?? 0) - (b.kelompok_id ?? 0));
   }, [guru, search]);
 
+
+  /* Ringkasan per kategori — padanan serverGetGuruSummary
+     (Modul_MaintainGuru.gs:232). */
+  const ringkasKategori = useMemo(() => {
+    const peta = new Map<string, number>();
+    for (const g of filtered) peta.set(g.kategori ?? 'Tanpa kategori', (peta.get(g.kategori ?? 'Tanpa kategori') ?? 0) + 1);
+    return [...peta.entries()].sort((a, b) => b[1] - a[1]);
+  }, [filtered]);
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
@@ -167,6 +175,15 @@ export default function GuruList() {
         className="mb-6 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
       />
 
+      {ringkasKategori.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {ringkasKategori.map(([k, n]) => (
+            <span key={k} className="rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-1.5 text-[12px] text-text">
+              {k} <span className="font-bold">{n}</span>
+            </span>
+          ))}
+        </div>
+      )}
       {pesanAksi && <p className="mb-4 text-[13px] text-sage">{pesanAksi}</p>}
       {errorAksi && <p className="mb-4 text-[13px] text-red">{errorAksi}</p>}
 

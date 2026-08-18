@@ -111,6 +111,17 @@ function PustakaContent() {
     );
   }, [daftar, cari, filterKategori]);
 
+
+  /* Statistik berkas — padanan serverGetFileStats & serverGetFileCategories
+     (Modul_MaintainPustakUnduhan.gs:76, 205). Dihitung dari daftar yang
+     sudah dimuat: jumlah berkas di sini puluhan, bukan ribuan. */
+  const statistik = useMemo(() => {
+    const totalBytes = daftar.reduce((a, b) => a + (b.ukuran_bytes ?? 0), 0);
+    const totalUnduh = daftar.reduce((a, b) => a + b.download_count, 0);
+    const perKategori = new Map<string, number>();
+    for (const b of daftar) perKategori.set(b.kategori ?? 'Lainnya', (perKategori.get(b.kategori ?? 'Lainnya') ?? 0) + 1);
+    return { totalBytes, totalUnduh, perKategori: [...perKategori.entries()].sort((a, b) => b[1] - a[1]) };
+  }, [daftar]);
   const bolehKelola = (b: Berkas) =>
     profile?.role === 'admin_ppg' || (!!profile?.id && b.dibuat_oleh === profile.id);
 
@@ -278,6 +289,28 @@ function PustakaContent() {
         </select>
       </div>
 
+      {daftar.length > 0 && (
+        <div className="mb-6 flex flex-wrap gap-3">
+          <div className="rounded-card border border-border bg-panel px-4 py-3 shadow-[var(--shadow-card)]">
+            <div className="text-[20px] font-bold text-text">{daftar.length}</div>
+            <div className="text-[12px] text-text-dim">Berkas</div>
+          </div>
+          <div className="rounded-card border border-border bg-panel px-4 py-3 shadow-[var(--shadow-card)]">
+            <div className="text-[20px] font-bold text-text">{ukuranTampil(statistik.totalBytes)}</div>
+            <div className="text-[12px] text-text-dim">Total ukuran</div>
+          </div>
+          <div className="rounded-card border border-border bg-panel px-4 py-3 shadow-[var(--shadow-card)]">
+            <div className="text-[20px] font-bold text-text">{statistik.totalUnduh}</div>
+            <div className="text-[12px] text-text-dim">Total unduhan</div>
+          </div>
+          {statistik.perKategori.map(([k, n]) => (
+            <div key={k} className="rounded-card border border-border bg-panel-2 px-4 py-3">
+              <div className="text-[16px] font-bold text-text">{n}</div>
+              <div className="text-[11px] text-text-dim">{k}</div>
+            </div>
+          ))}
+        </div>
+      )}
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
       {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}

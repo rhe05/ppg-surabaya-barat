@@ -28,6 +28,7 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import RekapJurnal from '@/components/jurnal/RekapJurnal';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -371,6 +372,16 @@ function JurnalContent() {
           )}
         </>
       )}
+      {kelompokId && !adalahGuru && (
+        <div className="mt-8">
+          <RekapJurnal
+            kelompokId={kelompokId}
+            tahun={Number(tanggal.slice(0, 4))}
+            bulan={Number(tanggal.slice(5, 7))}
+          />
+        </div>
+      )}
+
     </div>
   );
 }
