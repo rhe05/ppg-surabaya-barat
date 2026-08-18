@@ -288,10 +288,83 @@ function doGet(e) {
       .setMimeType(ContentService.MimeType.JSON);
   }
 
+  // ═══════════════════════════════════════════════════════════════════
+  // APLIKASI INI SUDAH PINDAH KE SUPABASE + NEXT.JS (18 Agustus 2026).
+  //
+  // Layar aplikasi lama TIDAK LAGI disajikan ke pengguna: guru yang membuka
+  // tautan lama akan melihat pemberitahuan pindah, bukan form absensi.
+  // Alasannya bukan sekadar kerapian — selama dua sistem sama-sama bisa
+  // MENULIS, absensi yang diinput di sini tidak akan pernah muncul di app
+  // baru, dan data kedua sistem menyimpang diam-diam.
+  //
+  // Yang SENGAJA dibiarkan hidup:
+  //   - Seluruh route ?diag=... di atas (perkakas pemeriksaan, tidak menulis)
+  //   - Layar lama lewat ?rujukan=tampilan — dipakai membandingkan gaya
+  //     tampilan lama dengan app baru. Ini BUKAN pintu belakang untuk
+  //     pemakaian sehari-hari: login lama tetap berlaku di baliknya, dan
+  //     tautan ini tidak diberikan ke guru.
+  //
+  // Untuk MENGHIDUPKAN KEMBALI app lama: hapus blok if di bawah ini, lalu
+  // push (CI/CD akan clasp push + deploy). Tidak ada data yang berubah.
+  var lihatRujukan = e && e.parameter && e.parameter.rujukan === 'tampilan';
+  if (!lihatRujukan) {
+    return HtmlService.createHtmlOutput(halamanPindah_())
+      .setTitle('Ruang Ngaji — Aplikasi Sudah Pindah')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
+
   return HtmlService.createTemplateFromFile('Index').evaluate()
-    .setTitle('Ruang Ngaji')
+    .setTitle('Ruang Ngaji (arsip tampilan lama)')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+}
+
+/**
+ * Halaman pemberitahuan pindah. Sengaja TIDAK memuat tautan app baru:
+ * alamatnya masih bisa berubah, dan tautan mati lebih membingungkan
+ * daripada tidak ada tautan sama sekali. Guru diarahkan menghubungi admin,
+ * yang selalu tahu alamat terbaru.
+ *
+ * Ditulis sebagai string HTML biasa, bukan berkas terpisah, supaya tidak
+ * ada berkas baru yang harus dirawat hanya untuk satu halaman statis.
+ * Gayanya menyalin token desain app lama (Style_Main.html:2-23) agar
+ * peralihannya tidak terasa seperti error.
+ */
+function halamanPindah_() {
+  return [
+    '<!DOCTYPE html><html lang="id"><head><meta charset="utf-8">',
+    '<style>',
+    ':root{--brass:#D97706;--panel:#FFFFFF;--bg:#F8FAFC;--border:#E2E8F0;',
+    '--text:#0F172A;--text-dim:#64748B;--radius:8px;}',
+    '*{box-sizing:border-box;margin:0;padding:0}',
+    'body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;',
+    'background:var(--bg);color:var(--text);min-height:100vh;display:flex;',
+    'align-items:center;justify-content:center;padding:24px;line-height:1.6}',
+    '.kartu{background:var(--panel);border:1px solid var(--border);',
+    'border-radius:14px;box-shadow:0 2px 12px rgba(15,23,42,.08);',
+    'max-width:460px;width:100%;padding:32px;text-align:center}',
+    '.lencana{display:inline-block;background:var(--brass);color:#fff;',
+    'font-size:11px;font-weight:700;letter-spacing:.5px;padding:5px 12px;',
+    'border-radius:999px;margin-bottom:20px}',
+    'h1{font-size:21px;margin-bottom:12px}',
+    'p{font-size:14px;color:var(--text-dim);margin-bottom:14px}',
+    '.tegas{color:var(--text);font-weight:600}',
+    '.kotak{background:var(--bg);border:1px solid var(--border);',
+    'border-radius:var(--radius);padding:14px;font-size:13px;margin-top:20px;',
+    'text-align:left;color:var(--text-dim)}',
+    '</style></head><body><div class="kartu">',
+    '<div class="lencana">APLIKASI SUDAH PINDAH</div>',
+    '<h1>Ruang Ngaji punya alamat baru</h1>',
+    '<p>Mulai <span class="tegas">18 Agustus 2026</span>, seluruh pencatatan ',
+    'absensi, jurnal, dan data santri dilakukan di aplikasi baru.</p>',
+    '<p>Aplikasi di alamat ini <span class="tegas">sudah tidak dipakai lagi</span>. ',
+    'Data yang diinput di sini tidak akan tersimpan ke sistem baru.</p>',
+    '<div class="kotak"><span class="tegas">Yang perlu Anda lakukan:</span><br>',
+    'Hubungi admin kelompok atau admin PPG untuk mendapatkan tautan aplikasi ',
+    'yang terbaru, lalu simpan tautan itu di ponsel Anda.</div>',
+    '</div></body></html>',
+  ].join('');
 }
 
 /**
