@@ -22,6 +22,7 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import MatriksKehadiran from '@/components/monitoring/MatriksKehadiran';
 
 /* Nilai jenjang harus cocok persis dgn enum santri_jenjang di Postgres.
    MONITORING_JENJANG_LIST_ app lama memakai 4 dari 5 nilai enum — 'AUD'
@@ -378,6 +379,12 @@ function MonitoringContent() {
             </div>
           );
         })}
+
+      {kelompokId && totalCatatan > 0 && (
+        <div className="mt-8">
+          <MatriksKehadiran kelompokId={kelompokId} tahun={tahun} bulan={bulan} />
+        </div>
+      )}
     </div>
   );
 }
