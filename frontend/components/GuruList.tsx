@@ -4,6 +4,32 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import GuruForm, { KOLOM_GURU, type GuruRow } from '@/components/guru/GuruForm';
+import { unduhXlsx } from '@/lib/xlsx';
+
+/* Kolom yang ikut diekspor. App lama punya pemilih kolom; di sini daftarnya
+   tetap — kolom yang benar-benar dipakai saat mencetak data guru. Yang
+   diekspor adalah baris HASIL SARINGAN yang sedang tampil, bukan seluruh
+   tabel, supaya apa yang diunduh sama dengan apa yang dilihat. */
+const KOLOM_EKSPOR_GURU: { judul: string; ambil: (g: GuruRow) => unknown }[] = [
+  { judul: 'Nama', ambil: (g) => g.nama },
+  { judul: 'Kategori', ambil: (g) => g.kategori },
+  { judul: 'Jenis Kelamin', ambil: (g) => g.jenis_kelamin },
+  { judul: 'Tempat Lahir', ambil: (g) => g.tempat_lahir },
+  { judul: 'Tanggal Lahir', ambil: (g) => g.tanggal_lahir },
+  { judul: 'Mulai Mengajar', ambil: (g) => g.mulai_mengajar },
+  { judul: 'Lama Mengajar', ambil: (g) => g.lama_mengajar },
+  { judul: 'Pendidikan', ambil: (g) => g.pendidikan },
+  { judul: 'Nomor WA', ambil: (g) => g.nomor_wa },
+  { judul: 'Alamat', ambil: (g) => g.alamat },
+  { judul: 'RT', ambil: (g) => g.rt },
+  { judul: 'RW', ambil: (g) => g.rw },
+  { judul: 'Kelurahan', ambil: (g) => g.kelurahan },
+  { judul: 'Kecamatan', ambil: (g) => g.kecamatan },
+  { judul: 'Kabupaten/Kota', ambil: (g) => g.kabupaten_kota },
+  { judul: 'Provinsi', ambil: (g) => g.provinsi },
+  { judul: 'Kode Pos', ambil: (g) => g.kode_pos },
+  { judul: 'Kelompok', ambil: (g) => g.kelompok_id },
+];
 
 const PAGE_SIZE = 10;
 
@@ -100,17 +126,33 @@ export default function GuruList() {
       <div className="mb-5 flex items-center justify-between gap-4">
         {/* .dash-section-title — Style_Main.html:845-850 */}
         <div className="text-[20px] font-bold text-text">Guru</div>
-        {bolehTulis && (
-          <button
-            onClick={() => {
-              setSedangDiubah(null);
-              setFormTerbuka(true);
-            }}
-            className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200"
-          >
-            + Tambah Guru
-          </button>
-        )}
+        <div className="flex gap-2">
+          {filtered.length > 0 && (
+            <button
+              onClick={() =>
+                unduhXlsx(
+                  'Data Guru',
+                  KOLOM_EKSPOR_GURU.map((k) => k.judul),
+                  filtered.map((g) => KOLOM_EKSPOR_GURU.map((k) => k.ambil(g)))
+                )
+              }
+              className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
+            >
+              Ekspor Excel
+            </button>
+          )}
+          {bolehTulis && (
+            <button
+              onClick={() => {
+                setSedangDiubah(null);
+                setFormTerbuka(true);
+              }}
+              className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200"
+            >
+              + Tambah Guru
+            </button>
+          )}
+        </div>
       </div>
 
       {/* .search-input — Style_Main.html:4290-4298 */}

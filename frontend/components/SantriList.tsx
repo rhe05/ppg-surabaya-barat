@@ -4,6 +4,38 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import SantriForm, { KOLOM_SANTRI, type SantriRow } from '@/components/santri/SantriForm';
+import { unduhXlsx } from '@/lib/xlsx';
+
+/* Kolom ekspor data generus. Baris yang diekspor = hasil saringan yang
+   sedang tampil, bukan seluruh tabel. */
+const KOLOM_EKSPOR_SANTRI: { judul: string; ambil: (s: SantriRow) => unknown }[] = [
+  { judul: 'NIS', ambil: (s) => s.nis },
+  { judul: 'Nama', ambil: (s) => s.nama },
+  { judul: 'Nama Panggilan', ambil: (s) => s.nama_panggilan },
+  { judul: 'Gender', ambil: (s) => s.gender },
+  { judul: 'Tempat Lahir', ambil: (s) => s.tempat_lahir },
+  { judul: 'Tanggal Lahir', ambil: (s) => s.tanggal_lahir },
+  { judul: 'Jenjang', ambil: (s) => s.jenjang_saat_ini },
+  { judul: 'Pendidikan', ambil: (s) => s.pendidikan },
+  { judul: 'Kelas Sekolah', ambil: (s) => s.kelas_sekolah },
+  { judul: 'Kelas Ngaji', ambil: (s) => s.kelas_ngaji },
+  { judul: 'Status Nikah', ambil: (s) => s.status_nikah },
+  { judul: 'Mulai Ngaji', ambil: (s) => s.mulai_ngaji },
+  { judul: 'Alamat', ambil: (s) => s.alamat },
+  { judul: 'RT', ambil: (s) => s.rt },
+  { judul: 'RW', ambil: (s) => s.rw },
+  { judul: 'Kelurahan', ambil: (s) => s.kelurahan },
+  { judul: 'Kecamatan', ambil: (s) => s.kecamatan },
+  { judul: 'Kabupaten/Kota', ambil: (s) => s.kabupaten_kota },
+  { judul: 'Provinsi', ambil: (s) => s.provinsi },
+  { judul: 'Kode Pos', ambil: (s) => s.kode_pos },
+  { judul: 'Nama Ayah', ambil: (s) => s.nama_ayah },
+  { judul: 'Nama Ibu', ambil: (s) => s.nama_ibu },
+  { judul: 'Nomor WA', ambil: (s) => s.nomor_wa },
+  { judul: 'Nomor WA Ayah', ambil: (s) => s.nomor_wa_ayah },
+  { judul: 'Nomor WA Ibu', ambil: (s) => s.nomor_wa_ibu },
+  { judul: 'Kelompok', ambil: (s) => s.kelompok_id },
+];
 
 const PAGE_SIZE = 10;
 
@@ -100,7 +132,22 @@ export default function SantriList() {
       <div className="mb-5 flex items-center justify-between gap-4">
         {/* .dash-section-title — Style_Main.html:845-850 */}
         <div className="text-[20px] font-bold text-text">Santri</div>
-        {bolehTulis && (
+        <div className="flex gap-2">
+          {filtered.length > 0 && (
+            <button
+              onClick={() =>
+                unduhXlsx(
+                  'Data Generus',
+                  KOLOM_EKSPOR_SANTRI.map((k) => k.judul),
+                  filtered.map((s) => KOLOM_EKSPOR_SANTRI.map((k) => k.ambil(s)))
+                )
+              }
+              className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
+            >
+              Ekspor Excel
+            </button>
+          )}
+          {bolehTulis && (
           <button
             onClick={() => {
               setSedangDiubah(null);
@@ -110,7 +157,8 @@ export default function SantriList() {
           >
             + Tambah Santri
           </button>
-        )}
+          )}
+        </div>
       </div>
 
       {/* .search-input — Style_Main.html:4290-4298 */}
