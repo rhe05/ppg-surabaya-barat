@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import SantriForm, { KOLOM_SANTRI, type SantriRow } from '@/components/santri/SantriForm';
 import { unduhXlsx } from '@/lib/xlsx';
+import ImporSantri from '@/components/santri/ImporSantri';
 
 /* Kolom ekspor data generus. Baris yang diekspor = hasil saringan yang
    sedang tampil, bukan seluruh tabel. */
@@ -57,6 +58,7 @@ export default function SantriList() {
   const [sedangDiubah, setSedangDiubah] = useState<SantriRow | null>(null);
   const [pesanAksi, setPesanAksi] = useState<string | null>(null);
   const [errorAksi, setErrorAksi] = useState<string | null>(null);
+  const [imporTerbuka, setImporTerbuka] = useState(false);
 
   const bolehTulis = PERAN_TULIS.includes(profile?.role ?? '');
   /* Hanya admin_ppg yang punya policy DELETE (santri_delete_ppg_only).
@@ -145,6 +147,11 @@ export default function SantriList() {
               className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
             >
               Ekspor Excel
+            </button>
+          )}
+          {bolehTulis && profile?.scope_kelompok_id && (
+            <button onClick={() => setImporTerbuka(true)} className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border">
+              Impor CSV
             </button>
           )}
           {bolehTulis && (
@@ -265,6 +272,14 @@ export default function SantriList() {
             </div>
           </div>
         </>
+      )}
+
+      {imporTerbuka && profile?.scope_kelompok_id && (
+        <ImporSantri
+          kelompokId={profile.scope_kelompok_id}
+          onSelesai={load}
+          onTutup={() => setImporTerbuka(false)}
+        />
       )}
 
       {formTerbuka && (
