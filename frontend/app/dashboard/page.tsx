@@ -88,6 +88,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/statistik')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
+          >
+            <span className="block text-[16px] font-bold text-sage">Statistik</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Tren kehadiran, peringkat, dan demografi
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/pustaka')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
           >
