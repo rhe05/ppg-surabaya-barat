@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 
 const STATUS_OPTIONS = ['hadir', 'izin', 'sakit', 'alpa'] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
@@ -400,6 +401,8 @@ function AbsensiContent() {
           </div>
         )}
       </div>
+      {kelompokId && <RingkasanKelas kelompokId={kelompokId} tanggal={tanggal} />}
+
     </main>
   );
 }

@@ -17,7 +17,7 @@
      berbarengan bisa lolos berdua.
    - Permintaan akses hanya bisa diputus PEMILIK kelas, bukan pemohon. */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -96,6 +96,32 @@ function GuruSayaContent() {
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+
+  /* Jumlah izin bulan berjalan — padanan serverGetGuruIzinCountBulanIni
+     (Modul_InputAbsen.gs:1515). Di app lama dipakai memunculkan konfirmasi
+     mulai izin KEDUA ke atas. Di sini ditampilkan terus terang sebagai
+     angka: memberi tahu lebih jujur daripada menghalangi dengan popup,
+     dan gurunya tetap bisa mengajukan. */
+  const jumlahBulanIni = useMemo(() => {
+    const bulanIni = new Date().toISOString().slice(0, 7);
+    return izinList.filter((i) => i.tanggal_mulai.startsWith(bulanIni)).length;
+  }, [izinList]);
+
+  /* Saran alasan dari pengajuan sebelumnya — padanan
+     serverGetGuruIzinAlasanSuggestions (Modul_InputAbsen.gs:1489). Diambil
+     dari riwayat guru ini sendiri, bukan seluruh kelompok: alasan izin
+     bersifat pribadi dan tidak pantas disodorkan ke orang lain. */
+  const saranAlasan = useMemo(
+    () =>
+      [
+        ...new Set(
+          izinList
+            .filter((i) => i.alasan_kategori === 'lainnya' && (i.alasan_detail ?? '').trim() !== '')
+            .map((i) => (i.alasan_detail ?? '').trim())
+        ),
+      ].slice(0, 5),
+    [izinList]
+  );
 
   const muat = useCallback(async () => {
     if (!guruId || !kelompokId) return;
@@ -267,7 +293,10 @@ function GuruSayaContent() {
 
       {/* ── Ajukan izin ── */}
       <div className="mb-6 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
-        <div className="mb-4 text-[15px] font-bold text-text">Ajukan Izin / Cuti</div>
+        <div className="mb-1 text-[15px] font-bold text-text">Ajukan Izin / Cuti</div>
+        <p className="mb-4 text-[11px] text-text-faint">
+          Bulan ini Anda sudah mengajukan {jumlahBulanIni} kali.
+        </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className={KELAS_LABEL}>Jenis</label>
@@ -318,7 +347,13 @@ function GuruSayaContent() {
                 value={detail}
                 onChange={(e) => setDetail(e.target.value)}
                 placeholder="Tulis alasan Anda"
+                list="saran-alasan"
               />
+              <datalist id="saran-alasan">
+                {saranAlasan.map((a) => (
+                  <option key={a} value={a} />
+                ))}
+              </datalist>
             </div>
           )}
         </div>
