@@ -83,6 +83,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/munaqosah')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
+          >
+            <span className="block text-[16px] font-bold text-brass">Munaqosah</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Penilaian santri per periode dan Santri Teladan
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/pengurus')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
           >
