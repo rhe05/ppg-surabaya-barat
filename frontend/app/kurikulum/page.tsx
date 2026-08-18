@@ -14,8 +14,17 @@
    "2 & 3A"). Dua namespace itu memang berbeda dan tidak punya kolom
    penghubung; app lama memperingatkan hal yang sama.
 
-   Cakupan langkah ini: baca + ubah (target/deskripsi/jilid/mingguan).
-   Tambah, hapus, dan reorder drag-drop belum dipindahkan. */
+   Cakupan: baca, ubah (target/deskripsi/jilid/mingguan), tambah materi,
+   hapus materi, dan atur urutan tampil.
+
+   Dua hal yang sengaja berbeda dari app lama:
+   - Urutan diatur dengan tombol naik/turun, bukan drag & drop. Hasil
+     akhirnya sama (kolom `urutan` ditulis ulang), dan tombol bisa dipakai
+     di layar sentuh tanpa pustaka tambahan.
+   - Hapus Prota cukup satu perintah DELETE: FK kurikulum_promes.prota_id
+     dan kurikulum_probul.promes_id sudah ON DELETE CASCADE di Postgres,
+     jadi turunannya ikut terhapus sendiri. App lama harus membersihkan
+     probul lalu promes satu per satu karena Sheets tidak punya FK. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
@@ -64,6 +73,7 @@ type Probul = {
 };
 
 type Kelompok = { id: number; nama: string };
+type KategoriKbm = { id: number; nama: string; urutan: number };
 
 function namaDari(nilai: Tersemat) {
   if (!nilai) return '-';
@@ -181,6 +191,14 @@ function KurikulumContent() {
   const [ubah, setUbah] = useState<
     { judul: string; tabel: string; id: number; isian: Isian[] } | null
   >(null);
+  const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
+  const [tambahKategori, setTambahKategori] = useState<string>('');
+  const [sibuk, setSibuk] = useState(false);
+
+  /* Hanya admin_ppg yang punya policy DELETE pada kurikulum_*
+     (kurikulum_prota_delete_ppg_only). Tabel ini tidak punya deleted_at,
+     jadi tidak ada jalur hapus halus seperti santri/guru. */
+  const bolehHapus = profile?.role === 'admin_ppg';
 
   useEffect(() => {
     async function load() {
@@ -190,6 +208,17 @@ function KurikulumContent() {
     }
     load();
   }, [kelompokId]);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from('kategori_kbm')
+        .select('id, nama, urutan')
+        .order('urutan');
+      setKategoriList(data ?? []);
+    }
+    load();
+  }, []);
 
   const muat = useCallback(async () => {
     if (!kelompokId || !kelas) return;
@@ -274,6 +303,111 @@ function KurikulumContent() {
     await muat();
   }
 
+  /* Tambah materi = 1 baris Prota + SEPASANG Promes kosong (semester 1 & 2).
+     Pasangan itu wajib, bukan opsional — app lama membuatnya bareng
+     (serverAddProta, Modul_MaintainKurikulum.gs:229-231) dan seluruh UI
+     mengandaikan tiap Prota selalu punya dua semester. */
+  async function tambahMateri() {
+    if (!kelompokId || !kelas || !tambahKategori) return;
+    const kategoriId = Number(tambahKategori);
+
+    const sudahAda = prota.some((p) => {
+      const nama = namaDari(p.kategori_kbm);
+      return nama === kategoriList.find((k) => k.id === kategoriId)?.nama;
+    });
+    if (sudahAda) {
+      setError('Materi itu sudah ada untuk kelas ini.');
+      return;
+    }
+
+    setSibuk(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const urutanBaru = prota.length ? Math.max(...prota.map((p) => p.urutan ?? 0)) + 1 : 1;
+      const { data: baris, error: e1 } = await supabase
+        .from('kurikulum_prota')
+        .insert({
+          kelompok_id: kelompokId,
+          tahun: tahun,
+          kelas: kelas,
+          kategori_kbm_id: kategoriId,
+          urutan: urutanBaru,
+        })
+        .select('id')
+        .single();
+      if (e1) throw new Error(e1.message);
+
+      const { error: e2 } = await supabase.from('kurikulum_promes').insert([
+        { prota_id: baris.id, kelompok_id: kelompokId, semester: 1 },
+        { prota_id: baris.id, kelompok_id: kelompokId, semester: 2 },
+      ]);
+      if (e2) throw new Error(e2.message);
+
+      setTambahKategori('');
+      setPesan('Materi baru ditambahkan.');
+      await muat();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menambah materi.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  async function hapusMateri(p: Prota) {
+    const nama = namaDari(p.kategori_kbm);
+    if (
+      !window.confirm(
+        `Hapus materi "${nama}" beserta semua program semester dan bulanannya? Tindakan ini tidak bisa dibatalkan.`
+      )
+    )
+      return;
+
+    setSibuk(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const { error: err } = await supabase.from('kurikulum_prota').delete().eq('id', p.id);
+      if (err) throw new Error(err.message);
+      setPesan(`Materi "${nama}" dihapus.`);
+      await muat();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menghapus materi.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  /* Tukar posisi dengan tetangga, lalu tulis ulang kedua nilai `urutan`.
+     Tidak menulis ulang 1..N seluruh kartu seperti serverReorderProta —
+     cukup dua baris yang berubah, hasil tampilnya sama. */
+  async function geser(indeks: number, arah: -1 | 1) {
+    const tetangga = indeks + arah;
+    if (tetangga < 0 || tetangga >= prota.length) return;
+    const a = prota[indeks];
+    const b = prota[tetangga];
+
+    setSibuk(true);
+    setError(null);
+    try {
+      const { error: e1 } = await supabase
+        .from('kurikulum_prota')
+        .update({ urutan: b.urutan })
+        .eq('id', a.id);
+      if (e1) throw new Error(e1.message);
+      const { error: e2 } = await supabase
+        .from('kurikulum_prota')
+        .update({ urutan: a.urutan })
+        .eq('id', b.id);
+      if (e2) throw new Error(e2.message);
+      await muat();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal mengubah urutan.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
   /* ── Gerbang kelas ── */
   if (!kelas) {
     return (
@@ -347,6 +481,33 @@ function KurikulumContent() {
         </button>
       </div>
 
+      {bolehTulis && (
+        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-card border border-border bg-panel-2 p-4">
+          <div className="min-w-[240px] flex-1">
+            <label className={KELAS_LABEL}>Tambah materi ke kelas ini</label>
+            <select
+              className={KELAS_INPUT}
+              value={tambahKategori}
+              onChange={(e) => setTambahKategori(e.target.value)}
+            >
+              <option value="">-- Pilih Materi/Kategori KBM --</option>
+              {kategoriList.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button
+            onClick={tambahMateri}
+            disabled={!tambahKategori || sibuk}
+            className={KELAS_TOMBOL_UTAMA}
+          >
+            + Tambah Materi
+          </button>
+        </div>
+      )}
+
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
       {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
@@ -357,7 +518,7 @@ function KurikulumContent() {
       )}
 
       {!loading &&
-        prota.map((p) => {
+        prota.map((p, indeks) => {
           const dibuka = terbuka.has(p.id);
           const daftarPromes = promesPerProta.get(p.id) ?? [];
           return (
@@ -389,22 +550,53 @@ function KurikulumContent() {
                   </div>
                 </button>
                 {bolehTulis && (
-                  <button
-                    onClick={() =>
-                      setUbah({
-                        judul: 'Ubah Prota — ' + namaDari(p.kategori_kbm),
-                        tabel: 'kurikulum_prota',
-                        id: p.id,
-                        isian: [
-                          { label: 'Target', field: 'target', nilai: p.target ?? '' },
-                          { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
-                        ],
-                      })
-                    }
-                    className={KELAS_TOMBOL_SEKUNDER}
-                  >
-                    Ubah
-                  </button>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => geser(indeks, -1)}
+                        disabled={indeks === 0 || sibuk}
+                        title="Naikkan urutan"
+                        className={KELAS_TOMBOL_SEKUNDER + ' disabled:opacity-30'}
+                      >
+                        ↑
+                      </button>
+                      <button
+                        onClick={() => geser(indeks, 1)}
+                        disabled={indeks === prota.length - 1 || sibuk}
+                        title="Turunkan urutan"
+                        className={KELAS_TOMBOL_SEKUNDER + ' disabled:opacity-30'}
+                      >
+                        ↓
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() =>
+                          setUbah({
+                            judul: 'Ubah Prota — ' + namaDari(p.kategori_kbm),
+                            tabel: 'kurikulum_prota',
+                            id: p.id,
+                            isian: [
+                              { label: 'Target', field: 'target', nilai: p.target ?? '' },
+                              { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
+                            ],
+                          })
+                        }
+                        className={KELAS_TOMBOL_SEKUNDER}
+                      >
+                        Ubah
+                      </button>
+                      {bolehHapus && (
+                        <button
+                          onClick={() => hapusMateri(p)}
+                          disabled={sibuk}
+                          className={KELAS_TOMBOL_SEKUNDER + ' text-red'}
+                        >
+                          Hapus
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
 
