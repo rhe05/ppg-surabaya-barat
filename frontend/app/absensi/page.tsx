@@ -45,6 +45,9 @@ function AbsensiContent() {
   const [tanggal, setTanggal] = useState(tanggalHariIni);
   const [kelompokId, setKelompokId] = useState<number | null>(null);
   const [opsiKelompok, setOpsiKelompok] = useState<Kelompok[]>([]);
+  const [opsiKelas, setOpsiKelas] = useState<{ id: number; nama: string }[]>([]);
+  /* '' = semua kelas. */
+  const [kelasId, setKelasId] = useState<string>('');
 
   const [santri, setSantri] = useState<Santri[]>([]);
   const [tersimpan, setTersimpan] = useState<Record<number, AbsensiRow>>({});
@@ -91,18 +94,48 @@ function AbsensiContent() {
     };
   }, [profile]);
 
+  /* Daftar kelas untuk penyaring. App lama memang memasukkan absensi
+     PER KELAS (guru hanya melihat kelasnya sendiri); halaman ini semula
+     menampilkan seluruh santri satu kelompok sekaligus — 69 orang dalam
+     satu layar untuk Petemon. Penyaring ini mendekatkannya ke alur lama
+     tanpa memaksa: "Semua kelas" tetap tersedia, karena penempatan santri
+     ke kelas belum tentu sudah selesai di setiap kelompok. */
+  useEffect(() => {
+    let cancelled = false;
+    async function loadKelas() {
+      if (!kelompokId) {
+        setOpsiKelas([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('kelas')
+        .select('id, nama')
+        .eq('kelompok_id', kelompokId)
+        .is('deleted_at', null)
+        .order('nama');
+      if (!cancelled) setOpsiKelas(data ?? []);
+    }
+    loadKelas();
+    return () => {
+      cancelled = true;
+    };
+  }, [kelompokId]);
+
   const load = useCallback(async () => {
     if (!kelompokId) return;
     setLoading(true);
     setError(null);
     try {
+      let qSantri = supabase
+        .from('santri')
+        .select('id, nama, kelompok_id')
+        .eq('kelompok_id', kelompokId)
+        .is('deleted_at', null)
+        .order('nama');
+      if (kelasId) qSantri = qSantri.eq('kelas_id', Number(kelasId));
+
       const [santriRes, absensiRes] = await Promise.all([
-        supabase
-          .from('santri')
-          .select('id, nama, kelompok_id')
-          .eq('kelompok_id', kelompokId)
-          .is('deleted_at', null)
-          .order('nama'),
+        qSantri,
         supabase
           .from('absensi')
           .select('id, santri_id, status, updated_at')
@@ -131,7 +164,7 @@ function AbsensiContent() {
     } finally {
       setLoading(false);
     }
-  }, [kelompokId, tanggal]);
+  }, [kelompokId, tanggal, kelasId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -257,6 +290,28 @@ function AbsensiContent() {
                 className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               >
                 {opsiKelompok.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {opsiKelas.length > 0 && (
+            <label className="text-sm text-gray-700">
+              <span className="mb-1 block font-medium">Kelas</span>
+              <select
+                value={kelasId}
+                onChange={(e) => {
+                  setKelasId(e.target.value);
+                  setSukses(null);
+                  setSaveError(null);
+                }}
+                className="rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">Semua kelas</option>
+                {opsiKelas.map((k) => (
                   <option key={k.id} value={k.id}>
                     {k.nama}
                   </option>
