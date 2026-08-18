@@ -65,6 +65,11 @@ function SiklusContent() {
 
   const [loading, setLoading] = useState(false);
   const [sibuk, setSibuk] = useState(false);
+  /* Catatan yang sedang diubah. app lama punya serverUpdateSiklusGenerus
+     tapi formnya hanya bisa menambah; di sini form yang sama dipakai
+     ulang untuk mengubah supaya tidak ada dua tempat mengetik hal yang
+     sama. */
+  const [sedangDiubah, setSedangDiubah] = useState<Siklus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
 
@@ -128,7 +133,16 @@ function SiklusContent() {
     setError(null);
     setPesan(null);
     try {
-      const { error: err } = await supabase.from('siklus_generus').insert({
+      const isiUbah = {
+        jenis_siklus: jenis,
+        tanggal,
+        lokasi: lokasi.trim() || null,
+        instansi: instansi.trim() || null,
+        keterangan: keterangan.trim() || null,
+      };
+      const { error: err } = sedangDiubah
+        ? await supabase.from('siklus_generus').update(isiUbah).eq('id', sedangDiubah.id)
+        : await supabase.from('siklus_generus').insert({
         kelompok_id: kelompokId,
         santri_id: Number(santriId),
         /* Nama dibekukan saat pencatatan — lihat catatan di kepala berkas. */
@@ -139,9 +153,10 @@ function SiklusContent() {
         instansi: instansi.trim() || null,
         keterangan: keterangan.trim() || null,
         dicatat_oleh: profile?.id ?? null,
-      });
+          });
       if (err) throw new Error(err.message);
-      setPesan('Catatan siklus tersimpan.');
+      setPesan(sedangDiubah ? 'Catatan siklus diperbarui.' : 'Catatan siklus tersimpan.');
+      setSedangDiubah(null);
       setSantriId('');
       setJenis('');
       setLokasi('');
@@ -195,13 +210,19 @@ function SiklusContent() {
 
       {bolehTulis && kelompokId && (
         <div className="mb-6 rounded-card border border-border bg-panel-2 p-4">
-          <div className="mb-3 text-[13px] font-bold text-text">Catat Siklus Baru</div>
+          <div className="mb-3 text-[13px] font-bold text-text">
+            {sedangDiubah ? 'Ubah Catatan Siklus' : 'Catat Siklus Baru'}
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={KELAS_LABEL}>Santri *</label>
               <select
                 className={KELAS_INPUT}
                 value={santriId}
+                /* Santri tidak bisa dipindah setelah tercatat: catatan siklus
+                   melekat pada orang tertentu, dan menggantinya berarti
+                   memalsukan riwayat orang lain. */
+                disabled={!!sedangDiubah}
                 onChange={(e) => setSantriId(e.target.value)}
               >
                 <option value="">-- Pilih Santri --</option>
@@ -259,9 +280,26 @@ function SiklusContent() {
               />
             </div>
           </div>
-          <button onClick={simpan} disabled={sibuk} className={KELAS_TOMBOL_UTAMA + ' mt-4'}>
-            {sibuk ? 'Menyimpan...' : 'Simpan'}
+          <div className="mt-4 flex gap-3">
+          <button onClick={simpan} disabled={sibuk} className={KELAS_TOMBOL_UTAMA}>
+            {sibuk ? 'Menyimpan...' : sedangDiubah ? 'Simpan Perubahan' : 'Simpan'}
           </button>
+          {sedangDiubah && (
+            <button
+              onClick={() => {
+                setSedangDiubah(null);
+                setSantriId('');
+                setJenis('');
+                setLokasi('');
+                setInstansi('');
+                setKeterangan('');
+              }}
+              className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}
+            >
+              Batal
+            </button>
+          )}
+          </div>
         </div>
       )}
 
@@ -303,9 +341,26 @@ function SiklusContent() {
                   </td>
                   {bolehTulis && (
                     <td className="border-b border-border px-3 py-3">
-                      <button onClick={() => hapus(s)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
-                        Hapus
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSedangDiubah(s);
+                            setSantriId(String(s.santri_id));
+                            setJenis(s.jenis_siklus);
+                            setTanggal(s.tanggal);
+                            setLokasi(s.lokasi ?? '');
+                            setInstansi(s.instansi ?? '');
+                            setKeterangan(s.keterangan ?? '');
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          className={KELAS_TOMBOL_SEKUNDER}
+                        >
+                          Ubah
+                        </button>
+                        <button onClick={() => hapus(s)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
+                          Hapus
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>

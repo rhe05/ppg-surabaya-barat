@@ -35,6 +35,12 @@ import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+/* Rentang kelas yang dilihat GURU di app lama sengaja dibatasi 1-6
+   (KURIKULUM_MOBILE_KELAS_RANGE_, Modul_MaintainKurikulum.gs:150):
+   PAUD-TK dan 7-9 tidak dimunculkan untuk mereka walau datanya ada.
+   Dipertahankan supaya guru tidak dihadapkan pada kelas yang bukan
+   urusannya. */
+const KELAS_LIST_GURU = ['1', '2', '3', '4', '5', '6'];
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -459,7 +465,7 @@ function KurikulumContent() {
         </div>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {KELAS_LIST.map((k) => (
+          {(profile?.role === 'guru' ? KELAS_LIST_GURU : KELAS_LIST).map((k) => (
             <button
               key={k}
               disabled={!kelompokId}
