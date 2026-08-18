@@ -31,6 +31,7 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
+import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
@@ -195,6 +196,8 @@ function KurikulumContent() {
   const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
   const [tambahKategori, setTambahKategori] = useState<string>('');
   const [sibuk, setSibuk] = useState(false);
+  /* Probul yang sedang dibuka panel pencapaian santrinya. */
+  const [pencapaianUntuk, setPencapaianUntuk] = useState<{ id: number; judul: string } | null>(null);
 
   /* Hanya admin_ppg yang punya policy DELETE pada kurikulum_*
      (kurikulum_prota_delete_ppg_only). Tabel ini tidak punya deleted_at,
@@ -674,6 +677,20 @@ function KurikulumContent() {
                                       <td className="border-b border-border px-2 py-2">
                                         <button
                                           onClick={() =>
+                                            setPencapaianUntuk({
+                                              id: b.id,
+                                              judul:
+                                                (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
+                                                ' — ' +
+                                                (b.target ?? 'tanpa target'),
+                                            })
+                                          }
+                                          className={KELAS_TOMBOL_SEKUNDER}
+                                        >
+                                          Pencapaian
+                                        </button>
+                                        <button
+                                          onClick={() =>
                                             setUbah({
                                               judul:
                                                 'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
@@ -710,6 +727,15 @@ function KurikulumContent() {
             </div>
           );
         })}
+
+      {pencapaianUntuk && kelompokId && (
+        <PencapaianSantri
+          probulId={pencapaianUntuk.id}
+          kelompokId={kelompokId}
+          judul={pencapaianUntuk.judul}
+          onTutup={() => setPencapaianUntuk(null)}
+        />
+      )}
 
       {ubah && (
         <ModalUbah
