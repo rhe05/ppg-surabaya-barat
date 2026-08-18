@@ -88,6 +88,15 @@ function AdminDashboard() {
             </span>
           </button>
           <button
+            onClick={() => router.push('/pustaka')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
+          >
+            <span className="block text-[16px] font-bold text-brass">Pusat Unduhan</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Modul, soal, dokumen, dan pedoman
+            </span>
+          </button>
+          <button
             onClick={() => router.push('/guru-saya')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-sage"
           >
