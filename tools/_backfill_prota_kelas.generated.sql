@@ -1,0 +1,115 @@
+-- Dihasilkan oleh tools/backfill_prota_kelas.js — jangan disunting tangan.
+BEGIN;
+
+ALTER TABLE public.kurikulum_prota ADD COLUMN IF NOT EXISTS kelas text;
+
+UPDATE public.kurikulum_prota p
+   SET kelas = v.kelas
+  FROM (VALUES
+  (2, '1'),
+  (3, '2'),
+  (4, '3'),
+  (5, '4'),
+  (6, '5'),
+  (7, '6'),
+  (8, '7'),
+  (9, '8'),
+  (10, '9'),
+  (11, '1'),
+  (12, '2'),
+  (13, '3'),
+  (14, '4'),
+  (15, '5'),
+  (16, '6'),
+  (17, 'PAUD-TK'),
+  (18, '1'),
+  (19, '2'),
+  (20, '3'),
+  (21, 'PAUD-TK'),
+  (22, '7'),
+  (23, '8'),
+  (24, '9'),
+  (25, 'PAUD-TK'),
+  (26, 'PAUD-TK'),
+  (27, '1'),
+  (28, '2'),
+  (29, '3'),
+  (30, '4'),
+  (31, '5'),
+  (32, '6'),
+  (33, '7'),
+  (34, '8'),
+  (35, '9'),
+  (36, 'PAUD-TK'),
+  (37, '1'),
+  (38, '2'),
+  (39, '3'),
+  (40, '4'),
+  (41, '5'),
+  (42, '6'),
+  (43, '7'),
+  (44, '8'),
+  (45, '9'),
+  (46, 'PAUD-TK'),
+  (47, '1'),
+  (48, '2'),
+  (49, '3'),
+  (50, '4'),
+  (51, '5'),
+  (52, '6'),
+  (53, '7'),
+  (54, '8'),
+  (55, '9'),
+  (56, 'PAUD-TK'),
+  (57, '1'),
+  (58, '2'),
+  (59, '3'),
+  (60, '4'),
+  (61, '5'),
+  (62, '6'),
+  (63, '7'),
+  (64, '8'),
+  (65, '9'),
+  (66, 'PAUD-TK'),
+  (67, '1'),
+  (68, '2'),
+  (69, '3'),
+  (70, '4'),
+  (71, '5'),
+  (72, '6'),
+  (73, '7'),
+  (74, '8'),
+  (75, '9'),
+  (76, 'PAUD-TK'),
+  (77, '1'),
+  (78, '2'),
+  (79, '3'),
+  (80, '4'),
+  (81, '5'),
+  (82, '6'),
+  (83, '7'),
+  (84, '8'),
+  (85, '9'),
+  (86, 'PAUD-TK'),
+  (87, '1'),
+  (88, '2'),
+  (89, '3'),
+  (90, '4'),
+  (91, '5'),
+  (92, '6'),
+  (93, '7'),
+  (94, '8'),
+  (95, '9')
+) AS v(id, kelas)
+ WHERE p.id = v.id;
+
+DO $$
+DECLARE n int;
+BEGIN
+  SELECT count(*) INTO n FROM public.kurikulum_prota WHERE kelas IS NULL;
+  IF n <> 0 THEN RAISE EXCEPTION 'Guard gagal: masih % baris prota tanpa kelas', n; END IF;
+END $$;
+
+SELECT kelas, count(*)::text AS jml FROM public.kurikulum_prota GROUP BY kelas ORDER BY kelas;
+
+COMMIT;

@@ -82,6 +82,15 @@ function AdminDashboard() {
               Lihat jadwal, ruangan, dan guru pengajar
             </span>
           </button>
+          <button
+            onClick={() => router.push('/kurikulum')}
+            className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"
+          >
+            <span className="block text-[16px] font-bold text-brass">Kurikulum</span>
+            <span className="mt-2 block text-[13px] text-text-faint">
+              Program Tahunan, Semester, dan Bulanan per kelas
+            </span>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
