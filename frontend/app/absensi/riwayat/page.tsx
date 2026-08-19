@@ -1,10 +1,33 @@
 'use client';
 
-/* Riwayat Kehadiran (guru mobile) — matrix santri × tanggal 1 bulan,
-   read-only. Dibuka dari popup "Kehadiran" > Riwayat Kehadiran
+/* Riwayat Kehadiran (guru mobile) — matrix santri × tanggal 1 bulan.
+   Dibuka dari popup "Kehadiran" > Riwayat Kehadiran
    (components/dashboard/KehadiranChooser.tsx).
 
-   19 Agt, dua putaran: pertama ditulis ulang mengikuti screenshot owner
+   PUTARAN KETIGA (diminta owner, membalik keputusan awal "read-only"):
+   tiap sel bisa diklik utk mengoreksi — huruf badge (H/I/S/A) ATAU sel
+   kosong "—" sama-sama membuka popup "Edit Kehadiran" (nama santri +
+   tanggal + 4 tombol status + Simpan). Penulisannya LANGSUNG ke tabel
+   `absensi` lewat Supabase client (BUKAN lewat RPC simpan_absensi_kelas —
+   itu ditujukan utk kelas+HARI INI, sedangkan di sini satu sel = satu
+   santri+tanggal APA PUN, sering di bulan lampau). Polanya SAMA persis
+   dgn alat koreksi admin (app/kelola-absensi/page.tsx ubahStatus/hapus):
+   - Baris SUDAH ada -> UPDATE dgn penjaga versi optimistik
+     (.eq('updated_at', nilai_terakhir_dilihat)) — 0 baris cocok berarti
+     diubah sesi lain, matrix dimuat ulang tanpa menimpa diam-diam.
+   - Baris BELUM ada -> INSERT baru (santri_id, kelompok_id, tanggal,
+     status, dicatat_oleh), meniru INSERT di simpan_absensi_kelas.
+   RLS (absensi_insert_guru_admin/absensi_update_guru_admin) sudah
+   mengizinkan guru menulis di kelompoknya sendiri — TIDAK perlu policy
+   baru.
+
+   Aturan "3 penahan" yang berlaku di Input Kehadiran (tanggal masa depan/
+   sesi belum mulai/sedang izin, lihat handleSimpanGuru di app/absensi/
+   page.tsx & RPC simpan_absensi_kelas) SENGAJA TIDAK diterapkan di sini —
+   Riwayat memang tempatnya mengoreksi tanggal lampau, dan alat koreksi
+   admin yang sudah ada (Kelola Absensi) pun tidak menerapkannya.
+
+   19 Agt, dua putaran sebelumnya: pertama ditulis ulang mengikuti screenshot owner
    (popup Pilih Kelas kartu besar, header topbar+hero, tombol pil filter
    Bulan-Tahun terpisah). Putaran KEDUA (diminta owner lagi): pil filter
    terpisah itu DIHAPUS — kelas+bulan+tahun yang tadinya digabung jadi satu
@@ -51,6 +74,9 @@ import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
+// Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
+// (.eq('updated_at', ...)) saat diedit lewat popup Edit Kehadiran.
+type SelAbsensi = { id: number; status: Status; updatedAt: string };
 
 type Kelas = {
   id: number;
@@ -126,7 +152,7 @@ const SELECT_KELAS =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
 function RiwayatKehadiranContent() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const guruId = profile?.guru_id ?? null;
 
   const sekarang = new Date();
@@ -148,12 +174,24 @@ function RiwayatKehadiranContent() {
   const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
   const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
-  const [baris, setBaris] = useState<{ santri: Santri; statusByDate: Record<string, Status> }[]>(
+  const [baris, setBaris] = useState<{ santri: Santri; selByDate: Record<string, SelAbsensi> }[]>(
     [],
   );
   const [hariAktif, setHariAktif] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  /* Popup Edit Kehadiran — dibuka dgn mengklik badge huruf ATAU sel kosong
+     "—". `sel` null = belum ada baris absensi utk santri+tanggal ini
+     (INSERT); non-null = sudah ada (UPDATE dgn penjaga versi). */
+  const [editTarget, setEditTarget] = useState<{
+    santriId: number;
+    namaSantri: string;
+    tanggal: string;
+    sel: SelAbsensi | null;
+  } | null>(null);
+  const [menyimpanEdit, setMenyimpanEdit] = useState(false);
+  const [errorEdit, setErrorEdit] = useState<string | null>(null);
 
   useEffect(() => {
     let dibatalkan = false;
@@ -212,7 +250,7 @@ function RiwayatKehadiranContent() {
       const akhirTanggal = new Date(tahun, bulan, 0).getDate();
       const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
 
-      const statusMap: Record<number, Record<string, Status>> = {};
+      const selMap: Record<number, Record<string, SelAbsensi>> = {};
       const tanggalDiisi = new Set<string>();
 
       if (santriIds.length > 0) {
@@ -220,7 +258,7 @@ function RiwayatKehadiranContent() {
         for (let dari = 0; ; dari += UKURAN_HALAMAN) {
           const { data, error: errAbsensi } = await supabase
             .from('absensi')
-            .select('id, santri_id, tanggal, status')
+            .select('id, santri_id, tanggal, status, updated_at')
             .in('santri_id', santriIds)
             .gte('tanggal', awal)
             .lte('tanggal', akhir)
@@ -231,15 +269,19 @@ function RiwayatKehadiranContent() {
 
           const batch = data ?? [];
           batch.forEach((b) => {
-            if (!statusMap[b.santri_id]) statusMap[b.santri_id] = {};
-            statusMap[b.santri_id][b.tanggal] = b.status as Status;
+            if (!selMap[b.santri_id]) selMap[b.santri_id] = {};
+            selMap[b.santri_id][b.tanggal] = {
+              id: b.id,
+              status: b.status as Status,
+              updatedAt: b.updated_at,
+            };
             tanggalDiisi.add(b.tanggal);
           });
           if (batch.length < UKURAN_HALAMAN) break;
         }
       }
 
-      setBaris(santriList.map((s) => ({ santri: s, statusByDate: statusMap[s.id] ?? {} })));
+      setBaris(santriList.map((s) => ({ santri: s, selByDate: selMap[s.id] ?? {} })));
       setHariAktif(tanggalDiisi.size);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat riwayat');
@@ -251,6 +293,50 @@ function RiwayatKehadiranContent() {
   useEffect(() => {
     muatMatrix();
   }, [muatMatrix]);
+
+  /* Simpan hasil klik status di popup Edit Kehadiran. UPDATE kalau sel
+     sudah ada baris (penjaga versi optimistik: 0 baris cocok = orang lain
+     sudah mengubahnya duluan -> muat ulang matrix, JANGAN menimpa diam2).
+     INSERT kalau belum ada baris sama sekali, meniru cabang INSERT di RPC
+     simpan_absensi_kelas (santri_id, kelompok_id, tanggal, status,
+     dicatat_oleh). kelompok_id diambil dari profile guru sendiri karena
+     guru cuma tertaut ke 1 kelompok. */
+  async function simpanEdit(statusBaru: Status) {
+    if (!editTarget || user == null || profile?.scope_kelompok_id == null) return;
+    setMenyimpanEdit(true);
+    setErrorEdit(null);
+    try {
+      if (editTarget.sel) {
+        const { data, error: errUpdate } = await supabase
+          .from('absensi')
+          .update({ status: statusBaru })
+          .eq('id', editTarget.sel.id)
+          .eq('updated_at', editTarget.sel.updatedAt)
+          .select('id');
+        if (errUpdate) throw new Error(errUpdate.message);
+        if (!data || data.length === 0) {
+          setErrorEdit('Data ini sudah diubah oleh sesi lain. Memuat ulang riwayat...');
+          await muatMatrix();
+          return;
+        }
+      } else {
+        const { error: errInsert } = await supabase.from('absensi').insert({
+          santri_id: editTarget.santriId,
+          kelompok_id: profile.scope_kelompok_id,
+          tanggal: editTarget.tanggal,
+          status: statusBaru,
+          dicatat_oleh: user.id,
+        });
+        if (errInsert) throw new Error(errInsert.message);
+      }
+      setEditTarget(null);
+      await muatMatrix();
+    } catch (e) {
+      setErrorEdit(e instanceof Error ? e.message : 'Gagal menyimpan perubahan');
+    } finally {
+      setMenyimpanEdit(false);
+    }
+  }
 
   const semuaTanggal = tanggalKerjaBulan(tahun, bulan);
   const tanggalList =
@@ -559,23 +645,35 @@ function RiwayatKehadiranContent() {
                       {(r.santri.nama_panggilan || r.santri.nama).trim()}
                     </td>
                     {tanggalList.map((tgl) => {
-                      const status = r.statusByDate[tgl];
+                      const sel = r.selByDate[tgl];
                       return (
                         <td
                           key={tgl}
                           className="whitespace-nowrap border-r border-[rgba(148,163,184,0.35)] px-2.5 py-2 text-center"
                         >
-                          {status ? (
-                            <span
-                              title={BADGE[status].label}
-                              className="inline-flex h-[22px] w-6 items-center justify-center rounded-[6px] text-[11px] font-extrabold text-white"
-                              style={{ background: BADGE[status].warna }}
-                            >
-                              {BADGE[status].huruf}
-                            </span>
-                          ) : (
-                            <span className="text-text-faint">—</span>
-                          )}
+                          {/* Setiap sel (huruf badge ATAU "—" kosong) bisa
+                              diklik utk membuka popup Edit Kehadiran —
+                              diminta owner: "klik huruf H" utk mengoreksi. */}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditTarget({
+                                santriId: r.santri.id,
+                                namaSantri: (r.santri.nama_panggilan || r.santri.nama).trim(),
+                                tanggal: tgl,
+                                sel: sel ?? null,
+                              })
+                            }
+                            title={sel ? BADGE[sel.status].label : 'Belum diisi — klik utk mengisi'}
+                            className="inline-flex h-[22px] w-6 cursor-pointer items-center justify-center rounded-[6px] border-none text-[11px] font-extrabold transition-transform duration-100 active:scale-90"
+                            style={
+                              sel
+                                ? { background: BADGE[sel.status].warna, color: '#fff' }
+                                : { background: 'transparent', color: 'var(--text-faint)' }
+                            }
+                          >
+                            {sel ? BADGE[sel.status].huruf : '—'}
+                          </button>
                         </td>
                       );
                     })}
@@ -586,6 +684,79 @@ function RiwayatKehadiranContent() {
           </div>
         )}
       </div>
+
+      {/* Popup Edit Kehadiran — 4 tombol status warna sama dgn
+          GuruAbsensiView (WARNA_TOGGLE_AKTIF) supaya konsisten di seluruh
+          app, + tombol silang sama polanya dgn StatusModal.tsx. */}
+      {editTarget && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]">
+          <div className="relative w-full max-w-[320px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
+            <button
+              type="button"
+              onClick={() => setEditTarget(null)}
+              aria-label="Tutup"
+              className="absolute top-3.5 right-3.5 flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim transition-transform duration-150 active:scale-90"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            <div className="mb-1 text-[15px] font-extrabold text-text">Edit Kehadiran</div>
+            <div className="mb-5 text-[13px] text-text-dim">
+              {editTarget.namaSantri} ·{' '}
+              {new Date(editTarget.tanggal + 'T00:00:00').toLocaleDateString('id-ID', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {(Object.keys(BADGE) as Status[]).map((st) => {
+                const aktif = editTarget.sel?.status === st;
+                return (
+                  <button
+                    key={st}
+                    type="button"
+                    disabled={menyimpanEdit}
+                    onClick={() => simpanEdit(st)}
+                    className="cursor-pointer rounded-[var(--radius)] border-2 py-3 text-[13px] font-bold transition-all duration-150 active:scale-[0.96] disabled:cursor-wait disabled:opacity-60"
+                    style={
+                      aktif
+                        ? {
+                            background: BADGE[st].warna,
+                            borderColor: BADGE[st].warna,
+                            color: '#fff',
+                          }
+                        : {
+                            background: 'var(--panel-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text)',
+                          }
+                    }
+                  >
+                    {BADGE[st].label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {errorEdit && <p className="mt-4 text-[12.5px] text-red">{errorEdit}</p>}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
