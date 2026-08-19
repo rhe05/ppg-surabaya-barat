@@ -294,7 +294,6 @@ function AbsensiContent() {
   const perluPilihKelompok = !profile.scope_kelompok_id;
 
   if (adalahGuru) {
-    const sudahTersimpanSemua = santri.length > 0 && santri.every((s) => !!tersimpan[s.id]);
     return (
       <GuruAbsensiView
         namaGuru={profile.display_name ?? 'Guru'}
@@ -316,7 +315,6 @@ function AbsensiContent() {
         onUbahStatus={(santriId, status) => setPilihan((prev) => ({ ...prev, [santriId]: status }))}
         loading={loading}
         saving={saving}
-        sudahTersimpanSemua={sudahTersimpanSemua}
         error={error || saveError}
         pesan={sukses}
         onSimpan={handleSimpan}

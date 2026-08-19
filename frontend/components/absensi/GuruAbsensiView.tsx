@@ -13,7 +13,16 @@
    Semua STATE dan LOGIKA (muat santri, simpan, penanganan tabrakan versi)
    tetap di app/absensi/page.tsx — komponen ini murni presentasi + popup
    pilih kelas, supaya jalur simpan yang sudah diuji (RPC simpan_absensi_
-   kelas, penanganan 40001) tidak diduplikasi/berisiko menyimpang. */
+   kelas, penanganan 40001) tidak diduplikasi/berisiko menyimpang.
+
+   KOREKSI (dicek ulang thd kode sumber terkini): versi pertama berkas ini
+   mengunci tombol Simpan ("✓ Absen Tersimpan", abu-abu) begitu satu kelas
+   sudah punya absensi hari itu, mengikuti CSS .ia-save-btn-locked. Ternyata
+   itu sisa fitur LAMA — serverGetKelasAbsenList (Modul_InputAbsen.gs:426-428)
+   sekarang SENGAJA selalu mengembalikan formSudahTersimpan=false: "guru
+   boleh mengoreksi absen kelasnya sendiri kapan pun". Tombolnya di app
+   lama pun sudah tidak pernah terkunci lagi — dihapus di sini juga supaya
+   tidak berperilaku lebih ketat daripada aslinya. */
 
 import { useEffect, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
@@ -108,7 +117,6 @@ export default function GuruAbsensiView({
   onUbahStatus,
   loading,
   saving,
-  sudahTersimpanSemua,
   error,
   pesan,
   onSimpan,
@@ -124,7 +132,6 @@ export default function GuruAbsensiView({
   onUbahStatus: (santriId: number, status: Status) => void;
   loading: boolean;
   saving: boolean;
-  sudahTersimpanSemua: boolean;
   error: string | null;
   pesan: string | null;
   onSimpan: () => void;
@@ -424,20 +431,9 @@ export default function GuruAbsensiView({
             onClick={onSimpan}
             disabled={saving || loading}
             className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
-            style={{
-              background: sudahTersimpanSemua
-                ? 'linear-gradient(135deg, #94A3B8, #64748B)'
-                : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
-              boxShadow: sudahTersimpanSemua
-                ? '0 4px 12px rgba(100,116,139,0.25)'
-                : '0 6px 16px rgba(5,150,105,0.3)',
-            }}
+            style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
           >
-            {saving
-              ? 'Menyimpan...'
-              : sudahTersimpanSemua
-                ? '✓ Absen Tersimpan — Simpan Lagi'
-                : 'Simpan Kehadiran'}
+            {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
           </button>
         </div>
       )}
