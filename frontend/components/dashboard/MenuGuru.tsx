@@ -14,27 +14,24 @@
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
-/* "Kehadiran" TIDAK ada di ITEM_MENU: menekannya membuka KehadiranChooser
-   (Input vs Riwayat), bukan langsung pindah halaman. Ikonnya sama seperti
-   ikon "Input Kehadiran" di dalam chooser itu. */
-const IKON_KEHADIRAN = (
-  <>
-    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-    <path d="m9 14 2 2 4-4" />
-  </>
-);
+/* SATU daftar tetap, dalam urutan tampil persis — diminta owner secara
+   eksplisit setelah urutannya kelihatan tidak konsisten: sebelumnya
+   Kehadiran & Jurnal Mengajar dirender lewat 2 tombol terpisah SEBELUM
+   .map() ITEM_MENU (yang Dashboard-nya ada DI DALAM array itu), jadi
+   urutan sesungguhnya di kode adalah Kehadiran → Jurnal → Dashboard → ...,
+   bukan Dashboard duluan. Digabung jadi satu array supaya urutannya
+   langsung terbaca top-to-bottom di sini, tidak tersebar di dua tempat.
 
-/* "Jurnal Mengajar" juga tidak ada di ITEM_MENU, sama alasannya dengan
-   Kehadiran: menekannya membuka JurnalChooser (Input vs Edit). */
-const IKON_JURNAL = (
-  <>
-    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-  </>
-);
-
-const ITEM_MENU = [
+   `aksi` (buka popup chooser) dan `href` (pindah halaman langsung) SALING
+   EKSKLUSIF per item — persis app lama: Kehadiran & Jurnal Mengajar buka
+   popup pilihan (Input vs Riwayat / Input vs Edit), sisanya pindah
+   halaman langsung. */
+const ITEM_MENU: {
+  label: string;
+  svg: React.ReactNode;
+  href?: string;
+  aksi?: 'kehadiran' | 'jurnal';
+}[] = [
   {
     href: '/dashboard',
     label: 'Dashboard',
@@ -44,6 +41,27 @@ const ITEM_MENU = [
         <rect width="7" height="5" x="14" y="3" rx="1" />
         <rect width="7" height="9" x="14" y="12" rx="1" />
         <rect width="7" height="5" x="3" y="16" rx="1" />
+      </>
+    ),
+  },
+  {
+    aksi: 'kehadiran',
+    label: 'Kehadiran',
+    svg: (
+      <>
+        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+        <path d="m9 14 2 2 4-4" />
+      </>
+    ),
+  },
+  {
+    aksi: 'jurnal',
+    label: 'Jurnal Mengajar',
+    svg: (
+      <>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </>
     ),
   },
@@ -111,19 +129,11 @@ export default function MenuGuru({
 
   if (!terbuka) return null;
 
-  function pergi(href: string) {
+  function klikItem(item: (typeof ITEM_MENU)[number]) {
     onTutup();
-    router.push(href);
-  }
-
-  function bukaKehadiran() {
-    onTutup();
-    onKehadiran();
-  }
-
-  function bukaJurnal() {
-    onTutup();
-    onJurnal();
+    if (item.aksi === 'kehadiran') onKehadiran();
+    else if (item.aksi === 'jurnal') onJurnal();
+    else if (item.href) router.push(item.href);
   }
 
   async function keluar() {
@@ -139,53 +149,11 @@ export default function MenuGuru({
 
       {/* .ia-menu-dropdown */}
       <div className="absolute top-[62px] left-[18px] z-[91] flex w-[220px] flex-col gap-0.5 rounded-[var(--radius-lg)] bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.22)]">
-        <button
-          type="button"
-          onClick={bukaKehadiran}
-          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-sage"
-          >
-            {IKON_KEHADIRAN}
-          </svg>
-          <span>Kehadiran</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={bukaJurnal}
-          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            width="18"
-            height="18"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            className="shrink-0 text-sage"
-          >
-            {IKON_JURNAL}
-          </svg>
-          <span>Jurnal Mengajar</span>
-        </button>
-
         {ITEM_MENU.map((item) => (
           <button
             key={item.label}
             type="button"
-            onClick={() => pergi(item.href)}
+            onClick={() => klikItem(item)}
             className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
           >
             <svg
