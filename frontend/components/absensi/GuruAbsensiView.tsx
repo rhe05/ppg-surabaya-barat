@@ -30,9 +30,9 @@
    database, itu perubahan terpisah yang sengaja belum diambil. */
 
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
-import TanggalPicker from '@/components/ui/TanggalPicker';
+import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
@@ -163,6 +163,8 @@ export default function GuruAbsensiView({
   onSimpan: () => void;
 }) {
   const [tanggalTerbuka, setTanggalTerbuka] = useState(false);
+  const [posisiTanggal, setPosisiTanggal] = useState<PosisiPicker | null>(null);
+  const kalenderBtnRef = useRef<HTMLButtonElement>(null);
   const [gateTerbuka, setGateTerbuka] = useState(kelasDetail.length > 1 && kelasId === null);
   /* Topbar (hamburger + logo + lonceng) hilang sebelumnya — layar ini
      langsung mulai dari hero hijau tanpa ".ia-topbar" (Style_Main.html:
@@ -218,6 +220,16 @@ export default function GuruAbsensiView({
       <JurnalChooser
         terbuka={jurnalChooserTerbuka}
         onTutup={() => setJurnalChooserTerbuka(false)}
+      />
+      {/* Dirender DI LUAR .ia-header (overflow-hidden) — lihat catatan panjang
+          di TanggalPicker.tsx. Posisinya dihitung dari ikon kalender saat
+          diklik (lihat onClick di bawah). */}
+      <TanggalPicker
+        terbuka={tanggalTerbuka}
+        posisi={posisiTanggal}
+        nilai={tanggal}
+        onPilih={onTanggalChange}
+        onTutup={() => setTanggalTerbuka(false)}
       />
 
       <KelasGate
@@ -332,10 +344,20 @@ export default function GuruAbsensiView({
             )}
           </div>
 
-          <div className="relative flex shrink-0 flex-col items-end gap-1.5">
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
             <button
+              ref={kalenderBtnRef}
               type="button"
-              onClick={() => setTanggalTerbuka((v) => !v)}
+              onClick={() => {
+                const rect = kalenderBtnRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiTanggal({
+                    top: rect.bottom + 6,
+                    right: window.innerWidth - rect.right,
+                  });
+                }
+                setTanggalTerbuka((v) => !v);
+              }}
               aria-label="Pilih tanggal"
               className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white active:scale-90"
             >
@@ -358,16 +380,6 @@ export default function GuruAbsensiView({
             <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
               {labelTanggal(tanggal)}
             </span>
-
-            {/* .ppg-datepicker — kalender kartu melayang, BUKAN input tanggal
-                bawaan browser & BUKAN baris di bawah header. Style_Main.html:
-                3098-3210. */}
-            <TanggalPicker
-              terbuka={tanggalTerbuka}
-              nilai={tanggal}
-              onPilih={onTanggalChange}
-              onTutup={() => setTanggalTerbuka(false)}
-            />
           </div>
         </div>
 

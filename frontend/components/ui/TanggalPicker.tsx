@@ -10,11 +10,15 @@
    <input type="date"> bawaan browser, supaya tampilannya sama persis di
    semua perangkat.
 
-   Posisi: app lama menghitung posisi lewat getBoundingClientRect() (bisa
-   membuka ke atas kalau ruang di bawah kurang). Di sini disederhanakan
-   jadi absolute-positioned di bawah pemicunya, rata kanan — cukup untuk
-   ikon kalender di header yang selalu di dekat atas layar (selalu ada
-   ruang di bawah), tanpa perlu logika flip viewport. */
+   Posisi: `position: fixed` dgn koordinat dari getBoundingClientRect()
+   pemicunya (dihitung pemanggil, dikirim lewat prop `posisi`) — PERSIS
+   teknik app lama. WAJIB fixed + dirender di LUAR kotak header manapun:
+   header punya overflow-hidden (utk sudut bawah membulat), dan overflow-
+   hidden tetap memotong keturunan `position: absolute`/`fixed` sekalipun
+   — baru kelihatan setelah dicoba (terpotong separuh, dilaporkan owner).
+   Simplifikasi dari app lama: selalu buka ke BAWAH pemicunya (tidak ada
+   logika flip ke atas kalau ruang kurang) — cukup utk ikon yang selalu
+   dekat atas layar. */
 
 import { useState } from 'react';
 
@@ -39,13 +43,20 @@ function keTanggalString(tahun: number, bulan: number, hari: number) {
   return `${tahun}-${dua(bulan + 1)}-${dua(hari)}`;
 }
 
+export type PosisiPicker = { top: number; right: number };
+
 export default function TanggalPicker({
   terbuka,
+  posisi,
   nilai,
   onPilih,
   onTutup,
 }: {
   terbuka: boolean;
+  /* Dihitung pemanggil dari getBoundingClientRect() tombol pemicu (lihat
+     GuruAbsensiView) — top & right dlm px, sudah relatif viewport (cocok
+     langsung dgn position:fixed). */
+  posisi: PosisiPicker | null;
   nilai: string;
   onPilih: (v: string) => void;
   onTutup: () => void;
@@ -54,7 +65,7 @@ export default function TanggalPicker({
   const [tahun, setTahun] = useState(dasar.getFullYear());
   const [bulan, setBulan] = useState(dasar.getMonth());
 
-  if (!terbuka) return null;
+  if (!terbuka || !posisi) return null;
 
   const todayStr = (() => {
     const now = new Date();
@@ -98,7 +109,10 @@ export default function TanggalPicker({
     <>
       {/* Lapisan transparan penuh layar — klik di luar kartu menutup kalender. */}
       <div className="fixed inset-0 z-[1090]" onClick={onTutup} />
-      <div className="absolute top-full right-0 z-[1100] mt-1.5 w-[296px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
+      <div
+        className="fixed z-[1100] w-[296px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+        style={{ top: posisi.top, right: posisi.right }}
+      >
         <div className="mb-3 flex items-center justify-between gap-1.5">
           <button
             type="button"
