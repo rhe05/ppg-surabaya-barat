@@ -42,6 +42,32 @@ const NAMA_BULAN = [
 
 const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
+type Statistik = { hariAktif: number; hadir: number; izin: number; sakit: number; alpa: number };
+
+const STATUS: {
+  kunci: keyof Omit<Statistik, 'hariAktif'>;
+  label: string;
+  warna: string;
+  pill: string;
+}[] = [
+  { kunci: 'hadir', label: 'HADIR', warna: '#059669', pill: 'rgba(5, 150, 105, 0.12)' },
+  { kunci: 'izin', label: 'IZIN', warna: '#4F46E5', pill: 'rgba(79, 70, 229, 0.12)' },
+  // SAKIT #B45309, BUKAN --brass #D97706 — nilai ketiga yang khusus dipakai
+  // .ia-dash-stat (design-tokens-dashboard-guru.md Bagian 6.2).
+  { kunci: 'sakit', label: 'SAKIT', warna: '#B45309', pill: 'rgba(180, 83, 9, 0.12)' },
+  { kunci: 'alpa', label: 'ALPA', warna: '#DC2626', pill: 'rgba(220, 38, 38, 0.12)' },
+];
+
+function batasBulan(d: Date) {
+  const y = d.getFullYear();
+  const m = d.getMonth();
+  const dua = (n: number) => String(n).padStart(2, '0');
+  return {
+    awal: `${y}-${dua(m + 1)}-01`,
+    akhir: `${y}-${dua(m + 1)}-${dua(new Date(y, m + 1, 0).getDate())}`,
+  };
+}
+
 function namaDari(nilai: Tersemat) {
   if (!nilai) return null;
   const baris = Array.isArray(nilai) ? nilai[0] : nilai;
@@ -68,10 +94,85 @@ function durasiMenit(mulai: string | null, selesai: string | null) {
 export default function GuruDashboard() {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
   const [kelas, setKelas] = useState<Kelas[]>([]);
+  const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const guruId = profile?.guru_id ?? null;
+
+  /* Statistik 5 kotak, mengikuti definisi app lama:
+     - HARI AKTIF = jumlah TANGGAL BERBEDA yang sudah diisi guru untuk kelas
+       itu (Modul_InputAbsen.gs:1151), bukan jumlah baris absensi.
+     - Persentase dihitung dari hadir+izin+sakit+alpa (Script_Main.html:2594),
+       BUKAN dari jumlah santri di kelas.
+     - Lingkupnya bulan berjalan, bukan kumulatif sejak awal.
+
+     Dua langkah (santri dulu, lalu absensi) sengaja dipilih ketimbang satu
+     query dengan embedded filter: absensi TIDAK punya kelas_id, jalurnya
+     lewat santri.kelas_id, dan bentuk dua langkah ini yang paling sedikit
+     bergantung pada tafsir PostgREST atas filter tersemat.
+
+     Paginasi wajib: PostgREST diam-diam memotong di 1000 baris. */
+  const muatStatistik = useCallback(async (kelasIds: number[]) => {
+    if (kelasIds.length === 0) {
+      setStatistik({});
+      return;
+    }
+
+    const { data: dataSantri, error: errSantri } = await supabase
+      .from('santri')
+      .select('id, kelas_id')
+      .in('kelas_id', kelasIds)
+      .is('deleted_at', null);
+    if (errSantri) throw new Error(errSantri.message);
+
+    const kelasDariSantri = new Map<number, number>();
+    (dataSantri ?? []).forEach((s) => {
+      if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
+    });
+
+    const kosong = (): Statistik => ({ hariAktif: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0 });
+    const hasil: Record<number, Statistik> = {};
+    const tanggalPerKelas: Record<number, Set<string>> = {};
+    kelasIds.forEach((id) => {
+      hasil[id] = kosong();
+      tanggalPerKelas[id] = new Set();
+    });
+
+    if (kelasDariSantri.size > 0) {
+      const { awal, akhir } = batasBulan(new Date());
+      const UKURAN_HALAMAN = 1000;
+      const santriIds = [...kelasDariSantri.keys()];
+
+      for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+        const { data, error: errAbsensi } = await supabase
+          .from('absensi')
+          .select('id, santri_id, tanggal, status')
+          .in('santri_id', santriIds)
+          .gte('tanggal', awal)
+          .lte('tanggal', akhir)
+          .is('deleted_at', null)
+          .order('id', { ascending: true })
+          .range(dari, dari + UKURAN_HALAMAN - 1);
+        if (errAbsensi) throw new Error(errAbsensi.message);
+
+        const batch = data ?? [];
+        batch.forEach((baris) => {
+          const kelasId = kelasDariSantri.get(baris.santri_id);
+          if (kelasId == null || !hasil[kelasId]) return;
+          tanggalPerKelas[kelasId].add(baris.tanggal);
+          const kunci = baris.status as keyof Omit<Statistik, 'hariAktif'>;
+          if (kunci in hasil[kelasId]) hasil[kelasId][kunci] += 1;
+        });
+        if (batch.length < UKURAN_HALAMAN) break;
+      }
+    }
+
+    kelasIds.forEach((id) => {
+      hasil[id].hariAktif = tanggalPerKelas[id].size;
+    });
+    setStatistik(hasil);
+  }, []);
 
   const load = useCallback(async () => {
     if (guruId == null) {
@@ -89,13 +190,15 @@ export default function GuruDashboard() {
         .is('deleted_at', null)
         .order('jam_mulai');
       if (queryError) throw new Error(queryError.message);
-      setKelas(data ?? []);
+      const daftarKelas = data ?? [];
+      setKelas(daftarKelas);
+      await muatStatistik(daftarKelas.map((k) => k.id));
     } catch {
       setError('Error loading data');
     } finally {
       setLoading(false);
     }
-  }, [guruId]);
+  }, [guruId, muatStatistik]);
 
   useEffect(() => {
     let cancelled = false;
@@ -260,6 +363,11 @@ export default function GuruDashboard() {
           kelas.map((k) => {
             const kategori = namaDari(k.kategori_kbm);
             const menit = durasiMenit(k.jam_mulai, k.jam_selesai);
+            /* null = statistiknya belum selesai dimuat -> kotaknya tetap "—".
+               Nol yang sudah dihitung ditampilkan sebagai 0, karena itu memang
+               berarti guru belum mengisi absen bulan ini. */
+            const angka = statistik ? (statistik[k.id] ?? null) : null;
+            const totalStatus = angka ? angka.hadir + angka.izin + angka.sakit + angka.alpa : 0;
             const info: string[] = [];
             if (k.ruangan) info.push(k.ruangan);
             info.push(`${k.santri_count} Santri`);
@@ -267,7 +375,7 @@ export default function GuruDashboard() {
               info.push(
                 `${jam(k.jam_mulai)}–${jam(k.jam_selesai)}${
                   menit != null ? ` · Durasi ${menit} Menit` : ''
-                }`
+                }`,
               );
             }
 
@@ -289,28 +397,59 @@ export default function GuruDashboard() {
 
                 {/* .ia-dash-card-info — :5387-5392 */}
                 <div className="mb-1 text-[12.5px] font-semibold text-text">{info.join(' · ')}</div>
-
-                {/* Placeholder statistik. Baris .ia-dash-stat-row (5 kolom, :5407-5411)
-                   sengaja dipertahankan supaya tata letaknya tidak bergeser saat
-                   angka aslinya menyusul. Tanda "—", BUKAN 0 -- datanya memang
-                   belum dihitung, bukan nol. */}
+                {/* Lima kotak statistik — .ia-dash-stat-row (:5407-5471).
+                    Hari Aktif sengaja beda sendiri (kartu gradient teal, tanpa
+                    pill persentase): itu info STRUKTURAL (berapa sesi kelas
+                    sudah diisi), bukan status kehadiran. */}
                 <div className="mt-3 grid grid-cols-5 gap-2">
-                  {['HARI AKTIF', 'HADIR', 'IZIN', 'SAKIT', 'ALPA'].map((label) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
-                    >
-                      <span className="text-[18px] leading-none font-extrabold text-text-faint">
-                        —
-                      </span>
-                      <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2 text-[11px] font-medium text-text-faint">
-                  Statistik kehadiran belum tersedia — fitur laporan kelas belum aktif.
+                  <div
+                    className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
+                    style={{
+                      background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)',
+                    }}
+                  >
+                    <span className="text-[18px] leading-none font-extrabold text-white tabular-nums">
+                      {angka ? angka.hariAktif : '—'}
+                    </span>
+                    <span className="mt-px text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                      Hari
+                    </span>
+                    <span className="text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                      Aktif
+                    </span>
+                  </div>
+
+                  {STATUS.map((st) => {
+                    const nilai = angka ? angka[st.kunci] : null;
+                    const persen =
+                      angka && totalStatus > 0
+                        ? Math.round((angka[st.kunci] / totalStatus) * 100)
+                        : null;
+                    return (
+                      <div
+                        key={st.kunci}
+                        className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
+                      >
+                        <span
+                          className="text-[18px] leading-none font-extrabold tabular-nums"
+                          style={{ color: nilai === null ? undefined : st.warna }}
+                        >
+                          {nilai === null ? '—' : nilai}
+                        </span>
+                        {persen !== null && (
+                          <span
+                            className="rounded-full px-[7px] py-0.5 text-[10px] leading-none font-bold tabular-nums"
+                            style={{ background: st.pill, color: st.warna }}
+                          >
+                            {persen}%
+                          </span>
+                        )}
+                        <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                          {st.label}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
