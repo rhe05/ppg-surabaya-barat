@@ -192,6 +192,10 @@ export default function GuruAbsensiView({
     { hadir: 0, izin: 0, sakit: 0, alpa: 0 } as Record<Status, number>,
   );
 
+  /* Dipakai dua tempat: menentukan apakah kartu Ringkasan (dibekukan,
+     lihat di bawah) ikut ditampilkan. */
+  const tampilkanRingkasan = !loading && kelasId !== null && santri.length > 0;
+
   const gateDaftar: KelasGateItem[] = kelasDetail.map((k) => ({
     id: k.id,
     nama: k.nama,
@@ -206,7 +210,12 @@ export default function GuruAbsensiView({
   }));
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-bg pb-[110px]">
+    /* h-screen + overflow-hidden: layar ini TIDAK scroll sebagai satu
+       halaman utuh lagi. Header + kartu Ringkasan Kehadiran dibekukan
+       (shrink-0, di luar area scroll); yang scroll HANYA daftar santri
+       (flex-1 overflow-y-auto di bawah), diminta owner supaya keduanya
+       tetap terlihat sambil menggulir daftar santri yang panjang. */
+    <main className="relative flex h-screen flex-col overflow-hidden bg-bg">
       <MenuGuru
         terbuka={menuTerbuka}
         onTutup={() => setMenuTerbuka(false)}
@@ -426,7 +435,55 @@ export default function GuruAbsensiView({
         )}
       </div>
 
-      <div className="flex-1 px-[18px] py-4">
+      {/* Kartu Ringkasan Kehadiran — DIBEKUKAN (shrink-0), di luar area
+          scroll di bawah. Diminta owner: header + 4 kartu ini harus tetap
+          terlihat saat daftar santri digulir. */}
+      {tampilkanRingkasan && (
+        <div className="shrink-0 px-[18px] pt-4">
+          {/* .ia-kehadiran-summary — Style_Main.html:5688-5751 */}
+          <div className="rounded-[var(--radius-lg)] bg-panel p-3.5 shadow-[var(--shadow-subtle)]">
+            <div className="mb-2.5 text-[11px] font-bold tracking-[0.05em] text-text-faint uppercase">
+              Ringkasan Kehadiran
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {(
+                [
+                  { kunci: 'hadir', label: 'Hadir', warna: 'var(--sage)', grad: '5,150,105' },
+                  { kunci: 'izin', label: 'Izin', warna: 'var(--indigo)', grad: '79,70,229' },
+                  { kunci: 'sakit', label: 'Sakit', warna: 'var(--brass)', grad: '217,119,6' },
+                  { kunci: 'alpa', label: 'Alpa', warna: 'var(--red)', grad: '220,38,38' },
+                ] as const
+              ).map((s) => (
+                <div
+                  key={s.kunci}
+                  className="relative overflow-hidden rounded-[10px] border px-1 pt-2.5 pb-[9px] text-center"
+                  style={{
+                    background: `linear-gradient(160deg, rgba(${s.grad},0.09), rgba(${s.grad},0.02))`,
+                    borderColor: `rgba(${s.grad},0.2)`,
+                  }}
+                >
+                  <div
+                    className="absolute top-0 right-0 left-0 h-[3px]"
+                    style={{ background: s.warna }}
+                  />
+                  <div
+                    className="text-[20px] leading-[1.2] font-extrabold"
+                    style={{ color: s.warna }}
+                  >
+                    {ringkasan[s.kunci]}
+                  </div>
+                  <div className="mt-0.5 text-[10.5px] font-semibold text-text-dim">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Daftar santri — SATU-SATUNYA bagian yang scroll (flex-1 + overflow-
+          y-auto). Padding bawah 130px menyisakan ruang utk tombol Simpan
+          yang fixed, supaya baris santri terakhir tidak tertutup tombol. */}
+      <div className="flex-1 overflow-y-auto px-[18px] py-4 pb-[130px]">
         {error && (
           <p className="mb-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
             {error}
@@ -450,46 +507,6 @@ export default function GuruAbsensiView({
           </p>
         ) : (
           <>
-            {/* .ia-kehadiran-summary — Style_Main.html:5688-5751 */}
-            <div className="mb-3.5 rounded-[var(--radius-lg)] bg-panel p-3.5 shadow-[var(--shadow-subtle)]">
-              <div className="mb-2.5 text-[11px] font-bold tracking-[0.05em] text-text-faint uppercase">
-                Ringkasan Kehadiran
-              </div>
-              <div className="grid grid-cols-4 gap-2">
-                {(
-                  [
-                    { kunci: 'hadir', label: 'Hadir', warna: 'var(--sage)', grad: '5,150,105' },
-                    { kunci: 'izin', label: 'Izin', warna: 'var(--indigo)', grad: '79,70,229' },
-                    { kunci: 'sakit', label: 'Sakit', warna: 'var(--brass)', grad: '217,119,6' },
-                    { kunci: 'alpa', label: 'Alpa', warna: 'var(--red)', grad: '220,38,38' },
-                  ] as const
-                ).map((s) => (
-                  <div
-                    key={s.kunci}
-                    className="relative overflow-hidden rounded-[10px] border px-1 pt-2.5 pb-[9px] text-center"
-                    style={{
-                      background: `linear-gradient(160deg, rgba(${s.grad},0.09), rgba(${s.grad},0.02))`,
-                      borderColor: `rgba(${s.grad},0.2)`,
-                    }}
-                  >
-                    <div
-                      className="absolute top-0 right-0 left-0 h-[3px]"
-                      style={{ background: s.warna }}
-                    />
-                    <div
-                      className="text-[20px] leading-[1.2] font-extrabold"
-                      style={{ color: s.warna }}
-                    >
-                      {ringkasan[s.kunci]}
-                    </div>
-                    <div className="mt-0.5 text-[10.5px] font-semibold text-text-dim">
-                      {s.label}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
             {/* .ia-santri-card + .ia-status-toggle — Style_Main.html:5753-5824 */}
             <div>
               {santri.map((s) => {
