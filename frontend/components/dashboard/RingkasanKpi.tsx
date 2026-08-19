@@ -39,7 +39,17 @@ const STATUS_TAMPIL: { kunci: string; label: string; warna: string }[] = [
   { kunci: 'belum', label: 'Belum diinput', warna: 'text-text-dim' },
 ];
 
-function Kartu({ label, nilai, catatan, warna }: { label: string; nilai: string; catatan?: string; warna?: string }) {
+function Kartu({
+  label,
+  nilai,
+  catatan,
+  warna,
+}: {
+  label: string;
+  nilai: string;
+  catatan?: string;
+  warna?: string;
+}) {
   return (
     <div className="rounded-card border border-border bg-panel px-4 py-3 shadow-[var(--shadow-card)]">
       <div className={'text-[22px] font-bold ' + (warna ?? 'text-text')}>{nilai}</div>
@@ -71,7 +81,10 @@ export default function RingkasanKpi() {
         .from('santri')
         .select('id, gender, jenjang_saat_ini')
         .is('deleted_at', null);
-      let qKelas = supabase.from('kelas').select('id', { count: 'exact', head: true }).is('deleted_at', null);
+      let qKelas = supabase
+        .from('kelas')
+        .select('id', { count: 'exact', head: true })
+        .is('deleted_at', null);
       if (kelompokId) {
         qSantri = qSantri.eq('kelompok_id', kelompokId);
         qKelas = qKelas.eq('kelompok_id', kelompokId);
@@ -131,10 +144,15 @@ export default function RingkasanKpi() {
 
   return (
     <div>
-      <div className="mb-3 text-[15px] font-bold text-text">Ringkasan</div>
+      {/* Diminta owner: "Ringkasan" -> "Data Generus - Surabaya Barat". */}
+      <div className="mb-3 text-[15px] font-bold text-text">Data Generus - Surabaya Barat</div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Kartu label="Total Generus" nilai={String(santri.length)} catatan={`${lk} laki-laki · ${pr} perempuan`} />
+        <Kartu
+          label="Total Generus"
+          nilai={String(santri.length)}
+          catatan={`${lk} laki-laki · ${pr} perempuan`}
+        />
         <Kartu label="Kelas" nilai={String(jumlahKelas)} />
         {perJenjang.slice(0, 2).map((j) => (
           <Kartu key={j.jenjang} label={j.jenjang} nilai={String(j.jumlah)} />
@@ -154,7 +172,12 @@ export default function RingkasanKpi() {
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {STATUS_TAMPIL.map((s) => (
-          <Kartu key={s.kunci} label={s.label} nilai={String(hitungStatus(s.kunci))} warna={s.warna} />
+          <Kartu
+            key={s.kunci}
+            label={s.label}
+            nilai={String(hitungStatus(s.kunci))}
+            warna={s.warna}
+          />
         ))}
       </div>
     </div>

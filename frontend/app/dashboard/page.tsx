@@ -23,8 +23,11 @@ function AdminDashboard() {
           (Email/Nama/Role/Scope) yang dulu di sini DIHAPUS (diminta
           owner 20 Agt) -- itu data debug internal, bukan informasi yang
           berguna utk dilihat admin sehari-hari, dan identitas peran
-          sudah tampil di footer AdminSidebar. */}
-      <div className="mx-auto w-full max-w-[1200px] px-5 py-10">
+          sudah tampil di footer AdminSidebar.
+          pt dikecilkan (dari py-10 rata) -- diminta owner: judul "Data
+          Generus - Surabaya Barat" dinaikkan sedikit, lebih dekat ke
+          blok header "Dashboard" di atasnya. */}
+      <div className="mx-auto w-full max-w-[1200px] px-5 pt-5 pb-10">
         <div className="mb-10">
           <RingkasanKpi />
         </div>
