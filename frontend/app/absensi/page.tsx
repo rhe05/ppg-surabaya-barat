@@ -6,6 +6,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
+import StatusModal from '@/components/absensi/StatusModal';
+
+const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
 const STATUS_OPTIONS = ['hadir', 'izin', 'sakit', 'alpa'] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
@@ -67,6 +70,20 @@ function AbsensiContent() {
      terpisah dari opsiKelas (dropdown admin) supaya query admin tidak ikut
      berubah. */
   const [kelasDetail, setKelasDetail] = useState<KelasDetail[]>([]);
+
+  /* Popup status Simpan Kehadiran (khusus guru) — sukses (dgn kutipan acak)
+     atau peringatan yang MENAHAN penyimpanan (tanggal masa depan, sesi
+     belum mulai, sedang mengajukan izin). Kutipan diprefetch sekali saat
+     layar dibuka, persis app lama (iaLoadQuoteHariIni_/iaPickRandomQuote_)
+     — supaya popup sukses tampil instan tanpa round-trip tambahan tepat
+     saat guru klik Simpan. */
+  const [quotePool, setQuotePool] = useState<string[]>([]);
+  const [statusModal, setStatusModal] = useState<{
+    tone: 'success' | 'warning';
+    judul: string;
+    pesan?: string;
+    kutipan?: string;
+  } | null>(null);
 
   const berwenang =
     !!profile && !!profile.role && profile.is_active && ROLE_BERWENANG.includes(profile.role);
@@ -185,6 +202,21 @@ function AbsensiContent() {
     };
   }, [adalahGuru, profile?.guru_id, tanggal]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function loadQuote() {
+      if (!adalahGuru) return;
+      const { data } = await supabase.from('quote_harian').select('teks');
+      if (cancelled) return;
+      const teks = (data ?? []).map((r) => r.teks).filter(Boolean);
+      setQuotePool(teks.length ? teks : [QUOTE_CADANGAN]);
+    }
+    loadQuote();
+    return () => {
+      cancelled = true;
+    };
+  }, [adalahGuru]);
+
   const load = useCallback(async () => {
     if (!kelompokId) return;
     setLoading(true);
@@ -244,8 +276,12 @@ function AbsensiContent() {
     };
   }, [load]);
 
-  async function handleSimpan() {
-    if (!kelompokId || santri.length === 0) return;
+  /* Return-nya HANYA dipakai jalur guru (handleSimpanGuru di bawah) untuk
+     tahu kapan boleh menampilkan popup sukses + kutipan. Jalur admin
+     (tombol "Simpan Absensi" di JSX bawah) tetap memanggil ini langsung dan
+     mengabaikan return-nya — perilakunya sama sekali tidak berubah. */
+  async function handleSimpan(): Promise<{ ok: boolean; jumlah: number }> {
+    if (!kelompokId || santri.length === 0) return { ok: false, jumlah: 0 };
     setSaving(true);
     setSaveError(null);
     setSukses(null);
@@ -281,20 +317,105 @@ function AbsensiContent() {
           setSaveError(
             'Data tanggal ini baru saja diubah dari sesi lain. Tidak ada yang tersimpan — tampilan sudah disegarkan, periksa lalu simpan ulang.',
           );
-          return;
+          return { ok: false, jumlah: 0 };
         }
         throw new Error(rpcError.message);
       }
 
       const hasil = (data ?? {}) as { baru?: number; diperbarui?: number };
+      const jumlah = (hasil.baru ?? 0) + (hasil.diperbarui ?? 0);
       setSukses(
         `Tersimpan: ${hasil.baru ?? 0} baru, ${hasil.diperbarui ?? 0} diperbarui, tanggal ${tanggal}.`,
       );
       await load();
+      return { ok: true, jumlah };
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : 'Gagal menyimpan absensi');
+      return { ok: false, jumlah: 0 };
     } finally {
       setSaving(false);
+    }
+  }
+
+  /* Pembungkus khusus guru — menegakkan aturan yang SAMA dgn app lama
+     (iaCekWaktuAbsen_ + iaValidateWaktuAbsen_, Script_Main.html:2980-3002 &
+     Modul_InputAbsen.gs:296-315), lalu menampilkan popup sukses+kutipan
+     ala iaShowStatusModal_ menggantikan banner hijau biasa.
+
+     ⚠️ Pemeriksaan di bawah ini SATU LAPIS SAJA (klien) — app lama
+     eksplisit menyebut pemeriksaan klien "cuma optimasi UX" dan server
+     (Modul_InputAbsen.gs) sebagai "sumber kebenaran". Migrasi ini BELUM
+     menambahkan penegakan yang sama di RPC simpan_absensi_kelas, jadi
+     lapisan sumber-kebenaran itu belum ada di app baru — dicatat di sini
+     supaya tidak dikira sudah setara. */
+  async function handleSimpanGuru() {
+    if (!kelasId || santri.length === 0) return;
+
+    const kelasAktif = kelasDetail.find((k) => k.id === Number(kelasId));
+    const hariIni = tanggalHariIni();
+
+    if (tanggal > hariIni) {
+      setStatusModal({
+        tone: 'warning',
+        judul: 'Belum Bisa Disimpan',
+        pesan:
+          'Tidak bisa menyimpan absen untuk tanggal yang akan datang. Pilih tanggal hari ini atau tanggal yang sudah berlalu.',
+      });
+      return;
+    }
+
+    if (tanggal === hariIni && kelasAktif?.jam_mulai) {
+      const sekarang = new Date();
+      const jamSekarang =
+        String(sekarang.getHours()).padStart(2, '0') +
+        ':' +
+        String(sekarang.getMinutes()).padStart(2, '0');
+      const jamMulai = kelasAktif.jam_mulai.slice(0, 5);
+      if (jamSekarang < jamMulai) {
+        setStatusModal({
+          tone: 'warning',
+          judul: 'Sesi Belum Dimulai',
+          pesan: `Sesi ngaji kelas ini baru mulai jam ${jamMulai}. Absen belum bisa disimpan sebelum sesi berlangsung.`,
+        });
+        return;
+      }
+    }
+
+    if (profile?.guru_id != null) {
+      const { data: izinAktif } = await supabase
+        .from('guru_izin')
+        .select('id')
+        .eq('guru_id', profile.guru_id)
+        .lte('tanggal_mulai', tanggal)
+        .gte('tanggal_selesai', tanggal)
+        .limit(1);
+      if (izinAktif && izinAktif.length > 0) {
+        setStatusModal({
+          tone: 'warning',
+          judul: 'Sedang Mengajukan Izin',
+          pesan:
+            'Anda sedang mengajukan Izin/Cuti pada tanggal ini, tidak bisa input absen. Hubungi Admin Kelompok kalau ini keliru.',
+        });
+        return;
+      }
+    }
+
+    const hasil = await handleSimpan();
+    if (hasil.ok) {
+      const kutipan =
+        quotePool.length > 0
+          ? quotePool[Math.floor(Math.random() * quotePool.length)]
+          : QUOTE_CADANGAN;
+      setStatusModal({
+        tone: 'success',
+        judul: 'Alhamdulillah, Absen Berhasil Disimpan',
+        pesan: `Absensi kelas "${kelasAktif?.nama ?? ''}" (${hasil.jumlah} santri) berhasil disimpan.`,
+        kutipan,
+      });
+      /* Tampilan tanggal SELALU balik ke hari ini setelah berhasil simpan
+         (tanggal apa pun -- hari ini ATAU tanggal lampau yang disusulkan),
+         biar guru tidak "nyangkut" di tanggal lampau tanpa sadar. */
+      setTanggal(hariIni);
     }
   }
 
@@ -323,30 +444,47 @@ function AbsensiContent() {
 
   if (adalahGuru) {
     return (
-      <GuruAbsensiView
-        namaGuru={profile.display_name ?? 'Guru'}
-        tanggal={tanggal}
-        onTanggalChange={(v) => {
-          setTanggal(v);
-          setSukses(null);
-          setSaveError(null);
-        }}
-        kelasDetail={kelasDetail}
-        kelasId={kelasId ? Number(kelasId) : null}
-        onPilihKelas={(id) => {
-          setKelasId(String(id));
-          setSukses(null);
-          setSaveError(null);
-        }}
-        santri={santri}
-        pilihan={pilihan}
-        onUbahStatus={(santriId, status) => setPilihan((prev) => ({ ...prev, [santriId]: status }))}
-        loading={loading}
-        saving={saving}
-        error={error || saveError}
-        pesan={sukses}
-        onSimpan={handleSimpan}
-      />
+      <>
+        <GuruAbsensiView
+          namaGuru={profile.display_name ?? 'Guru'}
+          tanggal={tanggal}
+          onTanggalChange={(v) => {
+            setTanggal(v);
+            setSukses(null);
+            setSaveError(null);
+          }}
+          kelasDetail={kelasDetail}
+          kelasId={kelasId ? Number(kelasId) : null}
+          onPilihKelas={(id) => {
+            setKelasId(String(id));
+            setSukses(null);
+            setSaveError(null);
+          }}
+          santri={santri}
+          pilihan={pilihan}
+          onUbahStatus={(santriId, status) =>
+            setPilihan((prev) => ({ ...prev, [santriId]: status }))
+          }
+          loading={loading}
+          saving={saving}
+          /* Sukses (dgn kutipan) ditampilkan lewat StatusModal, bukan banner
+             hijau — supaya tidak dobel dgn popup. Konflik versi (40001)
+             TETAP lewat banner ini: itu bukan penolakan seperti 3 aturan di
+             atas, guru harus melihat tampilan tersegarkan sebelum mencoba
+             lagi, bukan sekadar menutup popup. */
+          error={error || saveError}
+          pesan={null}
+          onSimpan={handleSimpanGuru}
+        />
+        <StatusModal
+          terbuka={statusModal !== null}
+          tone={statusModal?.tone ?? 'success'}
+          judul={statusModal?.judul ?? ''}
+          pesan={statusModal?.pesan}
+          kutipan={statusModal?.kutipan}
+          onTombol={() => setStatusModal(null)}
+        />
+      </>
     );
   }
 
