@@ -104,6 +104,16 @@ const NAMA_BULAN = [
   'Desember',
 ];
 
+// Style_Main.html:695-700 (IA_GURU_KATEGORI_SINGKATAN_) — sama dgn
+// GuruDashboard.tsx, dipakai supaya baris "Guru Generus - MS" di hero
+// identik dgn Dashboard (diminta owner: samakan header dgn Dashboard).
+const SINGKATAN_KATEGORI: Record<string, string> = {
+  'Muballigh Tugasan': 'MT',
+  'Muballigh Setempat': 'MS',
+  'Guru Mutu': 'GM',
+  'Guru Bantu': 'GB',
+};
+
 // IA_RIWAYAT_STATUS_HURUF_ / IA_RIWAYAT_STATUS_WARNA_ / IA_RIWAYAT_STATUS_LABEL_
 const BADGE: Record<Status, { huruf: string; warna: string; label: string }> = {
   hadir: { huruf: 'H', warna: '#15803d', label: 'Hadir' },
@@ -152,8 +162,10 @@ const SELECT_KELAS =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
 function RiwayatKehadiranContent() {
-  const { profile, user } = useAuth();
+  const { profile, user, namaKelompok, kategoriGuru } = useAuth();
   const guruId = profile?.guru_id ?? null;
+  const singkatan = kategoriGuru ? (SINGKATAN_KATEGORI[kategoriGuru] ?? kategoriGuru) : null;
+  const barisRole = singkatan ? `Guru Generus - ${singkatan}` : null;
 
   const sekarang = new Date();
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -479,11 +491,16 @@ function RiwayatKehadiranContent() {
         </>
       )}
 
-      {/* .ia-header — Style_Main.html:4859-4865, sama dgn GuruAbsensiView
-          tapi TANPA baris kelas aktif di hero (riwayat tidak terikat 1
-          kelas+jam tertentu spt Input Absen). */}
+      {/* .ia-header — Style_Main.html:4859-4865. Disamakan PERSIS dgn
+          GuruDashboard.tsx (diminta owner): topbar bell dibungkus div,
+          hero pakai gradient sage->brand-green + greeting 3-baris
+          (nama, peran, kelompok) + padding/ukuran ikon yang sama —
+          cuma kalender pemicunya tetap punya Minggu (Riwayat) sedangkan
+          Dashboard tidak. */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
+        {/* .ia-topbar — :4867-4901 */}
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
+          {/* .ia-hamburger-btn — :4945-4958 */}
           <button
             type="button"
             aria-label="Menu Utama"
@@ -505,6 +522,8 @@ function RiwayatKehadiranContent() {
               <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           </button>
+
+          {/* .ia-app-brand — :4875-4895 */}
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image
               src="/logo-ruang-ngaji.png"
@@ -517,33 +536,53 @@ function RiwayatKehadiranContent() {
               Ruang Ngaji
             </span>
           </div>
-          <button
-            type="button"
-            aria-label="Permintaan Masuk"
-            className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+
+          {/* .ia-icon-btn — :5046-5064 */}
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              aria-label="Permintaan Masuk"
+              className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
             >
-              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-            </svg>
-          </button>
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </button>
+          </div>
         </div>
 
-        <div
-          className="flex items-start justify-between gap-3 px-[18px] pt-4 pb-4 text-white"
-          style={{ background: 'linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%)' }}
-        >
-          <div className="min-w-0 text-[15px] font-bold">{profile?.display_name ?? 'Guru'}</div>
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
+        {/* .ia-header-hero — :4903-4910 */}
+        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
+          {/* .ia-greeting — :5026-5044 */}
+          <div className="min-w-0 flex-1">
+            <div className="text-[20px] leading-[1.2] font-bold text-white">
+              {profile?.display_name ?? '-'}
+            </div>
+            {barisRole && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {barisRole}
+              </div>
+            )}
+            {namaKelompok && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {namaKelompok}
+              </div>
+            )}
+          </div>
+
+          {/* .ia-header-hero-right — :4912-4918 */}
+          <div className="flex shrink-0 flex-col items-end gap-[7px]">
+            {/* .ia-icon-btn-hero — :5066-5073 */}
             <button
               ref={ikonKalenderRef}
               type="button"
@@ -558,7 +597,7 @@ function RiwayatKehadiranContent() {
                 }
                 setKalenderTerbuka((v) => !v);
               }}
-              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white active:scale-90"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white transition-all duration-150 active:bg-white/[0.32]"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -579,7 +618,7 @@ function RiwayatKehadiranContent() {
             {/* Caption ringkas: apa yang sedang tampil di matrix, BUKAN
                 tanggal hari ini — diminta owner supaya lebih ringkas
                 (satu tempat, bukan tersebar di toolbar terpisah). */}
-            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
+            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-white">
               {NAMA_BULAN[bulan - 1]} {tahun}
               {minggu !== 'semua' ? ` · Mgg ${minggu}` : ''}
             </span>
