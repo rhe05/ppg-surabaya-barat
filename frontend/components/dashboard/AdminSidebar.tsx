@@ -112,7 +112,9 @@ const BAGIAN: Bagian[] = [
     item: [
       {
         href: '/santri',
-        label: 'Data Santri',
+        // Diminta owner: "Data Santri" -> "Data Generus" (href /santri &
+        // ikon TIDAK berubah, cuma labelnya).
+        label: 'Data Generus',
         svg: (
           <>
             <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
