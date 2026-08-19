@@ -8,6 +8,7 @@ import RequireAuth from '@/components/RequireAuth';
 import GuruDashboard from '@/components/dashboard/GuruDashboard';
 import RingkasanKpi from '@/components/dashboard/RingkasanKpi';
 import PohonWilayah from '@/components/dashboard/PohonWilayah';
+import KartuPendaftaran from '@/components/dashboard/KartuPendaftaran';
 import { useAuth } from '@/lib/auth-context';
 
 function AdminDashboard() {
@@ -72,6 +73,7 @@ function AdminDashboard() {
 
         {/* Kartu navigasi: aksen mengikuti .kpi-card.accent-* (Style_Main.html:891-893) */}
         <div className="mb-12 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <KartuPendaftaran />
           <button
             onClick={() => router.push('/absensi')}
             className="cursor-pointer rounded-card border border-border bg-panel p-6 text-left shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass"

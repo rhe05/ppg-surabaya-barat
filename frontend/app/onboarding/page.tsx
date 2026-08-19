@@ -299,13 +299,24 @@ export default function OnboardingPage() {
           <Baris label="Lingkup" nilai={namaScope} />
           <Baris label="Akun" nilai={user?.email ?? '-'} />
         </dl>
+        {/* Persetujuan terjadi di sisi admin, tanpa memberi tahu tab ini. Profil
+            di AuthProvider hanya dimuat ulang saat sesi berubah, jadi memuat
+            ulang halaman adalah cara termurah yang benar-benar menampilkan
+            peran baru begitu disetujui. */}
+        <button
+          type="button"
+          onClick={() => window.location.reload()}
+          className="mt-6 w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brass px-4 py-3 text-[13.5px] font-semibold text-white"
+        >
+          Periksa status persetujuan
+        </button>
         <button
           type="button"
           onClick={() => {
             setPendaftaran(null);
             setLangkah(1);
           }}
-          className="mt-6 w-full cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel px-4 py-3 text-[13.5px] font-semibold text-text hover:bg-panel-2"
+          className="mt-2.5 w-full cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel px-4 py-3 text-[13.5px] font-semibold text-text hover:bg-panel-2"
         >
           Ubah pendaftaran
         </button>
