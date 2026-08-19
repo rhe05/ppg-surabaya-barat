@@ -144,8 +144,7 @@ export default function RingkasanKpi() {
 
   return (
     <div>
-      {/* Diminta owner: "Ringkasan" -> "Data Generus - Surabaya Barat". */}
-      <div className="mb-3 text-[15px] font-bold text-text">Data Generus - Surabaya Barat</div>
+      <div className="mb-3 text-[15px] font-bold text-text">Ringkasan</div>
 
       <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Kartu
