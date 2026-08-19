@@ -9,8 +9,10 @@
    - NIS dibuat otomatis oleh RPC tambah_santri (atomik, lihat migrasi
      20260817100000) dan TIDAK bisa diubah, sedangkan app lama
      membiarkannya diketik bebas dan bisa diedit.
-   - kelas_id tidak ada di form ini sama sekali; penetapan kelas
-     ditangani task terpisah. */
+   - Kelas Ngaji dipilih dari daftar kelas milik kelompok, bukan diketik
+     bebas seperti app lama. Form ini tetap mengirim NAMA kelas (kolom
+     kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
+     (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -62,6 +64,7 @@ const PENDIDIKAN = ['Belum Sekolah', 'PAUD', 'TK', 'SD', 'SMP', 'SMA/SMK', 'Kuli
 const STATUS_NIKAH = ['Siap Nikah', 'Belum Siap'];
 
 type Kelompok = { id: number; nama: string };
+type KelasNgaji = { id: number; nama: string; kelompok_id: number };
 
 const KOSONG = {
   kelompok_id: '',
@@ -158,6 +161,7 @@ export default function SantriForm({
 
   const [isian, setIsian] = useState<Isian>(santri ? dariBaris(santri) : KOSONG);
   const [kelompok, setKelompok] = useState<Kelompok[]>([]);
+  const [kelasList, setKelasList] = useState<KelasNgaji[]>([]);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,8 +179,13 @@ export default function SantriForm({
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data } = await supabase.from('kelompok').select('id, nama').order('nama');
-      if (!cancelled) setKelompok(data ?? []);
+      const [hasilKelompok, hasilKelas] = await Promise.all([
+        supabase.from('kelompok').select('id, nama').order('nama'),
+        supabase.from('kelas').select('id, nama, kelompok_id').order('nama'),
+      ]);
+      if (cancelled) return;
+      setKelompok(hasilKelompok.data ?? []);
+      setKelasList((hasilKelas.data ?? []) as KelasNgaji[]);
     }
     load();
     return () => {
@@ -184,8 +193,20 @@ export default function SantriForm({
     };
   }, []);
 
+  const kelasKelompokIni = kelasList.filter(
+    (k) => String(k.kelompok_id) === String(isian.kelompok_id),
+  );
+
   function ubah(field: keyof Isian, nilai: string) {
-    setIsian((s) => ({ ...s, [field]: nilai }));
+    setIsian((s) => {
+      /* Ganti kelompok = kelas lamanya milik kelompok lain. Dikosongkan di
+         sini supaya yang terlihat di layar sama dengan yang akan tersimpan:
+         trigger DB juga akan melepasnya (kelas tidak cocok kelompok baru). */
+      if (field === 'kelompok_id' && nilai !== s.kelompok_id) {
+        return { ...s, kelompok_id: nilai, kelas_ngaji: '' };
+      }
+      return { ...s, [field]: nilai };
+    });
   }
 
   async function simpan(e: React.FormEvent) {
@@ -411,11 +432,38 @@ export default function SantriForm({
           </div>
           <div>
             <label className={KELAS_LABEL}>Kelas Ngaji</label>
-            <input
+            {/* Dulu kolom teks bebas: apa pun yang diketik tersimpan sebagai
+                teks dan TIDAK pernah menjadi kelas_id, sehingga santri baru
+                selalu lahir tanpa kelas dan absensinya tidak bisa dihitung
+                per kelas. Sekarang pilihannya dikunci ke kelas milik kelompok
+                yang dipilih; trigger sinkron_santri_kelas (migrasi
+                20260819110000) yang menurunkan kelas_id dari nama itu. */}
+            <select
               className={KELAS_INPUT}
               value={isian.kelas_ngaji}
+              disabled={!isian.kelompok_id}
               onChange={(e) => ubah('kelas_ngaji', e.target.value)}
-            />
+            >
+              <option value="">
+                {isian.kelompok_id ? '— belum ditentukan —' : 'Pilih kelompok dulu'}
+              </option>
+              {kelasKelompokIni.map((k) => (
+                <option key={k.id} value={k.nama}>
+                  {k.nama}
+                </option>
+              ))}
+              {/* Nilai lama yang tidak ada di daftar kelas tetap ditampilkan,
+                  supaya membuka form santri lama tidak diam-diam menghapus
+                  kelasnya saat disimpan ulang. */}
+              {isian.kelas_ngaji && !kelasKelompokIni.some((k) => k.nama === isian.kelas_ngaji) && (
+                <option value={isian.kelas_ngaji}>{isian.kelas_ngaji} (di luar daftar)</option>
+              )}
+            </select>
+            {isian.kelompok_id && kelasKelompokIni.length === 0 && (
+              <p className="mt-1 text-[11.5px] text-text-faint">
+                Kelompok ini belum punya kelas. Buat kelasnya dulu di halaman Daftar Kelas.
+              </p>
+            )}
           </div>
           <div>
             <label className={KELAS_LABEL}>Mulai Ngaji</label>
