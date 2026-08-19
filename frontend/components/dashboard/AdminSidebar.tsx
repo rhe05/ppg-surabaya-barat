@@ -133,6 +133,20 @@ const BAGIAN: Bagian[] = [
           </>
         ),
       },
+      {
+        // Diminta owner (20 Agt, putaran ketiga): dipindah dari "Organisasi"
+        // ke sini + nama diganti dari "Pengurus Kelompok" -- daftar
+        // dapukan/pemegangnya dilihat sebagai data master (spt Data Santri/
+        // Data Guru), bukan aktivitas organisasi berjalan.
+        href: '/pengurus',
+        label: 'Data Pengurus',
+        svg: (
+          <>
+            <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+          </>
+        ),
+      },
     ],
   },
   {
@@ -292,16 +306,6 @@ const BAGIAN: Bagian[] = [
   {
     label: 'Organisasi',
     item: [
-      {
-        href: '/pengurus',
-        label: 'Pengurus Kelompok',
-        svg: (
-          <>
-            <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
-            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-          </>
-        ),
-      },
       {
         href: '/pengumuman',
         label: 'Pengumuman',
