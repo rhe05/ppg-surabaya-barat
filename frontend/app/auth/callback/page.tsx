@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 /* Pendaratan setelah kembali dari Google.
 
@@ -12,10 +12,10 @@
    sebagai ?error_description= atau #error_description= — ditampilkan apa
    adanya supaya kegagalan konfigurasi tidak menyamar jadi layar memuat abadi. */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 export default function AuthCallbackPage() {
   const router = useRouter();
@@ -23,14 +23,12 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     const dariQuery = new URLSearchParams(window.location.search);
-    const dariFragment = new URLSearchParams(
-      window.location.hash.replace(/^#/, ""),
-    );
+    const dariFragment = new URLSearchParams(window.location.hash.replace(/^#/, ''));
     const pesan =
-      dariQuery.get("error_description") ??
-      dariQuery.get("error") ??
-      dariFragment.get("error_description") ??
-      dariFragment.get("error");
+      dariQuery.get('error_description') ??
+      dariQuery.get('error') ??
+      dariFragment.get('error_description') ??
+      dariFragment.get('error');
     if (pesan) {
       setError(pesan);
       return;
@@ -40,24 +38,22 @@ export default function AuthCallbackPage() {
     function lanjut() {
       if (selesai) return;
       selesai = true;
-      router.replace("/dashboard");
+      router.replace('/dashboard');
     }
 
     supabase.auth.getSession().then(({ data }) => {
       if (data.session) lanjut();
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (session) lanjut();
-      },
-    );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) lanjut();
+    });
 
     /* Jaring pengaman: tanpa ini, sesi yang tidak pernah terbentuk (kode
        kedaluwarsa, verifier hilang karena beda peramban) berhenti sebagai
        "Menyiapkan sesi..." selamanya. */
     const batas = setTimeout(() => {
-      if (!selesai) setError("Sesi tidak terbentuk. Silakan coba masuk lagi.");
+      if (!selesai) setError('Sesi tidak terbentuk. Silakan coba masuk lagi.');
     }, 10000);
 
     return () => {

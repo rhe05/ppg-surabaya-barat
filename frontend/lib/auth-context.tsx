@@ -1,14 +1,8 @@
-"use client";
+'use client';
 
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  ReactNode,
-} from "react";
-import type { Session, User } from "@supabase/supabase-js";
-import { supabase, setIngatSaya } from "@/lib/supabase";
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
+import { supabase, setIngatSaya } from '@/lib/supabase';
 
 // PostgREST mengembalikan relasi tersemat sebagai objek atau array satu elemen,
 // tergantung cara ia menyimpulkan kardinalitas. Pola yang sama sudah dipakai di
@@ -41,19 +35,13 @@ type AuthContextValue = {
   kategoriGuru: string | null;
   profileError: string | null;
   loading: boolean;
-  signIn: (
-    email: string,
-    password: string,
-    ingat?: boolean,
-  ) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string, ingat?: boolean) => Promise<{ error: string | null }>;
   signUp: (
     email: string,
     password: string,
   ) => Promise<{ error: string | null; perluKonfirmasiEmail: boolean }>;
   signInWithGoogle: (ingat?: boolean) => Promise<{ error: string | null }>;
-  kirimTautanResetPassword: (
-    email: string,
-  ) => Promise<{ error: string | null }>;
+  kirimTautanResetPassword: (email: string) => Promise<{ error: string | null }>;
   gantiPassword: (passwordBaru: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
@@ -76,11 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
 
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-      },
-    );
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
 
     return () => {
       cancelled = true;
@@ -98,11 +84,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       const { data, error } = await supabase
-        .from("profiles")
+        .from('profiles')
         .select(
-          "id, display_name, role, guru_id, scope_ppg_id, scope_desa_id, scope_kelompok_id, is_active, kelompok:scope_kelompok_id(nama), guru:guru_id(kategori)",
+          'id, display_name, role, guru_id, scope_ppg_id, scope_desa_id, scope_kelompok_id, is_active, kelompok:scope_kelompok_id(nama), guru:guru_id(kategori)',
         )
-        .eq("id", session.user.id)
+        .eq('id', session.user.id)
         .maybeSingle();
 
       if (cancelled) return;
@@ -110,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setProfileError(error.message);
         setProfile(null);
       } else if (!data) {
-        setProfileError("Profil tidak ditemukan untuk akun ini");
+        setProfileError('Profil tidak ditemukan untuk akun ini');
         setProfile(null);
       } else {
         setProfile(data);
@@ -168,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signInWithGoogle(ingat = true) {
     setIngatSaya(ingat);
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
+      provider: 'google',
       options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
     return { error: error ? error.message : null };
@@ -217,6 +203,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
   return ctx;
 }
