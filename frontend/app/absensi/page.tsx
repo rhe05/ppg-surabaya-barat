@@ -357,17 +357,19 @@ function AbsensiContent() {
     /* Terkunci: kelas+tanggal ini SUDAH pernah tersimpan lengkap (semua
        santri sudah punya baris absensi). Diminta owner secara eksplisit
        (19 Agt sore) -- guru tidak boleh menimpa data yang sudah tersimpan
-       sendiri, harus lewat Admin Kelompok (halaman Kelola Absensi yang
-       sudah ada). SENGAJA HANYA di klien, bukan di RPC: database TETAP
-       mengizinkan koreksi (dipakai Kelola Absensi & keputusan sebelumnya
-       "guru boleh mengoreksi kapan pun" di simpan_absensi_kelas TETAP
-       berlaku utk jalur admin) -- yang dikunci di sini murni tombolnya. */
+       lewat tombol Simpan di sini. SENGAJA HANYA di klien, bukan di RPC:
+       database TETAP mengizinkan koreksi (dipakai Kelola Absensi & jalur
+       admin) -- yang dikunci di sini murni tombolnya.
+       Pesan mengarahkan ke Riwayat Kehadiran (BUKAN lagi "hubungi Admin
+       Kelompok") sejak Riwayat Kehadiran punya fitur edit-per-sel sendiri
+       (diminta owner 19 Agt malam) -- guru sekarang bisa koreksi sendiri
+       tanpa lewat admin. */
     const sudahTersimpanSemua = santri.length > 0 && santri.every((s) => !!tersimpan[s.id]);
     if (sudahTersimpanSemua) {
       setStatusModal({
         tone: 'success',
         judul: 'Absen Sudah Tersimpan',
-        pesan: `Absen kelas "${kelasAktif?.nama ?? ''}" untuk tanggal ini sudah tersimpan sebelumnya. Hubungi Admin Kelompok kalau perlu koreksi data.`,
+        pesan: `Absen kelas "${kelasAktif?.nama ?? ''}" untuk tanggal ini sudah tersimpan sebelumnya. Jika ingin perbaiki kehadiran silahkan masuk melalui Riwayat Kehadiran.`,
       });
       return;
     }
