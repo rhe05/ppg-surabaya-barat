@@ -4,33 +4,55 @@
    read-only. Dibuka dari popup "Kehadiran" > Riwayat Kehadiran
    (components/dashboard/KehadiranChooser.tsx).
 
-   Logika disalin dari serverGetRiwayatKehadiranGuru (Modul_InputAbsen.gs:
-   1592-1652), bukan dikarang:
-   - Kolom tanggal HANYA hari kerja (Senin-Jumat) dalam bulan itu — Sabtu/
-     Minggu tidak pernah punya kolom, bukan cuma kosong.
-   - Hari Aktif = jumlah tanggal berbeda yang punya absensi APAPUN
-     statusnya, sama seperti definisi di dashboard (GuruDashboard.tsx).
-   - Warna badge sengaja BUKAN 4 warna berbeda seperti kotak statistik
-     dashboard: matrix ini memakai palet 3-warna app lama
-     (IA_RIWAYAT_STATUS_WARNA_) — izin & sakit SAMA-SAMA kuning, cuma hadir
-     (hijau tua) dan alpa (merah) yang beda sendiri. Ini quirk app lama yang
-     sengaja dipertahankan, bukan salah ketik.
+   Ditulis ulang (19 Agt) mengikuti screenshot owner supaya SAMA PERSIS app
+   lama: popup Pilih Kelas kartu besar (bukan <select>), header topbar+hero
+   penuh (bukan bar "Kembali" sendiri), label "Hari Aktif" + tombol filter
+   pil, dan popup Filter Riwayat (Bulan/Tahun/Minggu). Sumber:
+   - Popup Pilih Kelas: iaRiwayatOpenGate_/iaRenderRiwayatGateCards_
+     (Script_Main.html:1988-2038), markup #iaRiwayatKelasGateOverlay
+     (Markup_Screens.html:637-660) — SENGAJA TANPA badge jumlah santri,
+     beda dari popup Pilih Kelas Input Absen.
+   - Toolbar + label filter: iaUpdateRiwayatFilterLabel_
+     (Script_Main.html:2112-2118): "Kelas X · Bulan - Tahun".
+   - Popup Filter: #iaRiwayatFilterOverlay (Markup_Screens.html:665-698),
+     reuse shell .ia-kg-modal yang sama dgn popup Pilih Kelas.
+   - Matrix: serverGetRiwayatKehadiranGuru (Modul_InputAbsen.gs:1592-1652).
+     - Kolom tanggal HANYA hari kerja (Senin-Jumat) dalam bulan itu.
+     - Hari Aktif = jumlah tanggal berbeda yang punya absensi APAPUN
+       statusnya.
+     - Palet badge 3-warna app lama dipertahankan apa adanya (quirk asli,
+       dicek 2x di sumber): izin & sakit SAMA-SAMA kuning, cuma hadir
+       (hijau tua) dan alpa (merah) beda sendiri — beda dari 4-warna kotak
+       statistik dashboard/Input Absen.
+     - Paginasi 1000 baris pada query absensi.
 
-   Yang disederhanakan dari app lama (dicatat, bukan disembunyikan):
-   filter Bulan/Tahun & pilih kelas di sini berupa <select> biasa yang
-   langsung terlihat, bukan panel tersembunyi di balik tombol "Bulan -
-   Tahun". Popup pilih-kelas kartu besar (dipakai saat guru pegang >1
-   kelas) juga disederhanakan jadi <select> yang sama. */
+   Filter "Minggu" DIBANGUN (bukan disederhanakan lagi seperti versi
+   sebelumnya) karena popupnya sendiri sudah dibangun utk menyamai
+   screenshot — sisanya (Bulan/Tahun) tinggal dipasang di panel yang sama.
+   Pembagian minggu SAMA PERSIS app lama (iaRiwayatBucketMinggu_,
+   Script_Main.html:2163-2173): dihitung dari hari Senin, bukan
+   pembagian tanggal 1-7/8-14. */
 
 import { useCallback, useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
+import MenuGuru from '@/components/dashboard/MenuGuru';
+import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
+import JurnalChooser from '@/components/dashboard/JurnalChooser';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 
-type Kelas = { id: number; nama: string };
+type Kelas = {
+  id: number;
+  nama: string;
+  ruangan: string | null;
+  jam_mulai: string | null;
+  jam_selesai: string | null;
+  kategori_kbm: { nama: string } | { nama: string }[] | null;
+};
 type Santri = { id: number; nama: string; nama_panggilan: string | null };
 
 const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
@@ -57,6 +79,16 @@ const BADGE: Record<Status, { huruf: string; warna: string; label: string }> = {
   alpa: { huruf: 'A', warna: '#dc2626', label: 'Alpa' },
 };
 
+function namaDariKategori(nilai: Kelas['kategori_kbm']) {
+  if (!nilai) return null;
+  const baris = Array.isArray(nilai) ? nilai[0] : nilai;
+  return baris?.nama ?? null;
+}
+
+function jam(nilai: string | null) {
+  return nilai ? nilai.slice(0, 5) : null;
+}
+
 function tanggalKerjaBulan(tahun: number, bulan: number): string[] {
   const jumlahHari = new Date(tahun, bulan, 0).getDate();
   const dua = (n: number) => String(n).padStart(2, '0');
@@ -68,23 +100,51 @@ function tanggalKerjaBulan(tahun: number, bulan: number): string[] {
   return hasil;
 }
 
-const KELAS_SELECT =
-  'rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] font-semibold ' +
-  'text-text focus:border-brass focus:outline-none';
+/* iaRiwayatBucketMinggu_ — Script_Main.html:2163-2173. Minggu ke-N dihitung
+   dari hari Senin: hari-hari sebelum Senin pertama bulan itu (kalau ada)
+   ikut masuk Minggu Ke 1, lalu tiap kali ketemu Senin baru mulai Minggu Ke
+   berikutnya — BUKAN pembagian tanggal 1-7/8-14. */
+function kelompokkanMinggu(tanggalList: string[]): Record<number, string[]> {
+  const bucket: Record<number, string[]> = {};
+  let minggu = 0;
+  tanggalList.forEach((tgl) => {
+    const dow = new Date(tgl + 'T00:00:00').getDay();
+    if (minggu === 0 || dow === 1) minggu++;
+    (bucket[minggu] = bucket[minggu] ?? []).push(tgl);
+  });
+  return bucket;
+}
+
+const NAMA_HARI_HERO = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+function labelTanggalHero(d: Date) {
+  return `${NAMA_HARI_HERO[d.getDay()]}, ${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+const SELECT_KELAS =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
 function RiwayatKehadiranContent() {
   const { profile } = useAuth();
-  const router = useRouter();
   const guruId = profile?.guru_id ?? null;
 
   const sekarang = new Date();
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | null>(null);
+  const [gateTerbuka, setGateTerbuka] = useState(false);
+  const [gateMemuat, setGateMemuat] = useState(true);
+
   const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
   const [tahun, setTahun] = useState(sekarang.getFullYear());
+  const [minggu, setMinggu] = useState<'semua' | 1 | 2 | 3 | 4>('semua');
+  const [filterTerbuka, setFilterTerbuka] = useState(false);
+  const [rancanganFilter, setRancanganFilter] = useState({ bulan, tahun, minggu });
+
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
+  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
   const [baris, setBaris] = useState<{ santri: Santri; statusByDate: Record<string, Status> }[]>(
-    []
+    [],
   );
   const [hariAktif, setHariAktif] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -94,23 +154,27 @@ function RiwayatKehadiranContent() {
     let dibatalkan = false;
     async function muatKelas() {
       if (guruId == null) {
+        setGateMemuat(false);
         setLoading(false);
         return;
       }
       const { data, error: err } = await supabase
         .from('kelas')
-        .select('id, nama')
+        .select('id, nama, ruangan, jam_mulai, jam_selesai, kategori_kbm(nama)')
         .eq('guru_id', guruId)
         .is('deleted_at', null)
         .order('nama');
       if (dibatalkan) return;
+      setGateMemuat(false);
       if (err) {
         setError(err.message);
         setLoading(false);
         return;
       }
-      setKelasList(data ?? []);
-      if ((data ?? []).length > 0) setKelasId((sebelum) => sebelum ?? data![0].id);
+      const daftar = (data ?? []) as unknown as Kelas[];
+      setKelasList(daftar);
+      if (daftar.length === 1) setKelasId(daftar[0].id);
+      else if (daftar.length > 1) setGateTerbuka(true);
       else setLoading(false);
     }
     muatKelas();
@@ -170,9 +234,7 @@ function RiwayatKehadiranContent() {
         }
       }
 
-      setBaris(
-        santriList.map((s) => ({ santri: s, statusByDate: statusMap[s.id] ?? {} }))
-      );
+      setBaris(santriList.map((s) => ({ santri: s, statusByDate: statusMap[s.id] ?? {} })));
       setHariAktif(tanggalDiisi.size);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat riwayat');
@@ -185,8 +247,25 @@ function RiwayatKehadiranContent() {
     muatMatrix();
   }, [muatMatrix]);
 
-  const tanggalList = tanggalKerjaBulan(tahun, bulan);
+  const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
+  const semuaTanggal = tanggalKerjaBulan(tahun, bulan);
+  const tanggalList =
+    minggu === 'semua' ? semuaTanggal : (kelompokkanMinggu(semuaTanggal)[minggu] ?? []);
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
+
+  const gateDaftar: KelasGateItem[] = kelasList.map((k) => ({
+    id: k.id,
+    nama: k.nama,
+    badge: namaDariKategori(k.kategori_kbm) === 'Cabe Rawit' ? 'Cabe Rawit' : null,
+    info: [
+      k.ruangan,
+      jam(k.jam_mulai) && jam(k.jam_selesai) ? `${jam(k.jam_mulai)}–${jam(k.jam_selesai)}` : null,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    // TIDAK ada `jumlah` — popup Pilih Kelas Riwayat sengaja tanpa badge
+    // jumlah santri, beda dari popup Pilih Kelas Input Absen.
+  }));
 
   if (guruId == null) {
     return (
@@ -200,62 +279,274 @@ function RiwayatKehadiranContent() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-panel px-[18px] py-3.5 shadow-[var(--shadow-subtle)]">
-        <button
-          type="button"
-          aria-label="Kembali"
-          onClick={() => router.push('/dashboard')}
-          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m15 18-6-6 6-6" />
+      <MenuGuru
+        terbuka={menuTerbuka}
+        onTutup={() => setMenuTerbuka(false)}
+        onKehadiran={() => setKehadiranChooserTerbuka(true)}
+        onJurnal={() => setJurnalChooserTerbuka(true)}
+      />
+      <KehadiranChooser
+        terbuka={kehadiranChooserTerbuka}
+        onTutup={() => setKehadiranChooserTerbuka(false)}
+      />
+      <JurnalChooser
+        terbuka={jurnalChooserTerbuka}
+        onTutup={() => setJurnalChooserTerbuka(false)}
+      />
+
+      <KelasGate
+        terbuka={gateTerbuka}
+        memuat={gateMemuat}
+        ikon={
+          <svg
+            viewBox="0 0 24 24"
+            width="22"
+            height="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M3 3v5h5" />
+            <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+            <path d="M12 7v5l4 2" />
           </svg>
-        </button>
-        <h1 className="m-0 flex-1 text-[15px] font-bold text-text">Riwayat Kehadiran</h1>
+        }
+        judul="Pilih Kelas"
+        subjudul="Allhamdulillah, Jenengan mengajar lebih dari satu kelas. Pilih salah satu untuk melihat riwayat kehadiran."
+        daftar={gateDaftar}
+        onPilih={(item) => {
+          setKelasId(item.id);
+          setGateTerbuka(false);
+        }}
+        onBatal={() => setGateTerbuka(false)}
+      />
+
+      {/* Popup Filter Riwayat — reuse shell .ia-kg-modal, Markup_Screens.html:
+          665-698. Dibuka lewat tombol pil "Kelas X · Bulan - Tahun". */}
+      {filterTerbuka && (
+        <div className="fixed inset-0 z-[550] flex items-center justify-center bg-[rgba(15,23,42,0.6)] p-6 backdrop-blur-[4px]">
+          <div className="relative w-full max-w-[440px] rounded-[26px] bg-panel p-[26px_20px_18px] shadow-[0_-16px_48px_rgba(0,0,0,0.32)]">
+            <button
+              type="button"
+              onClick={() => setFilterTerbuka(false)}
+              aria-label="Tutup"
+              className="absolute top-3.5 right-3.5 flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+            >
+              ×
+            </button>
+
+            <div className="mb-[18px] text-center">
+              <div
+                className="mx-auto mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-2xl text-white shadow-[0_8px_20px_rgba(5,150,105,0.32)]"
+                style={{
+                  background: 'linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%)',
+                }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+              </div>
+              <div className="mb-1.5 text-[18px] font-extrabold text-text">Filter Riwayat</div>
+              <div className="px-2 text-[12.5px] leading-relaxed text-text">
+                Pilih Bulan, Tahun, dan Minggu untuk melihat riwayat kehadiran.
+              </div>
+            </div>
+
+            <div className="mb-2.5 flex gap-2.5">
+              <div className="flex-1">
+                <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Bulan</label>
+                <select
+                  value={rancanganFilter.bulan}
+                  onChange={(e) =>
+                    setRancanganFilter((s) => ({ ...s, bulan: Number(e.target.value) }))
+                  }
+                  className={SELECT_KELAS}
+                >
+                  {NAMA_BULAN.map((nm, idx) => (
+                    <option key={nm} value={idx + 1}>
+                      {nm}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1">
+                <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Tahun</label>
+                <select
+                  value={rancanganFilter.tahun}
+                  onChange={(e) =>
+                    setRancanganFilter((s) => ({ ...s, tahun: Number(e.target.value) }))
+                  }
+                  className={SELECT_KELAS}
+                >
+                  {tahunPilihan.map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="mb-4">
+              <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Minggu</label>
+              <select
+                value={rancanganFilter.minggu}
+                onChange={(e) =>
+                  setRancanganFilter((s) => ({
+                    ...s,
+                    minggu: (e.target.value === 'semua'
+                      ? 'semua'
+                      : Number(e.target.value)) as typeof minggu,
+                  }))
+                }
+                className={SELECT_KELAS}
+              >
+                <option value="semua">Semuanya</option>
+                <option value="1">Minggu Ke 1</option>
+                <option value="2">Minggu Ke 2</option>
+                <option value="3">Minggu Ke 3</option>
+                <option value="4">Minggu Ke 4</option>
+              </select>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBulan(rancanganFilter.bulan);
+                setTahun(rancanganFilter.tahun);
+                setMinggu(rancanganFilter.minggu);
+                setFilterTerbuka(false);
+              }}
+              className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[13px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.28)] active:scale-[0.97]"
+              style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
+            >
+              Terapkan
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* .ia-header — Style_Main.html:4859-4865, sama dgn GuruAbsensiView
+          tapi TANPA baris kelas aktif di hero (riwayat tidak terikat 1
+          kelas+jam tertentu spt Input Absen). */}
+      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
+        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
+          <button
+            type="button"
+            aria-label="Menu Utama"
+            onClick={() => setMenuTerbuka((v) => !v)}
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+          <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
+            <Image
+              src="/logo-ruang-ngaji.png"
+              alt="Ruang Ngaji"
+              width={20}
+              height={18}
+              className="block shrink-0"
+            />
+            <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+              Ruang Ngaji
+            </span>
+          </div>
+          <button
+            type="button"
+            aria-label="Permintaan Masuk"
+            className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </button>
+        </div>
+
+        <div
+          className="flex items-start justify-between gap-3 px-[18px] pt-4 pb-4 text-white"
+          style={{ background: 'linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%)' }}
+        >
+          <div className="min-w-0 text-[15px] font-bold">{profile?.display_name ?? 'Guru'}</div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white">
+              <svg
+                viewBox="0 0 24 24"
+                width="19"
+                height="19"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M8 2v4" />
+                <path d="M16 2v4" />
+                <rect width="18" height="18" x="3" y="4" rx="2" />
+                <path d="M3 10h18" />
+              </svg>
+            </span>
+            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
+              {labelTanggalHero(sekarang)}
+            </span>
+          </div>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
+        {/* Toolbar — iaUpdateRiwayatFilterLabel_ (Script_Main.html:2112-2118) */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
-          {/* .ia-riwayat-hariaktif — warna teal, beda dari tombol filter */}
           <span className="text-[13.5px] font-bold text-teal">Hari Aktif - {hariAktif} Hari</span>
-
-          <div className="flex flex-wrap gap-2">
-            {kelasList.length > 1 && (
-              <select
-                value={kelasId ?? ''}
-                onChange={(e) => setKelasId(Number(e.target.value))}
-                className={KELAS_SELECT}
-              >
-                {kelasList.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    Kelas {k.nama}
-                  </option>
-                ))}
-              </select>
-            )}
-            <select
-              value={bulan}
-              onChange={(e) => setBulan(Number(e.target.value))}
-              className={KELAS_SELECT}
-            >
-              {NAMA_BULAN.map((nm, idx) => (
-                <option key={nm} value={idx + 1}>
-                  {nm}
-                </option>
-              ))}
-            </select>
-            <select
-              value={tahun}
-              onChange={(e) => setTahun(Number(e.target.value))}
-              className={KELAS_SELECT}
-            >
-              {tahunPilihan.map((y) => (
-                <option key={y} value={y}>
-                  {y}
-                </option>
-              ))}
-            </select>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRancanganFilter({ bulan, tahun, minggu });
+              setFilterTerbuka(true);
+            }}
+            className="flex items-center gap-1.5 rounded-[var(--radius-button)] border px-3.5 py-2 text-[12.5px] font-bold text-sage transition-transform duration-150 active:scale-95"
+            style={{
+              borderColor: 'rgba(5,150,105,0.25)',
+              background: 'linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%)',
+              boxShadow: '0 2px 10px rgba(5,150,105,0.12)',
+            }}
+          >
+            {kelasAktif ? `Kelas ${kelasAktif.nama} · ` : ''}
+            {NAMA_BULAN[bulan - 1]} - {tahun}
+            {minggu !== 'semua' ? ` · Minggu ${minggu}` : ''}
+          </button>
         </div>
 
         {error && (
@@ -270,7 +561,7 @@ function RiwayatKehadiranContent() {
           <p className="py-8 text-center text-[13px] text-text-faint">
             Anda belum mengampu kelas apa pun.
           </p>
-        ) : baris.length === 0 ? (
+        ) : kelasId === null ? null : baris.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-text-faint">
             Belum ada santri di kelas ini.
           </p>
@@ -282,7 +573,7 @@ function RiwayatKehadiranContent() {
             <table className="border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky top-0 left-0 z-[4] min-w-[84px] whitespace-nowrap border-r border-[rgba(148,163,184,0.35)] border-b border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint">
+                  <th className="sticky top-0 left-0 z-[4] min-w-[84px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint">
                     Nama Santri
                   </th>
                   {tanggalList.map((tgl) => {
@@ -290,7 +581,7 @@ function RiwayatKehadiranContent() {
                     return (
                       <th
                         key={tgl}
-                        className="sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-[rgba(148,163,184,0.35)] border-b border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint"
+                        className="sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint"
                       >
                         {d.getDate()}
                         <span className="mt-0.5 block text-[9px] font-semibold text-text-faint">
@@ -303,10 +594,7 @@ function RiwayatKehadiranContent() {
               </thead>
               <tbody>
                 {baris.map((r, idx) => (
-                  <tr
-                    key={r.santri.id}
-                    className={idx % 2 === 1 ? 'bg-panel-2/40' : undefined}
-                  >
+                  <tr key={r.santri.id} className={idx % 2 === 1 ? 'bg-panel-2/40' : undefined}>
                     <td className="sticky left-0 z-[1] min-w-[84px] whitespace-nowrap border-r border-[rgba(148,163,184,0.35)] bg-panel px-2.5 py-2 text-left text-[13px] font-semibold text-text">
                       {(r.santri.nama_panggilan || r.santri.nama).trim()}
                     </td>
