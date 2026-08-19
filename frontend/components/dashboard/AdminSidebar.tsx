@@ -399,14 +399,24 @@ export default function AdminSidebar() {
       }
       style={{ width: ciut ? 68 : 240 }}
     >
-      {/* Logo — Style_Main.html:453-471 */}
-      <div className="sticky top-0 z-[5] flex h-[var(--topbar-height)] shrink-0 items-center justify-between gap-2 border-b border-border bg-panel px-5">
+      {/* Logo — Style_Main.html:453-471. Saat ciut, kontainer dipusatkan
+          (bukan rata kiri dgn px-5 spt versi lapang) dan ikon diperbesar
+          sedikit (28px, dari 22px) -- diminta owner: presisi dgn ukuran
+          ikon menu di bawahnya (19px stroke-icon terasa "ramai" garisnya,
+          jadi logo raster perlu sedikit lebih besar drpd ikon garis biar
+          bobot visualnya setara, bukan English 1:1 px). */}
+      <div
+        className={
+          'sticky top-0 z-[5] flex h-[var(--topbar-height)] shrink-0 items-center gap-2 border-b border-border bg-panel' +
+          (ciut ? ' justify-center px-2' : ' justify-between px-5')
+        }
+      >
         <div className="flex min-w-0 items-center gap-2.5 overflow-hidden">
           <Image
             src="/logo-ruang-ngaji.png"
             alt="Ruang Ngaji"
-            width={22}
-            height={20}
+            width={ciut ? 28 : 22}
+            height={ciut ? 26 : 20}
             className="block shrink-0"
           />
           {!ciut && (
