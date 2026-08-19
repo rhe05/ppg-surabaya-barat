@@ -32,13 +32,21 @@
      lebih baik", standar sidebar modern selalu dikelompokkan begini utk
      nav sepanjang ini), bukan copy 1:1.
    - "Persetujuan Akun" (/pendaftaran) hanya utk 3 peran admin, sama
-     seperti KartuPendaftaran.tsx & app/pendaftaran/page.tsx (PERAN_ADMIN).
+     seperti app/pendaftaran/page.tsx (PERAN_ADMIN).
    - Item "User Management" app lama SENGAJA TIDAK ada di sini -- belum
      ada halaman setara di app baru (di luar cakupan tugas ini, bukan
      terlewat).
-   - "Data Santri"/"Data Guru" app lama juga SENGAJA TIDAK jadi item nav
-     terpisah -- di app baru itu bukan halaman sendiri, cuma komponen
-     (SantriList/GuruList) yang tampil di /dashboard.
+   - "Data Santri"/"Data Guru" (20 Agt, PUTARAN KEDUA): diminta owner
+     ditambahkan sesudahnya -- sebelumnya SENGAJA tidak ada karena bukan
+     halaman sendiri (cuma komponen SantriList/GuruList yang nempel di
+     /dashboard). Sekarang app/santri & app/guru (baru) jadi tujuannya,
+     dan komponen itu dipindah keluar dari /dashboard supaya tidak
+     dobel. Kartu-kartu navigasi lain di /dashboard yang cuma duplikat
+     link sidebar (Input Absensi, Daftar Kelas, dst. -- 16 kartu) & kartu
+     KartuPendaftaran.tsx juga DIHAPUS bersamaan (diminta owner: "sudah
+     ada di sidebar, hilangkan saja biar rapi") -- lihat app/dashboard/
+     page.tsx, komponen KartuPendaftaran.tsx ikut dihapus krn jadi tidak
+     dipakai di mana pun.
    - Pohon Desa›Kelompok app lama (utk pindah KONTEKS antar kelompok)
      SENGAJA TIDAK dibawa -- itu keputusan desain lama yang sudah
      didokumentasikan di PohonWilayah.tsx: app baru tidak punya state
@@ -87,6 +95,41 @@ const BAGIAN: Bagian[] = [
             <rect width="7" height="5" x="14" y="3" rx="1" />
             <rect width="7" height="9" x="14" y="12" rx="1" />
             <rect width="7" height="5" x="3" y="16" rx="1" />
+          </>
+        ),
+      },
+    ],
+  },
+  {
+    // Diminta owner (20 Agt): "Data Santri"/"Data Guru" belum punya tujuan
+    // -- app/santri, app/guru (baru) memindahkan SantriList/GuruList dari
+    // /dashboard (dulu berbagi baris setengah lebar) ke halaman sendiri.
+    // Ikon topi wisuda & dua-orang disalin literal dari legacy
+    // Markup_Screens.html:1054/1060 (Data Santri/Data Guru) -- sebelumnya
+    // path ini kepakai duluan di "Daftar Kelas"/"Pengurus Kelompok", sudah
+    // diganti (lihat bawah) supaya tidak ada 2 item beda pakai ikon sama.
+    label: 'Data Master',
+    item: [
+      {
+        href: '/santri',
+        label: 'Data Santri',
+        svg: (
+          <>
+            <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
+            <path d="M22 10v6" />
+            <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+          </>
+        ),
+      },
+      {
+        href: '/guru',
+        label: 'Data Guru',
+        svg: (
+          <>
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
           </>
         ),
       },
@@ -147,9 +190,10 @@ const BAGIAN: Bagian[] = [
         label: 'Daftar Kelas',
         svg: (
           <>
-            <path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z" />
-            <path d="M22 10v6" />
-            <path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5" />
+            <path d="M13 4.562v16.157a1 1 0 0 1-1.242.97L5 20V5.562a2 2 0 0 1 1.515-1.94l4-1a2 2 0 0 1 2.485 1.94Z" />
+            <path d="M13 4h3a2 2 0 0 1 2 2v14" />
+            <path d="M13 20h6" />
+            <path d="M10 12v.01" />
           </>
         ),
       },
@@ -253,10 +297,8 @@ const BAGIAN: Bagian[] = [
         label: 'Pengurus Kelompok',
         svg: (
           <>
-            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-            <circle cx="9" cy="7" r="4" />
-            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
-            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            <rect width="20" height="14" x="2" y="7" rx="2" ry="2" />
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
           </>
         ),
       },
