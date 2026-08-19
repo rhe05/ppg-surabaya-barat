@@ -35,6 +35,13 @@ export type KelasDetail = {
   jam_selesai: string | null;
   santri_count: number;
   kategori_kbm: { nama: string } | { nama: string }[] | null;
+  /* true = kelas ini BUKAN milik guru, tapi permintaan "Minta Akses"-nya
+     disetujui utk tanggal yang sedang dibuka (akses_kelas_request, status
+     'approved'). Ditandai ikon 🔓 di chip — .ia-kelas-chip.pinjam
+     (Script_Main.html:2678, Style_Main.html:5156-5161). Popup Pilih Kelas
+     sendiri TIDAK membedakannya (dicek: app lama juga tidak menandai kartu
+     gate, cuma chip sesudahnya). */
+  pinjam?: boolean;
 };
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
@@ -285,6 +292,7 @@ export default function GuruAbsensiView({
                   }
                 >
                   <span className="text-[13.5px] font-bold whitespace-nowrap text-text">
+                    {k.pinjam && <span className="mr-0.5 text-[11px]">🔓</span>}
                     {k.nama}
                   </span>
                   {namaDariKategori(k.kategori_kbm) === 'Cabe Rawit' && (

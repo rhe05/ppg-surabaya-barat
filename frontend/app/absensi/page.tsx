@@ -130,6 +130,12 @@ function AbsensiContent() {
     };
   }, [kelompokId]);
 
+  /* Kelas milik guru (statis) + kelas "pinjam" (akses_kelas_request berstatus
+     approved UNTUK TANGGAL yang sedang dibuka — Modul_InputAbsen.gs:369-379).
+     Karena itu bergantung pada `tanggal`: kelas pinjam bisa muncul/hilang
+     kalau tanggalnya diganti, sedangkan kelas milik sendiri tidak pernah
+     berubah. Dimuat paralel lalu digabung, kelas MILIK SENDIRI menang kalau
+     kebetulan id-nya sama (mustahil dlm praktik, tapi jaga-jaga). */
   useEffect(() => {
     let cancelled = false;
     async function loadKelasDetail() {
@@ -137,25 +143,47 @@ function AbsensiContent() {
         setKelasDetail([]);
         return;
       }
-      const { data } = await supabase
-        .from('kelas')
-        .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)')
-        .eq('guru_id', profile.guru_id)
-        .is('deleted_at', null)
-        .order('jam_mulai');
+      const kolom = 'id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)';
+      const [hasilSendiri, hasilPinjam] = await Promise.all([
+        supabase
+          .from('kelas')
+          .select(kolom)
+          .eq('guru_id', profile.guru_id)
+          .is('deleted_at', null)
+          .order('jam_mulai'),
+        supabase
+          .from('akses_kelas_request')
+          .select(`kelas:kelas_id(${kolom})`)
+          .eq('requester_guru_id', profile.guru_id)
+          .eq('tanggal', tanggal)
+          .eq('status', 'approved'),
+      ]);
       if (cancelled) return;
-      const daftar = (data ?? []) as unknown as KelasDetail[];
+
+      const sendiri = (hasilSendiri.data ?? []) as unknown as KelasDetail[];
+      const idSendiri = new Set(sendiri.map((k) => k.id));
+      const pinjamMentah = (hasilPinjam.data ?? []) as unknown as { kelas: KelasDetail | null }[];
+      const pinjam: KelasDetail[] = [];
+      const idPinjamTerpakai = new Set<number>();
+      pinjamMentah.forEach((r) => {
+        const k = r.kelas;
+        if (!k || idSendiri.has(k.id) || idPinjamTerpakai.has(k.id)) return;
+        idPinjamTerpakai.add(k.id);
+        pinjam.push({ ...k, pinjam: true });
+      });
+
+      const daftar = [...sendiri, ...pinjam];
       setKelasDetail(daftar);
-      /* Satu kelas -> langsung masuk, tidak perlu popup pilih kelas.
-         Lebih dari satu -> dibiarkan kosong, GuruAbsensiView yang membuka
-         KelasGate dan memanggil onPilihKelas saat guru memilih. */
+      /* Satu kelas (milik sendiri ATAU pinjam) -> langsung masuk, tidak
+         perlu popup pilih kelas. Lebih dari satu -> dibiarkan kosong,
+         GuruAbsensiView yang membuka KelasGate. */
       if (daftar.length === 1) setKelasId(String(daftar[0].id));
     }
     loadKelasDetail();
     return () => {
       cancelled = true;
     };
-  }, [adalahGuru, profile?.guru_id]);
+  }, [adalahGuru, profile?.guru_id, tanggal]);
 
   const load = useCallback(async () => {
     if (!kelompokId) return;
