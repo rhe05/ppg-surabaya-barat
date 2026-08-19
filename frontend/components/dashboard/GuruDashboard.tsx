@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
@@ -43,9 +43,10 @@ const NAMA_BULAN = [
   'Desember',
 ];
 
-const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-
 type Statistik = { hariAktif: number; hadir: number; izin: number; sakit: number; alpa: number };
+
+const SELECT_BULAN_TAHUN =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
 const STATUS: {
   kunci: keyof Omit<Statistik, 'hariAktif'>;
@@ -61,13 +62,11 @@ const STATUS: {
   { kunci: 'alpa', label: 'ALPA', warna: '#DC2626', pill: 'rgba(220, 38, 38, 0.12)' },
 ];
 
-function batasBulan(d: Date) {
-  const y = d.getFullYear();
-  const m = d.getMonth();
+function batasBulan(tahun: number, bulan: number) {
   const dua = (n: number) => String(n).padStart(2, '0');
   return {
-    awal: `${y}-${dua(m + 1)}-01`,
-    akhir: `${y}-${dua(m + 1)}-${dua(new Date(y, m + 1, 0).getDate())}`,
+    awal: `${tahun}-${dua(bulan)}-01`,
+    akhir: `${tahun}-${dua(bulan)}-${dua(new Date(tahun, bulan, 0).getDate())}`,
   };
 }
 
@@ -104,6 +103,17 @@ export default function GuruDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const sekarangAwal = new Date();
+  /* Bulan/tahun yang sedang ditampilkan — dipilih lewat ikon kalender di
+     hero (diminta owner: samakan dgn Riwayat Kehadiran, TAPI tanpa Minggu
+     — cuma Bulan & Tahun). Statistik 5 kotak & label caption di bawah
+     ikon sama-sama mengikuti nilai ini, bukan lagi selalu bulan berjalan. */
+  const [bulan, setBulan] = useState(sekarangAwal.getMonth() + 1);
+  const [tahun, setTahun] = useState(sekarangAwal.getFullYear());
+  const [kalenderTerbuka, setKalenderTerbuka] = useState(false);
+  const [posisiKalender, setPosisiKalender] = useState<{ top: number; right: number } | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
+
   const guruId = profile?.guru_id ?? null;
 
   /* Statistik 5 kotak, mengikuti definisi app lama:
@@ -111,7 +121,8 @@ export default function GuruDashboard() {
        itu (Modul_InputAbsen.gs:1151), bukan jumlah baris absensi.
      - Persentase dihitung dari hadir+izin+sakit+alpa (Script_Main.html:2594),
        BUKAN dari jumlah santri di kelas.
-     - Lingkupnya bulan berjalan, bukan kumulatif sejak awal.
+     - Lingkupnya SATU BULAN, ditentukan filter Bulan/Tahun di hero — bukan
+       lagi selalu bulan berjalan seperti sebelumnya.
 
      Dua langkah (santri dulu, lalu absensi) sengaja dipilih ketimbang satu
      query dengan embedded filter: absensi TIDAK punya kelas_id, jalurnya
@@ -119,66 +130,69 @@ export default function GuruDashboard() {
      bergantung pada tafsir PostgREST atas filter tersemat.
 
      Paginasi wajib: PostgREST diam-diam memotong di 1000 baris. */
-  const muatStatistik = useCallback(async (kelasIds: number[]) => {
-    if (kelasIds.length === 0) {
-      setStatistik({});
-      return;
-    }
-
-    const { data: dataSantri, error: errSantri } = await supabase
-      .from('santri')
-      .select('id, kelas_id')
-      .in('kelas_id', kelasIds)
-      .is('deleted_at', null);
-    if (errSantri) throw new Error(errSantri.message);
-
-    const kelasDariSantri = new Map<number, number>();
-    (dataSantri ?? []).forEach((s) => {
-      if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
-    });
-
-    const kosong = (): Statistik => ({ hariAktif: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0 });
-    const hasil: Record<number, Statistik> = {};
-    const tanggalPerKelas: Record<number, Set<string>> = {};
-    kelasIds.forEach((id) => {
-      hasil[id] = kosong();
-      tanggalPerKelas[id] = new Set();
-    });
-
-    if (kelasDariSantri.size > 0) {
-      const { awal, akhir } = batasBulan(new Date());
-      const UKURAN_HALAMAN = 1000;
-      const santriIds = [...kelasDariSantri.keys()];
-
-      for (let dari = 0; ; dari += UKURAN_HALAMAN) {
-        const { data, error: errAbsensi } = await supabase
-          .from('absensi')
-          .select('id, santri_id, tanggal, status')
-          .in('santri_id', santriIds)
-          .gte('tanggal', awal)
-          .lte('tanggal', akhir)
-          .is('deleted_at', null)
-          .order('id', { ascending: true })
-          .range(dari, dari + UKURAN_HALAMAN - 1);
-        if (errAbsensi) throw new Error(errAbsensi.message);
-
-        const batch = data ?? [];
-        batch.forEach((baris) => {
-          const kelasId = kelasDariSantri.get(baris.santri_id);
-          if (kelasId == null || !hasil[kelasId]) return;
-          tanggalPerKelas[kelasId].add(baris.tanggal);
-          const kunci = baris.status as keyof Omit<Statistik, 'hariAktif'>;
-          if (kunci in hasil[kelasId]) hasil[kelasId][kunci] += 1;
-        });
-        if (batch.length < UKURAN_HALAMAN) break;
+  const muatStatistik = useCallback(
+    async (kelasIds: number[], bulanDipilih: number, tahunDipilih: number) => {
+      if (kelasIds.length === 0) {
+        setStatistik({});
+        return;
       }
-    }
 
-    kelasIds.forEach((id) => {
-      hasil[id].hariAktif = tanggalPerKelas[id].size;
-    });
-    setStatistik(hasil);
-  }, []);
+      const { data: dataSantri, error: errSantri } = await supabase
+        .from('santri')
+        .select('id, kelas_id')
+        .in('kelas_id', kelasIds)
+        .is('deleted_at', null);
+      if (errSantri) throw new Error(errSantri.message);
+
+      const kelasDariSantri = new Map<number, number>();
+      (dataSantri ?? []).forEach((s) => {
+        if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
+      });
+
+      const kosong = (): Statistik => ({ hariAktif: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0 });
+      const hasil: Record<number, Statistik> = {};
+      const tanggalPerKelas: Record<number, Set<string>> = {};
+      kelasIds.forEach((id) => {
+        hasil[id] = kosong();
+        tanggalPerKelas[id] = new Set();
+      });
+
+      if (kelasDariSantri.size > 0) {
+        const { awal, akhir } = batasBulan(tahunDipilih, bulanDipilih);
+        const UKURAN_HALAMAN = 1000;
+        const santriIds = [...kelasDariSantri.keys()];
+
+        for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+          const { data, error: errAbsensi } = await supabase
+            .from('absensi')
+            .select('id, santri_id, tanggal, status')
+            .in('santri_id', santriIds)
+            .gte('tanggal', awal)
+            .lte('tanggal', akhir)
+            .is('deleted_at', null)
+            .order('id', { ascending: true })
+            .range(dari, dari + UKURAN_HALAMAN - 1);
+          if (errAbsensi) throw new Error(errAbsensi.message);
+
+          const batch = data ?? [];
+          batch.forEach((baris) => {
+            const kelasId = kelasDariSantri.get(baris.santri_id);
+            if (kelasId == null || !hasil[kelasId]) return;
+            tanggalPerKelas[kelasId].add(baris.tanggal);
+            const kunci = baris.status as keyof Omit<Statistik, 'hariAktif'>;
+            if (kunci in hasil[kelasId]) hasil[kelasId][kunci] += 1;
+          });
+          if (batch.length < UKURAN_HALAMAN) break;
+        }
+      }
+
+      kelasIds.forEach((id) => {
+        hasil[id].hariAktif = tanggalPerKelas[id].size;
+      });
+      setStatistik(hasil);
+    },
+    [],
+  );
 
   const load = useCallback(async () => {
     if (guruId == null) {
@@ -198,13 +212,17 @@ export default function GuruDashboard() {
       if (queryError) throw new Error(queryError.message);
       const daftarKelas = data ?? [];
       setKelas(daftarKelas);
-      await muatStatistik(daftarKelas.map((k) => k.id));
+      await muatStatistik(
+        daftarKelas.map((k) => k.id),
+        bulan,
+        tahun,
+      );
     } catch {
       setError('Error loading data');
     } finally {
       setLoading(false);
     }
-  }, [guruId, muatStatistik]);
+  }, [guruId, muatStatistik, bulan, tahun]);
 
   useEffect(() => {
     let cancelled = false;
@@ -214,11 +232,7 @@ export default function GuruDashboard() {
     };
   }, [load]);
 
-  const sekarang = new Date();
-  const labelTanggal = `${NAMA_HARI[sekarang.getDay()]}, ${sekarang.getDate()} ${
-    NAMA_BULAN[sekarang.getMonth()]
-  } ${sekarang.getFullYear()}`;
-  const labelBulan = `${NAMA_BULAN[sekarang.getMonth()]} - ${sekarang.getFullYear()}`;
+  const tahunPilihan = [sekarangAwal.getFullYear() - 1, sekarangAwal.getFullYear()];
 
   const singkatan = kategoriGuru ? (SINGKATAN_KATEGORI[kategoriGuru] ?? kategoriGuru) : null;
   const barisRole = singkatan ? `Guru Generus - ${singkatan}` : null;
@@ -326,10 +340,26 @@ export default function GuruDashboard() {
 
           {/* .ia-header-hero-right — :4912-4918 */}
           <div className="flex shrink-0 flex-col items-end gap-[7px]">
-            {/* .ia-icon-btn-hero — :5066-5073 */}
+            {/* .ia-icon-btn-hero — :5066-5073. Diminta owner: samakan dgn
+                Riwayat Kehadiran — ikon ini SATU-SATUNYA pemicu memilih
+                Bulan/Tahun (tanpa Minggu, beda dari Riwayat), dan caption
+                di bawahnya menampilkan bulan+tahun yang sedang dipilih,
+                bukan lagi tanggal hari ini. Toolbar "Agustus - 2026" yang
+                dulu ada di bawah header DIHAPUS — digantikan caption ini. */}
             <button
+              ref={ikonKalenderRef}
               type="button"
-              aria-label="Pilih tanggal"
+              aria-label="Pilih Bulan dan Tahun"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiKalender({
+                    top: rect.bottom + 6,
+                    right: window.innerWidth - rect.right,
+                  });
+                }
+                setKalenderTerbuka((v) => !v);
+              }}
               className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white transition-all duration-150 active:bg-white/[0.32]"
             >
               <svg
@@ -349,22 +379,54 @@ export default function GuruDashboard() {
               </svg>
             </button>
 
-            {/* .ia-greeting-date — :4920-4943. Titik 6px #FFD166, bukan ikon. */}
-            <span className="inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[rgba(255,209,102,0.85)] bg-white/[0.14] px-[11px] py-1 text-[11.5px] font-bold tracking-[0.01em] whitespace-nowrap text-white shadow-[0_0_0_3px_rgba(255,209,102,0.14)]">
-              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#FFD166]" />
-              {labelTanggal}
+            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-white">
+              {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
           </div>
         </div>
       </div>
 
+      {/* Kartu Bulan/Tahun — dirender DI LUAR .ia-header (overflow-hidden
+          tetap memotong keturunan fixed/absolute; sudah terbukti pahit di
+          TanggalPicker & Riwayat Kehadiran, teknik yang sama dipakai lagi
+          di sini). Terapkan instan tiap kali sebuah pilihan diketuk. */}
+      {kalenderTerbuka && posisiKalender && (
+        <>
+          <div className="fixed inset-0 z-[1090]" onClick={() => setKalenderTerbuka(false)} />
+          <div
+            className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            style={{ top: posisiKalender.top, right: posisiKalender.right }}
+          >
+            <div className="flex gap-2">
+              <select
+                value={bulan}
+                onChange={(e) => setBulan(Number(e.target.value))}
+                className={SELECT_BULAN_TAHUN}
+              >
+                {NAMA_BULAN.map((nm, idx) => (
+                  <option key={nm} value={idx + 1}>
+                    {nm}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={tahun}
+                onChange={(e) => setTahun(Number(e.target.value))}
+                className={SELECT_BULAN_TAHUN}
+              >
+                {tahunPilihan.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* .ia-dashboard-view — :5212-5216 */}
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[100px]">
-        {/* .ia-dashboard-toolbar + .ia-filter-btn-plain — :5218-5266 */}
-        <div className="mb-3 flex justify-end">
-          <span className="py-1 text-[13.5px] font-bold text-sage">{labelBulan}</span>
-        </div>
-
         {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
         {!loading && error && <p className="text-[13px] text-red">{error}</p>}
 
