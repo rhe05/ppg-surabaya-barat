@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import MenuGuru from '@/components/dashboard/MenuGuru';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -94,6 +95,7 @@ function durasiMenit(mulai: string | null, selesai: string | null) {
 export default function GuruDashboard() {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
   const [kelas, setKelas] = useState<Kelas[]>([]);
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -218,15 +220,21 @@ export default function GuruDashboard() {
   const barisRole = singkatan ? `Guru Generus - ${singkatan}` : null;
 
   return (
-    <main className="flex min-h-screen flex-col bg-bg">
+    <main className="relative flex min-h-screen flex-col bg-bg">
+      {/* Menu hamburger — dirender di LUAR .ia-header karena header punya
+          overflow-hidden (untuk sudut membulat di bawahnya); dropdown yang
+          absolute di dalamnya akan terpotong kalau ditaruh di sana. */}
+      <MenuGuru terbuka={menuTerbuka} onTutup={() => setMenuTerbuka(false)} />
+
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-topbar — :4867-4901 */}
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          {/* .ia-hamburger-btn — :4945-4958. Belum ada sidebar padanannya di Next.js. */}
+          {/* .ia-hamburger-btn — :4945-4958 */}
           <button
             type="button"
             aria-label="Menu Utama"
+            onClick={() => setMenuTerbuka((v) => !v)}
             className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
           >
             <svg
