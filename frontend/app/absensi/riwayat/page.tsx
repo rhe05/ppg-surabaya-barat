@@ -4,18 +4,22 @@
    read-only. Dibuka dari popup "Kehadiran" > Riwayat Kehadiran
    (components/dashboard/KehadiranChooser.tsx).
 
-   Ditulis ulang (19 Agt) mengikuti screenshot owner supaya SAMA PERSIS app
-   lama: popup Pilih Kelas kartu besar (bukan <select>), header topbar+hero
-   penuh (bukan bar "Kembali" sendiri), label "Hari Aktif" + tombol filter
-   pil, dan popup Filter Riwayat (Bulan/Tahun/Minggu). Sumber:
+   19 Agt, dua putaran: pertama ditulis ulang mengikuti screenshot owner
+   (popup Pilih Kelas kartu besar, header topbar+hero, tombol pil filter
+   Bulan-Tahun terpisah). Putaran KEDUA (diminta owner lagi): pil filter
+   terpisah itu DIHAPUS — kelas+bulan+tahun yang tadinya digabung jadi satu
+   tulisan panjang di bawah header dianggap ramai. Sebagai gantinya, ikon
+   kalender di hero (yang tadinya cuma dekorasi tanggal hari ini, tidak
+   berfungsi) dijadikan SATU-SATUNYA pemicu memilih Bulan/Tahun/Minggu —
+   kartu kecil menempel tepat di bawah ikon, bukan modal layar penuh.
+   Caption di bawah ikon berubah dari "tanggal hari ini" jadi ringkasan
+   yang sedang aktif, mis. "Agustus 2026" atau "Minggu 2 · Agustus 2026".
+
+   Sumber (bagian yang masih dipertahankan dari app lama):
    - Popup Pilih Kelas: iaRiwayatOpenGate_/iaRenderRiwayatGateCards_
      (Script_Main.html:1988-2038), markup #iaRiwayatKelasGateOverlay
      (Markup_Screens.html:637-660) — SENGAJA TANPA badge jumlah santri,
      beda dari popup Pilih Kelas Input Absen.
-   - Toolbar + label filter: iaUpdateRiwayatFilterLabel_
-     (Script_Main.html:2112-2118): "Kelas X · Bulan - Tahun".
-   - Popup Filter: #iaRiwayatFilterOverlay (Markup_Screens.html:665-698),
-     reuse shell .ia-kg-modal yang sama dgn popup Pilih Kelas.
    - Matrix: serverGetRiwayatKehadiranGuru (Modul_InputAbsen.gs:1592-1652).
      - Kolom tanggal HANYA hari kerja (Senin-Jumat) dalam bulan itu.
      - Hari Aktif = jumlah tanggal berbeda yang punya absensi APAPUN
@@ -25,15 +29,18 @@
        (hijau tua) dan alpa (merah) beda sendiri — beda dari 4-warna kotak
        statistik dashboard/Input Absen.
      - Paginasi 1000 baris pada query absensi.
+   - Pembagian Minggu: iaRiwayatBucketMinggu_ (Script_Main.html:2163-2173)
+     — dihitung dari hari Senin, bukan pembagian tanggal 1-7/8-14.
 
-   Filter "Minggu" DIBANGUN (bukan disederhanakan lagi seperti versi
-   sebelumnya) karena popupnya sendiri sudah dibangun utk menyamai
-   screenshot — sisanya (Bulan/Tahun) tinggal dipasang di panel yang sama.
-   Pembagian minggu SAMA PERSIS app lama (iaRiwayatBucketMinggu_,
-   Script_Main.html:2163-2173): dihitung dari hari Senin, bukan
-   pembagian tanggal 1-7/8-14. */
+   Kartu Bulan/Tahun/Minggu di bawah ikon kalender BUKAN kembalian
+   .ppg-datepicker app lama (itu utk memilih 1 TANGGAL, dipakai Input
+   Absen — lihat components/ui/TanggalPicker.tsx) — di sini granularitasnya
+   bulan, jadi kartunya baru, tapi teknik penempatannya SAMA: posisi dihitung
+   dari getBoundingClientRect() ikon pemicunya lalu dirender DI LUAR
+   .ia-header (overflow-hidden tetap memotong keturunan fixed/absolute —
+   sudah pernah dibuktikan pahit di TanggalPicker, jangan diulang). */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
@@ -115,11 +122,6 @@ function kelompokkanMinggu(tanggalList: string[]): Record<number, string[]> {
   return bucket;
 }
 
-const NAMA_HARI_HERO = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-function labelTanggalHero(d: Date) {
-  return `${NAMA_HARI_HERO[d.getDay()]}, ${d.getDate()} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
-}
-
 const SELECT_KELAS =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
@@ -136,8 +138,11 @@ function RiwayatKehadiranContent() {
   const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
   const [tahun, setTahun] = useState(sekarang.getFullYear());
   const [minggu, setMinggu] = useState<'semua' | 1 | 2 | 3 | 4>('semua');
-  const [filterTerbuka, setFilterTerbuka] = useState(false);
-  const [rancanganFilter, setRancanganFilter] = useState({ bulan, tahun, minggu });
+  /* Kartu Bulan/Tahun/Minggu — dipicu ikon kalender di hero, posisinya
+     dihitung dari ikon itu (sama teknik dgn TanggalPicker.tsx). */
+  const [kalenderTerbuka, setKalenderTerbuka] = useState(false);
+  const [posisiKalender, setPosisiKalender] = useState<{ top: number; right: number } | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
@@ -247,7 +252,6 @@ function RiwayatKehadiranContent() {
     muatMatrix();
   }, [muatMatrix]);
 
-  const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
   const semuaTanggal = tanggalKerjaBulan(tahun, bulan);
   const tanggalList =
     minggu === 'semua' ? semuaTanggal : (kelompokkanMinggu(semuaTanggal)[minggu] ?? []);
@@ -323,118 +327,70 @@ function RiwayatKehadiranContent() {
         onBatal={() => setGateTerbuka(false)}
       />
 
-      {/* Popup Filter Riwayat — reuse shell .ia-kg-modal, Markup_Screens.html:
-          665-698. Dibuka lewat tombol pil "Kelas X · Bulan - Tahun". */}
-      {filterTerbuka && (
-        <div className="fixed inset-0 z-[550] flex items-center justify-center bg-[rgba(15,23,42,0.6)] p-6 backdrop-blur-[4px]">
-          <div className="relative w-full max-w-[440px] rounded-[26px] bg-panel p-[26px_20px_18px] shadow-[0_-16px_48px_rgba(0,0,0,0.32)]">
-            <button
-              type="button"
-              onClick={() => setFilterTerbuka(false)}
-              aria-label="Tutup"
-              className="absolute top-3.5 right-3.5 flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
-            >
-              ×
-            </button>
-
-            <div className="mb-[18px] text-center">
-              <div
-                className="mx-auto mb-3 flex h-[52px] w-[52px] items-center justify-center rounded-2xl text-white shadow-[0_8px_20px_rgba(5,150,105,0.32)]"
-                style={{
-                  background: 'linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%)',
-                }}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="22"
-                  height="22"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-              </div>
-              <div className="mb-1.5 text-[18px] font-extrabold text-text">Filter Riwayat</div>
-              <div className="px-2 text-[12.5px] leading-relaxed text-text">
-                Pilih Bulan, Tahun, dan Minggu untuk melihat riwayat kehadiran.
-              </div>
-            </div>
-
-            <div className="mb-2.5 flex gap-2.5">
-              <div className="flex-1">
-                <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Bulan</label>
-                <select
-                  value={rancanganFilter.bulan}
-                  onChange={(e) =>
-                    setRancanganFilter((s) => ({ ...s, bulan: Number(e.target.value) }))
-                  }
-                  className={SELECT_KELAS}
-                >
-                  {NAMA_BULAN.map((nm, idx) => (
-                    <option key={nm} value={idx + 1}>
-                      {nm}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex-1">
-                <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Tahun</label>
-                <select
-                  value={rancanganFilter.tahun}
-                  onChange={(e) =>
-                    setRancanganFilter((s) => ({ ...s, tahun: Number(e.target.value) }))
-                  }
-                  className={SELECT_KELAS}
-                >
-                  {tahunPilihan.map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="mb-1.5 block text-[11.5px] font-bold text-text-dim">Minggu</label>
+      {/* Kartu Bulan/Tahun/Minggu — dipicu ikon kalender di hero, dirender
+          DI SINI (di luar .ia-header overflow-hidden) supaya tidak
+          terpotong seperti TanggalPicker sebelum diperbaiki. Terapkan
+          instan tiap kali sebuah pilihan diketuk — tidak ada tombol
+          "Terapkan" terpisah, jadi hasilnya langsung terlihat. */}
+      {kalenderTerbuka && posisiKalender && (
+        <>
+          <div className="fixed inset-0 z-[1090]" onClick={() => setKalenderTerbuka(false)} />
+          <div
+            className="fixed z-[1100] w-[260px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            style={{ top: posisiKalender.top, right: posisiKalender.right }}
+          >
+            <div className="mb-3 flex gap-2">
               <select
-                value={rancanganFilter.minggu}
-                onChange={(e) =>
-                  setRancanganFilter((s) => ({
-                    ...s,
-                    minggu: (e.target.value === 'semua'
-                      ? 'semua'
-                      : Number(e.target.value)) as typeof minggu,
-                  }))
-                }
+                value={bulan}
+                onChange={(e) => setBulan(Number(e.target.value))}
                 className={SELECT_KELAS}
               >
-                <option value="semua">Semuanya</option>
-                <option value="1">Minggu Ke 1</option>
-                <option value="2">Minggu Ke 2</option>
-                <option value="3">Minggu Ke 3</option>
-                <option value="4">Minggu Ke 4</option>
+                {NAMA_BULAN.map((nm, idx) => (
+                  <option key={nm} value={idx + 1}>
+                    {nm}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={tahun}
+                onChange={(e) => setTahun(Number(e.target.value))}
+                className={SELECT_KELAS}
+              >
+                {tahunPilihan.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
               </select>
             </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setBulan(rancanganFilter.bulan);
-                setTahun(rancanganFilter.tahun);
-                setMinggu(rancanganFilter.minggu);
-                setFilterTerbuka(false);
-              }}
-              className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[13px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.28)] active:scale-[0.97]"
-              style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
-            >
-              Terapkan
-            </button>
+            <div className="mb-1.5 text-[11px] font-bold text-text-dim uppercase">Minggu</div>
+            <div className="flex flex-wrap gap-1.5">
+              {(['semua', 1, 2, 3, 4] as const).map((m) => {
+                const aktif = minggu === m;
+                return (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMinggu(m)}
+                    className="cursor-pointer rounded-[var(--radius-button)] border px-2.5 py-1 text-[11.5px] font-bold transition-all duration-150"
+                    style={
+                      aktif
+                        ? { background: 'var(--brass)', borderColor: 'var(--brass)', color: '#fff' }
+                        : {
+                            background: 'var(--panel-2)',
+                            borderColor: 'var(--border)',
+                            color: 'var(--text-dim)',
+                          }
+                    }
+                  >
+                    {m === 'semua' ? 'Semua' : `Ke-${m}`}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* .ia-header — Style_Main.html:4859-4865, sama dgn GuruAbsensiView
@@ -502,7 +458,22 @@ function RiwayatKehadiranContent() {
         >
           <div className="min-w-0 text-[15px] font-bold">{profile?.display_name ?? 'Guru'}</div>
           <div className="flex shrink-0 flex-col items-end gap-1.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-white">
+            <button
+              ref={ikonKalenderRef}
+              type="button"
+              aria-label="Pilih Bulan, Tahun, Minggu"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiKalender({
+                    top: rect.bottom + 6,
+                    right: window.innerWidth - rect.right,
+                  });
+                }
+                setKalenderTerbuka((v) => !v);
+              }}
+              className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white active:scale-90"
+            >
               <svg
                 viewBox="0 0 24 24"
                 width="19"
@@ -518,35 +489,24 @@ function RiwayatKehadiranContent() {
                 <rect width="18" height="18" x="3" y="4" rx="2" />
                 <path d="M3 10h18" />
               </svg>
-            </span>
+            </button>
+            {/* Caption ringkas: apa yang sedang tampil di matrix, BUKAN
+                tanggal hari ini — diminta owner supaya lebih ringkas
+                (satu tempat, bukan tersebar di toolbar terpisah). */}
             <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
-              {labelTanggalHero(sekarang)}
+              {NAMA_BULAN[bulan - 1]} {tahun}
+              {minggu !== 'semua' ? ` · Mgg ${minggu}` : ''}
             </span>
           </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        {/* Toolbar — iaUpdateRiwayatFilterLabel_ (Script_Main.html:2112-2118) */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
+        {/* Kelas+Bulan+Tahun yang tadinya digabung jadi satu tombol pil di
+           sini SUDAH DIPINDAH ke ikon kalender di hero (diminta owner:
+           dianggap ramai digabung dgn "Hari Aktif" di baris yang sama). */}
+        <div className="mb-3">
           <span className="text-[13.5px] font-bold text-teal">Hari Aktif - {hariAktif} Hari</span>
-          <button
-            type="button"
-            onClick={() => {
-              setRancanganFilter({ bulan, tahun, minggu });
-              setFilterTerbuka(true);
-            }}
-            className="flex items-center gap-1.5 rounded-[var(--radius-button)] border px-3.5 py-2 text-[12.5px] font-bold text-sage transition-transform duration-150 active:scale-95"
-            style={{
-              borderColor: 'rgba(5,150,105,0.25)',
-              background: 'linear-gradient(135deg, #FFFFFF 0%, #ECFDF5 100%)',
-              boxShadow: '0 2px 10px rgba(5,150,105,0.12)',
-            }}
-          >
-            {kelasAktif ? `Kelas ${kelasAktif.nama} · ` : ''}
-            {NAMA_BULAN[bulan - 1]} - {tahun}
-            {minggu !== 'semua' ? ` · Minggu ${minggu}` : ''}
-          </button>
         </div>
 
         {error && (
