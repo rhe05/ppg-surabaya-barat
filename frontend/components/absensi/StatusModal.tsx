@@ -47,6 +47,24 @@ function IkonSeru() {
   );
 }
 
+function IkonSilang() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
 export default function StatusModal({
   terbuka,
   tone,
@@ -70,7 +88,21 @@ export default function StatusModal({
 
   return (
     <div className="fixed inset-0 z-[500] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]">
-      <div className="w-full max-w-[340px] rounded-[24px] bg-panel px-[26px] pt-8 pb-[26px] text-center shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
+      <div className="relative w-full max-w-[340px] rounded-[24px] bg-panel px-[26px] pt-8 pb-[26px] text-center shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
+        {/* .ia-status-modal-x — Style_Main.html:5882-5899. Diminta owner:
+            tombol silang di pojok kanan atas kartu, sama seperti popup
+            lain (KehadiranChooser dst) — sebelumnya cuma bisa ditutup
+            lewat tombol besar di bawah. Aksinya SAMA dgn tombol itu
+            (onTombol), tidak ada beda perilaku "batal" vs "mengerti". */}
+        <button
+          type="button"
+          onClick={onTombol}
+          aria-label="Tutup"
+          className="absolute top-3.5 right-3.5 flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim transition-transform duration-150 active:scale-90"
+        >
+          <IkonSilang />
+        </button>
+
         <div
           className="mx-auto mb-[18px] flex h-16 w-16 items-center justify-center rounded-full"
           style={
