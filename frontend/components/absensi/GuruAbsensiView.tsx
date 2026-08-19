@@ -29,8 +29,12 @@
    Kelola Absensi utk koreksi admin). Kalau nanti mau dikunci juga di
    database, itu perubahan terpisah yang sengaja belum diambil. */
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
+import MenuGuru from '@/components/dashboard/MenuGuru';
+import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
+import JurnalChooser from '@/components/dashboard/JurnalChooser';
 
 export type KelasDetail = {
   id: number;
@@ -159,6 +163,15 @@ export default function GuruAbsensiView({
 }) {
   const [tanggalTerbuka, setTanggalTerbuka] = useState(false);
   const [gateTerbuka, setGateTerbuka] = useState(kelasDetail.length > 1 && kelasId === null);
+  /* Topbar (hamburger + logo + lonceng) hilang sebelumnya — layar ini
+     langsung mulai dari hero hijau tanpa ".ia-topbar" (Style_Main.html:
+     4867-4901), padahal semua layar guru lain (GuruDashboard, dst) punya
+     baris ini. Menu & dua popup pemilih di bawah adalah komponen yang SAMA
+     dipakai GuruDashboard — supaya "Kehadiran"/"Jurnal Mengajar" dari menu
+     berperilaku identik di mana pun dibuka. */
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
+  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
   /* Gate muncul lagi kalau daftar kelas berubah (mis. baru selesai dimuat)
      dan belum ada pilihan — sekali dipilih, tidak diganggu lagi selama sesi
@@ -191,6 +204,21 @@ export default function GuruAbsensiView({
 
   return (
     <main className="relative flex min-h-screen flex-col bg-bg pb-[110px]">
+      <MenuGuru
+        terbuka={menuTerbuka}
+        onTutup={() => setMenuTerbuka(false)}
+        onKehadiran={() => setKehadiranChooserTerbuka(true)}
+        onJurnal={() => setJurnalChooserTerbuka(true)}
+      />
+      <KehadiranChooser
+        terbuka={kehadiranChooserTerbuka}
+        onTutup={() => setKehadiranChooserTerbuka(false)}
+      />
+      <JurnalChooser
+        terbuka={jurnalChooserTerbuka}
+        onTutup={() => setJurnalChooserTerbuka(false)}
+      />
+
       <KelasGate
         terbuka={gateTerbuka}
         ikon={
@@ -219,8 +247,68 @@ export default function GuruAbsensiView({
         onBatal={() => setGateTerbuka(false)}
       />
 
-      {/* .ia-header-hero — Style_Main.html:4859-4901 */}
+      {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
+        {/* .ia-topbar — :4867-4901, sama persis GuruDashboard.tsx */}
+        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
+          <button
+            type="button"
+            aria-label="Menu Utama"
+            onClick={() => setMenuTerbuka((v) => !v)}
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              width="22"
+              height="22"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
+            </svg>
+          </button>
+
+          <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
+            <Image
+              src="/logo-ruang-ngaji.png"
+              alt="Ruang Ngaji"
+              width={20}
+              height={18}
+              className="block shrink-0"
+            />
+            <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+              Ruang Ngaji
+            </span>
+          </div>
+
+          <div className="flex shrink-0 gap-2">
+            <button
+              type="button"
+              aria-label="Permintaan Masuk"
+              className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
         <div
           className="flex items-start justify-between gap-3 px-[18px] pt-4 pb-4 text-white"
           style={{ background: 'linear-gradient(135deg, var(--sage) 0%, var(--brand-green) 100%)' }}
