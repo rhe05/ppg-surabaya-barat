@@ -14,6 +14,17 @@
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
+/* "Kehadiran" TIDAK ada di ITEM_MENU: menekannya membuka KehadiranChooser
+   (Input vs Riwayat), bukan langsung pindah halaman. Ikonnya sama seperti
+   ikon "Input Kehadiran" di dalam chooser itu. */
+const IKON_KEHADIRAN = (
+  <>
+    <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <path d="m9 14 2 2 4-4" />
+  </>
+);
+
 const ITEM_MENU = [
   {
     href: '/dashboard',
@@ -24,17 +35,6 @@ const ITEM_MENU = [
         <rect width="7" height="5" x="14" y="3" rx="1" />
         <rect width="7" height="9" x="14" y="12" rx="1" />
         <rect width="7" height="5" x="3" y="16" rx="1" />
-      </>
-    ),
-  },
-  {
-    href: '/absensi',
-    label: 'Kehadiran',
-    svg: (
-      <>
-        <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
-        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-        <path d="m9 14 2 2 4-4" />
       </>
     ),
   },
@@ -96,7 +96,15 @@ const ITEM_MENU = [
   },
 ];
 
-export default function MenuGuru({ terbuka, onTutup }: { terbuka: boolean; onTutup: () => void }) {
+export default function MenuGuru({
+  terbuka,
+  onTutup,
+  onKehadiran,
+}: {
+  terbuka: boolean;
+  onTutup: () => void;
+  onKehadiran: () => void;
+}) {
   const router = useRouter();
   const { signOut } = useAuth();
 
@@ -105,6 +113,11 @@ export default function MenuGuru({ terbuka, onTutup }: { terbuka: boolean; onTut
   function pergi(href: string) {
     onTutup();
     router.push(href);
+  }
+
+  function bukaKehadiran() {
+    onTutup();
+    onKehadiran();
   }
 
   async function keluar() {
@@ -120,6 +133,27 @@ export default function MenuGuru({ terbuka, onTutup }: { terbuka: boolean; onTut
 
       {/* .ia-menu-dropdown */}
       <div className="absolute top-[62px] left-[18px] z-[91] flex w-[220px] flex-col gap-0.5 rounded-[var(--radius-lg)] bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.22)]">
+        <button
+          type="button"
+          onClick={bukaKehadiran}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-sage"
+          >
+            {IKON_KEHADIRAN}
+          </svg>
+          <span>Kehadiran</span>
+        </button>
+
         {ITEM_MENU.map((item) => (
           <button
             key={item.label}

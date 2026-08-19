@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
+import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -96,6 +97,7 @@ export default function GuruDashboard() {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [chooserTerbuka, setChooserTerbuka] = useState(false);
   const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -224,7 +226,12 @@ export default function GuruDashboard() {
       {/* Menu hamburger — dirender di LUAR .ia-header karena header punya
           overflow-hidden (untuk sudut membulat di bawahnya); dropdown yang
           absolute di dalamnya akan terpotong kalau ditaruh di sana. */}
-      <MenuGuru terbuka={menuTerbuka} onTutup={() => setMenuTerbuka(false)} />
+      <MenuGuru
+        terbuka={menuTerbuka}
+        onTutup={() => setMenuTerbuka(false)}
+        onKehadiran={() => setChooserTerbuka(true)}
+      />
+      <KehadiranChooser terbuka={chooserTerbuka} onTutup={() => setChooserTerbuka(false)} />
 
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
