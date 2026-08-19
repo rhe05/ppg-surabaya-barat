@@ -274,24 +274,6 @@ function doGet(e) {
   // Dashboard/Riwayat Kehadiran" tanpa perlu login browser (web app diam-diam
   // pakai DEV_MODE_SKIP_LOGIN=false sekarang jadi diag=monitoringtest lama
   // sudah tidak jalan tanpa token asli).
-  // ?diag=siapa → JSON email akun Google yang terbaca server. Dipakai untuk
-  // memastikan pintasan arsip (EMAIL_ARSIP_TAMPILAN) benar-benar mengenali
-  // pemiliknya: getActiveUser() bisa balik kosong tergantung setelan "Who has
-  // access" pada deployment, dan kalau kosong pintasannya memang tidak jalan.
-  if (e && e.parameter && e.parameter.diag === 'siapa') {
-    const siapa = { aktif: '', efektif: '', error: null };
-    try {
-      siapa.aktif = Session.getActiveUser().getEmail() || '';
-      siapa.efektif = Session.getEffectiveUser().getEmail() || '';
-    } catch (err) {
-      siapa.error = err.message;
-    }
-    siapa.cocokDaftarArsip = siapa.aktif.toLowerCase() === EMAIL_ARSIP_TAMPILAN;
-    return ContentService
-      .createTextOutput(JSON.stringify(siapa))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
   if (e && e.parameter && e.parameter.diag === 'kehadirantest') {
     let result;
     try {
