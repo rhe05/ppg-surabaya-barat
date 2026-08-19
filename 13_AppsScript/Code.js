@@ -22,6 +22,23 @@
 const DEV_MODE_SKIP_LOGIN = false;
 
 /**
+ * Akun Google yang boleh melihat ARSIP TAMPILAN app lama (?rujukan=tampilan)
+ * tanpa mengisi login app lama. Dipakai pemilik untuk membandingkan gaya
+ * tampilan lama dengan app baru — bukan untuk pemakaian sehari-hari.
+ *
+ * Kenapa ini bukan pintu belakang umum: satu-satunya jalan menuju Index.html
+ * sekarang adalah ?rujukan=tampilan (lihat doGet), deployment-nya sendiri
+ * sudah menuntut login akun Google, dan pintasan ini masih membandingkan
+ * email pemanggil. Orang lain yang membuka URL yang sama tetap bertemu layar
+ * login app lama, persis seperti sebelum perubahan ini.
+ *
+ * ⚠️ Sesi hasil pintasan ini TETAP BISA MENULIS ke Spreadsheet lama, dan apa
+ * pun yang tersimpan di sana tidak akan muncul di app baru (Supabase). Karena
+ * itu namanya diberi tanda [ARSIP] agar terbaca di seluruh layar.
+ */
+const EMAIL_ARSIP_TAMPILAN = 'rheza354@gmail.com';
+
+/**
  * SHEET_NAMES — Daftar semua sheet di Spreadsheet.
  * Diimport dari Modul_Utilities.gs (definisi tunggal untuk consistency).
  */
@@ -257,6 +274,24 @@ function doGet(e) {
   // Dashboard/Riwayat Kehadiran" tanpa perlu login browser (web app diam-diam
   // pakai DEV_MODE_SKIP_LOGIN=false sekarang jadi diag=monitoringtest lama
   // sudah tidak jalan tanpa token asli).
+  // ?diag=siapa → JSON email akun Google yang terbaca server. Dipakai untuk
+  // memastikan pintasan arsip (EMAIL_ARSIP_TAMPILAN) benar-benar mengenali
+  // pemiliknya: getActiveUser() bisa balik kosong tergantung setelan "Who has
+  // access" pada deployment, dan kalau kosong pintasannya memang tidak jalan.
+  if (e && e.parameter && e.parameter.diag === 'siapa') {
+    const siapa = { aktif: '', efektif: '', error: null };
+    try {
+      siapa.aktif = Session.getActiveUser().getEmail() || '';
+      siapa.efektif = Session.getEffectiveUser().getEmail() || '';
+    } catch (err) {
+      siapa.error = err.message;
+    }
+    siapa.cocokDaftarArsip = siapa.aktif.toLowerCase() === EMAIL_ARSIP_TAMPILAN;
+    return ContentService
+      .createTextOutput(JSON.stringify(siapa))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
   if (e && e.parameter && e.parameter.diag === 'kehadirantest') {
     let result;
     try {
@@ -377,19 +412,41 @@ function include(filename) {
 }
 
 /**
- * Dipanggil Index.html paling awal untuk cek apakah mode pengembangan aktif.
- * Jika aktif, buat sesi dummy (role admin_ppg agar semua fitur bisa dites)
- * tanpa perlu login sungguhan.
+ * Dipanggil Index.html paling awal untuk cek apakah layar login boleh
+ * dilewati: mode pengembangan, atau pemilik yang membuka arsip tampilan.
  */
 function serverCheckDevMode() {
-  if (!DEV_MODE_SKIP_LOGIN) {
-    return { devMode: false };
+  if (DEV_MODE_SKIP_LOGIN) {
+    return sesiTanpaLogin_('[Mode Pengembangan — Belum Login Sungguhan]');
   }
 
+  // Pintasan arsip tampilan, khusus akun Google pemilik. Kalau email tidak
+  // terbaca (sebagian setelan akses deployment membuatnya kosong), sengaja
+  // JATUH ke layar login biasa — bukan membuka pintu untuk semua orang.
+  let emailPemanggil = '';
+  try {
+    emailPemanggil = (Session.getActiveUser().getEmail() || '').toLowerCase();
+  } catch (err) {
+    emailPemanggil = '';
+  }
+  if (emailPemanggil && emailPemanggil === EMAIL_ARSIP_TAMPILAN) {
+    return sesiTanpaLogin_('[ARSIP TAMPILAN — perubahan di sini tidak masuk app baru]');
+  }
+
+  return { devMode: false };
+}
+
+/**
+ * Sesi admin_ppg sementara tanpa pemeriksaan password. HANYA dipanggil dua
+ * jalur di serverCheckDevMode (mode pengembangan & arsip tampilan) — jangan
+ * dipanggil dari tempat lain, dan jangan diekspos sebagai fungsi yang bisa
+ * dipanggil klien.
+ */
+function sesiTanpaLogin_(nama) {
   const token = Utilities.getUuid();
   const sessionData = {
     id: 0,
-    nama: '[Mode Pengembangan — Belum Login Sungguhan]',
+    nama: nama,
     role: 'admin_ppg',
     scopeType: 'ppg',
     scopeId: 1,
