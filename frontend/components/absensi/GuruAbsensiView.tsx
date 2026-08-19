@@ -32,6 +32,7 @@
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
+import TanggalPicker from '@/components/ui/TanggalPicker';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
@@ -331,7 +332,7 @@ export default function GuruAbsensiView({
             )}
           </div>
 
-          <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <div className="relative flex shrink-0 flex-col items-end gap-1.5">
             <button
               type="button"
               onClick={() => setTanggalTerbuka((v) => !v)}
@@ -357,22 +358,18 @@ export default function GuruAbsensiView({
             <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
               {labelTanggal(tanggal)}
             </span>
-          </div>
-        </div>
 
-        {tanggalTerbuka && (
-          <div className="border-t border-border px-[18px] py-3">
-            <input
-              type="date"
-              value={tanggal}
-              onChange={(e) => {
-                onTanggalChange(e.target.value);
-                setTanggalTerbuka(false);
-              }}
-              className="w-full rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 px-3.5 py-3 text-[14px] font-semibold text-text focus:border-brass focus:outline-none"
+            {/* .ppg-datepicker — kalender kartu melayang, BUKAN input tanggal
+                bawaan browser & BUKAN baris di bawah header. Style_Main.html:
+                3098-3210. */}
+            <TanggalPicker
+              terbuka={tanggalTerbuka}
+              nilai={tanggal}
+              onPilih={onTanggalChange}
+              onTutup={() => setTanggalTerbuka(false)}
             />
           </div>
-        )}
+        </div>
 
         {/* .ia-kelas-row — Style_Main.html:5110-5121 */}
         {kelasDetail.length > 1 && (
