@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
+import JurnalChooser from '@/components/dashboard/JurnalChooser';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -98,6 +99,7 @@ export default function GuruDashboard() {
   const [kelas, setKelas] = useState<Kelas[]>([]);
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [chooserTerbuka, setChooserTerbuka] = useState(false);
+  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
   const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -230,8 +232,13 @@ export default function GuruDashboard() {
         terbuka={menuTerbuka}
         onTutup={() => setMenuTerbuka(false)}
         onKehadiran={() => setChooserTerbuka(true)}
+        onJurnal={() => setJurnalChooserTerbuka(true)}
       />
       <KehadiranChooser terbuka={chooserTerbuka} onTutup={() => setChooserTerbuka(false)} />
+      <JurnalChooser
+        terbuka={jurnalChooserTerbuka}
+        onTutup={() => setJurnalChooserTerbuka(false)}
+      />
 
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">

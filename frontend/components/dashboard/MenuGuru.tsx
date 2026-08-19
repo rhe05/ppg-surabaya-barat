@@ -25,6 +25,15 @@ const IKON_KEHADIRAN = (
   </>
 );
 
+/* "Jurnal Mengajar" juga tidak ada di ITEM_MENU, sama alasannya dengan
+   Kehadiran: menekannya membuka JurnalChooser (Input vs Edit). */
+const IKON_JURNAL = (
+  <>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+  </>
+);
+
 const ITEM_MENU = [
   {
     href: '/dashboard',
@@ -35,16 +44,6 @@ const ITEM_MENU = [
         <rect width="7" height="5" x="14" y="3" rx="1" />
         <rect width="7" height="9" x="14" y="12" rx="1" />
         <rect width="7" height="5" x="3" y="16" rx="1" />
-      </>
-    ),
-  },
-  {
-    href: '/jurnal',
-    label: 'Jurnal Mengajar',
-    svg: (
-      <>
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
       </>
     ),
   },
@@ -100,10 +99,12 @@ export default function MenuGuru({
   terbuka,
   onTutup,
   onKehadiran,
+  onJurnal,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   onKehadiran: () => void;
+  onJurnal: () => void;
 }) {
   const router = useRouter();
   const { signOut } = useAuth();
@@ -118,6 +119,11 @@ export default function MenuGuru({
   function bukaKehadiran() {
     onTutup();
     onKehadiran();
+  }
+
+  function bukaJurnal() {
+    onTutup();
+    onJurnal();
   }
 
   async function keluar() {
@@ -152,6 +158,27 @@ export default function MenuGuru({
             {IKON_KEHADIRAN}
           </svg>
           <span>Kehadiran</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={bukaJurnal}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="shrink-0 text-sage"
+          >
+            {IKON_JURNAL}
+          </svg>
+          <span>Jurnal Mengajar</span>
         </button>
 
         {ITEM_MENU.map((item) => (

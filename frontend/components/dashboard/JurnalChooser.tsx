@@ -1,0 +1,174 @@
+'use client';
+
+/* Popup pilihan "Jurnal Mengajar" — menyalin persis .ia-jr-chooser-modal app
+   lama (Markup_Screens.html:786-810, Style_Main.html:6695-6810, kelas
+   .ia-jr-chooser-opt-input indigo/.ia-jr-chooser-opt-edit amber). Kembaran
+   KehadiranChooser.tsx, tema warna beda.
+
+   Berbeda dari Kehadiran (yang Riwayat-nya benar-benar fitur baru): di app
+   BARU, /jurnal SUDAH menggabungkan input dan riwayat+edit dalam satu
+   halaman — pilih tanggal hari ini untuk mengisi, klik "Buka" pada baris
+   Riwayat Kelas Ini untuk mengubah entri lama. Karena itu kedua tombol di
+   sini menuju halaman yang SAMA; popup ini murni membantu guru memilih niat
+   (isi baru vs ubah lama) sebelum masuk, bukan mengarahkan ke dua alur
+   terpisah seperti app lama (yang memang dua tampilan berbeda). */
+
+import { useRouter } from 'next/navigation';
+
+function IkonInput() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+    </svg>
+  );
+}
+
+function IkonEdit() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+function IkonPanah() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+function IkonSilang() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="16"
+      height="16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
+  );
+}
+
+export default function JurnalChooser({
+  terbuka,
+  onTutup,
+}: {
+  terbuka: boolean;
+  onTutup: () => void;
+}) {
+  const router = useRouter();
+
+  if (!terbuka) return null;
+
+  function pergi() {
+    onTutup();
+    router.push('/jurnal');
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[500] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]"
+      onClick={onTutup}
+    >
+      <div
+        className="relative w-full max-w-[360px] rounded-[24px] bg-panel px-[26px] pt-[30px] pb-[26px] text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)]"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onTutup}
+          aria-label="Tutup"
+          className="absolute top-3.5 right-3.5 flex h-[30px] w-[30px] cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+        >
+          <IkonSilang />
+        </button>
+
+        <div className="mb-1 text-[17px] font-extrabold text-text">Jurnal Mengajar</div>
+        <div className="mb-[18px] text-[12.5px] text-text">Pilih salah satu untuk melanjutkan.</div>
+
+        <div className="flex flex-col gap-2.5">
+          <button
+            type="button"
+            onClick={pergi}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#4F46E5] hover:shadow-[0_4px_14px_rgba(79,70,229,0.16)] active:scale-[0.98]"
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+              style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+            >
+              <IkonInput />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-bold text-text">Input Jurnal</span>
+              <span className="block text-[11.5px] text-text-dim">
+                Isi materi &amp; catatan KBM hari ini
+              </span>
+            </span>
+            <span className="shrink-0 text-text-faint">
+              <IkonPanah />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={pergi}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#D97706] hover:shadow-[0_4px_14px_rgba(217,119,6,0.16)] active:scale-[0.98]"
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+              style={{ background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' }}
+            >
+              <IkonEdit />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[14px] font-bold text-text">Edit Jurnal</span>
+              <span className="block text-[11.5px] text-text-dim">
+                Ubah jurnal yang sudah pernah diisi
+              </span>
+            </span>
+            <span className="shrink-0 text-text-faint">
+              <IkonPanah />
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
