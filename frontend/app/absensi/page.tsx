@@ -354,6 +354,24 @@ function AbsensiContent() {
     const kelasAktif = kelasDetail.find((k) => k.id === Number(kelasId));
     const hariIni = tanggalHariIni();
 
+    /* Terkunci: kelas+tanggal ini SUDAH pernah tersimpan lengkap (semua
+       santri sudah punya baris absensi). Diminta owner secara eksplisit
+       (19 Agt sore) -- guru tidak boleh menimpa data yang sudah tersimpan
+       sendiri, harus lewat Admin Kelompok (halaman Kelola Absensi yang
+       sudah ada). SENGAJA HANYA di klien, bukan di RPC: database TETAP
+       mengizinkan koreksi (dipakai Kelola Absensi & keputusan sebelumnya
+       "guru boleh mengoreksi kapan pun" di simpan_absensi_kelas TETAP
+       berlaku utk jalur admin) -- yang dikunci di sini murni tombolnya. */
+    const sudahTersimpanSemua = santri.length > 0 && santri.every((s) => !!tersimpan[s.id]);
+    if (sudahTersimpanSemua) {
+      setStatusModal({
+        tone: 'success',
+        judul: 'Absen Sudah Tersimpan',
+        pesan: `Absen kelas "${kelasAktif?.nama ?? ''}" untuk tanggal ini sudah tersimpan sebelumnya. Hubungi Admin Kelompok kalau perlu koreksi data.`,
+      });
+      return;
+    }
+
     if (tanggal > hariIni) {
       setStatusModal({
         tone: 'warning',
@@ -443,6 +461,7 @@ function AbsensiContent() {
   const perluPilihKelompok = !profile.scope_kelompok_id;
 
   if (adalahGuru) {
+    const sudahTersimpanSemua = santri.length > 0 && santri.every((s) => !!tersimpan[s.id]);
     return (
       <>
         <GuruAbsensiView
@@ -467,6 +486,7 @@ function AbsensiContent() {
           }
           loading={loading}
           saving={saving}
+          sudahTersimpanSemua={sudahTersimpanSemua}
           /* Sukses (dgn kutipan) ditampilkan lewat StatusModal, bukan banner
              hijau — supaya tidak dobel dgn popup. Konflik versi (40001)
              TETAP lewat banner ini: itu bukan penolakan seperti 3 aturan di

@@ -15,14 +15,19 @@
    pilih kelas, supaya jalur simpan yang sudah diuji (RPC simpan_absensi_
    kelas, penanganan 40001) tidak diduplikasi/berisiko menyimpang.
 
-   KOREKSI (dicek ulang thd kode sumber terkini): versi pertama berkas ini
-   mengunci tombol Simpan ("✓ Absen Tersimpan", abu-abu) begitu satu kelas
-   sudah punya absensi hari itu, mengikuti CSS .ia-save-btn-locked. Ternyata
-   itu sisa fitur LAMA — serverGetKelasAbsenList (Modul_InputAbsen.gs:426-428)
-   sekarang SENGAJA selalu mengembalikan formSudahTersimpan=false: "guru
-   boleh mengoreksi absen kelasnya sendiri kapan pun". Tombolnya di app
-   lama pun sudah tidak pernah terkunci lagi — dihapus di sini juga supaya
-   tidak berperilaku lebih ketat daripada aslinya. */
+   RIWAYAT tombol Simpan: sempat dihapus (kode sumber TERKINI app lama
+   sengaja membiarkan guru mengoreksi kapan pun, formSudahTersimpan selalu
+   false — Modul_InputAbsen.gs:426-428), lalu diminta owner secara eksplisit
+   (19 Agt sore) untuk DIKUNCI kembali: sekali kelas+tanggal tersimpan
+   lengkap, guru tidak boleh menimpa sendiri, harus lewat Admin Kelompok
+   (Kelola Absensi). Popupnya menyalin persis teks "Absen Sudah Tersimpan"
+   dari versi CSS lama app lama (.ia-save-btn-locked, sudah tidak dipakai
+   di app lama tapi dihidupkan lagi di sini atas permintaan).
+
+   Keputusan owner: kunci ini HANYA di tampilan (tombol + popup), BUKAN di
+   RPC — simpan_absensi_kelas TETAP mengizinkan penulisan ulang (dipakai
+   Kelola Absensi utk koreksi admin). Kalau nanti mau dikunci juga di
+   database, itu perubahan terpisah yang sengaja belum diambil. */
 
 import { useEffect, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
@@ -124,6 +129,7 @@ export default function GuruAbsensiView({
   onUbahStatus,
   loading,
   saving,
+  sudahTersimpanSemua,
   error,
   pesan,
   onSimpan,
@@ -139,6 +145,14 @@ export default function GuruAbsensiView({
   onUbahStatus: (santriId: number, status: Status) => void;
   loading: boolean;
   saving: boolean;
+  /* Kelas+tanggal ini SUDAH pernah tersimpan lengkap (semua santri sudah
+     punya baris absensi). Tombol tetap BISA diklik (bukan HTML disabled) —
+     klik-nya sengaja diteruskan ke onSimpan supaya popup "Absen Sudah
+     Tersimpan" muncul menjelaskan kenapa, bukan tombol yang diam saja.
+     Diminta owner (19 Agt sore): guru tidak boleh menimpa data sendiri,
+     harus lewat Admin Kelompok (Kelola Absensi). Ini MURNI di tampilan —
+     database tetap mengizinkan koreksi lewat jalur admin. */
+  sudahTersimpanSemua: boolean;
   error: string | null;
   pesan: string | null;
   onSimpan: () => void;
@@ -438,10 +452,21 @@ export default function GuruAbsensiView({
             type="button"
             onClick={onSimpan}
             disabled={saving || loading}
-            className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
-            style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
+            className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
+            style={{
+              background: sudahTersimpanSemua
+                ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
+              boxShadow: sudahTersimpanSemua
+                ? '0 4px 12px rgba(100,116,139,0.25)'
+                : '0 6px 16px rgba(5,150,105,0.3)',
+            }}
           >
-            {saving ? 'Menyimpan...' : 'Simpan Kehadiran'}
+            {saving
+              ? 'Menyimpan...'
+              : sudahTersimpanSemua
+                ? '✓ Absen Tersimpan'
+                : 'Simpan Kehadiran'}
           </button>
         </div>
       )}
