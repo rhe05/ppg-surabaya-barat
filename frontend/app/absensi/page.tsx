@@ -5,6 +5,7 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import RingkasanKelas from '@/components/absensi/RingkasanKelas';
+import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
 
 const STATUS_OPTIONS = ['hadir', 'izin', 'sakit', 'alpa'] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
@@ -61,8 +62,15 @@ function AbsensiContent() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [sukses, setSukses] = useState<string | null>(null);
 
+  /* Khusus tampilan guru mobile (GuruAbsensiView): metadata kelas yang
+     TIDAK dibutuhkan tampilan admin (ruangan, jam, kategori) — dimuat
+     terpisah dari opsiKelas (dropdown admin) supaya query admin tidak ikut
+     berubah. */
+  const [kelasDetail, setKelasDetail] = useState<KelasDetail[]>([]);
+
   const berwenang =
     !!profile && !!profile.role && profile.is_active && ROLE_BERWENANG.includes(profile.role);
+  const adalahGuru = profile?.role === 'guru';
 
   useEffect(() => {
     let cancelled = false;
@@ -121,6 +129,33 @@ function AbsensiContent() {
       cancelled = true;
     };
   }, [kelompokId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadKelasDetail() {
+      if (!adalahGuru || profile?.guru_id == null) {
+        setKelasDetail([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('kelas')
+        .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)')
+        .eq('guru_id', profile.guru_id)
+        .is('deleted_at', null)
+        .order('jam_mulai');
+      if (cancelled) return;
+      const daftar = (data ?? []) as unknown as KelasDetail[];
+      setKelasDetail(daftar);
+      /* Satu kelas -> langsung masuk, tidak perlu popup pilih kelas.
+         Lebih dari satu -> dibiarkan kosong, GuruAbsensiView yang membuka
+         KelasGate dan memanggil onPilihKelas saat guru memilih. */
+      if (daftar.length === 1) setKelasId(String(daftar[0].id));
+    }
+    loadKelasDetail();
+    return () => {
+      cancelled = true;
+    };
+  }, [adalahGuru, profile?.guru_id]);
 
   const load = useCallback(async () => {
     if (!kelompokId) return;
@@ -216,7 +251,7 @@ function AbsensiContent() {
           await load();
           setPilihan((prev) => ({ ...prev, ...pilihanPengguna }));
           setSaveError(
-            'Data tanggal ini baru saja diubah dari sesi lain. Tidak ada yang tersimpan — tampilan sudah disegarkan, periksa lalu simpan ulang.'
+            'Data tanggal ini baru saja diubah dari sesi lain. Tidak ada yang tersimpan — tampilan sudah disegarkan, periksa lalu simpan ulang.',
           );
           return;
         }
@@ -225,7 +260,7 @@ function AbsensiContent() {
 
       const hasil = (data ?? {}) as { baru?: number; diperbarui?: number };
       setSukses(
-        `Tersimpan: ${hasil.baru ?? 0} baru, ${hasil.diperbarui ?? 0} diperbarui, tanggal ${tanggal}.`
+        `Tersimpan: ${hasil.baru ?? 0} baru, ${hasil.diperbarui ?? 0} diperbarui, tanggal ${tanggal}.`,
       );
       await load();
     } catch (e) {
@@ -257,6 +292,37 @@ function AbsensiContent() {
   }
 
   const perluPilihKelompok = !profile.scope_kelompok_id;
+
+  if (adalahGuru) {
+    const sudahTersimpanSemua = santri.length > 0 && santri.every((s) => !!tersimpan[s.id]);
+    return (
+      <GuruAbsensiView
+        namaGuru={profile.display_name ?? 'Guru'}
+        tanggal={tanggal}
+        onTanggalChange={(v) => {
+          setTanggal(v);
+          setSukses(null);
+          setSaveError(null);
+        }}
+        kelasDetail={kelasDetail}
+        kelasId={kelasId ? Number(kelasId) : null}
+        onPilihKelas={(id) => {
+          setKelasId(String(id));
+          setSukses(null);
+          setSaveError(null);
+        }}
+        santri={santri}
+        pilihan={pilihan}
+        onUbahStatus={(santriId, status) => setPilihan((prev) => ({ ...prev, [santriId]: status }))}
+        loading={loading}
+        saving={saving}
+        sudahTersimpanSemua={sudahTersimpanSemua}
+        error={error || saveError}
+        pesan={sukses}
+        onSimpan={handleSimpan}
+      />
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 p-6">
@@ -384,9 +450,7 @@ function AbsensiContent() {
                               name={`status-${s.id}`}
                               value={opsi}
                               checked={pilihan[s.id] === opsi}
-                              onChange={() =>
-                                setPilihan((prev) => ({ ...prev, [s.id]: opsi }))
-                              }
+                              onChange={() => setPilihan((prev) => ({ ...prev, [s.id]: opsi }))}
                               className="sr-only"
                             />
                             {opsi}
@@ -402,7 +466,6 @@ function AbsensiContent() {
         )}
       </div>
       {kelompokId && <RingkasanKelas kelompokId={kelompokId} tanggal={tanggal} />}
-
     </main>
   );
 }
