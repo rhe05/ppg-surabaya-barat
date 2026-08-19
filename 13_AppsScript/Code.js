@@ -342,6 +342,23 @@ function doGet(e) {
   // Untuk MENGHIDUPKAN KEMBALI app lama: hapus blok if di bawah ini, lalu
   // push (CI/CD akan clasp push + deploy). Tidak ada data yang berubah.
   var lihatRujukan = e && e.parameter && e.parameter.rujukan === 'tampilan';
+
+  // Pilihan "lihat sebagai" untuk arsip (mis. &sebagai=guru&guru=22&kelompok=1).
+  // Dititipkan ke UserCache karena serverCheckDevMode dipanggil klien lewat
+  // google.script.run — iframe-nya TIDAK melihat parameter URL halaman induk,
+  // jadi tidak ada jalan meneruskannya sebagai argumen tanpa mengubah
+  // Index.html. UserCache bersifat per-akun Google, jadi pilihan satu orang
+  // tidak pernah terbaca orang lain. Umurnya pendek (60 detik): hanya perlu
+  // bertahan dari doGet sampai panggilan pertama klien.
+  if (lihatRujukan) {
+    var pilihan = {
+      sebagai: (e.parameter.sebagai || '').toLowerCase(),
+      guru: e.parameter.guru || '',
+      kelompok: e.parameter.kelompok || '',
+    };
+    CacheService.getUserCache().put('arsip_lihat_sebagai', JSON.stringify(pilihan), 60);
+  }
+
   if (!lihatRujukan) {
     return HtmlService.createHtmlOutput(halamanPindah_())
       .setTitle('Ruang Ngaji — Aplikasi Sudah Pindah')
@@ -430,10 +447,73 @@ function serverCheckDevMode() {
     emailPemanggil = '';
   }
   if (emailPemanggil && emailPemanggil === EMAIL_ARSIP_TAMPILAN) {
-    return sesiTanpaLogin_('[ARSIP TAMPILAN — perubahan di sini tidak masuk app baru]');
+    return sesiArsip_();
   }
 
   return { devMode: false };
+}
+
+/**
+ * Menyusun sesi arsip sesuai parameter "lihat sebagai" yang dititipkan doGet.
+ *
+ * Tanpa parameter → admin_ppg (melihat seluruh layar admin, seperti semula).
+ * `&sebagai=guru` → sesi peran guru, supaya layar khusus guru (Input Absen,
+ * Jurnal, Kurikulum) bisa dilihat apa adanya. Guru bawaannya Neiza (guru_id
+ * 22, Kelp Petemon) karena itu satu-satunya akun guru yang benar-benar
+ * terpakai; bisa diarahkan ke guru lain lewat &guru= dan &kelompok=.
+ *
+ * PENTING: ini MENIRU peran, bukan memakai akun orang lain. Tidak ada
+ * password siapa pun yang dibaca, diubah, atau dibutuhkan, dan baris users
+ * milik guru mana pun tidak disentuh.
+ */
+function sesiArsip_() {
+  var pilihan = { sebagai: '', guru: '', kelompok: '' };
+  try {
+    var tersimpan = CacheService.getUserCache().get('arsip_lihat_sebagai');
+    if (tersimpan) pilihan = JSON.parse(tersimpan);
+  } catch (err) {
+    // Pilihan tidak terbaca -> jatuh ke arsip admin, bukan gagal total.
+  }
+
+  if (pilihan.sebagai !== 'guru') {
+    return sesiTanpaLogin_('[ARSIP TAMPILAN — perubahan di sini tidak masuk app baru]');
+  }
+
+  var guruId = parseInt(pilihan.guru, 10) || 22;
+  var kelompokId = parseInt(pilihan.kelompok, 10) || 1;
+
+  // findRowByQuery mengembalikan NOMOR BARIS, bukan objek — jadi datanya
+  // diambil lewat readSheetAsObjects (yang juga sudah menangani tabel yang
+  // pindah ke Firestore). Perbandingan id sengaja lewat String(): id di sheet
+  // numerik, id dari parameter URL string (pola sama, ERROR_LOG.md #2).
+  var namaGuru = '';
+  try {
+    var semuaGuru = readSheetAsObjects(SHEET_NAMES.GURU) || [];
+    for (var i = 0; i < semuaGuru.length; i++) {
+      if (String(semuaGuru[i].id) === String(guruId)) {
+        namaGuru = semuaGuru[i].nama || '';
+        if (semuaGuru[i].kelompok_id) {
+          kelompokId = parseInt(semuaGuru[i].kelompok_id, 10) || kelompokId;
+        }
+        break;
+      }
+    }
+  } catch (err) {
+    namaGuru = '';
+  }
+
+  const token = Utilities.getUuid();
+  const sessionData = {
+    id: 0,
+    nama: '[ARSIP] ' + (namaGuru || 'Guru ' + guruId),
+    role: 'guru',
+    scopeType: 'kelompok',
+    scopeId: kelompokId,
+    guruId: guruId,
+  };
+  CacheService.getUserCache().put('session_' + token, JSON.stringify(sessionData), 21600);
+
+  return { devMode: true, token: token, user: sessionData };
 }
 
 /**
