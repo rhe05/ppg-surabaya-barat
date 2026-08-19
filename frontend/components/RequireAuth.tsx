@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import AdminSidebar from '@/components/dashboard/AdminSidebar';
 
 /* Halaman yang boleh dibuka peran `guru`, menyalin menu mobile guru app lama
    (Markup_Screens.html:229-257): Dashboard, Pilih Kelas, Jurnal, Kurikulum,
@@ -59,5 +60,23 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     return null;
   }
 
-  return <>{children}</>;
+  /* Sidebar navigasi desktop — HANYA utk admin_ppg/admin_desa/admin_kelompok
+     (diminta owner 20 Agt: perbaiki tampilan DESKTOP admin, jangan sentuh
+     mobile SAMA SEKALI). Peran 'guru' tidak pernah masuk cabang ini, jadi
+     seluruh app guru (mobile) taknya persis seperti sebelumnya.
+     AdminSidebar sendiri `hidden md:flex` -- di bawah breakpoint md,
+     wrapper flex ini transparan (sidebar tidak makan ruang), jadi tampilan
+     admin di layar sempit pun tidak berubah, cuma dapat sidebar di layar
+     lebar. */
+  const tampilkanSidebar = !!profile?.role && profile.role !== 'guru';
+  if (!tampilkanSidebar) {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <AdminSidebar />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
 }

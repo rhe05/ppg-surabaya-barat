@@ -12,26 +12,18 @@ import KartuPendaftaran from '@/components/dashboard/KartuPendaftaran';
 import { useAuth } from '@/lib/auth-context';
 
 function AdminDashboard() {
-  const { user, profile, profileError, signOut } = useAuth();
+  const { user, profile, profileError } = useAuth();
   const router = useRouter();
-
-  async function handleLogout() {
-    await signOut();
-    router.push('/auth/login');
-  }
 
   return (
     <main className="min-h-screen bg-bg">
-      {/* .dash-header — Style_Main.html:740-752 */}
-      <div className="sticky top-0 z-10 flex h-[var(--topbar-height)] shrink-0 items-center justify-between border-b border-border bg-panel px-5 shadow-[var(--shadow-subtle)]">
+      {/* .dash-header — Style_Main.html:740-752. Tombol "Keluar" yang
+          dulu di sini DIHAPUS (diminta owner 20 Agt: samakan/perbaiki
+          desktop admin) -- sekarang duplikat dgn logout di footer
+          AdminSidebar, dan sidebar itu tampil di SEMUA halaman admin,
+          jadi tombol per-halaman terpisah cuma menambah keramaian. */}
+      <div className="sticky top-0 z-10 flex h-[var(--topbar-height)] shrink-0 items-center border-b border-border bg-panel px-5 shadow-[var(--shadow-subtle)]">
         <h1 className="m-0 text-[16px] font-semibold text-text">Dashboard</h1>
-        {/* .btn + .btn-secondary — Style_Main.html:4410-4438 */}
-        <button
-          onClick={handleLogout}
-          className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
-        >
-          Keluar
-        </button>
       </div>
 
       {/* .dash-container — Style_Main.html:838-843 */}
