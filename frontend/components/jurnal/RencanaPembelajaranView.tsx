@@ -248,7 +248,6 @@ export default function RencanaPembelajaranView() {
 
   const totalPertemuan = mingguDipakai.length;
 
-  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
   const opsiMinggu = [1, 2, 3, 4, 5]
@@ -311,14 +310,31 @@ export default function RencanaPembelajaranView() {
           </>
         )}
 
+        {/* Chip pilih kelas — diminta owner: samakan dgn baris chip di
+            GuruAbsensiView.tsx (Input Kehadiran), bukan dropdown
+            memanjang. Guru biasanya cuma pegang 2-3 kelas, jadi chip
+            cukup sekali tap drpd dropdown yang perlu dibuka dulu. Tema
+            indigo (bukan sage spt Absensi) -- ikut warna aksen layar ini
+            sendiri (ikon kalender, kartu Ringkasan, tombol Tambah Materi
+            semuanya indigo/ungu). */}
         {kelasList.length > 1 && (
-          <div className="mb-4">
-            <SelectKustom
-              value={kelasId === '' ? '' : String(kelasId)}
-              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
-              opsi={opsiKelas}
-              placeholder="-- Pilih Kelas --"
-            />
+          <div className="mb-4 flex gap-2 overflow-x-auto">
+            {kelasList.map((k) => {
+              const aktif = k.id === kelasId;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setKelasId(k.id)}
+                  className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                    aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                  }`}
+                  style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                >
+                  {k.nama}
+                </button>
+              );
+            })}
           </div>
         )}
 
