@@ -50,9 +50,18 @@
    diam-diam kehilangan kartu Sakit & baris info Jadwal KBM/Ruangan yang
    ada di versi admin -- satu komponen bersama = tidak bisa ngedrift
    lagi. Kolom jam_mulai/jam_selesai/ruangan ditambahkan ke query `kelas`
-   supaya info itu tersedia jg di sini (sebelumnya cuma id+nama). */
+   supaya info itu tersedia jg di sini (sebelumnya cuma id+nama).
 
-import { useCallback, useEffect, useState } from 'react';
+   PUTARAN KELIMA (20 Agt, diminta owner): header disamakan PERSIS dgn
+   GuruDashboard.tsx/riwayat/page.tsx -- ikon kalender di hero yang
+   sebelumnya cuma dekorasi (tidak bisa diklik) sekarang jadi SATU-
+   SATUNYA pemicu memilih Bulan/Tahun, dgn caption "Bulan Tahun" di
+   bawahnya. Dua <select> Bulan/Tahun yang sebelumnya nempel di kartu
+   bawah DIPINDAH ke popup ikon itu (kartu jadi lebih ringkas, cuma
+   pilih Kelas). Pil tanggal-hari-ini terpisah yang dulu ada di bawah
+   header DIHAPUS -- digantikan caption bulan/tahun itu. */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -120,9 +129,15 @@ export default function GuruLaporanView() {
   const [kelasId, setKelasId] = useState<number | ''>('');
 
   const sekarang = new Date();
+  // Bulan/tahun dipilih lewat ikon kalender di hero, sama persis
+  // GuruDashboard.tsx (diminta owner: "samakan seperti header dashboard",
+  // lebih ringkas -- sebelumnya dua <select> ini nempel di kartu bawah).
   const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
   const [tahun, setTahun] = useState(sekarang.getFullYear());
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
+  const [kalenderTerbuka, setKalenderTerbuka] = useState(false);
+  const [posisiKalender, setPosisiKalender] = useState<{ top: number; right: number } | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
   const [membuat, setMembuat] = useState(false);
   const [errorMuat, setErrorMuat] = useState<string | null>(null);
@@ -265,13 +280,6 @@ export default function GuruLaporanView() {
     }
   }
 
-  const tanggalHariIni = sekarang.toLocaleDateString('id-ID', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
   // --- Preview laporan (siap cetak) ---
   if (laporan) {
     return (
@@ -343,29 +351,77 @@ export default function GuruLaporanView() {
           </div>
         </div>
 
+        {/* .ia-header-hero-right — ikon kalender FUNGSIONAL + caption Bulan
+            Tahun di bawahnya, persis GuruDashboard.tsx/riwayat/page.tsx
+            (diminta owner). Pil tanggal-hari-ini terpisah yang dulu ada di
+            bawah header DIHAPUS -- digantikan caption ini. */}
         <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-8">
           <div className="min-w-0 flex-1 text-[20px] leading-[1.2] font-bold text-white">
             {profile?.display_name ?? '-'}
           </div>
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/20 text-white">
-            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 2v4" />
-              <path d="M16 2v4" />
-              <rect width="18" height="18" x="3" y="4" rx="2" />
-              <path d="M3 10h18" />
-            </svg>
+          <div className="flex shrink-0 flex-col items-end gap-[7px]">
+            <button
+              ref={ikonKalenderRef}
+              type="button"
+              aria-label="Pilih Bulan dan Tahun"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiKalender({
+                    top: rect.bottom + 6,
+                    right: window.innerWidth - rect.right,
+                  });
+                }
+                setKalenderTerbuka((v) => !v);
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-white/20 text-white transition-all duration-150 active:bg-white/[0.32]"
+            >
+              <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M8 2v4" />
+                <path d="M16 2v4" />
+                <rect width="18" height="18" x="3" y="4" rx="2" />
+                <path d="M3 10h18" />
+              </svg>
+            </button>
+
+            <span className="rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-white">
+              {NAMA_BULAN[bulan - 1]} {tahun}
+            </span>
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        <div className="mb-4 flex justify-end">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-panel px-3 py-1.5 text-[11.5px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
-            <span className="h-[7px] w-[7px] rounded-full bg-brass" />
-            {tanggalHariIni}
-          </span>
-        </div>
+      {/* Kartu Bulan/Tahun — dirender DI LUAR .ia-header (overflow-hidden
+          tetap memotong keturunan fixed/absolute, sama teknik dgn
+          GuruDashboard.tsx/riwayat/page.tsx). */}
+      {kalenderTerbuka && posisiKalender && (
+        <>
+          <div className="fixed inset-0 z-[1090]" onClick={() => setKalenderTerbuka(false)} />
+          <div
+            className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            style={{ top: posisiKalender.top, right: posisiKalender.right }}
+          >
+            <div className="flex gap-2">
+              <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_KELAS}>
+                {NAMA_BULAN.map((nm, idx) => (
+                  <option key={nm} value={idx + 1}>
+                    {nm}
+                  </option>
+                ))}
+              </select>
+              <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_KELAS}>
+                {tahunPilihan.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
 
+      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
         {/* Kartu Laporan Perkembangan Santri */}
         <div className="rounded-card border border-border bg-panel p-6 text-center shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
           <div
@@ -402,28 +458,12 @@ export default function GuruLaporanView() {
             </select>
           </div>
 
-          <div className="mb-4 grid grid-cols-2 gap-3 text-left">
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Bulan</label>
-              <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_KELAS}>
-                {NAMA_BULAN.map((nm, idx) => (
-                  <option key={nm} value={idx + 1}>
-                    {nm}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Tahun</label>
-              <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_KELAS}>
-                {tahunPilihan.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+          {/* Bulan/Tahun pindah ke ikon kalender di header (diminta owner,
+              lebih ringkas) -- periode yang sedang dipilih tetap terlihat
+              lewat caption di bawah ikon itu. */}
+          <p className="mb-4 text-[11.5px] text-text-faint">
+            Periode: <span className="font-semibold text-text">{NAMA_BULAN[bulan - 1]} {tahun}</span> (ubah lewat ikon kalender di atas)
+          </p>
 
           {!eligible && (
             <div className="mb-4 rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-left text-[12.5px] text-[#92400E]">
