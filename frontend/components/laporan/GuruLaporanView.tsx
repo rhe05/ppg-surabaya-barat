@@ -111,11 +111,11 @@ function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
   return (
     <div className="rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-      <div className="text-[10px] font-bold tracking-[0.4px] text-text-dim uppercase">{label}</div>
+      <div className="text-[10px] font-bold tracking-[0.4px] text-text uppercase">{label}</div>
       <div className="mt-1 text-[20px] leading-none font-extrabold" style={{ color: warna }}>
         {nilai}
       </div>
-      <div className="mt-1 text-[10.5px] text-text-faint">{catatan}</div>
+      <div className="mt-1 text-[9px] leading-tight text-text">{catatan}</div>
     </div>
   );
 }
@@ -278,7 +278,7 @@ export default function GuruLaporanView() {
         <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
           <div className="mb-5 text-center">
             <div className="text-[17px] font-extrabold text-text">Laporan Perkembangan Santri</div>
-            <div className="mt-1 text-[12.5px] text-text-dim">{laporan.periode}</div>
+            <div className="mt-1 text-[12.5px] text-text">{laporan.periode}</div>
           </div>
 
           <div className="mb-5 space-y-1 text-[12.5px] text-text">
@@ -305,7 +305,7 @@ export default function GuruLaporanView() {
               <thead className="border-b border-border bg-panel-2">
                 <tr>
                   {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa'].map((h) => (
-                    <th key={h} className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text-dim uppercase">
+                    <th key={h} className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase">
                       {h}
                     </th>
                   ))}

@@ -108,11 +108,11 @@ function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
   return (
     <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
-      <div className="text-[11px] font-bold tracking-[0.4px] text-text-dim uppercase">{label}</div>
+      <div className="text-[11px] font-bold tracking-[0.4px] text-text uppercase">{label}</div>
       <div className="mt-1.5 text-[26px] leading-none font-extrabold" style={{ color: warna }}>
         {nilai}
       </div>
-      <div className="mt-1.5 text-[12px] text-text-faint">{catatan}</div>
+      <div className="mt-1.5 text-[9.5px] leading-tight text-text">{catatan}</div>
     </div>
   );
 }
@@ -373,7 +373,7 @@ export default function SantriProgressReport() {
         <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
           <div className="mb-6 text-center">
             <div className="text-[19px] font-extrabold text-text">Laporan Perkembangan Santri</div>
-            <div className="mt-1 text-[13px] text-text-dim">{laporan.periode}</div>
+            <div className="mt-1 text-[13px] text-text">{laporan.periode}</div>
           </div>
 
           <div className="mb-6 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[12.5px] text-text sm:grid-cols-2">
@@ -431,7 +431,7 @@ export default function SantriProgressReport() {
                   {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit'].map((h) => (
                     <th
                       key={h}
-                      className="px-4 py-3 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase"
+                      className="px-4 py-3 text-[11px] font-bold tracking-[0.3px] text-text uppercase"
                     >
                       {h}
                     </th>
