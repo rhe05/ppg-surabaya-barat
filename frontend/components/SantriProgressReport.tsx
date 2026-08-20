@@ -112,7 +112,7 @@ function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: s
       <div className="mt-1.5 text-[26px] leading-none font-extrabold" style={{ color: warna }}>
         {nilai}
       </div>
-      <div className="mt-1.5 text-[9.5px] leading-tight text-text">{catatan}</div>
+      <div className="mt-1.5 text-[8px] leading-tight text-text">{catatan}</div>
     </div>
   );
 }
@@ -402,7 +402,7 @@ export default function SantriProgressReport() {
               label="Kehadiran"
               nilai={`${laporan.hadirPercent}%`}
               warna="var(--sage)"
-              catatan={`rata-rata dari ${laporan.totalSantri} santri`}
+              catatan={`rata2 dari ${laporan.totalSantri} santri`}
             />
             <KartuMetrik
               label="Izin"

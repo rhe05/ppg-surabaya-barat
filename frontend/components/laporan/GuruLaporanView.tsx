@@ -115,7 +115,7 @@ function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: s
       <div className="mt-1 text-[20px] leading-none font-extrabold" style={{ color: warna }}>
         {nilai}
       </div>
-      <div className="mt-1 text-[9px] leading-tight text-text">{catatan}</div>
+      <div className="mt-1 text-[7.5px] leading-tight text-text">{catatan}</div>
     </div>
   );
 }
@@ -295,7 +295,7 @@ export default function GuruLaporanView() {
 
           <div className="cetak-jaga-utuh mb-5 grid grid-cols-2 gap-2.5">
             <KartuMetrik label="Hari Aktif" nilai={String(laporan.totalHariAktif)} warna="var(--indigo)" catatan="hari efektif bulan ini" />
-            <KartuMetrik label="Kehadiran" nilai={`${laporan.hadirPercent}%`} warna="var(--sage)" catatan={`rata-rata ${laporan.totalSantri} santri`} />
+            <KartuMetrik label="Kehadiran" nilai={`${laporan.hadirPercent}%`} warna="var(--sage)" catatan={`rata2 ${laporan.totalSantri} santri`} />
             <KartuMetrik label="Izin" nilai={String(laporan.totalIzin)} warna="var(--brass)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalIzin / laporan.totalSantri) * 100) : 0}% santri`} />
             <KartuMetrik label="Alpa" nilai={String(laporan.totalAlpa)} warna="var(--red)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalAlpa / laporan.totalSantri) * 100) : 0}% santri`} />
           </div>
