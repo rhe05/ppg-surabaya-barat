@@ -126,6 +126,17 @@ export default function RencanaPembelajaranView() {
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
+  // Kunci kelas+bulan+tahun yg SUDAH dikonfirmasi cocok dgn isi materiList
+  // saat ini -- dipakai supaya teks "Belum ada materi..." tidak sempat
+  // kedip sekilas pas ganti kelas. Akar masalah lama: `kelasId` berubah
+  // duluan (lewat klik chip), baru useEffect-nya memicu setLoading(true)
+  // -- ADA satu frame render di antaranya di mana kelasId sudah baru tapi
+  // materiList masih kosong/lama & loading masih false, jadi kondisi
+  // "list kosong" ke-detect keliru sbg "materi kelas ini memang kosong"
+  // walau sebenarnya cuma belum sempat difetch. Dgn kunci eksplisit ini,
+  // pesan kosong CUMA muncul kalau materiList kosong itu sudah pasti hasil
+  // fetch utk kelas+bulan+tahun yg SEDANG aktif, bukan sisa/transisi.
+  const [kunciMateriSiap, setKunciMateriSiap] = useState('');
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
@@ -171,8 +182,10 @@ export default function RencanaPembelajaranView() {
   }, [guruId]);
 
   const muatMateri = useCallback(async () => {
+    const kunci = `${kelasId}-${tahun}-${bulan}`;
     if (kelasId === '') {
       setMateriList([]);
+      setKunciMateriSiap(kunci);
       return;
     }
     setLoading(true);
@@ -188,6 +201,7 @@ export default function RencanaPembelajaranView() {
         .order('id', { ascending: true });
       if (err) throw new Error(err.message);
       setMateriList((data ?? []) as Materi[]);
+      setKunciMateriSiap(kunci);
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat rencana.', 'error');
     } finally {
@@ -237,6 +251,8 @@ export default function RencanaPembelajaranView() {
       setMenyimpan(false);
     }
   }
+
+  const dataSiapUntukKelasIni = kunciMateriSiap === `${kelasId}-${tahun}-${bulan}`;
 
   const mingguDipakai = [1, 2, 3, 4, 5]
     .map((mk) => ({
@@ -376,32 +392,38 @@ export default function RencanaPembelajaranView() {
 
         <div className="mb-3 text-[15px] font-bold text-text">Rencana Mingguan</div>
 
-        {/* Skeleton HANYA dipakai saat benar-benar belum ada apa pun buat
-            ditampilkan (materiList masih kosong) -- diminta owner (20
-            Agt): sebelumnya skeleton muncul TIAP ganti kelas walau kelas
-            sebelumnya sudah ada datanya, jadi konten lama sempat diganti
-            skeleton lalu diganti lagi konten baru dlm hitungan
-            milidetik = kelihatan "kedip". Sekarang saat pindah kelas yg
-            datanya sudah pernah dimuat, konten lama tetap tampil apa
-            adanya sampai data kelas baru selesai diambil lalu ditukar
-            langsung sekali jalan -- tanpa fase skeleton di antaranya. */}
-        {loading && materiList.length === 0 && kelasId !== '' && (
+        {/* Skeleton/pesan kosong pakai `dataSiapUntukKelasIni`, BUKAN
+            `loading` mentah -- diminta owner (20 Agt): pesan "Belum ada
+            materi..." sempat kedip sekilas pas ganti kelas krn `kelasId`
+            berubah duluan (klik chip), baru useEffect-nya bikin
+            `loading` jadi true satu tick kemudian. Di celah 1 frame itu
+            kelasId sudah kelas baru tapi materiList/loading belum
+            "sadar" -- kondisi list-kosong ke-detect keliru sbg "materi
+            kelas ini memang kosong". `dataSiapUntukKelasIni` (kunci
+            kelas+bulan+tahun yg SUDAH dikonfirmasi cocok dgn isi
+            materiList) menutup celah itu: pesan kosong CUMA muncul kalau
+            sudah pasti hasil fetch utk pilihan yg SEDANG aktif.
+            Kartu materi (di bawah) tetap dirender independen dari ini --
+            kalau ada data (baru/lama/stale), langsung tampilkan, tak
+            perlu nunggu apa pun (stale-while-revalidate, tidak ada fase
+            kosong di antara pergantian kelas yg sama-sama ada materi). */}
+        {kelasId !== '' && !dataSiapUntukKelasIni && materiList.length === 0 && (
           <div className="mb-5 flex flex-col gap-3">
             <Skeleton className="h-[92px] w-full" />
             <Skeleton className="h-[92px] w-full" />
           </div>
         )}
 
-        {!loading && kelasId === '' && (
+        {kelasId === '' && (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat rencana.</p>
         )}
-        {!(loading && materiList.length === 0) && kelasId !== '' && mingguDipakai.length === 0 && (
+        {kelasId !== '' && dataSiapUntukKelasIni && mingguDipakai.length === 0 && (
           <p className="mb-4 text-[13px] text-text-dim">
             Belum ada materi direncanakan bulan ini. Tambahkan lewat tombol di bawah.
           </p>
         )}
 
-        {!(loading && materiList.length === 0) && kelasId !== '' && (
+        {kelasId !== '' && (
           <div className="mb-5 flex flex-col gap-3">
             {mingguDipakai.map(({ mingguKe, materi }) => (
               <div key={mingguKe} className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
