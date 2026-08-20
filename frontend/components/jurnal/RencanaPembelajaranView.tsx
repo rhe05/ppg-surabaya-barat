@@ -15,20 +15,47 @@
    KBM sungguhan di jadwal_kbm (disederhanakan sengaja, level perencanaan
    bulanan kasar).
 
-   PUTARAN KEDUA (20 Agt, diminta owner): form "Tambah Materi" diperkaya
-   jadi bottom-sheet penuh (screenshot owner) -- Topik/Tanggal Rencana/
-   Pertemuan ke-/Tujuan Pembelajaran/Catatan/Referensi/Pengingat, semua
-   opsional kecuali Materi+Tanggal Rencana+Minggu. Kolom baru di migrasi
-   20260820130000. `tanggal_rencana` jg dipakai RiwayatPembelajaranView.tsx
-   sbg tanggal tampil selama belum disampaikan (menggantikan perkiraan
-   awal-minggu sebelumnya). `pengingat_aktif` CUMA preferensi tersimpan --
-   app ini belum punya sistem notifikasi/pengingat sungguhan, lihat
-   komentar migrasi. */
+   PUTARAN KEDUA: form "Tambah Materi" diperkaya jadi bottom-sheet penuh
+   (screenshot owner) -- Topik/Tanggal Rencana/Pertemuan ke-/Tujuan
+   Pembelajaran/Catatan/Referensi/Pengingat, semua opsional kecuali
+   Materi+Tanggal Rencana+Minggu. Kolom baru di migrasi 20260820130000.
+   `pengingat_aktif` CUMA preferensi tersimpan -- app ini belum punya
+   sistem notifikasi/pengingat sungguhan.
 
-import { useCallback, useEffect, useState } from 'react';
+   PUTARAN KETIGA (diminta owner, "standar produk SaaS profesional"):
+   - Hero hijau (nama/peran/kelompok) DIHAPUS KHUSUS di layar ini
+     (tampilkanHero={false}) -- top bar putih (hamburger+brand+bell)
+     TETAP ADA. Layar turunan/detail spt ini tidak perlu mengulang info
+     yang sudah dilihat guru di Dashboard (lihat JurnalHeaderChrome.tsx
+     utk alasan lengkap). Pelaksanaan & Riwayat TETAP pakai hero -- ini
+     KHUSUS Rencana Pembelajaran, sesuai permintaan.
+   - Ikon SVG tulis-tangan -> lucide-react sungguhan.
+   - <select> native -> SelectKustom (dropdown sendiri, bukan OS --
+     tampilan native beda-beda di iOS/Android).
+   - <input type=date> native -> TanggalPicker.tsx (kalender custom yang
+     SUDAH ADA di app ini, dipakai jg oleh GuruAbsensiView -- bukan
+     komponen baru).
+   - "Memuat..." -> Skeleton (components/ui/Skeleton.tsx).
+   - Pesan sukses/gagal -> toast (components/ui/useToast.tsx +
+     ToastStack.tsx), bukan teks inline lagi.
+   - "Tambah Materi" jadi OPTIMISTIC: baris baru langsung muncul di daftar
+     begitu Simpan ditekan (id sementara negatif), modal langsung
+     tertutup -- tidak menunggu round-trip Supabase. Kalau INSERT gagal,
+     baris sementara itu ditarik lagi + toast error. */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
+  X, Plus, Check, CalendarDays, ClipboardList,
+} from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import Skeleton from '@/components/ui/Skeleton';
+import SelectKustom from '@/components/ui/SelectKustom';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import { useToast } from '@/components/ui/useToast';
+import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
 
 type Kelas = { id: number; nama: string };
@@ -39,8 +66,10 @@ const NAMA_BULAN = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-const SELECT_STYLE =
-  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
+const INPUT_STYLE =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text placeholder:text-text-faint focus:border-brass focus:outline-none';
+
+let idSementara = -1;
 
 function FieldTambah({ label, wajib, children }: { label: string; wajib?: boolean; children: React.ReactNode }) {
   return (
@@ -72,122 +101,17 @@ function InputIkon({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`${SELECT_STYLE} pr-9`}
+        className={`${INPUT_STYLE} pr-9`}
       />
       <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-text-faint">{ikon}</span>
     </div>
   );
 }
 
-function IkonSvg({ children }: { children: React.ReactNode }) {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      {children}
-    </svg>
-  );
-}
-
-// Lucide "book-open"
-function IkonBook() {
-  return (
-    <IkonSvg>
-      <path d="M12 7v14" />
-      <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "tag"
-function IkonTag() {
-  return (
-    <IkonSvg>
-      <path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z" />
-      <circle cx="7.5" cy="7.5" r="1.2" fill="currentColor" stroke="none" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "calendar"
-function IkonKalender() {
-  return (
-    <IkonSvg>
-      <path d="M8 2v4" />
-      <path d="M16 2v4" />
-      <rect width="18" height="18" x="3" y="4" rx="2" />
-      <path d="M3 10h18" />
-    </IkonSvg>
-  );
-}
-
-function IkonChevronBawah() {
-  return (
-    <IkonSvg>
-      <path d="m6 9 6 6 6-6" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "hash"
-function IkonHash() {
-  return (
-    <IkonSvg>
-      <line x1="4" x2="20" y1="9" y2="9" />
-      <line x1="4" x2="20" y1="15" y2="15" />
-      <line x1="10" x2="8" y1="3" y2="21" />
-      <line x1="16" x2="14" y1="3" y2="21" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "target"
-function IkonTarget() {
-  return (
-    <IkonSvg>
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="12" cy="12" r="5.5" />
-      <circle cx="12" cy="12" r="2" fill="currentColor" stroke="none" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "file-text" — sama persis ikon "Rencana Pembelajaran" di
-// JurnalChooser.tsx.
-function IkonCatatan() {
-  return (
-    <IkonSvg>
-      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
-      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
-      <path d="M10 9H8" />
-      <path d="M16 13H8" />
-      <path d="M16 17H8" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "link"
-function IkonLink() {
-  return (
-    <IkonSvg>
-      <path d="M9 17H7A5 5 0 0 1 7 7h2" />
-      <path d="M15 7h2a5 5 0 1 1 0 10h-2" />
-      <line x1="8" x2="16" y1="12" y2="12" />
-    </IkonSvg>
-  );
-}
-
-// Lucide "bell"
-function IkonBel() {
-  return (
-    <IkonSvg>
-      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-    </IkonSvg>
-  );
-}
-
 export default function RencanaPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
+  const { toasts, push, dismiss } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -200,13 +124,15 @@ export default function RencanaPembelajaranView() {
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
   const [topikBaru, setTopikBaru] = useState('');
   const [tanggalRencanaBaru, setTanggalRencanaBaru] = useState('');
-  const [mingguBaru, setMingguBaru] = useState(1);
+  const [tanggalPickerTerbuka, setTanggalPickerTerbuka] = useState(false);
+  const [posisiTanggalPicker, setPosisiTanggalPicker] = useState<PosisiPicker | null>(null);
+  const tanggalBtnRef = useRef<HTMLButtonElement>(null);
+  const [mingguBaru, setMingguBaru] = useState('1');
   const [pertemuanKeBaru, setPertemuanKeBaru] = useState('');
   const [tujuanBaru, setTujuanBaru] = useState('');
   const [catatanBaru, setCatatanBaru] = useState('');
@@ -218,7 +144,7 @@ export default function RencanaPembelajaranView() {
     setJudulBaru('');
     setTopikBaru('');
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
-    setMingguBaru(mingguKeDariTanggal(new Date()));
+    setMingguBaru(String(mingguKeDariTanggal(new Date())));
     setPertemuanKeBaru('');
     setTujuanBaru('');
     setCatatanBaru('');
@@ -248,7 +174,6 @@ export default function RencanaPembelajaranView() {
       return;
     }
     setLoading(true);
-    setError(null);
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
@@ -262,27 +187,35 @@ export default function RencanaPembelajaranView() {
       if (err) throw new Error(err.message);
       setMateriList((data ?? []) as Materi[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat rencana.');
+      push(e instanceof Error ? e.message : 'Gagal memuat rencana.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, push]);
 
   useEffect(() => {
     muatMateri();
-  }, [muatMateri]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, tahun, bulan]);
 
   async function simpanMateriBaru() {
     if (kelasId === '' || judulBaru.trim().length === 0 || tanggalRencanaBaru === '') return;
+    const judul = judulBaru.trim();
+    const mingguKe = Number(mingguBaru);
+
+    // Optimistic: baris sementara langsung tampil, modal langsung tertutup.
+    const sementara: Materi = { id: idSementara--, minggu_ke: mingguKe, judul, status: 'belum' };
+    setMateriList((prev) => [...prev, sementara]);
+    setTambahTerbuka(false);
     setMenyimpan(true);
-    setError(null);
+
     try {
       const { error: err } = await supabase.from('jurnal_materi').insert({
         kelas_id: kelasId,
         tahun,
         bulan,
-        minggu_ke: mingguBaru,
-        judul: judulBaru.trim(),
+        minggu_ke: mingguKe,
+        judul,
         topik: topikBaru.trim() === '' ? null : topikBaru.trim(),
         tanggal_rencana: tanggalRencanaBaru,
         pertemuan_ke: pertemuanKeBaru.trim() === '' ? null : pertemuanKeBaru.trim(),
@@ -292,10 +225,12 @@ export default function RencanaPembelajaranView() {
         pengingat_aktif: pengingatBaru,
       });
       if (err) throw new Error(err.message);
-      setTambahTerbuka(false);
+      push('Materi rencana tersimpan.', 'sukses');
       await muatMateri();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal menyimpan materi.');
+      // Gagal -> tarik lagi baris sementara.
+      setMateriList((prev) => prev.filter((m) => m.id !== sementara.id));
+      push(e instanceof Error ? e.message : 'Gagal menyimpan materi.', 'error');
     } finally {
       setMenyimpan(false);
     }
@@ -311,27 +246,33 @@ export default function RencanaPembelajaranView() {
 
   const totalPertemuan = mingguDipakai.length;
 
+  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
+  const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
+  const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
+  const opsiMinggu = [1, 2, 3, 4, 5]
+    .filter((mk) => rentangMinggu(tahun, bulan, mk))
+    .map((mk) => ({
+      value: String(mk),
+      label: `Minggu ${mk}`,
+      sublabel: labelRentangMinggu(tahun, bulan, mk, NAMA_BULAN),
+    }));
+
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <JurnalHeaderChrome />
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
+      <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
         <div className="mb-4 text-[17px] font-extrabold text-text">Rencana Pembelajaran</div>
 
         {kelasList.length > 1 && (
           <div className="mb-3">
-            <select
-              value={kelasId}
-              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
-              className={SELECT_STYLE}
-            >
-              <option value="">-- Pilih Kelas --</option>
-              {kelasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
+            <SelectKustom
+              value={kelasId === '' ? '' : String(kelasId)}
+              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
+              opsi={opsiKelas}
+              placeholder="-- Pilih Kelas --"
+            />
           </div>
         )}
 
@@ -343,12 +284,7 @@ export default function RencanaPembelajaranView() {
             onClick={() => setPemilihBulanTerbuka((v) => !v)}
             className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-panel px-4 py-3 text-left text-[14px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--sage)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 2v4" />
-              <path d="M16 2v4" />
-              <rect width="18" height="18" x="3" y="4" rx="2" />
-              <path d="M3 10h18" />
-            </svg>
+            <Calendar size={18} className="text-sage" />
             <span className="flex-1">
               {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
@@ -362,20 +298,8 @@ export default function RencanaPembelajaranView() {
               <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
               <div className="absolute z-[1100] mt-2 w-full rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
                 <div className="flex gap-2">
-                  <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_STYLE}>
-                    {NAMA_BULAN.map((nm, idx) => (
-                      <option key={nm} value={idx + 1}>
-                        {nm}
-                      </option>
-                    ))}
-                  </select>
-                  <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_STYLE}>
-                    {tahunPilihan.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+                  <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+                  <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
                 </div>
               </div>
             </>
@@ -388,10 +312,7 @@ export default function RencanaPembelajaranView() {
           <div className="flex gap-6">
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-indigo">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 7v14" />
-                  <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-                </svg>
+                <ClipboardList size={18} />
               </span>
               <div>
                 <div className="text-[20px] leading-none font-extrabold text-text">{materiList.length}</div>
@@ -400,12 +321,7 @@ export default function RencanaPembelajaranView() {
             </div>
             <div className="flex items-center gap-2.5">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white text-indigo">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M8 2v4" />
-                  <path d="M16 2v4" />
-                  <rect width="18" height="18" x="3" y="4" rx="2" />
-                  <path d="M3 10h18" />
-                </svg>
+                <CalendarDays size={18} />
               </span>
               <div>
                 <div className="text-[20px] leading-none font-extrabold text-text">{totalPertemuan}</div>
@@ -417,42 +333,49 @@ export default function RencanaPembelajaranView() {
 
         <div className="mb-3 text-[15px] font-bold text-text">Rencana Mingguan</div>
 
-        {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
-        {!loading && error && <p className="text-[13px] text-red">{error}</p>}
-        {!loading && !error && kelasId === '' && (
+        {loading && (
+          <div className="mb-5 flex flex-col gap-3">
+            <Skeleton className="h-[92px] w-full" />
+            <Skeleton className="h-[92px] w-full" />
+          </div>
+        )}
+
+        {!loading && kelasId === '' && (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat rencana.</p>
         )}
-        {!loading && !error && kelasId !== '' && mingguDipakai.length === 0 && (
+        {!loading && kelasId !== '' && mingguDipakai.length === 0 && (
           <p className="mb-4 text-[13px] text-text-dim">
             Belum ada materi direncanakan bulan ini. Tambahkan lewat tombol di bawah.
           </p>
         )}
 
-        <div className="mb-5 flex flex-col gap-3">
-          {mingguDipakai.map(({ mingguKe, materi }) => (
-            <div key={mingguKe} className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-              <div className="mb-2 flex items-start justify-between gap-2">
-                <div>
-                  <div className="text-[14px] font-bold text-text">Minggu {mingguKe}</div>
-                  <div className="text-[11.5px] text-text-dim">
-                    {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+        {!loading && (
+          <div className="mb-5 flex flex-col gap-3">
+            {mingguDipakai.map(({ mingguKe, materi }) => (
+              <div key={mingguKe} className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[14px] font-bold text-text">Minggu {mingguKe}</div>
+                    <div className="text-[11.5px] text-text-dim">
+                      {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+                    </div>
                   </div>
+                  <span className="shrink-0 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-bold text-indigo">
+                    {materi.length} Materi
+                  </span>
                 </div>
-                <span className="shrink-0 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-bold text-indigo">
-                  {materi.length} Materi
-                </span>
+                <ul className="flex flex-col gap-1.5">
+                  {materi.map((m) => (
+                    <li key={m.id} className="flex items-center gap-2 text-[13px] text-text">
+                      <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-text-faint" />
+                      {m.judul}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <ul className="flex flex-col gap-1.5">
-                {materi.map((m) => (
-                  <li key={m.id} className="flex items-center gap-2 text-[13px] text-text">
-                    <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-text-faint" />
-                    {m.judul}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {kelasId !== '' && (
           <>
@@ -462,9 +385,7 @@ export default function RencanaPembelajaranView() {
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[14px] font-bold text-white transition-transform duration-150 active:scale-[0.98]"
               style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
+              <Plus size={18} strokeWidth={2.4} />
               Tambah Materi
             </button>
 
@@ -477,7 +398,6 @@ export default function RencanaPembelajaranView() {
                   className="flex max-h-[90vh] w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {/* Drag handle — dekorasi, persis screenshot owner. */}
                   <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
                     <span className="h-1 w-9 rounded-full bg-border" />
                   </div>
@@ -490,10 +410,7 @@ export default function RencanaPembelajaranView() {
                       aria-label="Tutup"
                       className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
                     >
-                      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18" />
-                        <line x1="6" y1="6" x2="18" y2="18" />
-                      </svg>
+                      <X size={15} strokeWidth={2.4} />
                     </button>
                   </div>
 
@@ -503,7 +420,7 @@ export default function RencanaPembelajaranView() {
                         value={judulBaru}
                         onChange={setJudulBaru}
                         placeholder="Pilih atau tulis materi pembelajaran"
-                        ikon={<IkonBook />}
+                        ikon={<BookOpen size={16} />}
                       />
                     </FieldTambah>
 
@@ -512,43 +429,45 @@ export default function RencanaPembelajaranView() {
                         value={topikBaru}
                         onChange={setTopikBaru}
                         placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
-                        ikon={<IkonTag />}
+                        ikon={<Tag size={16} />}
                       />
                     </FieldTambah>
 
                     <FieldTambah label="Tanggal Rencana" wajib>
-                      <div className="relative">
-                        <input
-                          type="date"
-                          value={tanggalRencanaBaru}
-                          onChange={(e) => setTanggalRencanaBaru(e.target.value)}
-                          className={`${SELECT_STYLE} pr-9`}
-                        />
-                        <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-text-faint">
-                          <IkonKalender />
+                      <button
+                        ref={tanggalBtnRef}
+                        type="button"
+                        onClick={() => {
+                          const rect = tanggalBtnRef.current?.getBoundingClientRect();
+                          if (rect) {
+                            setPosisiTanggalPicker({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                          }
+                          setTanggalPickerTerbuka((v) => !v);
+                        }}
+                        className={`${INPUT_STYLE} flex items-center justify-between`}
+                      >
+                        <span className={tanggalRencanaBaru ? 'text-text' : 'text-text-faint'}>
+                          {tanggalRencanaBaru
+                            ? new Date(tanggalRencanaBaru + 'T00:00:00').toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric',
+                              })
+                            : 'Pilih tanggal'}
                         </span>
-                      </div>
+                        <Calendar size={16} className="text-text-faint" />
+                      </button>
+                      <TanggalPicker
+                        terbuka={tanggalPickerTerbuka}
+                        posisi={posisiTanggalPicker}
+                        nilai={tanggalRencanaBaru}
+                        onPilih={setTanggalRencanaBaru}
+                        onTutup={() => setTanggalPickerTerbuka(false)}
+                      />
                     </FieldTambah>
 
                     <FieldTambah label="Masukkan ke" wajib>
-                      <div className="relative">
-                        <select
-                          value={mingguBaru}
-                          onChange={(e) => setMingguBaru(Number(e.target.value))}
-                          className={`${SELECT_STYLE} appearance-none pr-9`}
-                        >
-                          {[1, 2, 3, 4, 5]
-                            .filter((mk) => rentangMinggu(tahun, bulan, mk))
-                            .map((mk) => (
-                              <option key={mk} value={mk}>
-                                Minggu {mk} ({labelRentangMinggu(tahun, bulan, mk, NAMA_BULAN)})
-                              </option>
-                            ))}
-                        </select>
-                        <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-text-faint">
-                          <IkonChevronBawah />
-                        </span>
-                      </div>
+                      <SelectKustom value={mingguBaru} onChange={setMingguBaru} opsi={opsiMinggu} ikon={<Calendar size={16} />} />
                     </FieldTambah>
 
                     <FieldTambah label="Pertemuan ke-">
@@ -556,7 +475,7 @@ export default function RencanaPembelajaranView() {
                         value={pertemuanKeBaru}
                         onChange={setPertemuanKeBaru}
                         placeholder="Contoh: Pertemuan ke-1"
-                        ikon={<IkonHash />}
+                        ikon={<Hash size={16} />}
                       />
                     </FieldTambah>
 
@@ -565,7 +484,7 @@ export default function RencanaPembelajaranView() {
                         value={tujuanBaru}
                         onChange={setTujuanBaru}
                         placeholder="Apa yang ingin dicapai dari materi ini?"
-                        ikon={<IkonTarget />}
+                        ikon={<Target size={16} />}
                       />
                     </FieldTambah>
 
@@ -577,10 +496,10 @@ export default function RencanaPembelajaranView() {
                           placeholder="Catatan tambahan untuk materi ini..."
                           rows={3}
                           maxLength={200}
-                          className={`${SELECT_STYLE} resize-none pr-8`}
+                          className={`${INPUT_STYLE} resize-none pr-8`}
                         />
                         <span className="pointer-events-none absolute top-2.5 right-3 text-text-faint">
-                          <IkonCatatan />
+                          <FileText size={16} />
                         </span>
                       </div>
                       <div className="mt-1 text-right text-[10.5px] text-text-faint">{catatanBaru.length}/200</div>
@@ -591,16 +510,14 @@ export default function RencanaPembelajaranView() {
                         value={referensiBaru}
                         onChange={setReferensiBaru}
                         placeholder="Buku, ayat, hadits, atau sumber lain"
-                        ikon={<IkonLink />}
+                        ikon={<Link2 size={16} />}
                       />
                     </FieldTambah>
 
-                    {/* Pengingat -- HANYA menyimpan preferensi toggle, app ini
-                        belum punya sistem notifikasi/pengingat sungguhan. */}
                     <div className="mb-1 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3">
                       <div className="flex items-center gap-2.5">
                         <span className="text-text-dim">
-                          <IkonBel />
+                          <Bell size={16} />
                         </span>
                         <div>
                           <div className="text-[12.5px] font-semibold text-text">Pengingat</div>
@@ -640,10 +557,8 @@ export default function RencanaPembelajaranView() {
                       className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
                     >
-                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 6 9 17l-5-5" />
-                      </svg>
-                      {menyimpan ? 'Menyimpan...' : 'Simpan Materi'}
+                      <Check size={16} strokeWidth={2.6} />
+                      Simpan Materi
                     </button>
                   </div>
                 </div>

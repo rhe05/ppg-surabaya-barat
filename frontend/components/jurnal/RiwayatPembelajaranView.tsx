@@ -8,12 +8,22 @@
    ditampilkan pakai `tanggal_rencana` (migrasi 20260820130000 -- diisi
    guru sendiri di form Tambah Materi) sbg target, dgn fallback ke awal
    rentang minggunya (rentangMinggu) HANYA utk baris lama yang dibuat
-   sebelum kolom tanggal_rencana ada (nilainya masih null). */
+   sebelum kolom tanggal_rencana ada (nilainya masih null).
+
+   PUTARAN KEDUA (diminta owner, "standar produk SaaS profesional"): ikon
+   lucide-react, <select> Kelas/Bulan/Tahun -> SelectKustom, "Memuat..."
+   -> Skeleton, error inline -> toast. Hero TETAP ADA di layar ini (beda
+   dari RencanaPembelajaranView.tsx). */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Calendar, Search, CheckCircle2, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import Skeleton from '@/components/ui/Skeleton';
+import SelectKustom from '@/components/ui/SelectKustom';
+import { useToast } from '@/components/ui/useToast';
+import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu } from '@/lib/mingguBulan';
 
 type Kelas = { id: number; nama: string };
@@ -33,9 +43,6 @@ const NAMA_BULAN = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-const SELECT_STYLE =
-  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
-
 function formatTanggal(iso: string) {
   const d = new Date(iso + 'T00:00:00');
   return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
@@ -44,6 +51,7 @@ function formatTanggal(iso: string) {
 export default function RiwayatPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
+  const { toasts, push, dismiss } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -56,7 +64,6 @@ export default function RiwayatPembelajaranView() {
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('semua');
   const [cari, setCari] = useState('');
 
@@ -81,7 +88,6 @@ export default function RiwayatPembelajaranView() {
       return;
     }
     setLoading(true);
-    setError(null);
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
@@ -95,15 +101,17 @@ export default function RiwayatPembelajaranView() {
       if (err) throw new Error(err.message);
       setMateriList((data ?? []) as Materi[]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat riwayat.');
+      push(e instanceof Error ? e.message : 'Gagal memuat riwayat.', 'error');
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan]);
 
   useEffect(() => {
     muat();
-  }, [muat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, tahun, bulan]);
 
   const total = materiList.length;
   const disampaikan = materiList.filter((m) => m.status === 'disampaikan').length;
@@ -132,8 +140,13 @@ export default function RiwayatPembelajaranView() {
     { nilai: 'belum', label: 'Belum' },
   ];
 
+  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
+  const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
+  const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
+
   return (
     <main className="flex min-h-screen flex-col bg-bg">
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
@@ -141,18 +154,12 @@ export default function RiwayatPembelajaranView() {
 
         {kelasList.length > 1 && (
           <div className="mb-3">
-            <select
-              value={kelasId}
-              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
-              className={SELECT_STYLE}
-            >
-              <option value="">-- Pilih Kelas --</option>
-              {kelasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
+            <SelectKustom
+              value={kelasId === '' ? '' : String(kelasId)}
+              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
+              opsi={opsiKelas}
+              placeholder="-- Pilih Kelas --"
+            />
           </div>
         )}
 
@@ -163,12 +170,7 @@ export default function RiwayatPembelajaranView() {
             onClick={() => setPemilihBulanTerbuka((v) => !v)}
             className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-panel px-4 py-3 text-left text-[14px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--sage)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 2v4" />
-              <path d="M16 2v4" />
-              <rect width="18" height="18" x="3" y="4" rx="2" />
-              <path d="M3 10h18" />
-            </svg>
+            <Calendar size={18} className="text-sage" />
             <span className="flex-1">
               {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
@@ -182,20 +184,8 @@ export default function RiwayatPembelajaranView() {
               <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
               <div className="absolute z-[1100] mt-2 w-full rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
                 <div className="flex gap-2">
-                  <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_STYLE}>
-                    {NAMA_BULAN.map((nm, idx) => (
-                      <option key={nm} value={idx + 1}>
-                        {nm}
-                      </option>
-                    ))}
-                  </select>
-                  <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_STYLE}>
-                    {tahunPilihan.map((y) => (
-                      <option key={y} value={y}>
-                        {y}
-                      </option>
-                    ))}
-                  </select>
+                  <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+                  <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
                 </div>
               </div>
             </>
@@ -265,49 +255,49 @@ export default function RiwayatPembelajaranView() {
               ))}
             </div>
 
-            <input
-              type="text"
-              value={cari}
-              onChange={(e) => setCari(e.target.value)}
-              placeholder="Cari materi pembelajaran..."
-              className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text placeholder:text-text-faint"
-            />
+            <div className="relative mb-4">
+              <input
+                type="text"
+                value={cari}
+                onChange={(e) => setCari(e.target.value)}
+                placeholder="Cari materi pembelajaran..."
+                className="w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 pr-3.5 pl-9 text-[13px] text-text placeholder:text-text-faint"
+              />
+              <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-faint" />
+            </div>
 
-            {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
-            {!loading && error && <p className="text-[13px] text-red">{error}</p>}
-            {!loading && !error && baris.length === 0 && (
+            {loading && (
+              <div className="flex flex-col gap-2.5">
+                <Skeleton className="h-[64px] w-full" />
+                <Skeleton className="h-[64px] w-full" />
+                <Skeleton className="h-[64px] w-full" />
+              </div>
+            )}
+            {!loading && baris.length === 0 && (
               <p className="text-[13px] text-text-dim">Tidak ada materi yang cocok.</p>
             )}
 
-            <div className="flex flex-col gap-2.5">
-              {baris.map((m) => {
-                const sudah = m.status === 'disampaikan';
-                return (
-                  <div key={m.id} className="flex items-center gap-3 rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-                    <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sudah ? 'bg-[#ECFDF5] text-sage' : 'bg-[#FFFBEB] text-brass'}`}>
-                      {sudah ? (
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="9" />
-                          <path d="m8.5 12 2.5 2.5 5-5" />
-                        </svg>
-                      ) : (
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="9" />
-                          <path d="M12 7v5l3 2" />
-                        </svg>
-                      )}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[11.5px] text-text-dim">{m.tanggal ? formatTanggal(m.tanggal) : '—'}</div>
-                      <div className="text-[14px] font-bold text-text">{m.judul}</div>
-                      <div className={`text-[11px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
-                        {sudah ? 'Disampaikan' : 'Belum Disampaikan'}
+            {!loading && (
+              <div className="flex flex-col gap-2.5">
+                {baris.map((m) => {
+                  const sudah = m.status === 'disampaikan';
+                  return (
+                    <div key={m.id} className="flex items-center gap-3 rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sudah ? 'bg-[#ECFDF5] text-sage' : 'bg-[#FFFBEB] text-brass'}`}>
+                        {sudah ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11.5px] text-text-dim">{m.tanggal ? formatTanggal(m.tanggal) : '—'}</div>
+                        <div className="text-[14px] font-bold text-text">{m.judul}</div>
+                        <div className={`text-[11px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
+                          {sudah ? 'Disampaikan' : 'Belum Disampaikan'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </>
         )}
       </div>

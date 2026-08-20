@@ -13,12 +13,23 @@
    TIDAK langsung menulis ke DB -- sengaja menunggu tombol Simpan, supaya
    guru bisa mencentang berkali-kali/ralat dulu sebelum benar-benar
    tersimpan (pola sama dgn app/absensi/page.tsx: toggle status di form,
-   satu tombol Simpan di akhir). */
+   satu tombol Simpan di akhir).
+
+   PUTARAN KEDUA (diminta owner, "standar produk SaaS profesional"): ikon
+   lucide-react, <select> Kelas -> SelectKustom, "Memuat..." -> Skeleton,
+   pesan/error inline -> toast. Hero TETAP ADA di layar ini (beda dari
+   RencanaPembelajaranView.tsx yang hero-nya dihapus khusus) -- diminta
+   owner cuma utk Rencana Pembelajaran. */
 
 import { useCallback, useEffect, useState } from 'react';
+import { Calendar, Plus, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import Skeleton from '@/components/ui/Skeleton';
+import SelectKustom from '@/components/ui/SelectKustom';
+import { useToast } from '@/components/ui/useToast';
+import ToastStack from '@/components/ui/ToastStack';
 import { mingguKeDariTanggal } from '@/lib/mingguBulan';
 
 type Kelas = { id: number; nama: string };
@@ -31,9 +42,6 @@ type Baris = {
   catatanAsli: string;
 };
 
-const SELECT_STYLE =
-  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
-
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -41,6 +49,7 @@ function todayStr() {
 export default function PelaksanaanPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
+  const { toasts, push, dismiss } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -59,9 +68,7 @@ export default function PelaksanaanPembelajaranView() {
   const [baris, setBaris] = useState<Baris[]>([]);
   const [terbukaId, setTerbukaId] = useState<number | null>(null); // baris yg catatannya sedang diperluas
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [menyimpan, setMenyimpan] = useState(false);
-  const [pesan, setPesan] = useState<string | null>(null);
 
   const [tambahanTerbuka, setTambahanTerbuka] = useState(false);
   const [judulTambahan, setJudulTambahan] = useState('');
@@ -87,8 +94,6 @@ export default function PelaksanaanPembelajaranView() {
       return;
     }
     setLoading(true);
-    setError(null);
-    setPesan(null);
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
@@ -111,15 +116,17 @@ export default function PelaksanaanPembelajaranView() {
         })),
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat materi.');
+      push(e instanceof Error ? e.message : 'Gagal memuat materi.', 'error');
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan, mingguKe]);
 
   useEffect(() => {
     muat();
-  }, [muat]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, tahun, bulan, mingguKe]);
 
   function toggleStatus(idx: number) {
     setBaris((prev) =>
@@ -154,8 +161,6 @@ export default function PelaksanaanPembelajaranView() {
   async function simpanPelaksanaan() {
     if (kelasId === '') return;
     setMenyimpan(true);
-    setError(null);
-    setPesan(null);
     try {
       const hariIni = todayStr();
       for (const b of baris) {
@@ -184,10 +189,10 @@ export default function PelaksanaanPembelajaranView() {
           if (err) throw new Error(err.message);
         }
       }
-      setPesan('Pelaksanaan tersimpan.');
+      push('Pelaksanaan tersimpan.', 'sukses');
       await muat();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal menyimpan pelaksanaan.');
+      push(e instanceof Error ? e.message : 'Gagal menyimpan pelaksanaan.', 'error');
     } finally {
       setMenyimpan(false);
     }
@@ -197,8 +202,11 @@ export default function PelaksanaanPembelajaranView() {
   const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
   const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
 
+  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
+
   return (
     <main className="flex min-h-screen flex-col bg-bg">
+      <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
@@ -206,30 +214,19 @@ export default function PelaksanaanPembelajaranView() {
 
         {kelasList.length > 1 && (
           <div className="mb-3">
-            <select
-              value={kelasId}
-              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
-              className={SELECT_STYLE}
-            >
-              <option value="">-- Pilih Kelas --</option>
-              {kelasList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
+            <SelectKustom
+              value={kelasId === '' ? '' : String(kelasId)}
+              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
+              opsi={opsiKelas}
+              placeholder="-- Pilih Kelas --"
+            />
           </div>
         )}
 
         {/* Pil tanggal hari ini, tema hijau muda — persis screenshot owner. */}
         <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sage">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M8 2v4" />
-              <path d="M16 2v4" />
-              <rect width="18" height="18" x="3" y="4" rx="2" />
-              <path d="M3 10h18" />
-            </svg>
+            <Calendar size={18} />
           </span>
           <div>
             <div className="text-[13.5px] font-bold text-sage">{tanggalLabel}</div>
@@ -282,7 +279,13 @@ export default function PelaksanaanPembelajaranView() {
 
             <div className="mb-3 text-[15px] font-bold text-text">Materi Hari Ini</div>
 
-            {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
+            {loading && (
+              <div className="mb-4 flex flex-col gap-2.5">
+                <Skeleton className="h-[52px] w-full" />
+                <Skeleton className="h-[52px] w-full" />
+                <Skeleton className="h-[52px] w-full" />
+              </div>
+            )}
             {!loading && baris.length === 0 && (
               <p className="mb-4 text-[13px] text-text-dim">
                 Belum ada materi direncanakan minggu ini. Tambahkan lewat &ldquo;Tambah Materi Tambahan&rdquo;
@@ -291,7 +294,7 @@ export default function PelaksanaanPembelajaranView() {
             )}
 
             <div className="mb-4 flex flex-col gap-2.5">
-              {baris.map((b, idx) => {
+              {!loading && baris.map((b, idx) => {
                 const dicentang = b.status === 'disampaikan';
                 const diperluas = terbukaId === b.id || (b.id === null && dicentang);
                 return (
@@ -311,11 +314,7 @@ export default function PelaksanaanPembelajaranView() {
                           dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
                         }`}
                       >
-                        {dicentang && (
-                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M20 6 9 17l-5-5" />
-                          </svg>
-                        )}
+                        {dicentang && <Check size={14} strokeWidth={3} color="#fff" />}
                       </span>
                       <span className="min-w-0 flex-1 text-[14px] font-bold text-text">{b.judul}</span>
                       <span
@@ -350,9 +349,7 @@ export default function PelaksanaanPembelajaranView() {
                 onClick={() => setTambahanTerbuka(true)}
                 className="mb-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius)] border-[1.5px] border-dashed border-sage bg-transparent py-3 text-[13px] font-semibold text-sage"
               >
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
+                <Plus size={16} strokeWidth={2.4} />
                 Tambah Materi Tambahan
               </button>
             ) : (
@@ -390,9 +387,6 @@ export default function PelaksanaanPembelajaranView() {
               </div>
             )}
 
-            {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-            {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
-
             <button
               type="button"
               disabled={menyimpan || baris.length === 0}
@@ -400,9 +394,7 @@ export default function PelaksanaanPembelajaranView() {
               className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
               style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 6 9 17l-5-5" />
-              </svg>
+              <Check size={18} strokeWidth={2} />
               {menyimpan ? 'Menyimpan...' : 'Simpan Pelaksanaan'}
             </button>
           </>

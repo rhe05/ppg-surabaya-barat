@@ -1,7 +1,7 @@
 'use client';
 
 /* Chrome header bersama utk 3 layar Jurnal Mengajar (Rencana/Pelaksanaan/
-   Riwayat Pembelajaran) — hamburger+bell+hero nama/peran/kelompok, pola
+   Riwayat Pembelajaran) — hamburger+bell(+hero nama/peran/kelompok), pola
    SAMA PERSIS GuruDashboard.tsx/riwayat/page.tsx/GuruLaporanView.tsx,
    diekstrak jadi satu komponen supaya TIDAK ngedrift antar 3 layar baru
    ini (pelajaran dari LaporanPerkembanganCetak.tsx — dulu 2 versi
@@ -11,10 +11,20 @@
    Laporan): pemilih Bulan/Tahun di 3 layar ini berbentuk pil lebar penuh
    di dalam konten (persis screenshot owner), bukan ikon kecil di hero —
    jadi tidak butuh slot kanan hero sama sekali. Pelaksanaan bahkan tidak
-   butuh pemilih bulan/tahun sama sekali (selalu "hari ini"). */
+   butuh pemilih bulan/tahun sama sekali (selalu "hari ini").
+
+   PUTARAN KEDUA (diminta owner): hero hijau (nama/peran/kelompok) BOLEH
+   disembunyikan lewat prop `tampilkanHero` -- alasan: hero itu murni
+   pengulangan info yang sudah dilihat guru di Dashboard, dan utk layar
+   turunan/detail spt Rencana Pembelajaran itu jadi berat tanpa nilai
+   tambah (standar produk profesional: hero besar reserved utk layar tab
+   utama, layar sub-alur cukup top bar ringkas). Top bar putih (hamburger
+   + brand + bell) TETAP SELALU tampil apa pun nilai prop ini -- itu
+   satu-satunya jalan guru kembali ke menu, tidak boleh hilang. */
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { Menu, Bell } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
@@ -27,7 +37,7 @@ const SINGKATAN_KATEGORI: Record<string, string> = {
   'Guru Bantu': 'GB',
 };
 
-export default function JurnalHeaderChrome() {
+export default function JurnalHeaderChrome({ tampilkanHero = true }: { tampilkanHero?: boolean }) {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [chooserTerbuka, setChooserTerbuka] = useState(false);
@@ -47,7 +57,7 @@ export default function JurnalHeaderChrome() {
       <KehadiranChooser terbuka={chooserTerbuka} onTutup={() => setChooserTerbuka(false)} />
       <JurnalChooser terbuka={jurnalChooserTerbuka} onTutup={() => setJurnalChooserTerbuka(false)} />
 
-      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
+      <div className={`shrink-0 bg-panel ${tampilkanHero ? 'overflow-hidden rounded-b-3xl shadow-[0_6px_20px_rgba(5,150,105,0.22)]' : 'border-b border-border shadow-[var(--shadow-subtle)]'}`}>
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
           <button
             type="button"
@@ -55,11 +65,7 @@ export default function JurnalHeaderChrome() {
             onClick={() => setMenuTerbuka((v) => !v)}
             className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
           >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
+            <Menu size={22} strokeWidth={2} />
           </button>
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
@@ -73,29 +79,28 @@ export default function JurnalHeaderChrome() {
               aria-label="Permintaan Masuk"
               className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
             >
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
+              <Bell size={20} strokeWidth={2} />
             </button>
           </div>
         </div>
 
-        <div className="bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
-          <div className="text-[20px] leading-[1.2] font-bold text-white">
-            {profile?.display_name ?? '-'}
+        {tampilkanHero && (
+          <div className="bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
+            <div className="text-[20px] leading-[1.2] font-bold text-white">
+              {profile?.display_name ?? '-'}
+            </div>
+            {barisRole && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {barisRole}
+              </div>
+            )}
+            {namaKelompok && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {namaKelompok}
+              </div>
+            )}
           </div>
-          {barisRole && (
-            <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
-              {barisRole}
-            </div>
-          )}
-          {namaKelompok && (
-            <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
-              {namaKelompok}
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </>
   );
