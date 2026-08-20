@@ -146,8 +146,8 @@ export default function JurnalChooser({
               <IkonBookOpen />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-text">Rencana Pembelajaran</span>
-              <span className="block text-[11.5px] text-text">
+              <span className="block text-[15.5px] font-bold text-text">Rencana Pembelajaran</span>
+              <span className="block text-[10.5px] text-text">
                 Susun materi yang akan disampaikan pada minggu atau bulan ini
               </span>
             </span>
@@ -168,8 +168,8 @@ export default function JurnalChooser({
               <IkonClipboardCheck />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-text">Pelaksanaan Pembelajaran</span>
-              <span className="block text-[11.5px] text-text">
+              <span className="block text-[15.5px] font-bold text-text">Pelaksanaan Pembelajaran</span>
+              <span className="block text-[10.5px] text-text">
                 Konfirmasi materi yang telah disampaikan setelah kegiatan mengajar
               </span>
             </span>
