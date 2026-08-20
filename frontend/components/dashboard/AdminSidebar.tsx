@@ -73,13 +73,6 @@ type Bagian = {
 
 const PERAN_ADMIN = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 
-const LABEL_PERAN: Record<string, string> = {
-  admin_ppg: 'Admin Aplikasi',
-  admin_desa: 'Admin Desa',
-  admin_kelompok: 'Admin Kelompok',
-  guru: 'Guru',
-};
-
 // Ikon disalin literal dari Markup_Screens.html:1048-1109 (path SVG sama
 // persis) supaya sidebar baru terasa sambungan app lama, bukan asing.
 const BAGIAN: Bagian[] = [
@@ -374,7 +367,7 @@ const KUNCI_CIUT = 'ppg_sidebar_ciut';
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { profile, namaKelompok, signOut } = useAuth();
+  const { profile, signOut } = useAuth();
 
   const [ciut, setCiut] = useState(false);
   const [siap, setSiap] = useState(false);
@@ -402,7 +395,6 @@ export default function AdminSidebar() {
   }
 
   const boleh = profile?.role ? PERAN_ADMIN.includes(profile.role) : false;
-  const labelPeran = profile?.role ? (LABEL_PERAN[profile.role] ?? profile.role) : null;
 
   function tautan(item: ItemNav) {
     const aktif = pathname === item.href || pathname?.startsWith(item.href + '/');
@@ -538,18 +530,12 @@ export default function AdminSidebar() {
         </div>
       </nav>
 
-      {/* Footer: identitas peran + logout — Style_Main.html:668-694 */}
+      {/* Footer: logout — Style_Main.html:668-694. Identitas peran yang
+          dulu di sini (label peran + nama kelompok, di atas tombol Keluar)
+          DIPINDAH ke pojok kanan atas header putih /santri (diminta owner
+          20 Agt, putaran keenam) -- lihat JudulHalaman di
+          app/santri/page.tsx, sumber labelnya lib/roles.ts. */}
       <div className="sticky bottom-0 z-[5] shrink-0 border-t border-border bg-panel">
-        {!ciut && (labelPeran || namaKelompok) && (
-          <div className="px-5 pt-3 pb-1">
-            {labelPeran && (
-              <div className="truncate text-[12px] font-semibold text-text">{labelPeran}</div>
-            )}
-            {namaKelompok && (
-              <div className="truncate text-[11px] text-text-faint">{namaKelompok}</div>
-            )}
-          </div>
-        )}
         <button
           type="button"
           onClick={keluar}
