@@ -121,6 +121,8 @@ export default function RencanaPembelajaranView() {
   const [tahun, setTahun] = useState(sekarang.getFullYear());
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
   const [pemilihBulanTerbuka, setPemilihBulanTerbuka] = useState(false);
+  const [posisiPemilihBulan, setPosisiPemilihBulan] = useState<PosisiPicker | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
@@ -263,10 +265,54 @@ export default function RencanaPembelajaranView() {
       <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        <div className="mb-4 text-[17px] font-extrabold text-text">Rencana Pembelajaran</div>
+        {/* Judul + ikon kalender sejajar — konsep sama dgn hero Dashboard
+            (nama di kiri, ikon+caption Bulan/Tahun di kanan), diminta
+            owner: pil lebar penuh yang dulu di sini DIHAPUS, gantinya
+            ikon kecil di kanan atas (di bawah lonceng di top bar),
+            sejajar dgn judul "Rencana Pembelajaran". Posisi popup dihitung
+            dari getBoundingClientRect() ikon, teknik SAMA PERSIS
+            GuruDashboard.tsx. */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="pt-1.5 text-[17px] font-extrabold text-text">Rencana Pembelajaran</div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              ref={ikonKalenderRef}
+              type="button"
+              aria-label="Pilih Bulan dan Tahun"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiPemilihBulan({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                }
+                setPemilihBulanTerbuka((v) => !v);
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+            >
+              <Calendar size={19} />
+            </button>
+            <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
+              {NAMA_BULAN[bulan - 1]} {tahun}
+            </span>
+          </div>
+        </div>
+
+        {pemilihBulanTerbuka && posisiPemilihBulan && (
+          <>
+            <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
+            <div
+              className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+              style={{ top: posisiPemilihBulan.top, right: posisiPemilihBulan.right }}
+            >
+              <div className="flex gap-2">
+                <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+                <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
+              </div>
+            </div>
+          </>
+        )}
 
         {kelasList.length > 1 && (
-          <div className="mb-3">
+          <div className="mb-4">
             <SelectKustom
               value={kelasId === '' ? '' : String(kelasId)}
               onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
@@ -275,36 +321,6 @@ export default function RencanaPembelajaranView() {
             />
           </div>
         )}
-
-        {/* Pil Bulan/Tahun lebar penuh — persis screenshot owner (bukan
-            ikon kecil di hero spt Dashboard/Riwayat/Laporan). */}
-        <div className="relative mb-4">
-          <button
-            type="button"
-            onClick={() => setPemilihBulanTerbuka((v) => !v)}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-panel px-4 py-3 text-left text-[14px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-          >
-            <Calendar size={18} className="text-sage" />
-            <span className="flex-1">
-              {NAMA_BULAN[bulan - 1]} {tahun}
-            </span>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-faint)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          {pemilihBulanTerbuka && (
-            <>
-              <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
-              <div className="absolute z-[1100] mt-2 w-full rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
-                <div className="flex gap-2">
-                  <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
-                  <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
 
         {/* Ringkasan Rencana */}
         <div className="mb-5 rounded-card border border-border bg-[#EEF2FF] p-4">
