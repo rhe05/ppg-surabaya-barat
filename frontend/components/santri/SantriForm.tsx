@@ -59,7 +59,7 @@ export const KOLOM_SANTRI =
 /* Nilai opsi diambil apa adanya dari Markup_Screens.html. JENJANG harus
    cocok persis dgn enum santri_jenjang, GENDER dgn enum gender_type —
    nilai di luar daftar ini ditolak Postgres. */
-const JENJANG = ['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
+const JENJANG = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
 const PENDIDIKAN = ['Belum Sekolah', 'PAUD', 'TK', 'SD', 'SMP', 'SMA/SMK', 'Kuliah', 'Lainnya'];
 const STATUS_NIKAH = ['Siap Nikah', 'Belum Siap'];
 

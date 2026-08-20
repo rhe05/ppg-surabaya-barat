@@ -30,7 +30,7 @@ import { useAuth } from '@/lib/auth-context';
 type Santri = { id: number; gender: string | null; jenjang_saat_ini: string | null };
 type Absensi = { santri_id: number; status: string };
 
-const JENJANG_TAMPIL = ['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
+const JENJANG_TAMPIL = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
 const STATUS_TAMPIL: { kunci: string; label: string; warna: string }[] = [
   { kunci: 'hadir', label: 'Hadir', warna: 'text-sage' },
   { kunci: 'izin', label: 'Izin', warna: 'text-brass' },

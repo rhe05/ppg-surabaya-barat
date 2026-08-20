@@ -25,8 +25,8 @@ import { useAuth } from '@/lib/auth-context';
 import MatriksKehadiran from '@/components/monitoring/MatriksKehadiran';
 
 /* Nilai jenjang harus cocok persis dgn enum santri_jenjang di Postgres.
-   MONITORING_JENJANG_LIST_ app lama memakai 4 dari 5 nilai enum — 'AUD'
-   sengaja tidak ikut, sama seperti di sana. */
+   MONITORING_JENJANG_LIST_ app lama memakai 4 dari 5 nilai enum — 'PAUD/TK'
+   (dulu 'AUD', diganti 20 Agt) sengaja tidak ikut, sama seperti di sana. */
 const JENJANG = [
   { kunci: 'Cabe Rawit', label: 'Cabe Rawit' },
   { kunci: 'Pra Remaja', label: 'Pra Remaja' },
@@ -170,10 +170,11 @@ function MonitoringContent() {
       }
 
       /* App lama hanya menghitung 4 jenjang di MONITORING_JENJANG_LIST_ dan
-         DIAM-DIAM membuang sisanya. Di produksi 'AUD' punya belasan santri
-         beserta absensinya — kalau daftarnya ditiru mentah-mentah, data itu
-         hilang tanpa jejak di layar. Jenjang di luar daftar tetap dihitung,
-         tapi ditandai supaya jelas bukan bagian dari laporan baku. */
+         DIAM-DIAM membuang sisanya. Di produksi 'PAUD/TK' (dulu 'AUD')
+         punya belasan santri beserta absensinya — kalau daftarnya ditiru
+         mentah-mentah, data itu hilang tanpa jejak di layar. Jenjang di
+         luar daftar tetap dihitung, tapi ditandai supaya jelas bukan
+         bagian dari laporan baku. */
       const jenjangLain = [
         ...new Set(
           santri

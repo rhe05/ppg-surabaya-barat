@@ -45,9 +45,9 @@ const PAGE_SIZE = 10;
    seragam; komponen kecil per-jenis lebih jelas drpd satu Kartu dgn banyak
    prop opsional. Warna dari token app lama (globals.css), BUKAN warna baru
    yang ditebak. */
-const JENJANG_URUT = ['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'] as const;
+const JENJANG_URUT = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'] as const;
 const WARNA_JENJANG: Record<(typeof JENJANG_URUT)[number], string> = {
-  AUD: '#D97706',
+  'PAUD/TK': '#D97706',
   'Cabe Rawit': '#059669',
   'Pra Remaja': '#D97706',
   'Remaja SMA': '#4F46E5',
