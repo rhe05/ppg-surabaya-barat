@@ -298,10 +298,16 @@ export default function GuruLaporanView() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        {/* Pil tanggal hari ini, sengaja "menggantung" di atas kartu
-            (-mt-9, tumpang tindih batas hero/putih) — meniru posisi di
-            screenshot owner. */}
-        <div className="-mt-9 mb-4 flex justify-end">
+        {/* Pil tanggal hari ini. SEBELUMNYA pakai -mt-9 supaya "menggantung"
+            tumpang tindih batas hero/putih (meniru posisi di screenshot
+            owner) -- DIBATALKAN (dilaporkan owner: terlihat spt ada kartu
+            terselip di bawahnya). Penyebabnya box-shadow header hijau TIDAK
+            ikut terpotong oleh overflow-hidden/rounded-b-3xl milik header
+            sendiri (box-shadow elemen tidak pernah diclip oleh overflow
+            miliknya sendiri) -- jadi bayangannya menimpa pil begitu ditarik
+            naik ke bawah lengkungan header, terlihat spt lapisan kartu
+            kedua. Sekarang jarak normal, tidak tumpang tindih apa pun. */}
+        <div className="mb-4 flex justify-end">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-panel px-3 py-1.5 text-[11.5px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
             <span className="h-[7px] w-[7px] rounded-full bg-brass" />
             {tanggalHariIni}
