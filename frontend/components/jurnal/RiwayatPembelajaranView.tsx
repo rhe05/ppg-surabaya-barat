@@ -5,10 +5,10 @@
    20260820120000_jurnal_materi_rencana.sql.
 
    Tanggal utk baris yang BELUM disampaikan (tanggal_disampaikan null)
-   ditampilkan pakai tanggal AWAL rentang minggunya (rentangMinggu) sbg
-   perkiraan/target -- bukan tanggal presisi kapan akan diajarkan (app ini
-   tidak melacak itu), murni supaya baris tetap punya sesuatu utk
-   diurutkan & ditampilkan spt baris yang sudah disampaikan. */
+   ditampilkan pakai `tanggal_rencana` (migrasi 20260820130000 -- diisi
+   guru sendiri di form Tambah Materi) sbg target, dgn fallback ke awal
+   rentang minggunya (rentangMinggu) HANYA utk baris lama yang dibuat
+   sebelum kolom tanggal_rencana ada (nilainya masih null). */
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -23,6 +23,7 @@ type Materi = {
   judul: string;
   status: 'belum' | 'disampaikan';
   tanggal_disampaikan: string | null;
+  tanggal_rencana: string | null;
 };
 
 type Filter = 'semua' | 'disampaikan' | 'belum';
@@ -84,7 +85,7 @@ export default function RiwayatPembelajaranView() {
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
-        .select('id, minggu_ke, judul, status, tanggal_disampaikan')
+        .select('id, minggu_ke, judul, status, tanggal_disampaikan, tanggal_rencana')
         .eq('kelas_id', kelasId)
         .eq('tahun', tahun)
         .eq('bulan', bulan)
@@ -113,6 +114,7 @@ export default function RiwayatPembelajaranView() {
     .map((m) => {
       const tanggal =
         m.tanggal_disampaikan ??
+        m.tanggal_rencana ??
         (() => {
           const r = rentangMinggu(tahun, bulan, m.minggu_ke);
           if (!r) return null;
