@@ -273,7 +273,7 @@ export default function RencanaPembelajaranView() {
       <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome tampilkanHero={false} />
 
-      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[110px]">
+      <div className="tanpa-scrollbar flex-1 overflow-y-auto px-[18px] pt-4 pb-[110px]">
         {/* Judul + ikon kalender sejajar — konsep sama dgn hero Dashboard
             (nama di kiri, ikon+caption Bulan/Tahun di kanan), diminta
             owner: pil lebar penuh yang dulu di sini DIHAPUS, gantinya
@@ -376,7 +376,16 @@ export default function RencanaPembelajaranView() {
 
         <div className="mb-3 text-[15px] font-bold text-text">Rencana Mingguan</div>
 
-        {loading && (
+        {/* Skeleton HANYA dipakai saat benar-benar belum ada apa pun buat
+            ditampilkan (materiList masih kosong) -- diminta owner (20
+            Agt): sebelumnya skeleton muncul TIAP ganti kelas walau kelas
+            sebelumnya sudah ada datanya, jadi konten lama sempat diganti
+            skeleton lalu diganti lagi konten baru dlm hitungan
+            milidetik = kelihatan "kedip". Sekarang saat pindah kelas yg
+            datanya sudah pernah dimuat, konten lama tetap tampil apa
+            adanya sampai data kelas baru selesai diambil lalu ditukar
+            langsung sekali jalan -- tanpa fase skeleton di antaranya. */}
+        {loading && materiList.length === 0 && kelasId !== '' && (
           <div className="mb-5 flex flex-col gap-3">
             <Skeleton className="h-[92px] w-full" />
             <Skeleton className="h-[92px] w-full" />
@@ -386,13 +395,13 @@ export default function RencanaPembelajaranView() {
         {!loading && kelasId === '' && (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat rencana.</p>
         )}
-        {!loading && kelasId !== '' && mingguDipakai.length === 0 && (
+        {!(loading && materiList.length === 0) && kelasId !== '' && mingguDipakai.length === 0 && (
           <p className="mb-4 text-[13px] text-text-dim">
             Belum ada materi direncanakan bulan ini. Tambahkan lewat tombol di bawah.
           </p>
         )}
 
-        {!loading && (
+        {!(loading && materiList.length === 0) && kelasId !== '' && (
           <div className="mb-5 flex flex-col gap-3">
             {mingguDipakai.map(({ mingguKe, materi }) => (
               <div key={mingguKe} className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">

@@ -84,6 +84,23 @@ body {
   line-height: 1.5;
 }
 
+/* .tanpa-scrollbar (20 Agt, diminta owner): sembunyikan scrollbar bawaan
+   browser di kolom konten yg overflow-y-auto tapi tetap bisa discroll
+   normal (elemen ini dipakai di dalam kolom mobile max-w-[430px], scroll
+   asli lewat sentuh/drag/roda mouse tetap jalan, cuma track/thumb
+   scrollbar-nya yg disembunyikan). Ditambahkan krn di Rencana
+   Pembelajaran, scrollbar Windows/desktop sempat "berkedip" muncul-hilang
+   di kanan tiap ganti kelas (tinggi konten berubah pas-pasan di ambang
+   butuh-scroll-atau-tidak) -- scrollbar disembunyikan total supaya tidak
+   ada elemen yg kelihatan berkedip sama sekali. */
+.tanpa-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tanpa-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Print-to-PDF universal (20 Agt, diminta owner): window.print() + CSS ini
    = render BROWSER ASLI, bukan screenshot/canvas (html2canvas) atau render
    server (Puppeteer dkk) -- hasil 100% sama persis dgn tampilan web, tanpa
