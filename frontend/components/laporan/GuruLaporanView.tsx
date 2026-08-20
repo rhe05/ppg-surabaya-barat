@@ -21,14 +21,23 @@
    `santri.kelas_id` langsung (FK, disinkronkan trigger sinkron_santri_
    kelas, migrasi 20260819110000) — jalan pintasnya sama persis, sumbernya
    yang lebih pendek. Tidak ada padanan PDF letterhead/kop-surat app lama
-   (sistem preview modal + pdfmake terpisah, di luar cakupan tugas ini) —
-   PDF di sini dibuat langsung via jsPDF/autoTable, pola yang sama dgn
-   components/SantriProgressReport.tsx. */
+   (sistem preview modal + pdfmake terpisah) -- TAPI pola INTINYA (preview
+   HTML dulu, baru window.print()) justru SAMA PERSIS spt app lama, lihat
+   catatan "Unduh PDF" di bawah.
+
+   PUTARAN KEDUA (20 Agt, diminta owner): "Unduh PDF" DIGANTI TOTAL dari
+   jsPDF/autoTable (dokumen dibangun manual, terpisah dari yang tampil di
+   layar -- sebelumnya di sini malah TIDAK ADA tampilan layar sama sekali,
+   klik tombol langsung generate jsPDF diam-diam) ke: tampilkan dulu
+   PREVIEW laporan di layar (kartu metrik + tabel, id="laporan-cetak"),
+   BARU window.print() (CSS di app/globals.css, teknik SAMA PERSIS app
+   lama -- lihat komentar di sana). Hasilnya PDF = render browser asli
+   dari markup yang SAMA PERSIS tampil di layar, klien murni (tanpa
+   panggilan Supabase tambahan saat cetak, datanya sudah di state),
+   tanpa backend baru, tanpa render server, instan, gratis. */
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
@@ -38,6 +47,29 @@ import JurnalChooser from '@/components/dashboard/JurnalChooser';
 type Kelas = { id: number; nama: string };
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string };
+
+type SantriBaris = {
+  nama: string;
+  hariAktif: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  persen: number | null;
+  status: string;
+};
+
+type Laporan = {
+  guruNama: string;
+  periode: string;
+  kelasLabel: string;
+  totalSantri: number;
+  totalHariAktif: number;
+  hadirPercent: number;
+  totalIzin: number;
+  totalAlpa: number;
+  totalSakit: number;
+  baris: SantriBaris[];
+};
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -76,6 +108,18 @@ function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
   return 'Sakit';
 }
 
+function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
+  return (
+    <div className="rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+      <div className="text-[10px] font-bold tracking-[0.4px] text-text-dim uppercase">{label}</div>
+      <div className="mt-1 text-[20px] leading-none font-extrabold" style={{ color: warna }}>
+        {nilai}
+      </div>
+      <div className="mt-1 text-[10.5px] text-text-faint">{catatan}</div>
+    </div>
+  );
+}
+
 export default function GuruLaporanView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
@@ -94,6 +138,7 @@ export default function GuruLaporanView() {
 
   const [membuat, setMembuat] = useState(false);
   const [errorMuat, setErrorMuat] = useState<string | null>(null);
+  const [laporan, setLaporan] = useState<Laporan | null>(null);
 
   useEffect(() => {
     if (guruId == null) return;
@@ -108,6 +153,15 @@ export default function GuruLaporanView() {
 
   const { eligible, lastDay } = cekEligible(bulan, tahun);
   const kelasLabel = kelasId === '' ? 'Jenengan' : (kelasList.find((k) => k.id === kelasId)?.nama ?? 'Jenengan');
+
+  // Laporan sudah siap di layar -> panggil print sekali (rAF supaya
+  // browser sempat melukis kartu/tabelnya dulu sebelum dialog cetak
+  // muncul -- tanpa ini kadang preview masih kosong saat print dipanggil).
+  useEffect(() => {
+    if (!laporan) return;
+    const id = requestAnimationFrame(() => window.print());
+    return () => cancelAnimationFrame(id);
+  }, [laporan]);
 
   const buatLaporan = useCallback(async () => {
     const kelasIds = kelasId === '' ? kelasList.map((k) => k.id) : [kelasId];
@@ -147,77 +201,51 @@ export default function GuruLaporanView() {
     return { santri, absensi };
   }, [kelasId, kelasList, bulan, tahun]);
 
-  async function unduhPdf() {
+  async function siapkanLaporan() {
     if (!eligible) return;
     setErrorMuat(null);
     setMembuat(true);
     try {
       const { santri, absensi } = await buatLaporan();
+      const tanggalAktif = new Set(absensi.map((a) => a.tanggal));
 
-      const baris = santri.map((s) => {
+      const baris: SantriBaris[] = santri.map((s) => {
         const milik = absensi.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
         const izin = milik.filter((a) => a.status === 'izin').length;
         const sakit = milik.filter((a) => a.status === 'sakit').length;
         const alpa = milik.filter((a) => a.status === 'alpa').length;
         const total = milik.length;
-        const persen = total > 0 ? Math.round((hadir / total) * 100) : null;
         return {
           nama: s.nama,
           hariAktif: total,
-          hadir,
           izin,
           sakit,
           alpa,
-          persen,
+          persen: total > 0 ? Math.round((hadir / total) * 100) : null,
           status: klasifikasi(hadir, izin, alpa, total),
         };
       });
 
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
+      const rataPersen =
+        baris.filter((b) => b.persen !== null).length > 0
+          ? Math.round(
+              baris.reduce((s, b) => s + (b.persen ?? 0), 0) / baris.filter((b) => b.persen !== null).length,
+            )
+          : 0;
 
-      doc.setFontSize(16);
-      doc.text('Laporan Perkembangan Santri', pageWidth / 2, 18, { align: 'center' });
-      doc.setFontSize(10);
-      doc.text(`Periode: ${NAMA_BULAN[bulan - 1]} ${tahun}`, pageWidth / 2, 25, { align: 'center' });
-
-      doc.setFontSize(11);
-      doc.text(`Guru: ${profile?.display_name ?? '-'}`, 14, 36);
-      doc.text(`Kelas: ${kelasLabel}`, 14, 43);
-      doc.text(`Total Santri: ${santri.length}`, 14, 50);
-
-      autoTable(doc, {
-        startY: 58,
-        head: [['Nama', 'Hari Aktif', 'Hadir', 'Izin', 'Sakit', 'Alpa', '%', 'Status']],
-        body: baris.map((b) => [
-          b.nama,
-          b.hariAktif,
-          b.hadir,
-          b.izin,
-          b.sakit,
-          b.alpa,
-          b.persen === null ? '-' : `${b.persen}%`,
-          b.status,
-        ]),
-        styles: { fontSize: 9 },
+      setLaporan({
+        guruNama: profile?.display_name ?? '-',
+        periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
+        kelasLabel,
+        totalSantri: santri.length,
+        totalHariAktif: tanggalAktif.size,
+        hadirPercent: rataPersen,
+        totalIzin: baris.filter((b) => b.status === 'Izin').length,
+        totalAlpa: baris.filter((b) => b.status === 'Alpa').length,
+        totalSakit: baris.filter((b) => b.status === 'Sakit').length,
+        baris,
       });
-
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.text(
-          `Halaman ${i} / ${pageCount} — dicetak ${new Date().toLocaleString('id-ID')}`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' },
-        );
-      }
-
-      doc.save(
-        `Laporan_Perkembangan_${kelasLabel.replace(/\s+/g, '_')}_${NAMA_BULAN[bulan - 1]}_${tahun}.pdf`,
-      );
     } catch (e) {
       setErrorMuat(e instanceof Error ? e.message : 'Gagal membuat laporan.');
     } finally {
@@ -232,6 +260,84 @@ export default function GuruLaporanView() {
     year: 'numeric',
   });
 
+  // --- Preview laporan (siap cetak) ---
+  if (laporan) {
+    return (
+      <main className="min-h-screen bg-bg px-[18px] py-4">
+        <button
+          type="button"
+          onClick={() => setLaporan(null)}
+          className="mb-4 flex cursor-pointer items-center gap-1.5 border-none bg-transparent p-0 text-[13px] font-semibold text-sage print:hidden"
+        >
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          Kembali
+        </button>
+
+        <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          <div className="mb-5 text-center">
+            <div className="text-[17px] font-extrabold text-text">Laporan Perkembangan Santri</div>
+            <div className="mt-1 text-[12.5px] text-text-dim">{laporan.periode}</div>
+          </div>
+
+          <div className="mb-5 space-y-1 text-[12.5px] text-text">
+            <div>
+              <span className="inline-block min-w-[80px] font-bold">Guru</span>: Kak {laporan.guruNama}
+            </div>
+            <div>
+              <span className="inline-block min-w-[80px] font-bold">Kelas</span>: {laporan.kelasLabel}
+            </div>
+            <div>
+              <span className="inline-block min-w-[80px] font-bold">Total Santri</span>: {laporan.totalSantri}
+            </div>
+          </div>
+
+          <div className="cetak-jaga-utuh mb-5 grid grid-cols-2 gap-2.5">
+            <KartuMetrik label="Hari Aktif" nilai={String(laporan.totalHariAktif)} warna="var(--indigo)" catatan="hari efektif bulan ini" />
+            <KartuMetrik label="Kehadiran" nilai={`${laporan.hadirPercent}%`} warna="var(--sage)" catatan={`rata-rata ${laporan.totalSantri} santri`} />
+            <KartuMetrik label="Izin" nilai={String(laporan.totalIzin)} warna="var(--brass)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalIzin / laporan.totalSantri) * 100) : 0}% santri`} />
+            <KartuMetrik label="Alpa" nilai={String(laporan.totalAlpa)} warna="var(--red)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalAlpa / laporan.totalSantri) * 100) : 0}% santri`} />
+          </div>
+
+          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
+            <table className="w-full border-collapse text-left text-[12px]">
+              <thead className="border-b border-border bg-panel-2">
+                <tr>
+                  {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa'].map((h) => (
+                    <th key={h} className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text-dim uppercase">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {laporan.baris.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-3 py-8 text-center text-text-faint">
+                      Belum ada santri di kelas ini.
+                    </td>
+                  </tr>
+                ) : (
+                  laporan.baris.map((b) => (
+                    <tr key={b.nama}>
+                      <td className="border-b border-border px-3 py-2 text-text">{b.nama}</td>
+                      <td className="border-b border-border px-3 py-2 text-text">{b.hariAktif}</td>
+                      <td className="border-b border-border px-3 py-2 text-text">{b.persen !== null ? `${b.persen}%` : '—'}</td>
+                      <td className="border-b border-border px-3 py-2 text-text">{b.izin}</td>
+                      <td className="border-b border-border px-3 py-2 text-text">{b.alpa}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  // --- Form filter ---
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       <MenuGuru
@@ -298,15 +404,6 @@ export default function GuruLaporanView() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        {/* Pil tanggal hari ini. SEBELUMNYA pakai -mt-9 supaya "menggantung"
-            tumpang tindih batas hero/putih (meniru posisi di screenshot
-            owner) -- DIBATALKAN (dilaporkan owner: terlihat spt ada kartu
-            terselip di bawahnya). Penyebabnya box-shadow header hijau TIDAK
-            ikut terpotong oleh overflow-hidden/rounded-b-3xl milik header
-            sendiri (box-shadow elemen tidak pernah diclip oleh overflow
-            miliknya sendiri) -- jadi bayangannya menimpa pil begitu ditarik
-            naik ke bawah lengkungan header, terlihat spt lapisan kartu
-            kedua. Sekarang jarak normal, tidak tumpang tindih apa pun. */}
         <div className="mb-4 flex justify-end">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-panel px-3 py-1.5 text-[11.5px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.08)]">
             <span className="h-[7px] w-[7px] rounded-full bg-brass" />
@@ -387,7 +484,7 @@ export default function GuruLaporanView() {
           <button
             type="button"
             disabled={!eligible || membuat}
-            onClick={unduhPdf}
+            onClick={siapkanLaporan}
             className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
           >
@@ -398,6 +495,9 @@ export default function GuruLaporanView() {
             </svg>
             {membuat ? 'Menyiapkan...' : 'Unduh PDF'}
           </button>
+          <p className="mt-2.5 text-[11px] text-text-faint">
+            Akan menampilkan preview, lalu membuka dialog cetak — pilih &ldquo;Simpan sebagai PDF&rdquo;.
+          </p>
         </div>
       </div>
     </main>

@@ -83,3 +83,57 @@ body {
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* Print-to-PDF universal (20 Agt, diminta owner): window.print() + CSS ini
+   = render BROWSER ASLI, bukan screenshot/canvas (html2canvas) atau render
+   server (Puppeteer dkk) -- hasil 100% sama persis dgn tampilan web, tanpa
+   backend tambahan, tanpa biaya Supabase sama sekali (murni client-side),
+   instan. Trik & alasan tiap baris disalin dari app lama (13_AppsScript/
+   Style_Main.html, komentar "Print-to-PDF Laporan Perkembangan Santri").
+
+   Cara pakai: beri SATU elemen target `id="laporan-cetak"` (cuma satu yang
+   dirender dalam satu waktu per halaman, jadi id yang sama aman dipakai
+   ulang di komponen laporan berbeda), sisa halaman (sidebar, header, tombol,
+   dll) otomatis disembunyikan saat print -- tidak perlu print:hidden manual
+   di tiap elemen sekitarnya. */
+@media print {
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden !important;
+  }
+  #laporan-cetak,
+  #laporan-cetak * {
+    visibility: visible !important;
+  }
+  #laporan-cetak {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+  }
+
+  #laporan-cetak,
+  #laporan-cetak * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  #laporan-cetak .cetak-jaga-utuh {
+    page-break-inside: avoid;
+  }
+  #laporan-cetak table thead {
+    display: table-header-group;
+  }
+  #laporan-cetak tr {
+    page-break-inside: avoid;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm;
+  }
+}

@@ -28,12 +28,21 @@
    baru -- teal dipilih krn belum dipakai metrik lain di kartu ini, bukan
    warna baru yang ditebak sembarangan). Sumber data kelas/santri pakai
    kelas.guru_id + santri.kelas_id (FK app baru), bukan jadwal_kbm teks
+
+   PUTARAN KEDUA (20 Agt, diminta owner): "Unduh PDF" DIGANTI TOTAL dari
+   jsPDF/autoTable (dokumen dibangun manual, tata letaknya beda dari yang
+   tampil di layar) ke window.print() + CSS #laporan-cetak (app/globals.
+   css) -- PERSIS teknik app lama (window.print(), lihat komentar "Print-
+   to-PDF Laporan Perkembangan Santri" di Style_Main.html). Hasilnya
+   render BROWSER ASLI dari markup yang SAMA PERSIS yang sudah tampil di
+   layar (bukan dibangun ulang terpisah spt jsPDF) -- 100% sama persis
+   tampilan web, klien murni (tanpa panggilan Supabase tambahan sama
+   sekali saat unduh, datanya sudah ada di state dari "Buat Laporan"),
+   tanpa backend baru, tanpa render server, instan, gratis.
    bebas spt app lama. Data guru/kelas SUDAH scoped RLS (pola sama dgn
    GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual). */
 
 import { useCallback, useEffect, useState } from 'react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 
 type Guru = { id: number; nama: string };
@@ -122,7 +131,6 @@ export default function SantriProgressReport() {
   const [laporan, setLaporan] = useState<Laporan | null>(null);
   const [membuat, setMembuat] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mengunduh, setMengunduh] = useState(false);
 
   useEffect(() => {
     supabase
@@ -261,59 +269,12 @@ export default function SantriProgressReport() {
     }
   }, [guruId, kelasId, kelasList, guruList, bulan, tahun]);
 
+  // window.print() + CSS #laporan-cetak (app/globals.css) -- lihat komentar
+  // di kepala berkas. Datanya sudah ada di state `laporan` (hasil "Buat
+  // Laporan"), jadi unduh PDF TIDAK memanggil Supabase sama sekali.
   function unduhPdf() {
     if (!laporan) return;
-    setMengunduh(true);
-    try {
-      const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-      const pageWidth = doc.internal.pageSize.getWidth();
-
-      doc.setFontSize(16);
-      doc.text('Laporan Perkembangan Santri', pageWidth / 2, 18, { align: 'center' });
-      doc.setFontSize(10);
-      doc.text(laporan.periode, pageWidth / 2, 25, { align: 'center' });
-
-      doc.setFontSize(11);
-      doc.text(`Guru: Kak ${laporan.guruNama}`, 14, 36);
-      doc.text(`Kelas: ${laporan.kelasLabel}`, 14, 43);
-      doc.text(`Jadwal KBM: ${laporan.jadwalLabel}`, 110, 36);
-      doc.text(`Ruangan: ${laporan.ruanganLabel}`, 110, 43);
-      doc.text(
-        `Hari Aktif: ${laporan.totalHariAktif} · Kehadiran Rata-rata: ${laporan.hadirPercent}% · Total Santri: ${laporan.totalSantri}`,
-        14,
-        52,
-      );
-
-      autoTable(doc, {
-        startY: 60,
-        head: [['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit']],
-        body: laporan.baris.map((b) => [
-          b.nama,
-          b.hariAktif,
-          b.persen !== null ? `${b.persen}%` : '—',
-          b.izin,
-          b.alpa,
-          b.sakit,
-        ]),
-        styles: { fontSize: 9 },
-      });
-
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.text(
-          `Halaman ${i} / ${pageCount} — dicetak ${new Date().toLocaleString('id-ID')}`,
-          pageWidth / 2,
-          doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' },
-        );
-      }
-
-      doc.save(`Laporan_Perkembangan_${laporan.guruNama.replace(/\s+/g, '_')}_${laporan.periode.replace(/\s+/g, '_')}.pdf`);
-    } finally {
-      setMengunduh(false);
-    }
+    window.print();
   }
 
   return (
@@ -386,13 +347,19 @@ export default function SantriProgressReport() {
 
         <button
           type="button"
-          disabled={!laporan || mengunduh}
+          disabled={!laporan}
           onClick={unduhPdf}
           className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {mengunduh ? 'Menyiapkan...' : 'Unduh PDF'}
+          Unduh PDF
         </button>
       </div>
+
+      {laporan && (
+        <p className="mb-4 text-[11.5px] text-text-faint print:hidden">
+          Membuka dialog cetak browser — pilih tujuan &ldquo;Simpan sebagai PDF&rdquo;.
+        </p>
+      )}
 
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
 
@@ -403,7 +370,7 @@ export default function SantriProgressReport() {
       )}
 
       {laporan && (
-        <div className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
+        <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
           <div className="mb-6 text-center">
             <div className="text-[19px] font-extrabold text-text">Laporan Perkembangan Santri</div>
             <div className="mt-1 text-[13px] text-text-dim">{laporan.periode}</div>
@@ -424,7 +391,7 @@ export default function SantriProgressReport() {
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+          <div className="cetak-jaga-utuh mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <KartuMetrik
               label="Hari Aktif"
               nilai={String(laporan.totalHariAktif)}
