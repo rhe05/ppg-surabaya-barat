@@ -87,7 +87,21 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
      AdminSidebar di atas) cukup utk SEMUA halaman guru sekaligus.
      max-w-[430px] w-full: di HP sungguhan (viewport < 430px) w-full yang
      menang, bungkus ini transparan -- tampilan guru TIDAK berubah sama
-     sekali di sana, cuma diam-diam di-cap di layar lebar. */
+     sekali di sana, cuma diam-diam di-cap di layar lebar.
+
+     SENGAJA tidak diberi `transform` di sini utk menjadikannya containing
+     block bagi descendant `position: fixed` (godaan wajar, krn tombol
+     "Simpan Kehadiran" di GuruAbsensiView.tsx tetap fixed ke viewport
+     LUAR kolom ini, bukan ke 430px-nya). Sudah dicoba & DIBATALKAN:
+     GuruDashboard punya popup Bulan/Tahun yg posisinya dihitung dari
+     getBoundingClientRect()+window.innerWidth (keduanya SELALU relatif ke
+     viewport SUNGGUHAN, tidak tahu-menahu soal transform ancestor) --
+     kalau kolom ini jadi containing block sementara perhitungan
+     posisinya masih pakai window.innerWidth, popup itu akan melenceng ke
+     kiri layar desktop. Elemen fixed yang lebar sendiri (spt tombol
+     Simpan) diperbaiki LANGSUNG di komponennya (bungkus max-w-[430px]
+     mx-auto DI DALAM elemen fixed itu), bukan lewat trik ancestor di
+     sini. */
   if (profile?.role === 'guru') {
     return (
       <div className="min-h-screen w-full bg-border">

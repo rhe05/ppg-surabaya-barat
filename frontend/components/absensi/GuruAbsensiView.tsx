@@ -556,32 +556,42 @@ export default function GuruAbsensiView({
         )}
       </div>
 
-      {/* .ia-bottom-bar + .ia-save-btn — Style_Main.html:5826-5852 */}
+      {/* .ia-bottom-bar + .ia-save-btn — Style_Main.html:5826-5852.
+          `fixed` berpatokan ke viewport SUNGGUHAN (bukan kolom 430px
+          RequireAuth.tsx), jadi di desktop bar ini tetap selebar jendela
+          browser -- diminta owner (20 Agt) supaya tombolnya tidak ikut
+          melebar: tombol dibungkus max-w-[430px] mx-auto DI DALAM bar
+          fixed ini (bar-nya sendiri boleh tetap selebar layar, cuma
+          wadah gradient fade, tidak terlihat sbg elemen). Di HP sungguhan
+          (viewport < 430px) mx-auto tidak berefek apa-apa -- tombol tetap
+          w-full spt sebelumnya. */}
       {kelasId !== null && santri.length > 0 && (
         <div
           className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom))]"
           style={{ background: 'linear-gradient(180deg, rgba(248,250,252,0) 0%, var(--bg) 30%)' }}
         >
-          <button
-            type="button"
-            onClick={onSimpan}
-            disabled={saving || loading}
-            className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
-            style={{
-              background: sudahTersimpanSemua
-                ? 'linear-gradient(135deg, #94A3B8, #64748B)'
-                : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
-              boxShadow: sudahTersimpanSemua
-                ? '0 4px 12px rgba(100,116,139,0.25)'
-                : '0 6px 16px rgba(5,150,105,0.3)',
-            }}
-          >
-            {saving
-              ? 'Menyimpan...'
-              : sudahTersimpanSemua
-                ? '✓ Absen Tersimpan'
-                : 'Simpan Kehadiran'}
-          </button>
+          <div className="mx-auto max-w-[430px]">
+            <button
+              type="button"
+              onClick={onSimpan}
+              disabled={saving || loading}
+              className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
+              style={{
+                background: sudahTersimpanSemua
+                  ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                  : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
+                boxShadow: sudahTersimpanSemua
+                  ? '0 4px 12px rgba(100,116,139,0.25)'
+                  : '0 6px 16px rgba(5,150,105,0.3)',
+              }}
+            >
+              {saving
+                ? 'Menyimpan...'
+                : sudahTersimpanSemua
+                  ? '✓ Absen Tersimpan'
+                  : 'Simpan Kehadiran'}
+            </button>
+          </div>
         </div>
       )}
     </main>
