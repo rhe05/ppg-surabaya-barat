@@ -11,38 +11,42 @@ import { useState } from 'react';
 import SantriProgressReport from '@/components/SantriProgressReport';
 import AttendanceSummaryReport from '@/components/AttendanceSummaryReport';
 import RequireAuth from '@/components/RequireAuth';
+import AdminHeader from '@/components/dashboard/AdminHeader';
 import GuruLaporanView from '@/components/laporan/GuruLaporanView';
 import { useAuth } from '@/lib/auth-context';
 
 type Tab = 'progress' | 'summary';
 
+const TAB: { nilai: Tab; label: string }[] = [
+  { nilai: 'progress', label: 'Perkembangan Santri' },
+  { nilai: 'summary', label: 'Ringkasan Absensi' },
+];
+
 function ReportsContent() {
   const [tab, setTab] = useState<Tab>('progress');
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6 print:bg-white print:p-0">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Laporan</h1>
+    <main className="min-h-screen bg-bg print:bg-white">
+      <AdminHeader judul="Laporan & Export" />
 
-      <div className="mb-6 flex gap-2 print:hidden">
-        <button
-          onClick={() => setTab('progress')}
-          className={`rounded px-3 py-1.5 text-sm font-medium ${
-            tab === 'progress' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 shadow'
-          }`}
-        >
-          Perkembangan Santri
-        </button>
-        <button
-          onClick={() => setTab('summary')}
-          className={`rounded px-3 py-1.5 text-sm font-medium ${
-            tab === 'summary' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 shadow'
-          }`}
-        >
-          Ringkasan Absensi
-        </button>
-      </div>
+      <div className="mx-auto w-full max-w-[1200px] px-5 pt-5 pb-10 print:p-0">
+        {/* Segmented control brass, samakan dgn bahasa desain admin
+            lainnya (AdminHeader dkk) -- bukan tab biru generik. */}
+        <div className="mb-5 inline-flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-1 print:hidden">
+          {TAB.map((t) => (
+            <button
+              key={t.nilai}
+              type="button"
+              onClick={() => setTab(t.nilai)}
+              className={`cursor-pointer rounded-[calc(var(--radius)-2px)] px-3.5 py-2 text-[13px] font-semibold transition-all duration-150 ${
+                tab === t.nilai ? 'bg-panel text-brass shadow-[var(--shadow-subtle)]' : 'text-text-dim hover:text-text'
+              }`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
 
-      <div className="grid grid-cols-1 gap-6">
         {tab === 'progress' ? <SantriProgressReport /> : <AttendanceSummaryReport />}
       </div>
     </main>

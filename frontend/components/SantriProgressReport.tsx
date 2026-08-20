@@ -1,101 +1,269 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+/* Laporan Perkembangan Santri (admin desktop) — ditulis ulang total (20
+   Agt, diminta owner): "cek app lama, minimal samakan, maksimal lebih
+   premium, jangan norak/AI-slop". Versi SEBELUMNYA (git history) cuma
+   pemilih 1 santri + tabel absensi mentah, tidak menyerupai fitur app
+   lama sama sekali.
+
+   Bentuk & rumus disalin dari tab desktop app lama (Markup_Screens.html
+   ~3332-3369, Script_Main.html:6600-6797 window.loadLaporanPerkembangan-
+   SantriHtml_/lpsBuildBodyHtml_/LPS_STATUS_WARNA_HEX_):
+   - Toolbar: pilih Guru -> Kelas (kalau guru pegang >1 kelas) -> Bulan ->
+     Tahun -> "Buat Laporan".
+   - Hasil: judul+periode tengah, blok info Guru/Kelas/Jadwal/Ruangan
+     2-kolom, 5 kartu metrik (Hari Aktif/Kehadiran/Izin/Alpa/Sakit), tabel
+     detail per santri.
+   - Klasifikasi & rumus SAMA PERSIS dgn components/laporan/GuruLaporanView.tsx
+     (padanan guru mobile utk fitur yang sama) -- >=80% hadir -> 'Hadir',
+     lalu izin -> 'Izin', lalu alpa -> 'Alpa', sisanya 'Sakit'.
+
+   BEDA sengaja dari app lama: visual kartu metrik & tabel dibuat ulang
+   memakai bahasa desain app baru (rounded-card/border-border/bg-panel,
+   pola KartuRingkas yang sudah dipakai di SantriList.tsx/RingkasanKpi.tsx)
+   -- BUKAN meniru border-top-3px flat app lama. Warna metrik dipetakan ke
+   token app baru yang paling dekat maknanya: Hari Aktif=indigo (app lama
+   jg indigo #4F46E5, kebetulan sama persis), Kehadiran=sage, Izin=brass,
+   Alpa=red, Sakit=teal (app lama biru #3987e5, tidak ada di palet app
+   baru -- teal dipilih krn belum dipakai metrik lain di kartu ini, bukan
+   warna baru yang ditebak sembarangan). Sumber data kelas/santri pakai
+   kelas.guru_id + santri.kelas_id (FK app baru), bukan jadwal_kbm teks
+   bebas spt app lama. Data guru/kelas SUDAH scoped RLS (pola sama dgn
+   GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual). */
+
+import { useCallback, useEffect, useState } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { supabase } from '@/lib/supabase';
 
-type Santri = {
-  id: number;
+type Guru = { id: number; nama: string };
+type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
+type Santri = { id: number; nama: string; kelas_id: number | null };
+type Absensi = { santri_id: number; tanggal: string; status: string };
+
+type SantriBaris = {
   nama: string;
-  kelompok_id: number | null;
-  [key: string]: unknown;
+  hariAktif: number;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  persen: number | null;
+  status: string;
 };
 
-type Absensi = {
-  id: number;
-  santri_id: number;
-  status: string | null;
-  tanggal: string;
-  [key: string]: unknown;
+type Laporan = {
+  guruNama: string;
+  periode: string;
+  kelasLabel: string;
+  jadwalLabel: string;
+  ruanganLabel: string;
+  totalSantri: number;
+  totalHariAktif: number;
+  hadirPercent: number;
+  totalIzin: number;
+  totalAlpa: number;
+  totalSakit: number;
+  baris: SantriBaris[];
 };
 
-function todayStamp() {
-  return new Date().toISOString().slice(0, 10);
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+const SELECT_FILTER =
+  'rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text focus:border-brass focus:outline-none';
+
+function batasBulan(tahun: number, bulan: number) {
+  const dua = (n: number) => String(n).padStart(2, '0');
+  return {
+    awal: `${tahun}-${dua(bulan)}-01`,
+    akhir: `${tahun}-${dua(bulan)}-${dua(new Date(tahun, bulan, 0).getDate())}`,
+  };
+}
+
+function jam(v: string | null) {
+  return v ? v.slice(0, 5) : null;
+}
+
+function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
+  if (total === 0) return 'Belum Ada Data';
+  const persen = Math.round((hadir / total) * 100);
+  if (persen >= 80) return 'Hadir';
+  if (izin > 0) return 'Izin';
+  if (alpa > 0) return 'Alpa';
+  return 'Sakit';
+}
+
+function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
+  return (
+    <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
+      <div className="text-[11px] font-bold tracking-[0.4px] text-text-dim uppercase">{label}</div>
+      <div className="mt-1.5 text-[26px] leading-none font-extrabold" style={{ color: warna }}>
+        {nilai}
+      </div>
+      <div className="mt-1.5 text-[12px] text-text-faint">{catatan}</div>
+    </div>
+  );
 }
 
 export default function SantriProgressReport() {
-  const [santriList, setSantriList] = useState<Santri[]>([]);
-  const [absensiList, setAbsensiList] = useState<Absensi[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [guruList, setGuruList] = useState<Guru[]>([]);
+  const [guruId, setGuruId] = useState<number | ''>('');
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [kelasId, setKelasId] = useState<number | ''>('');
+
+  const sekarang = new Date();
+  const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
+  const [tahun, setTahun] = useState(sekarang.getFullYear());
+  const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear(), sekarang.getFullYear() + 1];
+
+  const [laporan, setLaporan] = useState<Laporan | null>(null);
+  const [membuat, setMembuat] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [mengunduh, setMengunduh] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        async function ambilSemuaAbsensi() {
-          const UKURAN_HALAMAN = 1000;
-          const semua: Absensi[] = [];
-          for (let dari = 0; ; dari += UKURAN_HALAMAN) {
-            const { data, error: queryError } = await supabase
-              .from('absensi')
-              .select('id, santri_id, status, tanggal')
-              .is('deleted_at', null)
-              .order('id', { ascending: true })
-              .range(dari, dari + UKURAN_HALAMAN - 1);
-            if (queryError) throw new Error(queryError.message);
-            const batch: Absensi[] = data ?? [];
-            semua.push(...batch);
-            if (batch.length < UKURAN_HALAMAN) break;
-          }
-          return semua;
-        }
-
-        const [santriRes, absensiSemua] = await Promise.all([
-          supabase.from('santri').select('id, nama, kelompok_id'),
-          ambilSemuaAbsensi(),
-        ]);
-        if (santriRes.error) throw new Error(santriRes.error.message);
-        if (!cancelled) {
-          setSantriList(santriRes.data ?? []);
-          setAbsensiList(absensiSemua);
-        }
-      } catch {
-        if (!cancelled) setError('Error loading data');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-
-    load();
-    return () => {
-      cancelled = true;
-    };
+    supabase
+      .from('guru')
+      .select('id, nama')
+      .is('deleted_at', null)
+      .order('nama')
+      .then(({ data }) => setGuruList((data ?? []) as Guru[]));
   }, []);
 
-  const selectedSantri = useMemo(
-    () => santriList.find((s) => s.id === selectedId) ?? null,
-    [santriList, selectedId]
-  );
+  useEffect(() => {
+    setKelasId('');
+    setLaporan(null);
+    if (guruId === '') {
+      setKelasList([]);
+      return;
+    }
+    supabase
+      .from('kelas')
+      .select('id, nama, jam_mulai, jam_selesai, ruangan')
+      .eq('guru_id', guruId)
+      .is('deleted_at', null)
+      .order('nama')
+      .then(({ data }) => setKelasList((data ?? []) as Kelas[]));
+  }, [guruId]);
 
-  const santriAbsensi = useMemo(
-    () => absensiList.filter((a) => a.santri_id === selectedId),
-    [absensiList, selectedId]
-  );
+  const buatLaporan = useCallback(async () => {
+    if (guruId === '') {
+      setError('Pilih guru terlebih dahulu.');
+      return;
+    }
+    setError(null);
+    setMembuat(true);
+    setLaporan(null);
+    try {
+      const kelasDipakai = kelasId === '' ? kelasList : kelasList.filter((k) => k.id === kelasId);
+      const kelasIds = kelasDipakai.map((k) => k.id);
+      if (kelasIds.length === 0) throw new Error('Guru ini belum punya kelas.');
 
-  const hadirCount = santriAbsensi.filter((a) => a.status === 'hadir').length;
-  const totalCount = santriAbsensi.length;
-  const percentage = totalCount > 0 ? Math.round((hadirCount / totalCount) * 100) : 0;
+      const { data: dSantri, error: eSantri } = await supabase
+        .from('santri')
+        .select('id, nama, kelas_id')
+        .in('kelas_id', kelasIds)
+        .is('deleted_at', null)
+        .order('nama');
+      if (eSantri) throw new Error(eSantri.message);
+      const santri = (dSantri ?? []) as Santri[];
+      const santriIds = santri.map((s) => s.id);
 
-  function exportPdf() {
-    if (!selectedSantri) return;
-    setPdfError(null);
+      const absensi: Absensi[] = [];
+      if (santriIds.length > 0) {
+        const { awal, akhir } = batasBulan(tahun, bulan);
+        const UKURAN_HALAMAN = 1000;
+        for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+          const { data, error: eAbsensi } = await supabase
+            .from('absensi')
+            .select('santri_id, tanggal, status')
+            .in('santri_id', santriIds)
+            .gte('tanggal', awal)
+            .lte('tanggal', akhir)
+            .is('deleted_at', null)
+            .order('id', { ascending: true })
+            .range(dari, dari + UKURAN_HALAMAN - 1);
+          if (eAbsensi) throw new Error(eAbsensi.message);
+          const batch = (data ?? []) as Absensi[];
+          absensi.push(...batch);
+          if (batch.length < UKURAN_HALAMAN) break;
+        }
+      }
+
+      const tanggalAktif = new Set(absensi.map((a) => a.tanggal));
+
+      const baris: SantriBaris[] = santri.map((s) => {
+        const milik = absensi.filter((a) => a.santri_id === s.id);
+        const hadir = milik.filter((a) => a.status === 'hadir').length;
+        const izin = milik.filter((a) => a.status === 'izin').length;
+        const sakit = milik.filter((a) => a.status === 'sakit').length;
+        const alpa = milik.filter((a) => a.status === 'alpa').length;
+        const total = milik.length;
+        return {
+          nama: s.nama,
+          hariAktif: total,
+          hadir,
+          izin,
+          sakit,
+          alpa,
+          persen: total > 0 ? Math.round((hadir / total) * 100) : null,
+          status: klasifikasi(hadir, izin, alpa, total),
+        };
+      });
+
+      const totalSantri = santri.length;
+      const rataPersen =
+        baris.filter((b) => b.persen !== null).length > 0
+          ? Math.round(
+              baris.reduce((s, b) => s + (b.persen ?? 0), 0) / baris.filter((b) => b.persen !== null).length,
+            )
+          : 0;
+
+      const kelasLabel = kelasDipakai.length > 0 ? kelasDipakai.map((k) => k.nama).join(', ') : '—';
+      const jadwalLabel =
+        kelasDipakai.length === 0
+          ? '—'
+          : kelasDipakai.length === 1
+            ? jam(kelasDipakai[0].jam_mulai) && jam(kelasDipakai[0].jam_selesai)
+              ? `${jam(kelasDipakai[0].jam_mulai)}–${jam(kelasDipakai[0].jam_selesai)}`
+              : '—'
+            : kelasDipakai
+                .map((k) => `${k.nama}: ${jam(k.jam_mulai) && jam(k.jam_selesai) ? `${jam(k.jam_mulai)}–${jam(k.jam_selesai)}` : '—'}`)
+                .join('; ');
+      const ruanganLabel =
+        kelasDipakai.length === 0
+          ? '—'
+          : kelasDipakai.length === 1
+            ? kelasDipakai[0].ruangan || '—'
+            : kelasDipakai.map((k) => `${k.nama}: ${k.ruangan || '—'}`).join('; ');
+
+      setLaporan({
+        guruNama: guruList.find((g) => g.id === guruId)?.nama ?? '-',
+        periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
+        kelasLabel,
+        jadwalLabel,
+        ruanganLabel,
+        totalSantri,
+        totalHariAktif: tanggalAktif.size,
+        hadirPercent: rataPersen,
+        totalIzin: baris.filter((b) => b.status === 'Izin').length,
+        totalAlpa: baris.filter((b) => b.status === 'Alpa').length,
+        totalSakit: baris.filter((b) => b.status === 'Sakit').length,
+        baris,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat laporan.');
+    } finally {
+      setMembuat(false);
+    }
+  }, [guruId, kelasId, kelasList, guruList, bulan, tahun]);
+
+  function unduhPdf() {
+    if (!laporan) return;
+    setMengunduh(true);
     try {
       const doc = new jsPDF({ unit: 'mm', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
@@ -103,17 +271,31 @@ export default function SantriProgressReport() {
       doc.setFontSize(16);
       doc.text('Laporan Perkembangan Santri', pageWidth / 2, 18, { align: 'center' });
       doc.setFontSize(10);
-      doc.text(`Tanggal cetak: ${todayStamp()}`, pageWidth / 2, 25, { align: 'center' });
+      doc.text(laporan.periode, pageWidth / 2, 25, { align: 'center' });
 
       doc.setFontSize(11);
-      doc.text(`Nama: ${selectedSantri.nama}`, 14, 36);
-      doc.text(`Kelompok: ${selectedSantri.kelompok_id ?? '-'}`, 14, 43);
-      doc.text(`Kehadiran: ${hadirCount} / ${totalCount} (${percentage}%)`, 14, 50);
+      doc.text(`Guru: Kak ${laporan.guruNama}`, 14, 36);
+      doc.text(`Kelas: ${laporan.kelasLabel}`, 14, 43);
+      doc.text(`Jadwal KBM: ${laporan.jadwalLabel}`, 110, 36);
+      doc.text(`Ruangan: ${laporan.ruanganLabel}`, 110, 43);
+      doc.text(
+        `Hari Aktif: ${laporan.totalHariAktif} · Kehadiran Rata-rata: ${laporan.hadirPercent}% · Total Santri: ${laporan.totalSantri}`,
+        14,
+        52,
+      );
 
       autoTable(doc, {
-        startY: 58,
-        head: [['Tanggal', 'Status']],
-        body: santriAbsensi.map((a) => [a.tanggal, a.status ?? '-']),
+        startY: 60,
+        head: [['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit']],
+        body: laporan.baris.map((b) => [
+          b.nama,
+          b.hariAktif,
+          b.persen !== null ? `${b.persen}%` : '—',
+          b.izin,
+          b.alpa,
+          b.sakit,
+        ]),
+        styles: { fontSize: 9 },
       });
 
       const pageCount = doc.getNumberOfPages();
@@ -124,71 +306,195 @@ export default function SantriProgressReport() {
           `Halaman ${i} / ${pageCount} — dicetak ${new Date().toLocaleString('id-ID')}`,
           pageWidth / 2,
           doc.internal.pageSize.getHeight() - 10,
-          { align: 'center' }
+          { align: 'center' },
         );
       }
 
-      doc.save(`Laporan_Perkembangan_${selectedSantri.nama.replace(/\s+/g, '_')}_${todayStamp()}.pdf`);
-    } catch {
-      setPdfError('Gagal membuat PDF');
+      doc.save(`Laporan_Perkembangan_${laporan.guruNama.replace(/\s+/g, '_')}_${laporan.periode.replace(/\s+/g, '_')}.pdf`);
+    } finally {
+      setMengunduh(false);
     }
   }
 
   return (
-    <div className="rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-800">Laporan Perkembangan Santri</h2>
-
-      {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
-      {!loading && error && <p className="text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && santriList.length === 0 && (
-        <p className="text-sm text-gray-500">No data available</p>
-      )}
-
-      {!loading && !error && santriList.length > 0 && (
-        <div className="space-y-4">
+    <div>
+      <div className="mb-5 flex flex-wrap items-end gap-3">
+        <div>
+          <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">Guru</label>
           <select
-            value={selectedId ?? ''}
-            onChange={(e) => setSelectedId(e.target.value ? Number(e.target.value) : null)}
-            className="w-full rounded border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 sm:w-64"
+            value={guruId}
+            onChange={(e) => setGuruId(e.target.value === '' ? '' : Number(e.target.value))}
+            className={`${SELECT_FILTER} min-w-[200px]`}
           >
-            <option value="">Pilih santri...</option>
-            {santriList.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.nama}
+            <option value="">-- Pilih Guru --</option>
+            {guruList.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.nama}
               </option>
             ))}
           </select>
+        </div>
 
-          {selectedSantri && (
-            <div className="rounded border border-gray-200 p-3 text-sm">
-              <p>
-                <span className="font-medium">Nama:</span> {selectedSantri.nama}
-              </p>
-              <p>
-                <span className="font-medium">Kelompok:</span> {selectedSantri.kelompok_id ?? '-'}
-              </p>
-              <p>
-                <span className="font-medium">Kehadiran:</span> {hadirCount} / {totalCount} (
-                {percentage}%)
-              </p>
-              {totalCount === 0 && (
-                <p className="mt-1 text-gray-500">No data available untuk santri ini</p>
-              )}
-            </div>
-          )}
+        {kelasList.length > 1 && (
+          <div>
+            <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">Kelas</label>
+            <select
+              value={kelasId}
+              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
+              className={`${SELECT_FILTER} min-w-[160px]`}
+            >
+              <option value="">Semua Kelas</option>
+              {kelasList.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
-          {selectedSantri && (
+        <div>
+          <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">Bulan</label>
+          <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_FILTER}>
+            {NAMA_BULAN.map((nm, idx) => (
+              <option key={nm} value={idx + 1}>
+                {nm}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">Tahun</label>
+          <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_FILTER}>
+            {tahunPilihan.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          disabled={membuat}
+          onClick={buatLaporan}
+          className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {membuat ? 'Membuat...' : 'Buat Laporan'}
+        </button>
+
+        <button
+          type="button"
+          disabled={!laporan || mengunduh}
+          onClick={unduhPdf}
+          className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {mengunduh ? 'Menyiapkan...' : 'Unduh PDF'}
+        </button>
+      </div>
+
+      {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+      {!laporan && !error && (
+        <div className="rounded-card border border-border bg-panel py-16 text-center text-[13px] text-text-faint shadow-[var(--shadow-card)]">
+          Pilih guru &amp; periode, lalu klik &ldquo;Buat Laporan&rdquo;.
+        </div>
+      )}
+
+      {laporan && (
+        <div className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
+          <div className="mb-6 text-center">
+            <div className="text-[19px] font-extrabold text-text">Laporan Perkembangan Santri</div>
+            <div className="mt-1 text-[13px] text-text-dim">{laporan.periode}</div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[12.5px] text-text sm:grid-cols-2">
             <div>
-              <button
-                onClick={exportPdf}
-                className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Export PDF
-              </button>
-              {pdfError && <p className="mt-2 text-sm text-red-600">{pdfError}</p>}
+              <span className="inline-block min-w-[92px] font-bold">Guru</span>: Kak {laporan.guruNama}
             </div>
-          )}
+            <div>
+              <span className="inline-block min-w-[92px] font-bold">Jadwal KBM</span>: {laporan.jadwalLabel}
+            </div>
+            <div>
+              <span className="inline-block min-w-[92px] font-bold">Kelas</span>: {laporan.kelasLabel}
+            </div>
+            <div>
+              <span className="inline-block min-w-[92px] font-bold">Ruangan</span>: {laporan.ruanganLabel}
+            </div>
+          </div>
+
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
+            <KartuMetrik
+              label="Hari Aktif"
+              nilai={String(laporan.totalHariAktif)}
+              warna="var(--indigo)"
+              catatan="hari efektif bulan ini"
+            />
+            <KartuMetrik
+              label="Kehadiran"
+              nilai={`${laporan.hadirPercent}%`}
+              warna="var(--sage)"
+              catatan={`rata-rata dari ${laporan.totalSantri} santri`}
+            />
+            <KartuMetrik
+              label="Izin"
+              nilai={String(laporan.totalIzin)}
+              warna="var(--brass)"
+              catatan={`${laporan.totalSantri ? Math.round((laporan.totalIzin / laporan.totalSantri) * 100) : 0}% santri`}
+            />
+            <KartuMetrik
+              label="Alpa"
+              nilai={String(laporan.totalAlpa)}
+              warna="var(--red)"
+              catatan={`${laporan.totalSantri ? Math.round((laporan.totalAlpa / laporan.totalSantri) * 100) : 0}% santri`}
+            />
+            <KartuMetrik
+              label="Sakit"
+              nilai={String(laporan.totalSakit)}
+              warna="var(--teal)"
+              catatan={`${laporan.totalSantri ? Math.round((laporan.totalSakit / laporan.totalSantri) * 100) : 0}% santri`}
+            />
+          </div>
+
+          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
+            <table className="w-full border-collapse text-left text-[13px]">
+              <thead className="border-b border-border bg-panel-2">
+                <tr>
+                  {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit'].map((h) => (
+                    <th
+                      key={h}
+                      className="px-4 py-3 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {laporan.baris.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-4 py-8 text-center text-text-faint">
+                      Belum ada santri di kelas guru ini.
+                    </td>
+                  </tr>
+                ) : (
+                  laporan.baris.map((b) => (
+                    <tr key={b.nama} className="hover:bg-panel-2">
+                      <td className="border-b border-border px-4 py-2.5 text-text">{b.nama}</td>
+                      <td className="border-b border-border px-4 py-2.5 text-text">{b.hariAktif}</td>
+                      <td className="border-b border-border px-4 py-2.5 text-text">
+                        {b.persen !== null ? `${b.persen}%` : '—'}
+                      </td>
+                      <td className="border-b border-border px-4 py-2.5 text-text">{b.izin}</td>
+                      <td className="border-b border-border px-4 py-2.5 text-text">{b.alpa}</td>
+                      <td className="border-b border-border px-4 py-2.5 text-text">{b.sakit}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
