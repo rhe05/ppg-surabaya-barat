@@ -259,7 +259,17 @@ export default function RencanaPembelajaranView() {
     }));
 
   return (
-    <main className="flex min-h-screen flex-col bg-bg">
+    /* h-screen + overflow-hidden -- diminta owner (20 Agt): saat pindah
+       kelas, seluruh app (judul, chip, header) ikut geser/scroll krn
+       sebelumnya cuma min-h-screen (tanpa overflow-hidden) -- tinggi
+       <main> jadi ikut membesar/mengecil sesuai jumlah materi kelas yg
+       dipilih, dan DOKUMEN itu sendiri yang scroll, bukan cuma konten
+       di dalamnya. Pola SAMA PERSIS GuruAbsensiView.tsx: header dibekukan
+       (shrink-0, di luar area scroll), yang scroll HANYA
+       <div className="flex-1 overflow-y-auto"> di bawah -- jadi ganti
+       kelas apa pun jumlah materinya, judul/chip/tombol tidak bergerak
+       sedikit pun. */
+    <main className="relative flex h-screen flex-col overflow-hidden bg-bg">
       <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome tampilkanHero={false} />
 
