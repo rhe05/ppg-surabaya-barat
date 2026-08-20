@@ -11,11 +11,18 @@
    Riwayat Kelas Ini untuk mengubah entri lama. Karena itu kedua tombol di
    sini menuju halaman yang SAMA; popup ini murni membantu guru memilih niat
    (isi baru vs ubah lama) sebelum masuk, bukan mengarahkan ke dua alur
-   terpisah seperti app lama (yang memang dua tampilan berbeda). */
+   terpisah seperti app lama (yang memang dua tampilan berbeda).
+
+   Label & ikon diminta owner (20 Agt): "Input Jurnal"/"Edit Jurnal" ->
+   "Rencana Pembelajaran" (IkonBookOpen)/"Pelaksanaan Pembelajaran"
+   (IkonClipboardCheck) -- istilah kurikulum yang lebih jelas drpd sekadar
+   "input"/"edit". Subjudul kedua kartu jg diminta hitam (text-text),
+   bukan abu-abu (text-text-dim). */
 
 import { useRouter } from 'next/navigation';
 
-function IkonInput() {
+// Lucide "book-open" — diminta owner (Rencana Pembelajaran).
+function IkonBookOpen() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -27,13 +34,15 @@ function IkonInput() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-      <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      <path d="M12 7v14" />
+      <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
     </svg>
   );
 }
 
-function IkonEdit() {
+// Lucide "clipboard-check" — diminta owner (Pelaksanaan Pembelajaran).
+// Sama persis ikon "Kehadiran" di MenuGuru.tsx.
+function IkonClipboardCheck() {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -45,8 +54,9 @@ function IkonEdit() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
-      <path d="m15 5 4 4" />
+      <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+      <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      <path d="m9 14 2 2 4-4" />
     </svg>
   );
 }
@@ -133,11 +143,11 @@ export default function JurnalChooser({
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
               style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
             >
-              <IkonInput />
+              <IkonBookOpen />
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[14px] font-bold text-text">Rencana Pembelajaran</span>
-              <span className="block text-[11.5px] text-text-dim">
+              <span className="block text-[11.5px] text-text">
                 Susun materi yang akan disampaikan pada minggu atau bulan ini
               </span>
             </span>
@@ -155,12 +165,12 @@ export default function JurnalChooser({
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
               style={{ background: 'linear-gradient(135deg, #D97706 0%, #F59E0B 100%)' }}
             >
-              <IkonEdit />
+              <IkonClipboardCheck />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-text">Edit Jurnal</span>
-              <span className="block text-[11.5px] text-text-dim">
-                Ubah jurnal yang sudah pernah diisi
+              <span className="block text-[14px] font-bold text-text">Pelaksanaan Pembelajaran</span>
+              <span className="block text-[11.5px] text-text">
+                Konfirmasi materi yang telah disampaikan setelah kegiatan mengajar
               </span>
             </span>
             <span className="shrink-0 text-text-faint">
