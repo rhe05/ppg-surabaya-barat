@@ -87,7 +87,7 @@ const PERAN: {
   {
     nilai: 'admin_ppg',
     judul: 'Admin Aplikasi',
-    ringkas: 'Akses penuh seluruh desa & kelompok se-PPG',
+    ringkas: 'Akses penuh seluruh desa dan kelompok se daerah',
     lingkup: 'ppg',
   },
 ];
@@ -140,7 +140,7 @@ function KartuPilihan({
       </span>
       <span className="min-w-0">
         <span className="block text-[14px] font-semibold text-text">{judul}</span>
-        {ringkas && <span className="mt-0.5 block text-[12.5px] text-text-dim">{ringkas}</span>}
+        {ringkas && <span className="mt-0.5 block text-[12.5px] text-text">{ringkas}</span>}
       </span>
     </button>
   );
@@ -355,7 +355,7 @@ export default function OnboardingPage() {
   if (memuat) {
     return (
       <Kartu>
-        <p className="text-center text-[14px] text-text-dim">Memuat...</p>
+        <p className="text-center text-[14px] text-text">Memuat...</p>
       </Kartu>
     );
   }
@@ -408,7 +408,7 @@ export default function OnboardingPage() {
         <button
           type="button"
           onClick={keluar}
-          className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text-dim hover:text-brass hover:underline"
+          className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text hover:text-brass hover:underline"
         >
           Keluar
         </button>
@@ -433,13 +433,13 @@ export default function OnboardingPage() {
           <div key={n} className="flex flex-1 items-center gap-2.5">
             <span
               className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-bold ${
-                langkah >= n ? 'bg-brass text-white' : 'bg-panel-2 text-text-faint'
+                langkah >= n ? 'bg-brass text-white' : 'bg-panel-2 text-text'
               }`}
             >
               {n}
             </span>
             <span
-              className={`text-[12.5px] font-medium ${langkah >= n ? 'text-text' : 'text-text-faint'}`}
+              className={`text-[12.5px] font-medium ${langkah >= n ? 'text-text' : 'text-text'}`}
             >
               {n === 1 ? 'Data & peran' : 'Tinjau'}
             </span>
@@ -451,7 +451,7 @@ export default function OnboardingPage() {
       {langkah === 1 ? (
         <>
           <div className="mb-5">
-            <label className="mb-2 block text-[12px] font-medium text-text-dim" htmlFor="nama">
+            <label className="mb-2 block text-[12px] font-medium text-text" htmlFor="nama">
               Nama lengkap
             </label>
             <input
@@ -463,7 +463,7 @@ export default function OnboardingPage() {
               autoComplete="off"
               className={KELAS_INPUT}
             />
-            <p className="mt-1.5 text-[12px] text-text-faint">
+            <p className="mt-1.5 text-[12px] text-text">
               {peran === 'guru' && carianGuru !== 'manual'
                 ? 'Ketik nama lengkap Anda seperti yang admin catat, lalu cari di bawah.'
                 : 'Nama ini yang muncul di aplikasi dan dilihat admin saat menyetujui.'}
@@ -471,7 +471,7 @@ export default function OnboardingPage() {
           </div>
 
           <div className="mb-5">
-            <p className="mb-2 text-[12px] font-medium text-text-dim">Peran yang diminta</p>
+            <p className="mb-2 text-[12px] font-medium text-text">Peran yang diminta</p>
             <div className="grid gap-2">
               {PERAN.map((p) => (
                 <KartuPilihan
@@ -492,8 +492,8 @@ export default function OnboardingPage() {
               admin_kelompok (alur lama, menunggu persetujuan admin). */}
           {lingkup === 'kelompok' && peran === 'guru' && carianGuru !== 'manual' && (
             <div className="mb-5">
-              <p className="mb-2 text-[12px] font-medium text-text-dim">Hubungkan ke data guru</p>
-              <p className="mb-3 text-[12.5px] text-text-dim">
+              <p className="mb-2 text-[12px] font-medium text-text">Hubungkan ke data guru</p>
+              <p className="mb-3 text-[12.5px] text-text">
                 Nama di atas akan dicocokkan ke data guru yang sudah terdaftar. Besar/kecil huruf
                 tidak masalah.
               </p>
@@ -514,7 +514,7 @@ export default function OnboardingPage() {
               )}
 
               {carianGuru === 'hasil' && kandidatGuru.length === 0 && (
-                <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text-dim">
+                <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
                   Nama <span className="font-semibold text-text">&ldquo;{nama.trim()}&rdquo;</span>{' '}
                   tidak ditemukan di data guru yang sudah terdaftar. Periksa lagi ejaannya, atau
                   daftar manual di bawah.
@@ -523,7 +523,7 @@ export default function OnboardingPage() {
 
               {carianGuru === 'hasil' && kandidatGuru.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-2 text-[12px] font-medium text-text-dim">
+                  <p className="mb-2 text-[12px] font-medium text-text">
                     {kandidatGuru.length === 1
                       ? 'Ditemukan satu data yang cocok:'
                       : `Ditemukan ${kandidatGuru.length} data dengan nama ini — pilih yang mana Anda:`}
@@ -566,7 +566,7 @@ export default function OnboardingPage() {
                   setCarianGuru('manual');
                   setErrorCari(null);
                 }}
-                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text-dim hover:text-brass hover:underline"
+                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text hover:text-brass hover:underline"
               >
                 Tidak ketemu / bukan saya — daftar manual
               </button>
@@ -575,7 +575,7 @@ export default function OnboardingPage() {
 
           {lingkup === 'kelompok' && (peran !== 'guru' || carianGuru === 'manual') && (
             <div className="mb-5">
-              <p className="mb-2 text-[12px] font-medium text-text-dim">Kelompok</p>
+              <p className="mb-2 text-[12px] font-medium text-text">Kelompok</p>
               <div className="grid gap-2">
                 {kelompokList.map((k) => (
                   <KartuPilihan
@@ -590,7 +590,7 @@ export default function OnboardingPage() {
                   />
                 ))}
               </div>
-              <p className="mt-1.5 text-[12px] text-text-faint">
+              <p className="mt-1.5 text-[12px] text-text">
                 Kelompok lain menyusul dibuka. Hubungi admin kalau kelompok Anda belum ada di daftar
                 ini.
               </p>
@@ -599,7 +599,7 @@ export default function OnboardingPage() {
 
           {lingkup === 'desa' && (
             <div className="mb-5">
-              <p className="mb-2 text-[12px] font-medium text-text-dim">Desa</p>
+              <p className="mb-2 text-[12px] font-medium text-text">Desa</p>
               <div className="grid gap-2">
                 {desaTerbuka.map((d) => (
                   <KartuPilihan
@@ -617,7 +617,7 @@ export default function OnboardingPage() {
           )}
 
           {lingkup === 'ppg' && (
-            <p className="mb-5 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text-dim">
+            <p className="mb-5 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
               Peran ini mencakup seluruh desa & kelompok se-PPG Surabaya Barat, jadi tidak perlu
               memilih lingkup. Hanya Admin Aplikasi yang sudah aktif yang dapat menyetujuinya.
             </p>
@@ -646,7 +646,7 @@ export default function OnboardingPage() {
           <button
             type="button"
             onClick={keluar}
-            className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text-dim hover:text-brass hover:underline"
+            className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text hover:text-brass hover:underline"
           >
             Keluar
           </button>
@@ -672,7 +672,7 @@ export default function OnboardingPage() {
             <Baris label="Akun" nilai={user?.email ?? '-'} />
           </dl>
 
-          <p className="mt-5 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text-dim">
+          <p className="mt-5 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
             Menekan tombol di bawah TIDAK langsung memberi akses. Permintaan dikirim ke admin dulu;
             Anda akan bisa membuka data setelah disetujui.
           </p>
@@ -708,7 +708,7 @@ export default function OnboardingPage() {
 function Baris({ label, nilai }: { label: string; nilai: string }) {
   return (
     <div className="flex items-start justify-between gap-4 border-b border-border pb-2.5 last:border-b-0">
-      <dt className="shrink-0 text-text-dim">{label}</dt>
+      <dt className="shrink-0 text-text">{label}</dt>
       <dd className="m-0 text-right font-semibold text-text">{nilai}</dd>
     </div>
   );
