@@ -5,19 +5,19 @@ import RequireAuth from '@/components/RequireAuth';
 import GuruDashboard from '@/components/dashboard/GuruDashboard';
 import RingkasanKpi from '@/components/dashboard/RingkasanKpi';
 import PohonWilayah from '@/components/dashboard/PohonWilayah';
+import AdminHeader from '@/components/dashboard/AdminHeader';
 import { useAuth } from '@/lib/auth-context';
 
 function AdminDashboard() {
   return (
     <main className="min-h-screen bg-bg">
-      {/* .dash-header — Style_Main.html:740-752. Tombol "Keluar" yang
-          dulu di sini DIHAPUS (diminta owner 20 Agt: samakan/perbaiki
-          desktop admin) -- sekarang duplikat dgn logout di footer
-          AdminSidebar, dan sidebar itu tampil di SEMUA halaman admin,
-          jadi tombol per-halaman terpisah cuma menambah keramaian. */}
-      <div className="sticky top-0 z-10 flex h-[var(--topbar-height)] shrink-0 items-center border-b border-border bg-panel px-5 shadow-[var(--shadow-subtle)]">
-        <h1 className="m-0 text-[16px] font-semibold text-text">Dashboard</h1>
-      </div>
+      {/* Header bersama (20 Agt, putaran ketujuh) — components/dashboard/
+          AdminHeader.tsx, dulu blok ini ditulis sendiri di sini. Tombol
+          "Keluar" yang dulu ada di sini DIHAPUS (diminta owner 20 Agt:
+          samakan/perbaiki desktop admin) -- sekarang duplikat dgn logout
+          di footer AdminSidebar, dan sidebar itu tampil di SEMUA halaman
+          admin, jadi tombol per-halaman terpisah cuma menambah keramaian. */}
+      <AdminHeader judul="Dashboard" />
 
       {/* .dash-container — Style_Main.html:838-843. Kartu info akun
           (Email/Nama/Role/Scope) yang dulu di sini DIHAPUS (diminta
