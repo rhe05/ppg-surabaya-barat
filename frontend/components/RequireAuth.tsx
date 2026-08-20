@@ -69,14 +69,34 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
      admin di layar sempit pun tidak berubah, cuma dapat sidebar di layar
      lebar. */
   const tampilkanSidebar = !!profile?.role && profile.role !== 'guru';
-  if (!tampilkanSidebar) {
-    return <>{children}</>;
+  if (tampilkanSidebar) {
+    return (
+      <div className="flex min-h-screen">
+        <AdminSidebar />
+        <div className="min-w-0 flex-1">{children}</div>
+      </div>
+    );
   }
 
-  return (
-    <div className="flex min-h-screen">
-      <AdminSidebar />
-      <div className="min-w-0 flex-1">{children}</div>
-    </div>
-  );
+  /* App guru dikunci ke lebar HP (diminta owner 20 Agt): dibuka lewat
+     browser desktop, seluruh markup guru (GuruDashboard dkk) TIDAK punya
+     batas lebar sendiri sehingga melebar penuh ke lebar jendela desktop --
+     grid statistik 5-kolom jadi lebar sekali, terasa rusak. Bukan
+     tanggung jawab tiap halaman guru utk membatasi diri sendiri; satu
+     bungkus di sini (gerbang tunggal yang sudah ada, sama seperti
+     AdminSidebar di atas) cukup utk SEMUA halaman guru sekaligus.
+     max-w-[430px] w-full: di HP sungguhan (viewport < 430px) w-full yang
+     menang, bungkus ini transparan -- tampilan guru TIDAK berubah sama
+     sekali di sana, cuma diam-diam di-cap di layar lebar. */
+  if (profile?.role === 'guru') {
+    return (
+      <div className="min-h-screen w-full bg-border">
+        <div className="mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
 }
