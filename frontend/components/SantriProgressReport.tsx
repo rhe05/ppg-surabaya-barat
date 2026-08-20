@@ -49,41 +49,25 @@
       sekarang berlaku jg di desktop admin. "Buat Laporan" (preview)
       TETAP boleh kapan saja, cuma tombol cetaknya yang dikunci.
    bebas spt app lama. Data guru/kelas SUDAH scoped RLS (pola sama dgn
-   GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual). */
+   GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual).
+
+   PUTARAN KEEMPAT (20 Agt, diminta owner): tampilan blok cetak
+   (id="laporan-cetak") DIPINDAH ke components/laporan/
+   LaporanPerkembanganCetak.tsx, dipakai bareng dgn GuruLaporanView.tsx --
+   sebelumnya dua berkas ini menulis markup blok cetak sendiri-sendiri dan
+   diam-diam ngedrift (versi guru sempat kehilangan kartu Sakit & baris
+   Jadwal KBM/Ruangan). Satu komponen = tidak bisa ngedrift lagi. */
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import LaporanPerkembanganCetak, {
+  type LaporanPerkembangan,
+} from '@/components/laporan/LaporanPerkembanganCetak';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string };
-
-type SantriBaris = {
-  nama: string;
-  hariAktif: number;
-  hadir: number;
-  izin: number;
-  sakit: number;
-  alpa: number;
-  persen: number | null;
-  status: string;
-};
-
-type Laporan = {
-  guruNama: string;
-  periode: string;
-  kelasLabel: string;
-  jadwalLabel: string;
-  ruanganLabel: string;
-  totalSantri: number;
-  totalHariAktif: number;
-  hadirPercent: number;
-  totalIzin: number;
-  totalAlpa: number;
-  totalSakit: number;
-  baris: SantriBaris[];
-};
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -126,18 +110,6 @@ function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
   return 'Sakit';
 }
 
-function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
-  return (
-    <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
-      <div className="text-[11px] font-bold tracking-[0.4px] text-text uppercase">{label}</div>
-      <div className="mt-1.5 text-[26px] leading-none font-extrabold" style={{ color: warna }}>
-        {nilai}
-      </div>
-      <div className="mt-1.5 text-[8px] leading-tight text-text">{catatan}</div>
-    </div>
-  );
-}
-
 export default function SantriProgressReport() {
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [guruId, setGuruId] = useState<number | ''>('');
@@ -149,7 +121,7 @@ export default function SantriProgressReport() {
   const [tahun, setTahun] = useState(sekarang.getFullYear());
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear(), sekarang.getFullYear() + 1];
 
-  const [laporan, setLaporan] = useState<Laporan | null>(null);
+  const [laporan, setLaporan] = useState<LaporanPerkembangan | null>(null);
   const [membuat, setMembuat] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -239,7 +211,7 @@ export default function SantriProgressReport() {
 
       const tanggalAktif = new Set(absensi.map((a) => a.tanggal));
 
-      const baris: SantriBaris[] = santri.map((s) => {
+      const baris = santri.map((s) => {
         const milik = absensi.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
         const izin = milik.filter((a) => a.status === 'izin').length;
@@ -416,101 +388,7 @@ export default function SantriProgressReport() {
         </div>
       )}
 
-      {laporan && (
-        <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
-          <div className="mb-6 text-center">
-            <div className="text-[19px] font-extrabold text-text">Laporan Perkembangan Santri</div>
-            <div className="mt-1 text-[13px] text-text">{laporan.periode}</div>
-          </div>
-
-          <div className="mb-6 grid grid-cols-1 gap-x-6 gap-y-1.5 text-[12.5px] text-text sm:grid-cols-2">
-            <div>
-              <span className="inline-block min-w-[92px] font-bold">Guru</span>: Kak {laporan.guruNama}
-            </div>
-            <div>
-              <span className="inline-block min-w-[92px] font-bold">Jadwal KBM</span>: {laporan.jadwalLabel}
-            </div>
-            <div>
-              <span className="inline-block min-w-[92px] font-bold">Kelas</span>: {laporan.kelasLabel}
-            </div>
-            <div>
-              <span className="inline-block min-w-[92px] font-bold">Ruangan</span>: {laporan.ruanganLabel}
-            </div>
-          </div>
-
-          <div className="cetak-jaga-utuh mb-6 grid grid-cols-2 gap-3 sm:grid-cols-5">
-            <KartuMetrik
-              label="Hari Aktif"
-              nilai={String(laporan.totalHariAktif)}
-              warna="var(--indigo)"
-              catatan="hari efektif bulan ini"
-            />
-            <KartuMetrik
-              label="Kehadiran"
-              nilai={`${laporan.hadirPercent}%`}
-              warna="var(--sage)"
-              catatan={`rata2 dari ${laporan.totalSantri} santri`}
-            />
-            <KartuMetrik
-              label="Izin"
-              nilai={String(laporan.totalIzin)}
-              warna="var(--brass)"
-              catatan={`${laporan.totalSantri ? Math.round((laporan.totalIzin / laporan.totalSantri) * 100) : 0}% santri`}
-            />
-            <KartuMetrik
-              label="Alpa"
-              nilai={String(laporan.totalAlpa)}
-              warna="var(--red)"
-              catatan={`${laporan.totalSantri ? Math.round((laporan.totalAlpa / laporan.totalSantri) * 100) : 0}% santri`}
-            />
-            <KartuMetrik
-              label="Sakit"
-              nilai={String(laporan.totalSakit)}
-              warna="var(--teal)"
-              catatan={`${laporan.totalSantri ? Math.round((laporan.totalSakit / laporan.totalSantri) * 100) : 0}% santri`}
-            />
-          </div>
-
-          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-            <table className="w-full border-collapse text-left text-[13px]">
-              <thead className="border-b border-border bg-panel-2">
-                <tr>
-                  {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit'].map((h) => (
-                    <th
-                      key={h}
-                      className="px-4 py-3 text-[11px] font-bold tracking-[0.3px] text-text uppercase"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {laporan.baris.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-4 py-8 text-center text-text-faint">
-                      Belum ada santri di kelas guru ini.
-                    </td>
-                  </tr>
-                ) : (
-                  laporan.baris.map((b) => (
-                    <tr key={b.nama} className="hover:bg-panel-2">
-                      <td className="border-b border-border px-4 py-2.5 text-text">{b.nama}</td>
-                      <td className="border-b border-border px-4 py-2.5 text-text">{b.hariAktif}</td>
-                      <td className="border-b border-border px-4 py-2.5 text-text">
-                        {b.persen !== null ? `${b.persen}%` : '—'}
-                      </td>
-                      <td className="border-b border-border px-4 py-2.5 text-text">{b.izin}</td>
-                      <td className="border-b border-border px-4 py-2.5 text-text">{b.alpa}</td>
-                      <td className="border-b border-border px-4 py-2.5 text-text">{b.sakit}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {laporan && <LaporanPerkembanganCetak laporan={laporan} />}
     </div>
   );
 }

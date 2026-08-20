@@ -40,7 +40,17 @@
    opsi "Semua Kelas" DIHAPUS. Pegang 1 kelas -> otomatis terpilih (bukan
    pilihan, cuma satu kemungkinan); pegang >1 kelas -> wajib pilih manual
    sebelum tombol "Unduh PDF" aktif (sama persis
-   components/SantriProgressReport.tsx, padanan admin desktop). */
+   components/SantriProgressReport.tsx, padanan admin desktop).
+
+   PUTARAN KEEMPAT (20 Agt, diminta owner): "tampilan laporan di mobile
+   app dengan print preview desktop tidak sama, samakan" -- blok cetak
+   (id="laporan-cetak") DIPINDAH ke components/laporan/
+   LaporanPerkembanganCetak.tsx, dipakai bareng dgn
+   SantriProgressReport.tsx (admin desktop). Versi guru di sini SEBELUMNYA
+   diam-diam kehilangan kartu Sakit & baris info Jadwal KBM/Ruangan yang
+   ada di versi admin -- satu komponen bersama = tidak bisa ngedrift
+   lagi. Kolom jam_mulai/jam_selesai/ruangan ditambahkan ke query `kelas`
+   supaya info itu tersedia jg di sini (sebelumnya cuma id+nama). */
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -49,33 +59,13 @@ import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import LaporanPerkembanganCetak, {
+  type LaporanPerkembangan,
+} from '@/components/laporan/LaporanPerkembanganCetak';
 
-type Kelas = { id: number; nama: string };
+type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string };
-
-type SantriBaris = {
-  nama: string;
-  hariAktif: number;
-  izin: number;
-  sakit: number;
-  alpa: number;
-  persen: number | null;
-  status: string;
-};
-
-type Laporan = {
-  guruNama: string;
-  periode: string;
-  kelasLabel: string;
-  totalSantri: number;
-  totalHariAktif: number;
-  hadirPercent: number;
-  totalIzin: number;
-  totalAlpa: number;
-  totalSakit: number;
-  baris: SantriBaris[];
-};
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -114,16 +104,8 @@ function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
   return 'Sakit';
 }
 
-function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
-  return (
-    <div className="rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-      <div className="text-[10px] font-bold tracking-[0.4px] text-text uppercase">{label}</div>
-      <div className="mt-1 text-[20px] leading-none font-extrabold" style={{ color: warna }}>
-        {nilai}
-      </div>
-      <div className="mt-1 text-[7.5px] leading-tight text-text">{catatan}</div>
-    </div>
-  );
+function jam(v: string | null) {
+  return v ? v.slice(0, 5) : null;
 }
 
 export default function GuruLaporanView() {
@@ -144,13 +126,13 @@ export default function GuruLaporanView() {
 
   const [membuat, setMembuat] = useState(false);
   const [errorMuat, setErrorMuat] = useState<string | null>(null);
-  const [laporan, setLaporan] = useState<Laporan | null>(null);
+  const [laporan, setLaporan] = useState<LaporanPerkembangan | null>(null);
 
   useEffect(() => {
     if (guruId == null) return;
     supabase
       .from('kelas')
-      .select('id, nama')
+      .select('id, nama, jam_mulai, jam_selesai, ruangan')
       .eq('guru_id', guruId)
       .is('deleted_at', null)
       .order('nama')
@@ -230,7 +212,7 @@ export default function GuruLaporanView() {
       const { santri, absensi } = await buatLaporan();
       const tanggalAktif = new Set(absensi.map((a) => a.tanggal));
 
-      const baris: SantriBaris[] = santri.map((s) => {
+      const baris = santri.map((s) => {
         const milik = absensi.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
         const izin = milik.filter((a) => a.status === 'izin').length;
@@ -255,10 +237,19 @@ export default function GuruLaporanView() {
             )
           : 0;
 
+      const kelasDipilih = kelasList.find((k) => k.id === kelasId) ?? null;
+      const jadwalLabel =
+        kelasDipilih && jam(kelasDipilih.jam_mulai) && jam(kelasDipilih.jam_selesai)
+          ? `${jam(kelasDipilih.jam_mulai)}–${jam(kelasDipilih.jam_selesai)}`
+          : '—';
+      const ruanganLabel = kelasDipilih?.ruangan || '—';
+
       setLaporan({
         guruNama: profile?.display_name ?? '-',
         periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
         kelasLabel,
+        jadwalLabel,
+        ruanganLabel,
         totalSantri: santri.length,
         totalHariAktif: tanggalAktif.size,
         hadirPercent: rataPersen,
@@ -296,64 +287,7 @@ export default function GuruLaporanView() {
           Kembali
         </button>
 
-        <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-          <div className="mb-5 text-center">
-            <div className="text-[17px] font-extrabold text-text">Laporan Perkembangan Santri</div>
-            <div className="mt-1 text-[12.5px] text-text">{laporan.periode}</div>
-          </div>
-
-          <div className="mb-5 space-y-1 text-[12.5px] text-text">
-            <div>
-              <span className="inline-block min-w-[80px] font-bold">Guru</span>: Kak {laporan.guruNama}
-            </div>
-            <div>
-              <span className="inline-block min-w-[80px] font-bold">Kelas</span>: {laporan.kelasLabel}
-            </div>
-            <div>
-              <span className="inline-block min-w-[80px] font-bold">Total Santri</span>: {laporan.totalSantri}
-            </div>
-          </div>
-
-          <div className="cetak-jaga-utuh mb-5 grid grid-cols-2 gap-2.5">
-            <KartuMetrik label="Hari Aktif" nilai={String(laporan.totalHariAktif)} warna="var(--indigo)" catatan="hari efektif bulan ini" />
-            <KartuMetrik label="Kehadiran" nilai={`${laporan.hadirPercent}%`} warna="var(--sage)" catatan={`rata2 ${laporan.totalSantri} santri`} />
-            <KartuMetrik label="Izin" nilai={String(laporan.totalIzin)} warna="var(--brass)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalIzin / laporan.totalSantri) * 100) : 0}% santri`} />
-            <KartuMetrik label="Alpa" nilai={String(laporan.totalAlpa)} warna="var(--red)" catatan={`${laporan.totalSantri ? Math.round((laporan.totalAlpa / laporan.totalSantri) * 100) : 0}% santri`} />
-          </div>
-
-          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-            <table className="w-full border-collapse text-left text-[12px]">
-              <thead className="border-b border-border bg-panel-2">
-                <tr>
-                  {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa'].map((h) => (
-                    <th key={h} className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {laporan.baris.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-3 py-8 text-center text-text-faint">
-                      Belum ada santri di kelas ini.
-                    </td>
-                  </tr>
-                ) : (
-                  laporan.baris.map((b) => (
-                    <tr key={b.nama}>
-                      <td className="border-b border-border px-3 py-2 text-text">{b.nama}</td>
-                      <td className="border-b border-border px-3 py-2 text-text">{b.hariAktif}</td>
-                      <td className="border-b border-border px-3 py-2 text-text">{b.persen !== null ? `${b.persen}%` : '—'}</td>
-                      <td className="border-b border-border px-3 py-2 text-text">{b.izin}</td>
-                      <td className="border-b border-border px-3 py-2 text-text">{b.alpa}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <LaporanPerkembanganCetak laporan={laporan} />
       </main>
     );
   }
