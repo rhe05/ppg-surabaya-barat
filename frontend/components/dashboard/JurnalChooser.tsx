@@ -17,7 +17,14 @@
    "Rencana Pembelajaran" (IkonBookOpen)/"Pelaksanaan Pembelajaran"
    (IkonClipboardCheck) -- istilah kurikulum yang lebih jelas drpd sekadar
    "input"/"edit". Subjudul kedua kartu jg diminta hitam (text-text),
-   bukan abu-abu (text-text-dim). */
+   bukan abu-abu (text-text-dim).
+
+   Kartu ketiga "Riwayat Pembelajaran" (IkonHistory, tema teal) ditambah
+   di putaran berikutnya (diminta owner) -- tetap menuju /jurnal yang
+   SAMA (bagian "Riwayat Kelas Ini" sudah ada di halaman itu, lihat
+   app/jurnal/page.tsx), bukan halaman terpisah baru; kartu ini murni
+   membantu guru menuju halaman yang sama dgn niat "meninjau riwayat",
+   pola yang sama dgn dua kartu di atasnya. */
 
 import { useRouter } from 'next/navigation';
 
@@ -57,6 +64,27 @@ function IkonClipboardCheck() {
       <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
       <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
       <path d="m9 14 2 2 4-4" />
+    </svg>
+  );
+}
+
+// Lucide "history" — diminta owner (Riwayat Pembelajaran). Sama persis
+// ikon "Pilih Kelas" di app/absensi/riwayat/page.tsx (KelasGate).
+function IkonHistory() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="20"
+      height="20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 3v5h5" />
+      <path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" />
+      <path d="M12 7v5l4 2" />
     </svg>
   );
 }
@@ -171,6 +199,28 @@ export default function JurnalChooser({
               <span className="block text-[15.5px] font-bold text-text">Pelaksanaan Pembelajaran</span>
               <span className="block text-[10.5px] text-text">
                 Konfirmasi materi yang telah disampaikan setelah kegiatan mengajar
+              </span>
+            </span>
+            <span className="shrink-0 text-text-faint">
+              <IkonPanah />
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={pergi}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#0D9488] hover:shadow-[0_4px_14px_rgba(13,148,136,0.16)] active:scale-[0.98]"
+          >
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+              style={{ background: 'linear-gradient(135deg, #0D9488 0%, #14B8A6 100%)' }}
+            >
+              <IkonHistory />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15.5px] font-bold text-text">Riwayat Pembelajaran</span>
+              <span className="block text-[10.5px] text-text">
+                Tinjau materi yang sudah dan belum disampaikan pada periode tertentu.
               </span>
             </span>
             <span className="shrink-0 text-text-faint">
