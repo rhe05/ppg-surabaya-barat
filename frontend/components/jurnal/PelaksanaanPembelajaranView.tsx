@@ -1,0 +1,413 @@
+'use client';
+
+/* Pelaksanaan Pembelajaran (guru mobile) — layar 2 dari 3, lihat catatan
+   lengkap di RencanaPembelajaranView.tsx & migrasi
+   20260820120000_jurnal_materi_rencana.sql.
+
+   Selalu "hari ini": minggu_ke dihitung dari tanggal hari ini
+   (mingguKeDariTanggal), materi yang tampil = seluruh baris jurnal_materi
+   milik kelas pada minggu berjalan (baik yang sudah maupun belum
+   disampaikan) -- guru mencentang satu-satu, isi catatan opsional, lalu
+   "Simpan Pelaksanaan" sekali jalan (batch: UPDATE baris yang berubah +
+   INSERT materi tambahan yang ditambahkan di sesi ini). Toggle checkbox
+   TIDAK langsung menulis ke DB -- sengaja menunggu tombol Simpan, supaya
+   guru bisa mencentang berkali-kali/ralat dulu sebelum benar-benar
+   tersimpan (pola sama dgn app/absensi/page.tsx: toggle status di form,
+   satu tombol Simpan di akhir). */
+
+import { useCallback, useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/auth-context';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import { mingguKeDariTanggal } from '@/lib/mingguBulan';
+
+type Kelas = { id: number; nama: string };
+type Baris = {
+  id: number | null; // null = materi tambahan baru, belum tersimpan
+  judul: string;
+  status: 'belum' | 'disampaikan';
+  catatan: string;
+  statusAsli: 'belum' | 'disampaikan';
+  catatanAsli: string;
+};
+
+const SELECT_STYLE =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+export default function PelaksanaanPembelajaranView() {
+  const { profile } = useAuth();
+  const guruId = profile?.guru_id ?? null;
+
+  const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  const [kelasId, setKelasId] = useState<number | ''>('');
+
+  const sekarang = new Date();
+  const tahun = sekarang.getFullYear();
+  const bulan = sekarang.getMonth() + 1;
+  const mingguKe = mingguKeDariTanggal(sekarang);
+  const tanggalLabel = sekarang.toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const [baris, setBaris] = useState<Baris[]>([]);
+  const [terbukaId, setTerbukaId] = useState<number | null>(null); // baris yg catatannya sedang diperluas
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [pesan, setPesan] = useState<string | null>(null);
+
+  const [tambahanTerbuka, setTambahanTerbuka] = useState(false);
+  const [judulTambahan, setJudulTambahan] = useState('');
+
+  useEffect(() => {
+    if (guruId == null) return;
+    supabase
+      .from('kelas')
+      .select('id, nama')
+      .eq('guru_id', guruId)
+      .is('deleted_at', null)
+      .order('nama')
+      .then(({ data }) => {
+        const list = (data ?? []) as Kelas[];
+        setKelasList(list);
+        setKelasId(list.length === 1 ? list[0].id : '');
+      });
+  }, [guruId]);
+
+  const muat = useCallback(async () => {
+    if (kelasId === '') {
+      setBaris([]);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const { data, error: err } = await supabase
+        .from('jurnal_materi')
+        .select('id, judul, status, catatan')
+        .eq('kelas_id', kelasId)
+        .eq('tahun', tahun)
+        .eq('bulan', bulan)
+        .eq('minggu_ke', mingguKe)
+        .is('deleted_at', null)
+        .order('id', { ascending: true });
+      if (err) throw new Error(err.message);
+      setBaris(
+        (data ?? []).map((m) => ({
+          id: m.id,
+          judul: m.judul,
+          status: m.status as 'belum' | 'disampaikan',
+          catatan: m.catatan ?? '',
+          statusAsli: m.status as 'belum' | 'disampaikan',
+          catatanAsli: m.catatan ?? '',
+        })),
+      );
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat materi.');
+    } finally {
+      setLoading(false);
+    }
+  }, [kelasId, tahun, bulan, mingguKe]);
+
+  useEffect(() => {
+    muat();
+  }, [muat]);
+
+  function toggleStatus(idx: number) {
+    setBaris((prev) =>
+      prev.map((b, i) =>
+        i === idx ? { ...b, status: b.status === 'disampaikan' ? 'belum' : 'disampaikan' } : b,
+      ),
+    );
+    setTerbukaId((prev) => (baris[idx].id === prev ? prev : baris[idx].id));
+  }
+
+  function ubahCatatan(idx: number, catatan: string) {
+    setBaris((prev) => prev.map((b, i) => (i === idx ? { ...b, catatan } : b)));
+  }
+
+  function tambahMateriTambahan() {
+    if (judulTambahan.trim().length === 0) return;
+    setBaris((prev) => [
+      ...prev,
+      {
+        id: null,
+        judul: judulTambahan.trim(),
+        status: 'disampaikan',
+        catatan: '',
+        statusAsli: 'belum',
+        catatanAsli: '',
+      },
+    ]);
+    setJudulTambahan('');
+    setTambahanTerbuka(false);
+  }
+
+  async function simpanPelaksanaan() {
+    if (kelasId === '') return;
+    setMenyimpan(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const hariIni = todayStr();
+      for (const b of baris) {
+        const berubah = b.status !== b.statusAsli || b.catatan !== b.catatanAsli;
+        if (b.id === null) {
+          const { error: err } = await supabase.from('jurnal_materi').insert({
+            kelas_id: kelasId,
+            tahun,
+            bulan,
+            minggu_ke: mingguKe,
+            judul: b.judul,
+            status: b.status,
+            tanggal_disampaikan: b.status === 'disampaikan' ? hariIni : null,
+            catatan: b.catatan.trim() === '' ? null : b.catatan.trim(),
+          });
+          if (err) throw new Error(err.message);
+        } else if (berubah) {
+          const { error: err } = await supabase
+            .from('jurnal_materi')
+            .update({
+              status: b.status,
+              tanggal_disampaikan: b.status === 'disampaikan' ? hariIni : null,
+              catatan: b.catatan.trim() === '' ? null : b.catatan.trim(),
+            })
+            .eq('id', b.id);
+          if (err) throw new Error(err.message);
+        }
+      }
+      setPesan('Pelaksanaan tersimpan.');
+      await muat();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan pelaksanaan.');
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  const direncanakan = baris.length;
+  const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
+  const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
+
+  return (
+    <main className="flex min-h-screen flex-col bg-bg">
+      <JurnalHeaderChrome />
+
+      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
+        <div className="mb-4 text-[17px] font-extrabold text-text">Pelaksanaan Pembelajaran</div>
+
+        {kelasList.length > 1 && (
+          <div className="mb-3">
+            <select
+              value={kelasId}
+              onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
+              className={SELECT_STYLE}
+            >
+              <option value="">-- Pilih Kelas --</option>
+              {kelasList.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.nama}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
+        {/* Pil tanggal hari ini, tema hijau muda — persis screenshot owner. */}
+        <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sage">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M8 2v4" />
+              <path d="M16 2v4" />
+              <rect width="18" height="18" x="3" y="4" rx="2" />
+              <path d="M3 10h18" />
+            </svg>
+          </span>
+          <div>
+            <div className="text-[13.5px] font-bold text-sage">{tanggalLabel}</div>
+            <div className="text-[11px] text-text-dim">Hari ini</div>
+          </div>
+        </div>
+
+        {kelasId === '' ? (
+          <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat pelaksanaan hari ini.</p>
+        ) : (
+          <>
+            {/* Pertemuan Hari Ini */}
+            <div className="mb-5 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+              <div className="mb-3 flex items-center justify-between">
+                <div className="text-[13px] font-bold text-text">Pertemuan Hari Ini</div>
+                <div className="text-[11.5px] text-text-dim">
+                  {disampaikan} dari {direncanakan} selesai
+                </div>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex gap-6">
+                  <div>
+                    <div className="text-[24px] leading-none font-extrabold text-text">{direncanakan}</div>
+                    <div className="text-[11px] text-text-dim">Direncanakan</div>
+                  </div>
+                  <div>
+                    <div className="text-[24px] leading-none font-extrabold text-sage">{disampaikan}</div>
+                    <div className="text-[11px] text-text-dim">Disampaikan</div>
+                  </div>
+                </div>
+                <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
+                  <svg viewBox="0 0 36 36" width="64" height="64">
+                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" strokeWidth="4" />
+                    <circle
+                      cx="18"
+                      cy="18"
+                      r="15.5"
+                      fill="none"
+                      stroke="var(--sage)"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(persen / 100) * 97.4} 97.4`}
+                      transform="rotate(-90 18 18)"
+                    />
+                  </svg>
+                  <span className="absolute text-[13px] font-extrabold text-text">{persen}%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-3 text-[15px] font-bold text-text">Materi Hari Ini</div>
+
+            {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
+            {!loading && baris.length === 0 && (
+              <p className="mb-4 text-[13px] text-text-dim">
+                Belum ada materi direncanakan minggu ini. Tambahkan lewat &ldquo;Tambah Materi Tambahan&rdquo;
+                di bawah.
+              </p>
+            )}
+
+            <div className="mb-4 flex flex-col gap-2.5">
+              {baris.map((b, idx) => {
+                const dicentang = b.status === 'disampaikan';
+                const diperluas = terbukaId === b.id || (b.id === null && dicentang);
+                return (
+                  <div
+                    key={b.id ?? `baru-${idx}`}
+                    className={`rounded-card border p-3.5 transition-colors duration-150 ${
+                      dicentang ? 'border-[#A7F3D0] bg-[#ECFDF5]' : 'border-border bg-panel'
+                    }`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleStatus(idx)}
+                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent p-0 text-left"
+                    >
+                      <span
+                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+                          dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
+                        }`}
+                      >
+                        {dicentang && (
+                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M20 6 9 17l-5-5" />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1 text-[14px] font-bold text-text">{b.judul}</span>
+                      <span
+                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
+                          dicentang ? 'bg-sage text-white' : 'bg-panel-2 text-brass'
+                        }`}
+                      >
+                        {dicentang ? 'Disampaikan' : 'Belum disampaikan'}
+                      </span>
+                    </button>
+
+                    {diperluas && (
+                      <div className="mt-2.5 pl-9">
+                        <label className="mb-1 block text-[11px] font-semibold text-text-dim">Catatan</label>
+                        <textarea
+                          value={b.catatan}
+                          onChange={(e) => ubahCatatan(idx, e.target.value)}
+                          placeholder="Catatan pelaksanaan (opsional)"
+                          rows={2}
+                          className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12.5px] text-text"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {!tambahanTerbuka ? (
+              <button
+                type="button"
+                onClick={() => setTambahanTerbuka(true)}
+                className="mb-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius)] border-[1.5px] border-dashed border-sage bg-transparent py-3 text-[13px] font-semibold text-sage"
+              >
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                Tambah Materi Tambahan
+              </button>
+            ) : (
+              <div className="mb-4 rounded-card border border-border bg-panel p-3.5">
+                <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">
+                  Materi yang tidak ada di rencana
+                </label>
+                <input
+                  type="text"
+                  value={judulTambahan}
+                  onChange={(e) => setJudulTambahan(e.target.value)}
+                  placeholder="Judul materi"
+                  className="mb-2 w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={tambahMateriTambahan}
+                    disabled={judulTambahan.trim().length === 0}
+                    className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Tambahkan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTambahanTerbuka(false);
+                      setJudulTambahan('');
+                    }}
+                    className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12.5px] font-semibold text-text"
+                  >
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+            {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
+
+            <button
+              type="button"
+              disabled={menyimpan || baris.length === 0}
+              onClick={simpanPelaksanaan}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              {menyimpan ? 'Menyimpan...' : 'Simpan Pelaksanaan'}
+            </button>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}

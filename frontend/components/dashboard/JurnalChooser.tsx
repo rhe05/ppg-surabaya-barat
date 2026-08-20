@@ -5,26 +5,23 @@
    .ia-jr-chooser-opt-input indigo/.ia-jr-chooser-opt-edit amber). Kembaran
    KehadiranChooser.tsx, tema warna beda.
 
-   Berbeda dari Kehadiran (yang Riwayat-nya benar-benar fitur baru): di app
-   BARU, /jurnal SUDAH menggabungkan input dan riwayat+edit dalam satu
-   halaman — pilih tanggal hari ini untuk mengisi, klik "Buka" pada baris
-   Riwayat Kelas Ini untuk mengubah entri lama. Karena itu kedua tombol di
-   sini menuju halaman yang SAMA; popup ini murni membantu guru memilih niat
-   (isi baru vs ubah lama) sebelum masuk, bukan mengarahkan ke dua alur
-   terpisah seperti app lama (yang memang dua tampilan berbeda).
+   RIWAYAT (20 Agt): awalnya ketiga tombol menuju /jurnal yang SAMA (jurnal
+   harian lama, materi teks bebas). Diminta owner "buatkan isi aplikasinya
+   kurang lebih spt [screenshot 3 layar]" -- sekarang TIGA layar terpisah
+   sungguhan (components/jurnal/*View.tsx, tabel baru `jurnal_materi`,
+   migrasi 20260820120000): Rencana Pembelajaran (/jurnal/rencana) susun
+   materi per minggu, Pelaksanaan Pembelajaran (/jurnal/pelaksanaan)
+   tandai materi minggu berjalan disampaikan/belum + catatan, Riwayat
+   Pembelajaran (/jurnal/riwayat) progres % + filter + pencarian. /jurnal
+   (lama, jurnal_kbm) TETAP ADA TIDAK DIUBAH -- masih dipakai admin utk
+   rekap lintas-guru (RekapJurnal), popup ini sekarang tidak lagi menuju
+   ke sana.
 
-   Label & ikon diminta owner (20 Agt): "Input Jurnal"/"Edit Jurnal" ->
+   Label & ikon diminta owner sebelumnya: "Input Jurnal"/"Edit Jurnal" ->
    "Rencana Pembelajaran" (IkonBookOpen)/"Pelaksanaan Pembelajaran"
-   (IkonClipboardCheck) -- istilah kurikulum yang lebih jelas drpd sekadar
-   "input"/"edit". Subjudul kedua kartu jg diminta hitam (text-text),
-   bukan abu-abu (text-text-dim).
-
-   Kartu ketiga "Riwayat Pembelajaran" (IkonHistory, tema teal) ditambah
-   di putaran berikutnya (diminta owner) -- tetap menuju /jurnal yang
-   SAMA (bagian "Riwayat Kelas Ini" sudah ada di halaman itu, lihat
-   app/jurnal/page.tsx), bukan halaman terpisah baru; kartu ini murni
-   membantu guru menuju halaman yang sama dgn niat "meninjau riwayat",
-   pola yang sama dgn dua kartu di atasnya. */
+   (IkonClipboardCheck), + kartu ketiga "Riwayat Pembelajaran"
+   (IkonHistory, tema teal). Subjudul ketiga kartu hitam (text-text),
+   bukan abu-abu (text-text-dim). */
 
 import { useRouter } from 'next/navigation';
 
@@ -135,9 +132,9 @@ export default function JurnalChooser({
 
   if (!terbuka) return null;
 
-  function pergi() {
+  function pergi(tujuan: string) {
     onTutup();
-    router.push('/jurnal');
+    router.push(tujuan);
   }
 
   return (
@@ -164,7 +161,7 @@ export default function JurnalChooser({
         <div className="flex flex-col gap-2.5">
           <button
             type="button"
-            onClick={pergi}
+            onClick={() => pergi('/jurnal/rencana')}
             className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#4F46E5] hover:shadow-[0_4px_14px_rgba(79,70,229,0.16)] active:scale-[0.98]"
           >
             <span
@@ -186,7 +183,7 @@ export default function JurnalChooser({
 
           <button
             type="button"
-            onClick={pergi}
+            onClick={() => pergi('/jurnal/pelaksanaan')}
             className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#D97706] hover:shadow-[0_4px_14px_rgba(217,119,6,0.16)] active:scale-[0.98]"
           >
             <span
@@ -208,7 +205,7 @@ export default function JurnalChooser({
 
           <button
             type="button"
-            onClick={pergi}
+            onClick={() => pergi('/jurnal/riwayat')}
             className="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border-[1.5px] border-border bg-panel-2 p-[13px_14px] text-left transition-all duration-150 hover:border-[#0D9488] hover:shadow-[0_4px_14px_rgba(13,148,136,0.16)] active:scale-[0.98]"
           >
             <span
