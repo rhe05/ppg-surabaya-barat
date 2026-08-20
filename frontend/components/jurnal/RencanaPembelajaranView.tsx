@@ -263,7 +263,7 @@ export default function RencanaPembelajaranView() {
       <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome tampilkanHero={false} />
 
-      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
+      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[110px]">
         {/* Judul + ikon kalender sejajar — konsep sama dgn hero Dashboard
             (nama di kiri, ikon+caption Bulan/Tahun di kanan), diminta
             owner: pil lebar penuh yang dulu di sini DIHAPUS, gantinya
@@ -410,195 +410,213 @@ export default function RencanaPembelajaranView() {
           </div>
         )}
 
-        {kelasId !== '' && (
-          <>
-            <button
-              type="button"
-              onClick={bukaFormTambah}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[14px] font-bold text-white transition-transform duration-150 active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+        {tambahTerbuka && (
+          <div
+            className="fixed inset-0 z-[600] flex items-end justify-center bg-[rgba(15,23,42,0.55)] backdrop-blur-[3px] sm:items-center sm:p-6"
+            onClick={() => setTambahTerbuka(false)}
+          >
+            <div
+              className="flex max-h-[90vh] w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
+              onClick={(e) => e.stopPropagation()}
             >
-              <Plus size={18} strokeWidth={2.4} />
-              Tambah Materi
-            </button>
+              <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
+                <span className="h-1 w-9 rounded-full bg-border" />
+              </div>
 
-            {tambahTerbuka && (
-              <div
-                className="fixed inset-0 z-[600] flex items-end justify-center bg-[rgba(15,23,42,0.55)] backdrop-blur-[3px] sm:items-center sm:p-6"
-                onClick={() => setTambahTerbuka(false)}
-              >
-                <div
-                  className="flex max-h-[90vh] w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
-                  onClick={(e) => e.stopPropagation()}
+              <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
+                <div className="text-[16px] font-bold text-text">Tambah Materi Rencana</div>
+                <button
+                  type="button"
+                  onClick={() => setTambahTerbuka(false)}
+                  aria-label="Tutup"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
                 >
-                  <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
-                    <span className="h-1 w-9 rounded-full bg-border" />
+                  <X size={15} strokeWidth={2.4} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 pb-4">
+                <FieldTambah label="Materi Pembelajaran" wajib>
+                  <InputIkon
+                    value={judulBaru}
+                    onChange={setJudulBaru}
+                    placeholder="Pilih atau tulis materi pembelajaran"
+                    ikon={<BookOpen size={16} />}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Topik">
+                  <InputIkon
+                    value={topikBaru}
+                    onChange={setTopikBaru}
+                    placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
+                    ikon={<Tag size={16} />}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Tanggal Rencana" wajib>
+                  <button
+                    ref={tanggalBtnRef}
+                    type="button"
+                    onClick={() => {
+                      const rect = tanggalBtnRef.current?.getBoundingClientRect();
+                      if (rect) {
+                        setPosisiTanggalPicker({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                      }
+                      setTanggalPickerTerbuka((v) => !v);
+                    }}
+                    className={`${INPUT_STYLE} flex items-center justify-between`}
+                  >
+                    <span className={tanggalRencanaBaru ? 'text-text' : 'text-text-faint'}>
+                      {tanggalRencanaBaru
+                        ? new Date(tanggalRencanaBaru + 'T00:00:00').toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : 'Pilih tanggal'}
+                    </span>
+                    <Calendar size={16} className="text-text-faint" />
+                  </button>
+                  <TanggalPicker
+                    terbuka={tanggalPickerTerbuka}
+                    posisi={posisiTanggalPicker}
+                    nilai={tanggalRencanaBaru}
+                    onPilih={setTanggalRencanaBaru}
+                    onTutup={() => setTanggalPickerTerbuka(false)}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Masukkan ke" wajib>
+                  <SelectKustom value={mingguBaru} onChange={setMingguBaru} opsi={opsiMinggu} ikon={<Calendar size={16} />} />
+                </FieldTambah>
+
+                <FieldTambah label="Pertemuan ke-">
+                  <InputIkon
+                    value={pertemuanKeBaru}
+                    onChange={setPertemuanKeBaru}
+                    placeholder="Contoh: Pertemuan ke-1"
+                    ikon={<Hash size={16} />}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Tujuan Pembelajaran">
+                  <InputIkon
+                    value={tujuanBaru}
+                    onChange={setTujuanBaru}
+                    placeholder="Apa yang ingin dicapai dari materi ini?"
+                    ikon={<Target size={16} />}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Catatan">
+                  <div className="relative">
+                    <textarea
+                      value={catatanBaru}
+                      onChange={(e) => setCatatanBaru(e.target.value.slice(0, 200))}
+                      placeholder="Catatan tambahan untuk materi ini..."
+                      rows={3}
+                      maxLength={200}
+                      className={`${INPUT_STYLE} resize-none pr-8`}
+                    />
+                    <span className="pointer-events-none absolute top-2.5 right-3 text-text-faint">
+                      <FileText size={16} />
+                    </span>
                   </div>
+                  <div className="mt-1 text-right text-[10.5px] text-text-faint">{catatanBaru.length}/200</div>
+                </FieldTambah>
 
-                  <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                    <div className="text-[16px] font-bold text-text">Tambah Materi Rencana</div>
-                    <button
-                      type="button"
-                      onClick={() => setTambahTerbuka(false)}
-                      aria-label="Tutup"
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
-                    >
-                      <X size={15} strokeWidth={2.4} />
-                    </button>
-                  </div>
+                <FieldTambah label="Referensi / Sumber">
+                  <InputIkon
+                    value={referensiBaru}
+                    onChange={setReferensiBaru}
+                    placeholder="Buku, ayat, hadits, atau sumber lain"
+                    ikon={<Link2 size={16} />}
+                  />
+                </FieldTambah>
 
-                  <div className="flex-1 overflow-y-auto px-6 pb-4">
-                    <FieldTambah label="Materi Pembelajaran" wajib>
-                      <InputIkon
-                        value={judulBaru}
-                        onChange={setJudulBaru}
-                        placeholder="Pilih atau tulis materi pembelajaran"
-                        ikon={<BookOpen size={16} />}
-                      />
-                    </FieldTambah>
-
-                    <FieldTambah label="Topik">
-                      <InputIkon
-                        value={topikBaru}
-                        onChange={setTopikBaru}
-                        placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
-                        ikon={<Tag size={16} />}
-                      />
-                    </FieldTambah>
-
-                    <FieldTambah label="Tanggal Rencana" wajib>
-                      <button
-                        ref={tanggalBtnRef}
-                        type="button"
-                        onClick={() => {
-                          const rect = tanggalBtnRef.current?.getBoundingClientRect();
-                          if (rect) {
-                            setPosisiTanggalPicker({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-                          }
-                          setTanggalPickerTerbuka((v) => !v);
-                        }}
-                        className={`${INPUT_STYLE} flex items-center justify-between`}
-                      >
-                        <span className={tanggalRencanaBaru ? 'text-text' : 'text-text-faint'}>
-                          {tanggalRencanaBaru
-                            ? new Date(tanggalRencanaBaru + 'T00:00:00').toLocaleDateString('id-ID', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })
-                            : 'Pilih tanggal'}
-                        </span>
-                        <Calendar size={16} className="text-text-faint" />
-                      </button>
-                      <TanggalPicker
-                        terbuka={tanggalPickerTerbuka}
-                        posisi={posisiTanggalPicker}
-                        nilai={tanggalRencanaBaru}
-                        onPilih={setTanggalRencanaBaru}
-                        onTutup={() => setTanggalPickerTerbuka(false)}
-                      />
-                    </FieldTambah>
-
-                    <FieldTambah label="Masukkan ke" wajib>
-                      <SelectKustom value={mingguBaru} onChange={setMingguBaru} opsi={opsiMinggu} ikon={<Calendar size={16} />} />
-                    </FieldTambah>
-
-                    <FieldTambah label="Pertemuan ke-">
-                      <InputIkon
-                        value={pertemuanKeBaru}
-                        onChange={setPertemuanKeBaru}
-                        placeholder="Contoh: Pertemuan ke-1"
-                        ikon={<Hash size={16} />}
-                      />
-                    </FieldTambah>
-
-                    <FieldTambah label="Tujuan Pembelajaran">
-                      <InputIkon
-                        value={tujuanBaru}
-                        onChange={setTujuanBaru}
-                        placeholder="Apa yang ingin dicapai dari materi ini?"
-                        ikon={<Target size={16} />}
-                      />
-                    </FieldTambah>
-
-                    <FieldTambah label="Catatan">
-                      <div className="relative">
-                        <textarea
-                          value={catatanBaru}
-                          onChange={(e) => setCatatanBaru(e.target.value.slice(0, 200))}
-                          placeholder="Catatan tambahan untuk materi ini..."
-                          rows={3}
-                          maxLength={200}
-                          className={`${INPUT_STYLE} resize-none pr-8`}
-                        />
-                        <span className="pointer-events-none absolute top-2.5 right-3 text-text-faint">
-                          <FileText size={16} />
-                        </span>
-                      </div>
-                      <div className="mt-1 text-right text-[10.5px] text-text-faint">{catatanBaru.length}/200</div>
-                    </FieldTambah>
-
-                    <FieldTambah label="Referensi / Sumber">
-                      <InputIkon
-                        value={referensiBaru}
-                        onChange={setReferensiBaru}
-                        placeholder="Buku, ayat, hadits, atau sumber lain"
-                        ikon={<Link2 size={16} />}
-                      />
-                    </FieldTambah>
-
-                    <div className="mb-1 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <span className="text-text-dim">
-                          <Bell size={16} />
-                        </span>
-                        <div>
-                          <div className="text-[12.5px] font-semibold text-text">Pengingat</div>
-                          <div className="text-[10.5px] text-text-dim">Ingatkan saya sebelum tanggal rencana</div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        role="switch"
-                        aria-checked={pengingatBaru}
-                        onClick={() => setPengingatBaru((v) => !v)}
-                        className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-none transition-colors duration-150 ${
-                          pengingatBaru ? 'bg-indigo' : 'bg-border'
-                        }`}
-                      >
-                        <span
-                          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-150 ${
-                            pengingatBaru ? 'translate-x-[22px]' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
+                <div className="mb-1 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-text-dim">
+                      <Bell size={16} />
+                    </span>
+                    <div>
+                      <div className="text-[12.5px] font-semibold text-text">Pengingat</div>
+                      <div className="text-[10.5px] text-text-dim">Ingatkan saya sebelum tanggal rencana</div>
                     </div>
                   </div>
-
-                  <div className="flex shrink-0 gap-2.5 border-t border-border px-6 py-4">
-                    <button
-                      type="button"
-                      onClick={() => setTambahTerbuka(false)}
-                      className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[14px] font-semibold text-text"
-                    >
-                      Batal
-                    </button>
-                    <button
-                      type="button"
-                      disabled={judulBaru.trim().length === 0 || tanggalRencanaBaru === '' || menyimpan}
-                      onClick={simpanMateriBaru}
-                      className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
-                    >
-                      <Check size={16} strokeWidth={2.6} />
-                      Simpan Materi
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={pengingatBaru}
+                    onClick={() => setPengingatBaru((v) => !v)}
+                    className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-none transition-colors duration-150 ${
+                      pengingatBaru ? 'bg-indigo' : 'bg-border'
+                    }`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-150 ${
+                        pengingatBaru ? 'translate-x-[22px]' : 'translate-x-0.5'
+                      }`}
+                    />
+                  </button>
                 </div>
               </div>
-            )}
-          </>
+
+              <div className="flex shrink-0 gap-2.5 border-t border-border px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setTambahTerbuka(false)}
+                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[14px] font-semibold text-text"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={judulBaru.trim().length === 0 || tanggalRencanaBaru === '' || menyimpan}
+                  onClick={simpanMateriBaru}
+                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+                >
+                  <Check size={16} strokeWidth={2.6} />
+                  Simpan Materi
+                </button>
+              </div>
+            </div>
+          </div>
         )}
+      </div>
+
+      {/* Tombol Tambah Materi — diminta owner (20 Agt): SELALU di bawah,
+          fixed (tidak ikut scroll), tidak bergerak/hilang saat pindah
+          kelas atau saat kelas belum dipilih. Pola SAMA PERSIS bottom-bar
+          Simpan Kehadiran di GuruAbsensiView.tsx (fixed viewport-wide +
+          gradient fade + wadah max-w-[430px] mx-auto supaya tombol tidak
+          ikut melebar di desktop, safe-area utk notch HP). Kalau kelas
+          belum dipilih, tombol tetap tampil tapi klik-nya cuma munculkan
+          toast pengingat -- TIDAK membuka form (kelasId dibutuhkan utk
+          simpan materi). */}
+      <div
+        className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom))]"
+        style={{ background: 'linear-gradient(180deg, rgba(248,250,252,0) 0%, var(--bg) 30%)' }}
+      >
+        <div className="mx-auto max-w-[430px]">
+          <button
+            type="button"
+            onClick={() => {
+              if (kelasId === '') {
+                push('Pilih kelas dulu sebelum menambahkan materi.', 'info');
+                return;
+              }
+              bukaFormTambah();
+            }}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(79,70,229,0.3)] transition-transform duration-150 active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+          >
+            <Plus size={18} strokeWidth={2.4} />
+            Tambah Materi
+          </button>
+        </div>
       </div>
     </main>
   );
