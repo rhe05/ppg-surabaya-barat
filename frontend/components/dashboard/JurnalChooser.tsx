@@ -136,9 +136,9 @@ export default function JurnalChooser({
               <IkonInput />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[14px] font-bold text-text">Input Jurnal</span>
+              <span className="block text-[14px] font-bold text-text">Rencana Pembelajaran</span>
               <span className="block text-[11.5px] text-text-dim">
-                Isi materi &amp; catatan KBM hari ini
+                Susun materi yang akan disampaikan pada minggu atau bulan ini
               </span>
             </span>
             <span className="shrink-0 text-text-faint">
