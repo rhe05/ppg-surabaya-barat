@@ -6,6 +6,8 @@ import { useAuth } from '@/lib/auth-context';
 import SantriForm, { KOLOM_SANTRI, type SantriRow } from '@/components/santri/SantriForm';
 import { unduhXlsx } from '@/lib/xlsx';
 import ImporSantri from '@/components/santri/ImporSantri';
+import RingkasanDesaGenerus from '@/components/santri/RingkasanDesaGenerus';
+import { JENJANG_URUT, WARNA_JENJANG } from '@/lib/jenjang';
 
 /* Kolom ekspor data generus. Baris yang diekspor = hasil saringan yang
    sedang tampil, bukan seluruh tabel. */
@@ -43,16 +45,8 @@ const PAGE_SIZE = 10;
 /* Kartu ringkasan (20 Agt, putaran kelima) — sengaja tidak dibuat generik
    krn perbedaan visual antar kartu (warna, progress bar, catatan L/P) tidak
    seragam; komponen kecil per-jenis lebih jelas drpd satu Kartu dgn banyak
-   prop opsional. Warna dari token app lama (globals.css), BUKAN warna baru
-   yang ditebak. */
-const JENJANG_URUT = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'] as const;
-const WARNA_JENJANG: Record<(typeof JENJANG_URUT)[number], string> = {
-  'PAUD/TK': '#D97706',
-  'Cabe Rawit': '#059669',
-  'Pra Remaja': '#D97706',
-  'Remaja SMA': '#4F46E5',
-  Remaja: '#0D9488',
-};
+   prop opsional. Urutan & warna jenjang dari lib/jenjang.ts (dipakai juga
+   RingkasanDesaGenerus, satu sumber). */
 
 function KartuRingkas({
   label,
@@ -315,6 +309,15 @@ export default function SantriList() {
       </div>
 
       <RingkasanGenerus santri={santri} />
+
+      {/* Perbandingan antar desa (20 Agt, putaran kedelapan) — HANYA
+          admin_ppg. Bukan sensor tambahan: RLS santri sudah membatasi baris
+          yang bisa dibaca admin_desa/admin_kelompok ke scope mereka sendiri,
+          jadi query di RingkasanDesaGenerus tidak akan pernah membocorkan
+          desa lain -- tapi menampilkan tabel "perbandingan 5 desa" yang
+          isinya cuma 1 desa (punya sendiri) utk admin_desa cuma
+          membingungkan, bukan berguna. */}
+      {profile?.role === 'admin_ppg' && <RingkasanDesaGenerus />}
 
       {/* .search-input — Style_Main.html:4290-4298 */}
       <input
