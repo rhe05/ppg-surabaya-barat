@@ -658,7 +658,7 @@ function RiwayatKehadiranContent() {
             <table className="border-separate border-spacing-0">
               <thead>
                 <tr>
-                  <th className="sticky top-0 left-0 z-[4] min-w-[84px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint">
+                  <th className="sticky top-0 left-0 z-[4] min-w-[84px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text">
                     Nama Santri
                   </th>
                   {tanggalList.map((tgl) => {
@@ -666,10 +666,10 @@ function RiwayatKehadiranContent() {
                     return (
                       <th
                         key={tgl}
-                        className="sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text-faint"
+                        className="sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text"
                       >
                         {d.getDate()}
-                        <span className="mt-0.5 block text-[9px] font-semibold text-text-faint">
+                        <span className="mt-0.5 block text-[9px] font-semibold text-text">
                           {HARI_PENDEK[d.getDay()]}
                         </span>
                       </th>
