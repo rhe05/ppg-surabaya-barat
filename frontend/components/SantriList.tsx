@@ -40,6 +40,152 @@ const KOLOM_EKSPOR_SANTRI: { judul: string; ambil: (s: SantriRow) => unknown }[]
 
 const PAGE_SIZE = 10;
 
+/* Kartu ringkasan (20 Agt, putaran kelima) — sengaja tidak dibuat generik
+   krn perbedaan visual antar kartu (warna, progress bar, catatan L/P) tidak
+   seragam; komponen kecil per-jenis lebih jelas drpd satu Kartu dgn banyak
+   prop opsional. Warna dari token app lama (globals.css), BUKAN warna baru
+   yang ditebak. */
+const JENJANG_URUT = ['AUD', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'] as const;
+const WARNA_JENJANG: Record<(typeof JENJANG_URUT)[number], string> = {
+  AUD: '#D97706',
+  'Cabe Rawit': '#059669',
+  'Pra Remaja': '#D97706',
+  'Remaja SMA': '#4F46E5',
+  Remaja: '#0D9488',
+};
+
+function KartuRingkas({
+  label,
+  nilai,
+  nilaiWarna,
+  catatan,
+  lk,
+  pr,
+  persen,
+  warnaBar,
+}: {
+  label: string;
+  nilai: number;
+  nilaiWarna?: string;
+  catatan?: string;
+  lk?: number;
+  pr?: number;
+  persen?: number;
+  warnaBar?: string;
+}) {
+  return (
+    <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)] transition-shadow duration-200 hover:shadow-[0_4px_18px_rgba(15,23,42,0.1)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="truncate text-[11px] font-semibold tracking-[0.5px] text-text-dim uppercase">
+            {label}
+          </div>
+          <div className="mt-1.5 flex items-baseline gap-1.5">
+            <span className="text-[26px] leading-none font-bold" style={{ color: nilaiWarna }}>
+              {nilai}
+            </span>
+            {catatan && <span className="text-[12px] whitespace-nowrap text-text-faint">{catatan}</span>}
+          </div>
+        </div>
+        {(lk !== undefined || pr !== undefined) && (
+          <div className="shrink-0 text-right text-[11px] leading-[1.6] text-text-faint">
+            <div>
+              L <span className="font-semibold text-text-dim">{lk ?? 0}</span>
+            </div>
+            <div>
+              P <span className="font-semibold text-text-dim">{pr ?? 0}</span>
+            </div>
+          </div>
+        )}
+      </div>
+      {persen !== undefined && warnaBar && (
+        <div className="mt-3 h-[3px] w-full overflow-hidden rounded-full bg-panel-2">
+          <div
+            className="h-full rounded-full transition-[width] duration-500"
+            style={{ width: `${persen}%`, background: warnaBar }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RingkasanGenerus({ santri }: { santri: SantriRow[] }) {
+  const total = santri.length;
+  if (total === 0) return null;
+
+  const lk = santri.filter((s) => (s.gender ?? '').toUpperCase() === 'L').length;
+  const pr = santri.filter((s) => (s.gender ?? '').toUpperCase() === 'P').length;
+  const siapNikah = santri.filter((s) => s.status_nikah === 'Siap Nikah');
+  const siapNikahL = siapNikah.filter((s) => (s.gender ?? '').toUpperCase() === 'L').length;
+  const siapNikahP = siapNikah.filter((s) => (s.gender ?? '').toUpperCase() === 'P').length;
+
+  const perJenjang = JENJANG_URUT.map((j) => {
+    const anggota = santri.filter((s) => s.jenjang_saat_ini === j);
+    return {
+      jenjang: j,
+      jumlah: anggota.length,
+      l: anggota.filter((s) => (s.gender ?? '').toUpperCase() === 'L').length,
+      p: anggota.filter((s) => (s.gender ?? '').toUpperCase() === 'P').length,
+    };
+  }).filter((j) => j.jumlah > 0);
+
+  return (
+    <div className="mb-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <KartuRingkas label="Total Generus" nilai={total} nilaiWarna="var(--brass)" catatan="santri" />
+        <KartuRingkas
+          label="Laki-laki"
+          nilai={lk}
+          nilaiWarna="var(--sage)"
+          catatan={total ? `${Math.round((lk / total) * 100)}%` : undefined}
+          persen={total ? (lk / total) * 100 : 0}
+          warnaBar="var(--sage)"
+        />
+        <KartuRingkas
+          label="Perempuan"
+          nilai={pr}
+          nilaiWarna="var(--volt)"
+          catatan={total ? `${Math.round((pr / total) * 100)}%` : undefined}
+          persen={total ? (pr / total) * 100 : 0}
+          warnaBar="var(--volt)"
+        />
+        <KartuRingkas
+          label="Siap Nikah"
+          nilai={siapNikah.length}
+          nilaiWarna="var(--teal)"
+          catatan="generus"
+          lk={siapNikahL}
+          pr={siapNikahP}
+        />
+      </div>
+
+      {perJenjang.length > 0 && (
+        <div
+          className="mt-3 grid grid-cols-2 gap-3"
+          style={{
+            gridTemplateColumns: `repeat(auto-fit, minmax(180px, 1fr))`,
+          }}
+        >
+          {perJenjang.map((j) => (
+            <KartuRingkas
+              key={j.jenjang}
+              label={j.jenjang}
+              nilai={j.jumlah}
+              nilaiWarna={WARNA_JENJANG[j.jenjang]}
+              catatan={total ? `${Math.round((j.jumlah / total) * 100)}%` : undefined}
+              lk={j.l}
+              pr={j.p}
+              persen={total ? (j.jumlah / total) * 100 : 0}
+              warnaBar={WARNA_JENJANG[j.jenjang]}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* Peran yang boleh menulis santri. Cocok dgn policy santri_insert_admin /
    santri_update_admin di produksi — guru sengaja TIDAK termasuk. Di app
    lama guru juga tidak pernah bisa: role 'guru' dikunci ke layar mobile
@@ -131,42 +277,44 @@ export default function SantriList() {
 
   return (
     <div>
-      <div className="mb-5 flex items-center justify-between gap-4">
-        {/* .dash-section-title — Style_Main.html:845-850 */}
-        <div className="text-[20px] font-bold text-text">Santri</div>
-        <div className="flex gap-2">
-          {filtered.length > 0 && (
-            <button
-              onClick={() =>
-                unduhXlsx(
-                  'Data Generus',
-                  KOLOM_EKSPOR_SANTRI.map((k) => k.judul),
-                  filtered.map((s) => KOLOM_EKSPOR_SANTRI.map((k) => k.ambil(s)))
-                )
-              }
-              className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
-            >
-              Ekspor Excel
-            </button>
-          )}
-          {bolehTulis && profile?.scope_kelompok_id && (
-            <button onClick={() => setImporTerbuka(true)} className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border">
-              Impor CSV
-            </button>
-          )}
-          {bolehTulis && (
+      {/* Judul section "Santri" dihapus (diminta owner 20 Agt, putaran
+          kelima) — halaman sudah punya judul "Data Generus - <cakupan>" di
+          header putih (app/santri/page.tsx), jadi duplikat di sini cuma
+          berisik. */}
+      <div className="mb-5 flex items-center justify-end gap-2">
+        {filtered.length > 0 && (
           <button
-            onClick={() => {
-              setSedangDiubah(null);
-              setFormTerbuka(true);
-            }}
-            className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200"
+            onClick={() =>
+              unduhXlsx(
+                'Data Generus',
+                KOLOM_EKSPOR_SANTRI.map((k) => k.judul),
+                filtered.map((s) => KOLOM_EKSPOR_SANTRI.map((k) => k.ambil(s)))
+              )
+            }
+            className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border"
           >
-            + Tambah Santri
+            Ekspor
           </button>
-          )}
-        </div>
+        )}
+        {bolehTulis && profile?.scope_kelompok_id && (
+          <button onClick={() => setImporTerbuka(true)} className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border">
+            Impor CSV
+          </button>
+        )}
+        {bolehTulis && (
+        <button
+          onClick={() => {
+            setSedangDiubah(null);
+            setFormTerbuka(true);
+          }}
+          className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white shadow-[0_1px_2px_rgba(217,119,6,0.3)] transition-all duration-200 hover:brightness-95"
+        >
+          + Generus
+        </button>
+        )}
       </div>
+
+      <RingkasanGenerus santri={santri} />
 
       {/* .search-input — Style_Main.html:4290-4298 */}
       <input
