@@ -4,8 +4,11 @@
    samakan tampilan /reports utk guru dengan screenshot app lama (kartu
    putih besar: ikon dokumen, judul, subjudul, pilih Kelas/Bulan/Tahun,
    catatan H-1, tombol Unduh PDF). Header hero pola sama dgn
-   GuruDashboard.tsx/riwayat/page.tsx, tapi cuma nama (tanpa baris
-   peran/kelompok) — persis screenshot owner.
+   GuruDashboard.tsx/riwayat/page.tsx -- awalnya cuma nama (tanpa baris
+   peran/kelompok, persis screenshot owner saat itu), TAPI di putaran
+   keenam diminta owner ditambah baris "Guru Generus - <singkatan
+   kategori>" + nama kelompok, sama persis Dashboard/Riwayat (lihat
+   PUTARAN KEENAM di bawah).
 
    Aturan H-1 & rumus klasifikasi status per-santri disalin dari app lama:
    - Eligible: iaLaporanCekEligible_ (Script_Main.html:2273-2280) — guru
@@ -59,7 +62,14 @@
    bawahnya. Dua <select> Bulan/Tahun yang sebelumnya nempel di kartu
    bawah DIPINDAH ke popup ikon itu (kartu jadi lebih ringkas, cuma
    pilih Kelas). Pil tanggal-hari-ini terpisah yang dulu ada di bawah
-   header DIHAPUS -- digantikan caption bulan/tahun itu. */
+   header DIHAPUS -- digantikan caption bulan/tahun itu.
+
+   PUTARAN KEENAM (20 Agt, diminta owner): "keterangan di bawah nama
+   guru sama seperti di dashboard dan di riwayat kehadiran" -- baris
+   "Guru Generus - <singkatan kategori>" (SINGKATAN_KATEGORI, sumber
+   Style_Main.html:695-700) + nama kelompok ditambahkan di bawah nama
+   di greeting hero, persis GuruDashboard.tsx/riwayat/page.tsx (dulu
+   sengaja cuma nama, sekarang dibalik). */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
@@ -80,6 +90,14 @@ const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
+
+// Sama persis GuruDashboard.tsx (Style_Main.html:695-700, IA_GURU_KATEGORI_SINGKATAN_).
+const SINGKATAN_KATEGORI: Record<string, string> = {
+  'Muballigh Tugasan': 'MT',
+  'Muballigh Setempat': 'MS',
+  'Guru Mutu': 'GM',
+  'Guru Bantu': 'GB',
+};
 
 const SELECT_KELAS =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
@@ -118,8 +136,10 @@ function jam(v: string | null) {
 }
 
 export default function GuruLaporanView() {
-  const { profile } = useAuth();
+  const { profile, namaKelompok, kategoriGuru } = useAuth();
   const guruId = profile?.guru_id ?? null;
+  const singkatanKategori = kategoriGuru ? (SINGKATAN_KATEGORI[kategoriGuru] ?? kategoriGuru) : null;
+  const barisRole = singkatanKategori ? `Guru Generus - ${singkatanKategori}` : null;
 
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [chooserTerbuka, setChooserTerbuka] = useState(false);
@@ -315,8 +335,8 @@ export default function GuruLaporanView() {
         onTutup={() => setJurnalChooserTerbuka(false)}
       />
 
-      {/* .ia-header — pola sama dgn GuruDashboard.tsx, tapi hero cuma nama
-          (tanpa baris peran/kelompok) persis screenshot owner. */}
+      {/* .ia-header — pola sama persis dgn GuruDashboard.tsx, termasuk
+          greeting 3-baris (nama, peran, kelompok). */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
           <button
@@ -356,8 +376,20 @@ export default function GuruLaporanView() {
             (diminta owner). Pil tanggal-hari-ini terpisah yang dulu ada di
             bawah header DIHAPUS -- digantikan caption ini. */}
         <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-8">
-          <div className="min-w-0 flex-1 text-[20px] leading-[1.2] font-bold text-white">
-            {profile?.display_name ?? '-'}
+          <div className="min-w-0 flex-1">
+            <div className="text-[20px] leading-[1.2] font-bold text-white">
+              {profile?.display_name ?? '-'}
+            </div>
+            {barisRole && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {barisRole}
+              </div>
+            )}
+            {namaKelompok && (
+              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+                {namaKelompok}
+              </div>
+            )}
           </div>
           <div className="flex shrink-0 flex-col items-end gap-[7px]">
             <button
