@@ -1,9 +1,18 @@
 'use client';
 
+/* /reports dipakai DUA peran (RequireAuth.tsx: HALAMAN_GURU) -- guru lewat
+   menu "Laporan" (MenuGuru.tsx), admin lewat sidebar "Laporan & Export"
+   (AdminSidebar.tsx). Diminta owner (20 Agt): tampilan guru disamakan dgn
+   screenshot app lama (kartu Laporan Perkembangan Santri) -- TANPA
+   mengubah tampilan admin, jadi dicabang di sini berdasar profile.role,
+   bukan menimpa ReportsContent yang sudah ada. */
+
 import { useState } from 'react';
 import SantriProgressReport from '@/components/SantriProgressReport';
 import AttendanceSummaryReport from '@/components/AttendanceSummaryReport';
 import RequireAuth from '@/components/RequireAuth';
+import GuruLaporanView from '@/components/laporan/GuruLaporanView';
+import { useAuth } from '@/lib/auth-context';
 
 type Tab = 'progress' | 'summary';
 
@@ -40,10 +49,16 @@ function ReportsContent() {
   );
 }
 
+function ReportsGate() {
+  const { profile } = useAuth();
+  if (profile?.role === 'guru') return <GuruLaporanView />;
+  return <ReportsContent />;
+}
+
 export default function ReportsPage() {
   return (
     <RequireAuth>
-      <ReportsContent />
+      <ReportsGate />
     </RequireAuth>
   );
 }
