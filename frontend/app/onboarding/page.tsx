@@ -3,12 +3,21 @@
 /* Layar pendaftaran akun baru — muncul untuk akun yang sudah punya sesi tapi
    profilnya masih tanpa peran (role NULL), baik dari Google maupun email.
 
-   Bahasa layar ini sengaja "mengajukan", bukan "memilih": apa pun yang
-   ditekan di sini TIDAK memberi akses. Tulisan di kartu tinjauan dan pada
-   tombol kirim mengatakan itu apa adanya, supaya orang tidak menunggu
-   dashboard yang tidak akan terbuka sendiri. Penegakannya ada di DB
-   (migrasi 20260819090000): tabel pendaftaran_akun cuma menyimpan
-   permintaan, hak baru berpindah lewat RPC setujui_pendaftaran().
+   DUA JALUR sejak 20 Agt:
+   1. admin_kelompok / admin_desa / admin_ppg, ATAU guru yang namanya tidak
+      ketemu: "mengajukan", bukan "memilih" -- apa pun yang ditekan di sini
+      TIDAK memberi akses. Tulisan di kartu tinjauan & tombol kirim
+      mengatakan itu apa adanya. Penegakannya di DB (migrasi 20260819090000):
+      tabel pendaftaran_akun cuma menyimpan permintaan, hak baru berpindah
+      lewat RPC setujui_pendaftaran() -- admin di tengah.
+   2. guru yang namanya cocok data guru yang sudah ada: klaim cepat lewat
+      RPC cari_guru_untuk_klaim()/klaim_akun_guru() (migrasi 20260820110000)
+      -- akun LANGSUNG aktif begitu ditekan "Hubungkan akun", TANPA admin di
+      tengah & tanpa verifikasi email. Amannya bukan dari admin yang
+      memeriksa, tapi dari pencocokan ke baris `guru` yang sudah ada
+      (kelompok/identitas tidak bisa dipilih bebas) + guru yang sudah
+      terhubung ke profil lain tidak bisa diklaim ulang -- baca komentar
+      keamanan di kepala migrasinya.
 
    Rangka visual mengikuti .login-card app lama (kartu putih, logo + judul
    hijau, cincin fokus brass) supaya terasa satu keluarga dengan layar Masuk;
@@ -29,6 +38,15 @@ type KelompokTerbuka = {
   nama: string;
   desa_id: number;
   desa: { nama: string } | { nama: string }[] | null;
+};
+
+type KandidatGuru = {
+  guru_id: number;
+  nama: string;
+  kategori: string | null;
+  kelompok_id: number;
+  kelompok_nama: string;
+  desa_nama: string;
 };
 
 type Pendaftaran = {
@@ -158,6 +176,18 @@ export default function OnboardingPage() {
   const [error, setError] = useState<string | null>(null);
   const [mengirim, setMengirim] = useState(false);
 
+  /* Jalur klaim cepat guru (20 Agt): cocokkan nama ke tabel `guru` yang
+     sudah ada, langsung hubungkan akun -- tanpa kelompok manual, tanpa
+     menunggu admin. 'idle' = belum cari, 'mencari' = sedang RPC,
+     'hasil' = kandidatGuru sudah terisi (boleh kosong = tidak ketemu),
+     'manual' = pemohon memilih jalur lama (isi kelompok sendiri). */
+  const [carianGuru, setCarianGuru] = useState<'idle' | 'mencari' | 'hasil' | 'manual'>('idle');
+  const [kandidatGuru, setKandidatGuru] = useState<KandidatGuru[]>([]);
+  const [guruTerpilih, setGuruTerpilih] = useState<number | null>(null);
+  const [errorCari, setErrorCari] = useState<string | null>(null);
+  const [mengklaim, setMengklaim] = useState(false);
+  const [errorKlaim, setErrorKlaim] = useState<string | null>(null);
+
   /* Sudah punya peran = tidak ada yang perlu didaftarkan lagi. */
   useEffect(() => {
     if (profile?.role) router.replace('/dashboard');
@@ -231,6 +261,61 @@ export default function OnboardingPage() {
        akan jadi kegagalan yang membingungkan kalau dibiarkan menempel. */
     setKelompokId(null);
     setDesaId(null);
+    // Pencarian guru lama juga dibuang -- pindah peran lalu balik ke 'guru'
+    // seharusnya mulai dari awal, bukan menampilkan kandidat basi.
+    setCarianGuru('idle');
+    setKandidatGuru([]);
+    setGuruTerpilih(null);
+    setErrorCari(null);
+    setErrorKlaim(null);
+  }
+
+  async function cariGuru() {
+    if (!namaValid) return;
+    setErrorCari(null);
+    setCarianGuru('mencari');
+    setKandidatGuru([]);
+    setGuruTerpilih(null);
+    try {
+      const { data, error: errCari } = await supabase.rpc('cari_guru_untuk_klaim', {
+        p_nama: nama.trim(),
+      });
+      if (errCari) {
+        setErrorCari(errCari.message);
+        setCarianGuru('idle');
+        return;
+      }
+      setKandidatGuru((data ?? []) as KandidatGuru[]);
+      setCarianGuru('hasil');
+    } catch {
+      setErrorCari('Gagal terhubung ke server — periksa koneksi Anda');
+      setCarianGuru('idle');
+    }
+  }
+
+  async function klaimGuru(guruId: number) {
+    setErrorKlaim(null);
+    setMengklaim(true);
+    try {
+      const { error: errKlaim } = await supabase.rpc('klaim_akun_guru', {
+        p_guru_id: guruId,
+        p_nama: nama.trim(),
+      });
+      if (errKlaim) {
+        setErrorKlaim(errKlaim.message);
+        return;
+      }
+      // Klaim menulis profiles LANGSUNG (bukan lewat perubahan sesi), dan
+      // AuthProvider hanya memuat ulang profil saat session berubah --
+      // navigasi keras ke /dashboard adalah cara termurah yang benar-benar
+      // menampilkan peran baru (sama seperti tombol "Periksa status
+      // persetujuan" di layar menunggu di bawah).
+      window.location.assign('/dashboard');
+    } catch {
+      setErrorKlaim('Gagal terhubung ke server — periksa koneksi Anda');
+    } finally {
+      setMengklaim(false);
+    }
   }
 
   async function kirim() {
@@ -379,7 +464,9 @@ export default function OnboardingPage() {
               className={KELAS_INPUT}
             />
             <p className="mt-1.5 text-[12px] text-text-faint">
-              Nama ini yang muncul di aplikasi dan dilihat admin saat menyetujui.
+              {peran === 'guru' && carianGuru !== 'manual'
+                ? 'Ketik nama lengkap Anda seperti yang admin catat, lalu cari di bawah.'
+                : 'Nama ini yang muncul di aplikasi dan dilihat admin saat menyetujui.'}
             </p>
           </div>
 
@@ -398,7 +485,95 @@ export default function OnboardingPage() {
             </div>
           </div>
 
-          {lingkup === 'kelompok' && (
+          {/* Jalur klaim cepat guru (20 Agt): ganti picker Kelompok dgn
+              pencarian nama ke tabel guru yang sudah ada -- tidak perlu
+              admin, tidak perlu verifikasi email. Kalau tidak ketemu,
+              "Daftar manual" turun ke picker Kelompok yang sama seperti
+              admin_kelompok (alur lama, menunggu persetujuan admin). */}
+          {lingkup === 'kelompok' && peran === 'guru' && carianGuru !== 'manual' && (
+            <div className="mb-5">
+              <p className="mb-2 text-[12px] font-medium text-text-dim">Hubungkan ke data guru</p>
+              <p className="mb-3 text-[12.5px] text-text-dim">
+                Nama di atas akan dicocokkan ke data guru yang sudah terdaftar. Besar/kecil huruf
+                tidak masalah.
+              </p>
+
+              <button
+                type="button"
+                disabled={!namaValid || carianGuru === 'mencari'}
+                onClick={cariGuru}
+                className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-[#FFFBEB] px-4 py-3 text-[13.5px] font-semibold text-brass disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {carianGuru === 'mencari' ? 'Mencari...' : 'Cari data saya'}
+              </button>
+
+              {errorCari && (
+                <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+                  {errorCari}
+                </p>
+              )}
+
+              {carianGuru === 'hasil' && kandidatGuru.length === 0 && (
+                <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text-dim">
+                  Nama <span className="font-semibold text-text">&ldquo;{nama.trim()}&rdquo;</span>{' '}
+                  tidak ditemukan di data guru yang sudah terdaftar. Periksa lagi ejaannya, atau
+                  daftar manual di bawah.
+                </div>
+              )}
+
+              {carianGuru === 'hasil' && kandidatGuru.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-2 text-[12px] font-medium text-text-dim">
+                    {kandidatGuru.length === 1
+                      ? 'Ditemukan satu data yang cocok:'
+                      : `Ditemukan ${kandidatGuru.length} data dengan nama ini — pilih yang mana Anda:`}
+                  </p>
+                  <div className="grid gap-2">
+                    {kandidatGuru.map((k) => (
+                      <KartuPilihan
+                        key={k.guru_id}
+                        terpilih={guruTerpilih === k.guru_id}
+                        judul={k.kelompok_nama}
+                        ringkas={`Desa ${k.desa_nama}${k.kategori ? ` · ${k.kategori}` : ''}`}
+                        onClick={() => {
+                          setGuruTerpilih(k.guru_id);
+                          setErrorKlaim(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {errorKlaim && (
+                    <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+                      {errorKlaim}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={guruTerpilih === null || mengklaim}
+                    onClick={() => guruTerpilih !== null && klaimGuru(guruTerpilih)}
+                    className="mt-3 w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brand-green px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {mengklaim ? 'Menghubungkan...' : 'Ya, ini saya — Hubungkan akun'}
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCarianGuru('manual');
+                  setErrorCari(null);
+                }}
+                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text-dim hover:text-brass hover:underline"
+              >
+                Tidak ketemu / bukan saya — daftar manual
+              </button>
+            </div>
+          )}
+
+          {lingkup === 'kelompok' && (peran !== 'guru' || carianGuru === 'manual') && (
             <div className="mb-5">
               <p className="mb-2 text-[12px] font-medium text-text-dim">Kelompok</p>
               <div className="grid gap-2">
@@ -454,14 +629,20 @@ export default function OnboardingPage() {
             </p>
           )}
 
-          <button
-            type="button"
-            disabled={!namaValid || !peran || !scopeTerisi}
-            onClick={() => setLangkah(2)}
-            className="w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brass px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Lanjut
-          </button>
+          {/* Jalur klaim cepat guru tidak lewat langkah 2 -- "Hubungkan akun"
+              di atas sudah langsung menuntaskan, jadi tombol Lanjut cuma
+              membingungkan (dan scopeTerisi selalu false utk guru krn
+              kelompokId sengaja tidak pernah diisi di jalur ini). */}
+          {!(peran === 'guru' && carianGuru !== 'manual') && (
+            <button
+              type="button"
+              disabled={!namaValid || !peran || !scopeTerisi}
+              onClick={() => setLangkah(2)}
+              className="w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brass px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Lanjut
+            </button>
+          )}
           <button
             type="button"
             onClick={keluar}
