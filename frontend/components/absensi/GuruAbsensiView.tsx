@@ -415,19 +415,6 @@ export default function GuruAbsensiView({
                     {k.pinjam && <span className="mr-0.5 text-[11px]">🔓</span>}
                     {k.nama}
                   </span>
-                  {namaDariKategori(k.kategori_kbm) === 'Cabe Rawit' && (
-                    <span className="text-[11px] font-semibold whitespace-nowrap text-text-dim">
-                      · Cabe Rawit
-                    </span>
-                  )}
-                  <span
-                    className={`min-w-[18px] rounded-[var(--radius-button)] px-1.5 py-0.5 text-center text-[10.5px] font-bold ${
-                      inii ? 'text-white' : 'bg-panel-2 text-text-dim'
-                    }`}
-                    style={inii ? { background: 'var(--sage)' } : undefined}
-                  >
-                    {k.santri_count}
-                  </span>
                 </button>
               );
             })}
