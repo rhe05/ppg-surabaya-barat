@@ -34,7 +34,13 @@
    lama -- lihat komentar di sana). Hasilnya PDF = render browser asli
    dari markup yang SAMA PERSIS tampil di layar, klien murni (tanpa
    panggilan Supabase tambahan saat cetak, datanya sudah di state),
-   tanpa backend baru, tanpa render server, instan, gratis. */
+   tanpa backend baru, tanpa render server, instan, gratis.
+
+   PUTARAN KETIGA (20 Agt, diminta owner): laporan WAJIB per kelas --
+   opsi "Semua Kelas" DIHAPUS. Pegang 1 kelas -> otomatis terpilih (bukan
+   pilihan, cuma satu kemungkinan); pegang >1 kelas -> wajib pilih manual
+   sebelum tombol "Unduh PDF" aktif (sama persis
+   components/SantriProgressReport.tsx, padanan admin desktop). */
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
@@ -148,7 +154,14 @@ export default function GuruLaporanView() {
       .eq('guru_id', guruId)
       .is('deleted_at', null)
       .order('nama')
-      .then(({ data }) => setKelasList((data ?? []) as Kelas[]));
+      .then(({ data }) => {
+        const list = (data ?? []) as Kelas[];
+        setKelasList(list);
+        // Pegang 1 kelas -> otomatis terpilih (bukan pilihan, cuma satu
+        // kemungkinan). Pegang >1 kelas -> WAJIB dipilih manual (diminta
+        // owner: laporan wajib per kelas, tidak boleh "Semua Kelas").
+        setKelasId(list.length === 1 ? list[0].id : '');
+      });
   }, [guruId]);
 
   const { eligible, lastDay } = cekEligible(bulan, tahun);
@@ -164,8 +177,16 @@ export default function GuruLaporanView() {
   }, [laporan]);
 
   const buatLaporan = useCallback(async () => {
-    const kelasIds = kelasId === '' ? kelasList.map((k) => k.id) : [kelasId];
-    if (kelasIds.length === 0) throw new Error('Belum ada kelas yang terdaftar atas nama Anda.');
+    // WAJIB satu kelas (diminta owner) -- tidak ada lagi jalur "gabungan
+    // semua kelas".
+    if (kelasId === '') {
+      throw new Error(
+        kelasList.length === 0
+          ? 'Belum ada kelas yang terdaftar atas nama Anda.'
+          : 'Pilih kelas terlebih dahulu — laporan wajib per kelas.',
+      );
+    }
+    const kelasIds = [kelasId];
 
     const { data: dSantri, error: eSantri } = await supabase
       .from('santri')
@@ -438,7 +459,7 @@ export default function GuruLaporanView() {
               onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
               className={SELECT_KELAS}
             >
-              <option value="">Semua Kelas</option>
+              <option value="">-- Pilih Kelas --</option>
               {kelasList.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.nama}
@@ -483,7 +504,7 @@ export default function GuruLaporanView() {
 
           <button
             type="button"
-            disabled={!eligible || membuat}
+            disabled={!eligible || membuat || kelasId === ''}
             onClick={siapkanLaporan}
             className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
             style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}

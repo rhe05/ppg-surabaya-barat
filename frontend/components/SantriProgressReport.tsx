@@ -9,8 +9,7 @@
    Bentuk & rumus disalin dari tab desktop app lama (Markup_Screens.html
    ~3332-3369, Script_Main.html:6600-6797 window.loadLaporanPerkembangan-
    SantriHtml_/lpsBuildBodyHtml_/LPS_STATUS_WARNA_HEX_):
-   - Toolbar: pilih Guru -> Kelas (kalau guru pegang >1 kelas) -> Bulan ->
-     Tahun -> "Buat Laporan".
+   - Toolbar: pilih Guru -> Kelas -> Bulan -> Tahun -> "Buat Laporan".
    - Hasil: judul+periode tengah, blok info Guru/Kelas/Jadwal/Ruangan
      2-kolom, 5 kartu metrik (Hari Aktif/Kehadiran/Izin/Alpa/Sakit), tabel
      detail per santri.
@@ -39,6 +38,16 @@
    tampilan web, klien murni (tanpa panggilan Supabase tambahan sama
    sekali saat unduh, datanya sudah ada di state dari "Buat Laporan"),
    tanpa backend baru, tanpa render server, instan, gratis.
+
+   PUTARAN KETIGA (20 Agt, diminta owner): dua aturan tambahan, sama
+   persis dgn GuruLaporanView.tsx --
+   1. Laporan WAJIB per kelas -- opsi "Semua Kelas" DIHAPUS. Guru dgn 1
+      kelas otomatis terpilih (bukan pilihan, cuma satu kemungkinan);
+      guru dgn >1 kelas wajib pilih manual sebelum "Buat Laporan" aktif.
+   2. "Unduh PDF" dikunci H-1 (cekEligible, sama rumus dgn
+      iaLaporanCekEligible_) -- sebelumnya cuma dipasang di guru mobile,
+      sekarang berlaku jg di desktop admin. "Buat Laporan" (preview)
+      TETAP boleh kapan saja, cuma tombol cetaknya yang dikunci.
    bebas spt app lama. Data guru/kelas SUDAH scoped RLS (pola sama dgn
    GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual). */
 
@@ -96,6 +105,18 @@ function jam(v: string | null) {
   return v ? v.slice(0, 5) : null;
 }
 
+// iaLaporanCekEligible_ (Script_Main.html:2273-2280) — sama persis dgn
+// components/laporan/GuruLaporanView.tsx, diminta owner berlaku jg di
+// desktop admin (sebelumnya cuma dipasang di guru mobile): laporan 1
+// bulan baru boleh diunduh mulai H-1 sebelum akhir bulan itu.
+function cekEligible(bulan: number, tahun: number) {
+  const lastDay = new Date(tahun, bulan, 0).getDate();
+  const dua = (n: number) => String(n).padStart(2, '0');
+  const h1 = `${tahun}-${dua(bulan)}-${dua(lastDay - 1)}`;
+  const hariIni = new Date().toISOString().slice(0, 10);
+  return { eligible: hariIni >= h1, lastDay };
+}
+
 function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
   if (total === 0) return 'Belum Ada Data';
   const persen = Math.round((hadir / total) * 100);
@@ -132,6 +153,8 @@ export default function SantriProgressReport() {
   const [membuat, setMembuat] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { eligible, lastDay } = cekEligible(bulan, tahun);
+
   useEffect(() => {
     supabase
       .from('guru')
@@ -154,7 +177,15 @@ export default function SantriProgressReport() {
       .eq('guru_id', guruId)
       .is('deleted_at', null)
       .order('nama')
-      .then(({ data }) => setKelasList((data ?? []) as Kelas[]));
+      .then(({ data }) => {
+        const list = (data ?? []) as Kelas[];
+        setKelasList(list);
+        // Guru pegang 1 kelas -> otomatis terpilih (bukan "pilihan", cuma
+        // satu-satunya kemungkinan). Guru pegang >1 kelas -> WAJIB dipilih
+        // manual (diminta owner: laporan wajib per kelas, tidak boleh
+        // "Semua Kelas" -- lihat komentar di kepala berkas).
+        setKelasId(list.length === 1 ? list[0].id : '');
+      });
   }, [guruId]);
 
   const buatLaporan = useCallback(async () => {
@@ -162,13 +193,18 @@ export default function SantriProgressReport() {
       setError('Pilih guru terlebih dahulu.');
       return;
     }
+    if (kelasId === '') {
+      setError(kelasList.length === 0 ? 'Guru ini belum punya kelas.' : 'Pilih kelas terlebih dahulu — laporan wajib per kelas.');
+      return;
+    }
     setError(null);
     setMembuat(true);
     setLaporan(null);
     try {
-      const kelasDipakai = kelasId === '' ? kelasList : kelasList.filter((k) => k.id === kelasId);
+      // WAJIB satu kelas (diminta owner) -- tidak ada lagi jalur "gabungan
+      // semua kelas guru".
+      const kelasDipakai = kelasList.filter((k) => k.id === kelasId);
       const kelasIds = kelasDipakai.map((k) => k.id);
-      if (kelasIds.length === 0) throw new Error('Guru ini belum punya kelas.');
 
       const { data: dSantri, error: eSantri } = await supabase
         .from('santri')
@@ -296,7 +332,7 @@ export default function SantriProgressReport() {
           </select>
         </div>
 
-        {kelasList.length > 1 && (
+        {guruId !== '' && (
           <div>
             <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">Kelas</label>
             <select
@@ -304,7 +340,7 @@ export default function SantriProgressReport() {
               onChange={(e) => setKelasId(e.target.value === '' ? '' : Number(e.target.value))}
               className={`${SELECT_FILTER} min-w-[160px]`}
             >
-              <option value="">Semua Kelas</option>
+              <option value="">-- Pilih Kelas --</option>
               {kelasList.map((k) => (
                 <option key={k.id} value={k.id}>
                   {k.nama}
@@ -338,7 +374,7 @@ export default function SantriProgressReport() {
 
         <button
           type="button"
-          disabled={membuat}
+          disabled={membuat || guruId === '' || kelasId === ''}
           onClick={buatLaporan}
           className="cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -347,7 +383,7 @@ export default function SantriProgressReport() {
 
         <button
           type="button"
-          disabled={!laporan}
+          disabled={!laporan || !eligible}
           onClick={unduhPdf}
           className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -355,7 +391,18 @@ export default function SantriProgressReport() {
         </button>
       </div>
 
-      {laporan && (
+      {/* H-1: iaLaporanCekEligible_ sama persis dgn GuruLaporanView.tsx --
+          diminta owner berlaku jg di desktop admin. Cuma tombol "Unduh
+          PDF" yg dikunci; "Buat Laporan" (preview) tetap boleh kapan saja
+          supaya admin masih bisa memantau progres bulan berjalan. */}
+      {!eligible && (
+        <div className="mb-4 rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-[12.5px] text-[#92400E]">
+          ⏳ Laporan {NAMA_BULAN[bulan - 1]} {tahun} baru bisa diunduh mulai tanggal {lastDay - 1} atau{' '}
+          {lastDay} {NAMA_BULAN[bulan - 1]} (H-1 sebelum akhir bulan).
+        </div>
+      )}
+
+      {laporan && eligible && (
         <p className="mb-4 text-[11.5px] text-text-faint print:hidden">
           Membuka dialog cetak browser — pilih tujuan &ldquo;Simpan sebagai PDF&rdquo;.
         </p>
@@ -365,7 +412,7 @@ export default function SantriProgressReport() {
 
       {!laporan && !error && (
         <div className="rounded-card border border-border bg-panel py-16 text-center text-[13px] text-text-faint shadow-[var(--shadow-card)]">
-          Pilih guru &amp; periode, lalu klik &ldquo;Buat Laporan&rdquo;.
+          Pilih guru, kelas, &amp; periode, lalu klik &ldquo;Buat Laporan&rdquo;.
         </div>
       )}
 
