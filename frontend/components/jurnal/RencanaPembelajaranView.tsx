@@ -271,7 +271,7 @@ export default function RencanaPembelajaranView() {
             sejajar dgn judul "Rencana Pembelajaran". Posisi popup dihitung
             dari getBoundingClientRect() ikon, teknik SAMA PERSIS
             GuruDashboard.tsx. */}
-        <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <div className="pt-1.5 text-[17px] font-extrabold text-text">Rencana Pembelajaran</div>
           <div className="flex shrink-0 flex-col items-end gap-1">
             <button
