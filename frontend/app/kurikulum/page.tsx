@@ -789,22 +789,29 @@ function KurikulumContent() {
                       cukup jadi affordance-nya sendiri. */}
                   <div className="min-w-0 flex-1">
                     <span className="text-[16px] font-bold text-text">{namaTampil}</span>
+                    {/* Label "Semester 1"/"Semester 2" -- SEMENTARA khusus
+                        materi Bacaan Al-Qur'an (kategori lain tetap tanpa
+                        label, tidak disentuh), warnanya disamakan dgn
+                        "Semester N" di kartu Promes (teks polos, sage,
+                        tanpa bungkus pil). */}
+                    {namaAsli === KATEGORI_BACAAN_ALQURAN && (
+                      <div className="mt-1 text-[10.5px] font-bold text-sage">Semester 1</div>
+                    )}
                     <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
                     {p.deskripsi && (
-                      <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
-                        {p.deskripsi}
-                      </div>
+                      <div className="mt-1 whitespace-pre-line text-[12px] text-text">{p.deskripsi}</div>
                     )}
                     {/* Target/Deskripsi KEDUA -- cuma tampil kalau memang
                         sudah diisi (skrg khusus materi Bacaan Al-Qur'an,
-                        lihat migrasi 20260822090000). TANPA label "Target
-                        2"/"Deskripsi 2" (diminta owner) -- isinya saja,
-                        cuma dipisah garis dari pasangan pertama di atasnya. */}
+                        lihat migrasi 20260822090000). */}
                     {(p.target2 || p.deskripsi2) && (
                       <div className="mt-2 border-t border-border pt-2">
-                        {p.target2 && <div className="text-[13px] text-text">{p.target2}</div>}
+                        {namaAsli === KATEGORI_BACAAN_ALQURAN && (
+                          <div className="text-[10.5px] font-bold text-sage">Semester 2</div>
+                        )}
+                        {p.target2 && <div className="mt-1 text-[13px] text-text">{p.target2}</div>}
                         {p.deskripsi2 && (
-                          <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
+                          <div className="mt-1 whitespace-pre-line text-[12px] text-text">
                             {p.deskripsi2}
                           </div>
                         )}
