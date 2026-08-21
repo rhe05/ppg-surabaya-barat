@@ -852,21 +852,23 @@ function KurikulumContent() {
                                   baris di bawahnya lewat template kolom
                                   yang SAMA persis. */}
                               <div className="grid grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] gap-3 px-3 pb-2">
-                                {['Bulan', 'Jilid'].map((h) => (
-                                  <div key={h} className="text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                {/* "Jilid" -> "Tilawati" khusus PAUD/TK s.d. kelas 3
+                                    (metode Tilawati) -- kelas lain tetap "Jilid". */}
+                                {['Bulan', ['PAUD-TK', '1', '2', '3'].includes(kelas ?? '') ? 'Tilawati' : 'Jilid'].map((h) => (
+                                  <div key={h} className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                     {h}
                                   </div>
                                 ))}
                                 {[1, 2, 3, 4].map((n) => (
                                   <div key={n}>
-                                    <div className="text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                    <div className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                       Mg {n}
                                     </div>
-                                    <div className="text-[10px] text-text-faint">Minggu {n}</div>
+                                    <div className="text-[10px] text-text">Minggu {n}</div>
                                   </div>
                                 ))}
                                 {bolehTulis && (
-                                  <div className="text-right text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                  <div className="text-right text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                     Aksi
                                   </div>
                                 )}
@@ -900,17 +902,12 @@ function KurikulumContent() {
                                             {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
                                           </div>
                                           {b.target && (
-                                            <div className="text-[10.5px] text-text-faint">
-                                              Target <span className="font-bold text-text-dim">{b.target}</span>
-                                            </div>
+                                            <div className="text-[12px] font-bold text-text">{b.target}</div>
                                           )}
                                         </div>
 
                                         {/* Jilid */}
                                         <div className="min-w-0">
-                                          <div className="truncate text-[11px] text-text-faint">
-                                            {namaDari(p.kategori_kbm)}
-                                          </div>
                                           {evaluasi ? (
                                             <div className="text-[12.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
                                               {b.jilid}
