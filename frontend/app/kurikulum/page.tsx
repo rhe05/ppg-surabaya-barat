@@ -61,7 +61,7 @@ const NAMA_BULAN = [
    penuh di atas tetap dipakai apa adanya di tempat lain (judul modal
    Ubah/Pencapaian, dst), tidak ikut disingkat. */
 const NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-/* Label bulan Probul KHUSUS materi Bacaan Al-Qur'an kelas 1-3 -- murni
+/* Label bulan Probul KHUSUS materi Bacaan Al-Qur'an PAUD/TK & kelas 1-3 -- murni
    ganti NAMA yang ditampilkan (posisi ke-N dalam semester), TIDAK
    menyentuh nomor `bulan` asli di DB, urutan, atau semester-nya sama
    sekali. Semester 1 ditampilkan Jul-Des, semester 2 Jan-Jun (kalender
@@ -69,7 +69,7 @@ const NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ag
    1-6/semester2=bulan7-12 yang tersimpan di DB (dipertahankan apa
    adanya krn urutan & pengelompokan tetap harus konsisten dgn
    TargetBulanan.tsx). */
-const KELAS_BULAN_AKADEMIK_BACAAN = ['1', '2', '3'];
+const KELAS_BULAN_AKADEMIK_BACAAN = ['PAUD-TK', '1', '2', '3'];
 const BULAN_AKADEMIK_SEMESTER: Record<number, string[]> = {
   1: ['Jul', 'Ags', 'Sep', 'Okt', 'Nop', 'Des'],
   2: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
