@@ -149,10 +149,18 @@ function Bagian({ judul, children }: { judul: string; children: React.ReactNode 
 
 export default function SantriForm({
   santri,
+  kelasNgajiTerkunci,
   onSelesai,
   onBatal,
 }: {
   santri: SantriRow | null;
+  /* Dipakai layar Data Generus (guru, mobile): guru masuk lewat SATU kelas
+     yang sudah dipilih di layar sebelumnya (KelasGate), jadi field Kelas
+     Ngaji dikunci ke situ -- bukan dropdown bebas seperti admin. RLS
+     (santri_update_guru, tambah_santri cabang guru -- migrasi 20260821120000)
+     tetap menolak kalau kelas ini bukan milik guru yang sedang login, jadi
+     penguncian di sini kenyamanan, bukan satu-satunya pengaman. */
+  kelasNgajiTerkunci?: string;
   onSelesai: () => void;
   onBatal: () => void;
 }) {
@@ -165,16 +173,22 @@ export default function SantriForm({
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* admin_kelompok terkunci ke kelompoknya; admin_desa/admin_ppg memilih.
-     Pilihan di luar scope tetap ditolak RPC tambah_santri, jadi dropdown
-     ini kenyamanan, bukan pengaman. */
-  const kelompokTerkunci = profile?.role === 'admin_kelompok';
+  /* admin_kelompok & guru terkunci ke kelompoknya sendiri; admin_desa/
+     admin_ppg memilih bebas. Pilihan di luar scope tetap ditolak RPC
+     tambah_santri, jadi dropdown ini kenyamanan, bukan pengaman. */
+  const kelompokTerkunci = profile?.role === 'admin_kelompok' || profile?.role === 'guru';
 
   useEffect(() => {
     if (kelompokTerkunci && profile?.scope_kelompok_id != null && !modeUbah) {
       setIsian((s) => ({ ...s, kelompok_id: String(profile.scope_kelompok_id) }));
     }
   }, [kelompokTerkunci, profile?.scope_kelompok_id, modeUbah]);
+
+  useEffect(() => {
+    if (kelasNgajiTerkunci && !modeUbah) {
+      setIsian((s) => ({ ...s, kelas_ngaji: kelasNgajiTerkunci }));
+    }
+  }, [kelasNgajiTerkunci, modeUbah]);
 
   useEffect(() => {
     let cancelled = false;
@@ -441,7 +455,7 @@ export default function SantriForm({
             <select
               className={KELAS_INPUT}
               value={isian.kelas_ngaji}
-              disabled={!isian.kelompok_id}
+              disabled={!isian.kelompok_id || !!kelasNgajiTerkunci}
               onChange={(e) => ubah('kelas_ngaji', e.target.value)}
             >
               <option value="">

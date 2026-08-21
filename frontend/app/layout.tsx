@@ -3,9 +3,9 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 
 export const metadata: Metadata = {
-  title: "Ruang Ngaji — Aplikasi Manajemen TPQ",
+  title: "Ruang Ngaji — Platform Manajemen Ngaji",
   description:
-    "Aplikasi manajemen TPQ PPG Surabaya Barat — absensi, kelas, dan laporan.",
+    "Platform manajemen ngaji PPG Surabaya Barat — absensi, kelas, dan laporan.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

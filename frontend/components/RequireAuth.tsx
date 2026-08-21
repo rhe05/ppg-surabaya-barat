@@ -14,7 +14,15 @@ import AdminSidebar from '@/components/dashboard/AdminSidebar';
    HALAMAN mana yang terbuka — tanpa daftar ini, guru yang mengetik /statistik
    atau /pendaftaran tetap masuk dan bertemu layar admin (yang isinya kosong
    atau ditolak), bukan pesan yang jelas. */
-const HALAMAN_GURU = ['/dashboard', '/absensi', '/jurnal', '/kurikulum', '/guru-saya', '/reports'];
+const HALAMAN_GURU = [
+  '/dashboard',
+  '/absensi',
+  '/jurnal',
+  '/kurikulum',
+  '/guru-saya',
+  '/reports',
+  '/santri-saya',
+];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, profile, loading } = useAuth();
