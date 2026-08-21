@@ -34,7 +34,6 @@ import {
   MoreVertical,
   Pencil,
   Plus,
-  Star,
   Target,
   GraduationCap,
 } from 'lucide-react';
@@ -133,13 +132,14 @@ function PilMinggu({ nilai }: { nilai: string | null }) {
   if (!nilai) return <span className="text-[11px] text-text-faint">—</span>;
   const evaluasi = adalahEvaluasi(nilai);
   if (evaluasi) {
+    /* Tanpa ikon bintang + teks disingkat "Eva" (bukan "Evaluasi") --
+       diminta owner khusus tampilan mobile, biar pil-nya lebih ringkas. */
     return (
       <span
-        className="flex w-full items-center justify-center gap-1 rounded-[10px] border px-1.5 py-1 text-[11px] font-semibold whitespace-nowrap"
+        className="flex w-full items-center justify-center rounded-[10px] border px-1.5 py-1 text-[11px] font-semibold whitespace-nowrap"
         style={{ background: EVALUASI_INDIGO.bg, borderColor: EVALUASI_INDIGO.border, color: EVALUASI_INDIGO.teks }}
       >
-        <Star size={11} strokeWidth={2} fill="currentColor" />
-        {nilai}
+        Eva
       </span>
     );
   }
@@ -866,18 +866,15 @@ function KurikulumContent() {
                                   yang sama, dijamin segaris. */}
                               <div className="flex gap-3 pb-2">
                                 <div className="w-2 shrink-0" />
-                                <div className="grid flex-1 grid-cols-[46px_1fr_repeat(4,0.85fr)_68px] gap-2 px-3">
+                                <div className="grid flex-1 grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] gap-2 px-3">
                                   {['Bulan', 'Target'].map((h) => (
                                     <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                       {h}
                                     </div>
                                   ))}
                                   {[1, 2, 3, 4].map((n) => (
-                                    <div key={n} className="text-center">
-                                      <div className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                        Mg {n}
-                                      </div>
-                                      <div className="text-[10px] text-text">Minggu {n}</div>
+                                    <div key={n} className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text">
+                                      Minggu {n}
                                     </div>
                                   ))}
                                   {bolehTulis && (
@@ -903,7 +900,7 @@ function KurikulumContent() {
                                         <span className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-text-faint ring-4 ring-bg" />
                                       </div>
 
-                                      <div className="grid flex-1 grid-cols-[46px_1fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
+                                      <div className="grid flex-1 grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
                                         {/* Bulan -- teks langsung, TANPA lingkaran/ikon
                                             dekoratif: nama bulan sudah swa-jelas, ikon
                                             kalender yang identik di tiap baris cuma
@@ -925,8 +922,11 @@ function KurikulumContent() {
                                             bulan, sekarang pindah ke kolomnya sendiri
                                             (dulu berlabel Jilid/Tilawati). Warna brass
                                             dipertahankan apa adanya, font sedikit
-                                            diperkecil dari 12.5px -> 11.5px. */}
-                                        <div className="min-w-0 text-center">
+                                            diperkecil dari 12.5px -> 11.5px. Rata kiri
+                                            (bukan center) supaya lebih dempet ke kolom
+                                            Bulan -- sama spt pola kolom Bulan sendiri
+                                            (header tetap center, isi rata kiri). */}
+                                        <div className="min-w-0 text-left">
                                           {evaluasiTarget ? (
                                             <div className="text-[11.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
                                               {b.target}
