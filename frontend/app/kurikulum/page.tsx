@@ -767,13 +767,15 @@ function KurikulumContent() {
                     )}
                   </div>
                 </button>
-                {/* Badge jumlah semester SELALU di kanan atas kartu -- posisi
-                    tetap baik utk guru (bolehTulis=false, tidak ada baris
-                    aksi di bawahnya) maupun admin (baris aksi menyusul tepat
-                    di bawah badge, sama2 rata kanan). */}
+                {/* Badge "Prota" SELALU di kanan atas kartu -- posisi tetap
+                    baik utk guru (bolehTulis=false, tidak ada baris aksi di
+                    bawahnya) maupun admin (baris aksi menyusul tepat di
+                    bawah badge, sama2 rata kanan). Dulu menampilkan jumlah
+                    semester ("2 semester") -- diganti label level "Prota"
+                    apa adanya. */}
                 <div className="flex shrink-0 flex-col items-end gap-1.5">
                   <span className="rounded-full bg-[rgba(79,70,229,0.1)] px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap text-indigo">
-                    {daftarPromes.length} semester
+                    Prota
                   </span>
                   {bolehTulis && (
                     <div className="flex items-center gap-0.5">
@@ -813,9 +815,15 @@ function KurikulumContent() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[10.5px] font-bold text-sage">
-                              Semester {s.semester}
-                            </span>
+                            {/* Label "Promes" ditaruh sejajar/lurus dgn badge
+                                "Semester N" di baris yang sama, rata kanan
+                                blok ini (diminta owner). */}
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[10.5px] font-bold text-sage">
+                                Semester {s.semester}
+                              </span>
+                              <span className="text-[10.5px] font-bold text-text-dim">Promes</span>
+                            </div>
                             <div className="mt-1.5 text-[13px] text-text">{s.target || '—'}</div>
                             {s.deskripsi && (
                               <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
