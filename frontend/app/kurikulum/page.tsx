@@ -270,7 +270,16 @@ function KurikulumContent() {
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const [ubah, setUbah] = useState<
-    { judul: string; tabel: string; id: number; isian: Isian[] } | null
+    {
+      judul: string;
+      tabel: string;
+      id: number;
+      isian: Isian[];
+      /* Dipakai HANYA saat tabel === 'kurikulum_probul' -- konteks utk
+         "jilid bulan pertama otomatis disalin ke bulan 2-5" di simpanUbah()
+         di bawah. */
+      probulContext?: { bulan: number; promesId: number };
+    } | null
   >(null);
   const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
   const [tambahKategori, setTambahKategori] = useState<string>('');
@@ -396,6 +405,28 @@ function KurikulumContent() {
     if (!ubah) return;
     const { error: err } = await supabase.from(ubah.tabel).update(patch).eq('id', ubah.id);
     if (err) throw new Error(err.message);
+
+    /* Bulan PERTAMA semester (posisi 1 dari 6 -- lihat bulanAwal di
+       TargetBulanan.tsx) yang barusan diberi Jilid -> salin ke bulan
+       posisi 2-5 semester yang SAMA (posisi 6 sengaja dilewati, bulan
+       terakhir semester biasanya evaluasi/ujian, bukan lanjutan jilid).
+       HANYA menyalin ke bulan yang barisnya sudah ada (probulAda) --
+       tidak membuat baris baru, sama spt aturan TargetBulanan.tsx.
+       Bukan penguncian permanen: bulan 2-5 tetap bisa diubah lagi lewat
+       Ubah Probul masing-masing sesudah ini. */
+    if (ubah.tabel === 'kurikulum_probul' && ubah.probulContext && patch.jilid) {
+      const { bulan, promesId } = ubah.probulContext;
+      const posisi = ((bulan - 1) % 6) + 1;
+      if (posisi === 1) {
+        const tetangga = probul.filter(
+          (p) => p.promes_id === promesId && p.bulan > bulan && p.bulan <= bulan + 4
+        );
+        for (const t of tetangga) {
+          await supabase.from('kurikulum_probul').update({ jilid: patch.jilid }).eq('id', t.id);
+        }
+      }
+    }
+
     setUbah(null);
     setPesan('Perubahan tersimpan.');
     await muat();
@@ -827,6 +858,7 @@ function KurikulumContent() {
                                                   'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
                                                 tabel: 'kurikulum_probul',
                                                 id: b.id,
+                                                probulContext: { bulan: b.bulan, promesId: s.id },
                                                 isian: [
                                                   { label: 'Jilid', field: 'jilid', nilai: b.jilid ?? '' },
                                                   { label: 'Target', field: 'target', nilai: b.target ?? '' },
@@ -834,7 +866,10 @@ function KurikulumContent() {
                                                   { label: 'Minggu 1', field: 'minggu1', nilai: b.minggu1 ?? '' },
                                                   { label: 'Minggu 2', field: 'minggu2', nilai: b.minggu2 ?? '' },
                                                   { label: 'Minggu 3', field: 'minggu3', nilai: b.minggu3 ?? '' },
-                                                  { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? '' },
+                                                  /* Minggu 4 default "Evaluasi" kalau masih kosong -- cuma
+                                                     nilai awal borang (belum tersimpan), tetap bebas
+                                                     diubah/dikosongkan sebelum disimpan. */
+                                                  { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? 'Evaluasi' },
                                                 ],
                                               })
                                             }
