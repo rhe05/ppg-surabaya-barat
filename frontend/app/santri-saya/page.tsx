@@ -30,7 +30,6 @@ import {
   ArrowLeftRight,
   TrendingUp,
   House,
-  ArrowRight,
   UserRoundX,
   Check,
 } from 'lucide-react';
@@ -257,10 +256,7 @@ function TambahMenu({
           }}
           className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
         >
-          <span className="flex shrink-0 items-center gap-0.5 text-brass">
-            <House size={16} strokeWidth={2} />
-            <ArrowRight size={14} strokeWidth={2.5} />
-          </span>
+          <House size={18} strokeWidth={2} className="shrink-0 text-brass" />
           <span>Pindah Domisili</span>
         </button>
         <button
