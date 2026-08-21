@@ -204,12 +204,17 @@ export default function GuruLaporanView() {
       );
     }
     const kelasIds = [kelasId];
+    const { awal, akhir } = batasBulan(tahun, bulan);
 
+    /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
+       deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+       20260821130000), jadi laporan bulan yang sudah lewat tetap
+       menunjukkan riwayatnya walau sekarang dia sudah tidak aktif. */
     const { data: dSantri, error: eSantri } = await supabase
       .from('santri')
       .select('id, nama, kelas_id')
       .in('kelas_id', kelasIds)
-      .is('deleted_at', null)
+      .or(`deleted_at.is.null,deleted_at.gt.${awal}`)
       .order('nama');
     if (eSantri) throw new Error(eSantri.message);
     const santri = (dSantri ?? []) as Santri[];
@@ -217,7 +222,6 @@ export default function GuruLaporanView() {
 
     const absensi: Absensi[] = [];
     if (santriIds.length > 0) {
-      const { awal, akhir } = batasBulan(tahun, bulan);
       const UKURAN_HALAMAN = 1000;
       for (let dari = 0; ; dari += UKURAN_HALAMAN) {
         const { data, error: eAbsensi } = await supabase

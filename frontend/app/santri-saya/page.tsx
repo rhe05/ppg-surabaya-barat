@@ -9,7 +9,16 @@
    dibuka), ubah lewat UPDATE langsung -- keduanya ditahan RLS/scope guru
    (migrasi 20260821120000), jadi penguncian di layar ini kenyamanan, bukan
    satu-satunya pengaman. Admin sudah punya jalur sendiri di /santri
-   (desktop, tabel penuh lintas kelas) -- halaman ini tidak menggantikannya. */
+   (desktop, tabel penuh lintas kelas) -- halaman ini tidak menggantikannya.
+
+   "Hapus" SENGAJA tidak ada -- diganti "Pindah / Tidak Aktif" lewat RPC
+   nonaktifkan_santri (migrasi 20260821130000): mencatat peristiwa ke
+   siklus_generus DAN men-soft-delete santri SEJAK TANGGAL PERISTIWA itu,
+   satu transaksi. santri.deleted_at dipakai sbg "sejak kapan tidak aktif",
+   bukan cuma "kapan diklik" -- itu yang membuat layar berperiode (Riwayat
+   Kehadiran, Laporan, Statistik, dst -- lihat migrasi 20260821140000 &
+   perubahan query terkait) tetap menunjukkan data lamanya walau sekarang
+   santrinya sudah tidak aktif. */
 
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
@@ -19,6 +28,124 @@ import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
 
 type Kelas = { id: number; nama: string; santri_count: number };
+
+const JENIS_SIKLUS: { nilai: 'Pindah' | 'Tidak Aktif'; label: string; keterangan: string }[] = [
+  { nilai: 'Pindah', label: 'Pindah', keterangan: 'Pindah ke kelompok/TPQ lain.' },
+  { nilai: 'Tidak Aktif', label: 'Tidak Aktif', keterangan: 'Berhenti ngaji, bukan karena pindah.' },
+];
+
+function hariIni() {
+  const now = new Date();
+  const lokal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+  return lokal.toISOString().slice(0, 10);
+}
+
+function NonaktifkanModal({
+  santri,
+  onSelesai,
+  onBatal,
+}: {
+  santri: SantriRow;
+  onSelesai: () => void;
+  onBatal: () => void;
+}) {
+  const [jenis, setJenis] = useState<'Pindah' | 'Tidak Aktif'>('Pindah');
+  const [tanggal, setTanggal] = useState(hariIni);
+  const [keterangan, setKeterangan] = useState('');
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function simpan() {
+    setMenyimpan(true);
+    setError(null);
+    try {
+      const { error: err } = await supabase.rpc('nonaktifkan_santri', {
+        p: { santri_id: santri.id, jenis_siklus: jenis, tanggal, keterangan },
+      });
+      if (err) throw new Error(err.message);
+      onSelesai();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
+        <h2 className="mb-1 text-[17px] font-bold text-text">Pindah / Tidak Aktif</h2>
+        <p className="mb-4 text-[12.5px] text-text-dim">
+          {santri.nama} akan hilang dari Data Generus &amp; absensi baru sejak tanggal di bawah.
+          Riwayat kehadiran sebelumnya tetap tersimpan utuh di laporan.
+        </p>
+
+        <div className="mb-4 flex flex-col gap-2.5">
+          {JENIS_SIKLUS.map((j) => (
+            <label
+              key={j.nilai}
+              className={`flex cursor-pointer items-start gap-2.5 rounded-card border-[1.5px] p-3 ${
+                jenis === j.nilai ? 'border-brass bg-[rgba(217,119,6,0.06)]' : 'border-border'
+              }`}
+            >
+              <input
+                type="radio"
+                name="jenis_siklus"
+                className="mt-0.5"
+                checked={jenis === j.nilai}
+                onChange={() => setJenis(j.nilai)}
+              />
+              <span>
+                <span className="block text-[13.5px] font-bold text-text">{j.label}</span>
+                <span className="block text-[11.5px] text-text-faint">{j.keterangan}</span>
+              </span>
+            </label>
+          ))}
+        </div>
+
+        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+          Sejak Tanggal
+        </label>
+        <input
+          type="date"
+          value={tanggal}
+          onChange={(e) => setTanggal(e.target.value)}
+          className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+        />
+
+        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+          Keterangan (opsional)
+        </label>
+        <input
+          value={keterangan}
+          onChange={(e) => setKeterangan(e.target.value)}
+          placeholder="Misal: pindah ke TPQ Al-Ikhlas"
+          className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+        />
+
+        {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBatal}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={menyimpan}
+            onClick={simpan}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-red bg-red px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+          >
+            {menyimpan ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const JENJANG_SINGKAT: Record<string, string> = {
   'PAUD/TK': 'PAUD/TK',
@@ -62,6 +189,7 @@ function DataGenerusContent() {
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
+  const [santriDinonaktifkan, setSantriDinonaktifkan] = useState<SantriRow | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +263,10 @@ function DataGenerusContent() {
     setSantriDiubah(null);
     muatSantri();
   }
+  function selesaiNonaktifkan() {
+    setSantriDinonaktifkan(null);
+    muatSantri();
+  }
 
   if (!guruId) {
     return (
@@ -169,6 +301,14 @@ function DataGenerusContent() {
           kelasNgajiTerkunci={kelasAktif.nama}
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}
+        />
+      )}
+
+      {santriDinonaktifkan && (
+        <NonaktifkanModal
+          santri={santriDinonaktifkan}
+          onSelesai={selesaiNonaktifkan}
+          onBatal={() => setSantriDinonaktifkan(null)}
         />
       )}
 
@@ -218,24 +358,38 @@ function DataGenerusContent() {
 
           <div className="flex flex-col gap-2.5">
             {santriTersaring.map((s) => (
-              <button
+              <div
                 key={s.id}
-                type="button"
-                onClick={() => bukaUbah(s)}
-                className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+                className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]"
               >
-                <div className="min-w-0">
-                  <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
-                  <div className="mt-0.5 text-[11.5px] text-text-faint">
-                    NIS {s.nis ?? '-'} · {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
+                <button
+                  type="button"
+                  onClick={() => bukaUbah(s)}
+                  className="flex w-full items-center justify-between gap-3 text-left active:opacity-70"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
+                    <div className="mt-0.5 text-[11.5px] text-text-faint">
+                      NIS {s.nis ?? '-'} ·{' '}
+                      {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
+                    </div>
                   </div>
+                  {s.jenjang_saat_ini && (
+                    <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
+                      {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
+                    </span>
+                  )}
+                </button>
+                <div className="mt-2.5 flex justify-end border-t border-border pt-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setSantriDinonaktifkan(s)}
+                    className="cursor-pointer text-[11.5px] font-semibold text-red active:opacity-70"
+                  >
+                    Pindah / Tidak Aktif
+                  </button>
                 </div>
-                {s.jenjang_saat_ini && (
-                  <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
-                    {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
-                  </span>
-                )}
-              </button>
+              </div>
             ))}
           </div>
 

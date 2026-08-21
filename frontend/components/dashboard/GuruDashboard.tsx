@@ -137,11 +137,17 @@ export default function GuruDashboard() {
         return;
       }
 
+      const { awal, akhir } = batasBulan(tahunDipilih, bulanDipilih);
+
+      /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
+         deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+         20260821130000), jadi statistik bulan yang sudah lewat tetap
+         menghitung kehadirannya walau sekarang dia sudah tidak aktif. */
       const { data: dataSantri, error: errSantri } = await supabase
         .from('santri')
         .select('id, kelas_id')
         .in('kelas_id', kelasIds)
-        .is('deleted_at', null);
+        .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
       if (errSantri) throw new Error(errSantri.message);
 
       const kelasDariSantri = new Map<number, number>();
@@ -158,7 +164,6 @@ export default function GuruDashboard() {
       });
 
       if (kelasDariSantri.size > 0) {
-        const { awal, akhir } = batasBulan(tahunDipilih, bulanDipilih);
         const UKURAN_HALAMAN = 1000;
         const santriIds = [...kelasDariSantri.keys()];
 

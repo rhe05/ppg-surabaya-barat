@@ -135,11 +135,20 @@ function MonitoringContent() {
     setLoading(true);
     setError(null);
     try {
+      const awal = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
+      /* Hari 0 bulan berikutnya = hari terakhir bulan ini, termasuk kabisat. */
+      const akhirHari = new Date(tahun, bulan, 0).getDate();
+      const akhir = `${tahun}-${String(bulan).padStart(2, '0')}-${String(akhirHari).padStart(2, '0')}`;
+
+      /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
+         deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+         20260821130000), jadi bulan yang sudah lewat tetap menunjukkan
+         riwayatnya walau sekarang dia sudah tidak aktif. */
       const { data: dSantri, error: e1 } = await supabase
         .from('santri')
         .select('id, nama, jenjang_saat_ini, kelas_ngaji')
         .eq('kelompok_id', kelompokId)
-        .is('deleted_at', null);
+        .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
       if (e1) throw new Error(e1.message);
       const santri = (dSantri ?? []) as unknown as Santri[];
 
@@ -148,11 +157,6 @@ function MonitoringContent() {
         setTotalCatatan(0);
         return;
       }
-
-      const awal = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
-      /* Hari 0 bulan berikutnya = hari terakhir bulan ini, termasuk kabisat. */
-      const akhirHari = new Date(tahun, bulan, 0).getDate();
-      const akhir = `${tahun}-${String(bulan).padStart(2, '0')}-${String(akhirHari).padStart(2, '0')}`;
 
       const absensi = await ambilAbsensiBulan(
         santri.map((s) => s.id),

@@ -92,12 +92,16 @@ export default function MatriksKehadiran({
       const akhirHari = new Date(tahun, bulan, 0).getDate();
       const akhir = `${tahun}-${String(bulan).padStart(2, '0')}-${String(akhirHari).padStart(2, '0')}`;
 
+      /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
+         deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+         20260821130000), jadi matriks bulan yang sudah lewat tetap
+         menunjukkan riwayatnya walau sekarang dia sudah tidak aktif. */
       const [{ data: dSantri, error: e1 }, { data: dKelas }] = await Promise.all([
         supabase
           .from('santri')
           .select('id, nama, kelas_id')
           .eq('kelompok_id', kelompokId)
-          .is('deleted_at', null)
+          .or(`deleted_at.is.null,deleted_at.gt.${awal}`)
           .order('nama'),
         supabase
           .from('kelas')

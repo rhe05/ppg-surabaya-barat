@@ -85,11 +85,15 @@ export default function RingkasanKelas({
           .eq('kelompok_id', kelompokId)
           .is('deleted_at', null)
           .order('jam_mulai'),
+        /* Santri yang pindah/nonaktif SETELAH awal rentang ini tetap ikut --
+           deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+           20260821130000), jadi ringkasan rentang lampau tetap menunjukkan
+           riwayatnya walau sekarang dia sudah tidak aktif. */
         supabase
           .from('santri')
           .select('id, kelas_id')
           .eq('kelompok_id', kelompokId)
-          .is('deleted_at', null),
+          .or(`deleted_at.is.null,deleted_at.gt.${rentangAktif.dari}`),
       ]);
       if (e1) throw new Error(e1.message);
       setKelas((dKelas ?? []) as unknown as Kelas[]);

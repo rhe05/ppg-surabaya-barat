@@ -243,11 +243,20 @@ function RiwayatKehadiranContent() {
     setLoading(true);
     setError(null);
     try {
+      const dua = (n: number) => String(n).padStart(2, '0');
+      const awal = `${tahun}-${dua(bulan)}-01`;
+      const akhirTanggal = new Date(tahun, bulan, 0).getDate();
+      const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
+
+      /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut
+         tampil -- deleted_at dipakai sbg "sejak kapan tidak aktif", bukan
+         cuma penanda hapus (lihat migrasi 20260821130000). Bulan yang
+         sudah lewat sebelum dia pindah harus tetap menunjukkan riwayatnya. */
       const { data: dataSantri, error: errSantri } = await supabase
         .from('santri')
         .select('id, nama, nama_panggilan')
         .eq('kelas_id', kelasId)
-        .is('deleted_at', null);
+        .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
       if (errSantri) throw new Error(errSantri.message);
 
       const santriList = (dataSantri ?? []).slice().sort((a, b) => {
@@ -256,11 +265,6 @@ function RiwayatKehadiranContent() {
         return na.localeCompare(nb, 'id');
       });
       const santriIds = santriList.map((s) => s.id);
-
-      const dua = (n: number) => String(n).padStart(2, '0');
-      const awal = `${tahun}-${dua(bulan)}-01`;
-      const akhirTanggal = new Date(tahun, bulan, 0).getDate();
-      const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
 
       const selMap: Record<number, Record<string, SelAbsensi>> = {};
       const tanggalDiisi = new Set<string>();
