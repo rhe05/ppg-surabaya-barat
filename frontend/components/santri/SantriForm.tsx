@@ -136,7 +136,7 @@ function kosongJadiNull(v: string): string | null {
 const KELAS_INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
-const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text';
 
 function Bagian({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
@@ -505,6 +505,49 @@ export default function SantriForm({
           </div>
         </Bagian>
 
+        <Bagian judul="Orang Tua & Kontak">
+          <div>
+            <label className={KELAS_LABEL}>Nama Ayah</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nama_ayah}
+              onChange={(e) => ubah('nama_ayah', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Nama Ibu</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nama_ibu}
+              onChange={(e) => ubah('nama_ibu', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Nomor WA Santri</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nomor_wa}
+              onChange={(e) => ubah('nomor_wa', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Nomor WA Ayah</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nomor_wa_ayah}
+              onChange={(e) => ubah('nomor_wa_ayah', e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={KELAS_LABEL}>Nomor WA Ibu</label>
+            <input
+              className={KELAS_INPUT}
+              value={isian.nomor_wa_ibu}
+              onChange={(e) => ubah('nomor_wa_ibu', e.target.value)}
+            />
+          </div>
+        </Bagian>
+
         <Bagian judul="Alamat">
           <div className="sm:col-span-2">
             <label className={KELAS_LABEL}>Alamat</label>
@@ -568,49 +611,6 @@ export default function SantriForm({
               className={KELAS_INPUT}
               value={isian.kode_pos}
               onChange={(e) => ubah('kode_pos', e.target.value)}
-            />
-          </div>
-        </Bagian>
-
-        <Bagian judul="Orang Tua & Kontak">
-          <div>
-            <label className={KELAS_LABEL}>Nama Ayah</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama_ayah}
-              onChange={(e) => ubah('nama_ayah', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nama Ibu</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama_ibu}
-              onChange={(e) => ubah('nama_ibu', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nomor WA Santri</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nomor_wa}
-              onChange={(e) => ubah('nomor_wa', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nomor WA Ayah</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nomor_wa_ayah}
-              onChange={(e) => ubah('nomor_wa_ayah', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nomor WA Ibu</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nomor_wa_ibu}
-              onChange={(e) => ubah('nomor_wa_ibu', e.target.value)}
             />
           </div>
         </Bagian>
