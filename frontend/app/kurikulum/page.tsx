@@ -518,33 +518,45 @@ function KurikulumContent() {
           Pilih kelas dulu untuk melihat Program Tahunan, Semester, dan Bulanan.
         </p>
 
-        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label className={KELAS_LABEL}>Kelompok</label>
-            <select
-              className={KELAS_INPUT}
-              value={kelompokId ?? ''}
-              disabled={profile?.role === 'admin_kelompok'}
-              onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">-- Pilih Kelompok --</option>
-              {kelompokList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
+        {/* Kelompok & Tahun disembunyikan utk GURU (diminta owner): guru
+            sudah "konfirmasi kelp" lewat scope profilnya sendiri
+            (profile.scope_kelompok_id, sudah jadi nilai awal kelompokId
+            di useState atas) -- menampilkan pilihannya lagi di sini
+            terasa redundan. Tahun tetap diam-diam terkunci ke tahun
+            berjalan (default useState, kolomnya cuma disembunyikan, TIDAK
+            dihapus dari state) -- kurikulum guru selalu tahun ini.
+            Admin (admin_desa/admin_ppg yang membawahi >1 kelompok, dan
+            mungkin perlu lihat tahun lampau) TETAP melihat kedua field
+            ini apa adanya. */}
+        {!adalahGuru && (
+          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <label className={KELAS_LABEL}>Kelompok</label>
+              <select
+                className={KELAS_INPUT}
+                value={kelompokId ?? ''}
+                disabled={profile?.role === 'admin_kelompok'}
+                onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">-- Pilih Kelompok --</option>
+                {kelompokList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={KELAS_LABEL}>Tahun</label>
+              <input
+                type="number"
+                className={KELAS_INPUT}
+                value={tahun}
+                onChange={(e) => setTahun(Number(e.target.value))}
+              />
+            </div>
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Tahun</label>
-            <input
-              type="number"
-              className={KELAS_INPUT}
-              value={tahun}
-              onChange={(e) => setTahun(Number(e.target.value))}
-            />
-          </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {(profile?.role === 'guru' ? KELAS_LIST_GURU : KELAS_LIST).map((k) => (
@@ -566,8 +578,13 @@ function KurikulumContent() {
             </button>
           ))}
         </div>
-        {!kelompokId && (
+        {!kelompokId && !adalahGuru && (
           <p className="mt-4 text-[13px] text-text-dim">Pilih kelompok dulu.</p>
+        )}
+        {!kelompokId && adalahGuru && (
+          <p className="mt-4 text-[13px] text-red">
+            Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Kelp.
+          </p>
         )}
         </div>
       </>
