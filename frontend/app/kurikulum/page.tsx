@@ -60,6 +60,26 @@ const NAMA_BULAN = [
    penuh di atas tetap dipakai apa adanya di tempat lain (judul modal
    Ubah/Pencapaian, dst), tidak ikut disingkat. */
 const NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
+/* Label bulan Probul KHUSUS materi Bacaan Al-Qur'an kelas 1-3 -- murni
+   ganti NAMA yang ditampilkan (posisi ke-N dalam semester), TIDAK
+   menyentuh nomor `bulan` asli di DB, urutan, atau semester-nya sama
+   sekali. Semester 1 ditampilkan Jul-Des, semester 2 Jan-Jun (kalender
+   akademik: tahun ajaran mulai Juli) -- kebalikan dari semester1=bulan
+   1-6/semester2=bulan7-12 yang tersimpan di DB (dipertahankan apa
+   adanya krn urutan & pengelompokan tetap harus konsisten dgn
+   TargetBulanan.tsx). */
+const KELAS_BULAN_AKADEMIK_BACAAN = ['1', '2', '3'];
+const BULAN_AKADEMIK_SEMESTER: Record<number, string[]> = {
+  1: ['Jul', 'Ags', 'Sep', 'Okt', 'Nop', 'Des'],
+  2: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
+};
+/* Versi nama panjang, dipakai di judul modal (Ubah/Pencapaian) supaya
+   konsisten dgn label singkat di kartu -- tanpa ini judul modal akan
+   tetap bilang "Januari" walau kartunya sudah bilang "Jul". */
+const BULAN_AKADEMIK_SEMESTER_LENGKAP: Record<number, string[]> = {
+  1: ['Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'],
+  2: ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni'],
+};
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -962,8 +982,21 @@ function KurikulumContent() {
                               </div>
 
                               <div className="flex flex-col gap-2.5">
-                                {daftarProbul.map((b) => {
+                                {daftarProbul.map((b, indeksBulan) => {
                                   const evaluasiTarget = adalahEvaluasi(b.target);
+                                  const pakaiBulanAkademik =
+                                    namaAsli === KATEGORI_BACAAN_ALQURAN &&
+                                    KELAS_BULAN_AKADEMIK_BACAAN.includes(kelas ?? '');
+                                  const labelBulan = pakaiBulanAkademik
+                                    ? (BULAN_AKADEMIK_SEMESTER[s.semester]?.[indeksBulan] ??
+                                       NAMA_BULAN_SINGKAT[b.bulan - 1] ??
+                                       b.bulan)
+                                    : (NAMA_BULAN_SINGKAT[b.bulan - 1] ?? b.bulan);
+                                  const labelBulanLengkap = pakaiBulanAkademik
+                                    ? (BULAN_AKADEMIK_SEMESTER_LENGKAP[s.semester]?.[indeksBulan] ??
+                                       NAMA_BULAN[b.bulan - 1] ??
+                                       b.bulan)
+                                    : (NAMA_BULAN[b.bulan - 1] ?? b.bulan);
                                   return (
                                     <div
                                       key={b.id}
@@ -982,7 +1015,7 @@ function KurikulumContent() {
                                             owner. */}
                                         <div className="min-w-0 text-left">
                                           <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text">
-                                            {NAMA_BULAN_SINGKAT[b.bulan - 1] ?? b.bulan}
+                                            {labelBulan}
                                           </div>
                                         </div>
 
@@ -1025,10 +1058,7 @@ function KurikulumContent() {
                                               onClick={() =>
                                                 setPencapaianUntuk({
                                                   id: b.id,
-                                                  judul:
-                                                    (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
-                                                    ' — ' +
-                                                    (b.target ?? 'tanpa target'),
+                                                  judul: labelBulanLengkap + ' — ' + (b.target ?? 'tanpa target'),
                                                 })
                                               }
                                               title="Pencapaian"
@@ -1042,8 +1072,7 @@ function KurikulumContent() {
                                                   label: 'Ubah',
                                                   onClick: () =>
                                                     setUbah({
-                                                      judul:
-                                                        'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
+                                                      judul: 'Ubah Probul — ' + labelBulanLengkap,
                                                       tabel: 'kurikulum_probul',
                                                       id: b.id,
                                                       probulContext: { bulan: b.bulan, promesId: s.id },
