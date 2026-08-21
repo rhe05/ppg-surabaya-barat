@@ -847,40 +847,41 @@ function KurikulumContent() {
                         {daftarProbul.length > 0 && (
                           <div className="mt-3 overflow-x-auto">
                             <div className="min-w-[580px]">
-                              {/* Header kolom -- template SAMA PERSIS dgn grid
-                                  baris di bawahnya (kolom lebar & gap identik)
-                                  supaya judul & isi selalu lurus segaris, dan
-                                  semua kolom di-tengahkan (text-center) sesuai
-                                  diminta owner. Kolom dipersempit + gap ditekan
-                                  (gap-2, bukan gap-3) + min-w diturunkan dari
-                                  760px ke 580px -- di HP jadi jauh lebih pendek
-                                  scroll sampingnya. */}
-                              <div className="grid grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] gap-2 px-3 pb-2">
-                                {/* "Jilid" -> "Tilawati" khusus PAUD/TK s.d. kelas 3
-                                    (metode Tilawati) -- kelas lain tetap "Jilid". */}
-                                {['Bulan', ['PAUD-TK', '1', '2', '3'].includes(kelas ?? '') ? 'Tilawati' : 'Jilid'].map((h) => (
-                                  <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                    {h}
-                                  </div>
-                                ))}
-                                {[1, 2, 3, 4].map((n) => (
-                                  <div key={n} className="text-center">
-                                    <div className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                      Mg {n}
+                              {/* Header dibungkus struktur PERSIS SAMA dgn baris
+                                  di bawahnya (spacer w-2 + gap-3, lalu grid
+                                  dgn px-3 yang menyamai p-3 kartu) -- sebelumnya
+                                  header TIDAK punya spacer itu sehingga kolomnya
+                                  bergeser ~20px ke kiri drpd kolom baris, biar
+                                  kelihatan "presisi" tapi sebetulnya sejajar
+                                  kebetulan. Sekarang literally template & offset
+                                  yang sama, dijamin segaris. */}
+                              <div className="flex gap-3 pb-2">
+                                <div className="w-2 shrink-0" />
+                                <div className="grid flex-1 grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] gap-2 px-3">
+                                  {['Bulan', 'Target'].map((h) => (
+                                    <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                      {h}
                                     </div>
-                                    <div className="text-[10px] text-text">Minggu {n}</div>
-                                  </div>
-                                ))}
-                                {bolehTulis && (
-                                  <div className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                    Aksi
-                                  </div>
-                                )}
+                                  ))}
+                                  {[1, 2, 3, 4].map((n) => (
+                                    <div key={n} className="text-center">
+                                      <div className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                        Mg {n}
+                                      </div>
+                                      <div className="text-[10px] text-text">Minggu {n}</div>
+                                    </div>
+                                  ))}
+                                  {bolehTulis && (
+                                    <div className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                      Aksi
+                                    </div>
+                                  )}
+                                </div>
                               </div>
 
                               <div className="flex flex-col gap-2.5">
                                 {daftarProbul.map((b) => {
-                                  const evaluasi = adalahEvaluasi(b.jilid);
+                                  const evaluasiTarget = adalahEvaluasi(b.target);
                                   return (
                                     <div key={b.id} className="relative flex gap-3">
                                       {/* Titik + garis penghubung, satu warna netral
@@ -900,27 +901,25 @@ function KurikulumContent() {
                                             menambah berat visual tanpa informasi baru
                                             (lihat diskusi sebelumnya). Penanda posisinya
                                             cukup titik kecil di garis timeline sebelah
-                                            kiri kartu ini. Hal-nya diberi warna brass
-                                            (aksen utama app) supaya jelas kebaca sbg
-                                            TARGET, bukan sekadar teks biasa. */}
+                                            kiri kartu ini. */}
                                         <div className="min-w-0 text-center">
                                           <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
                                             {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
                                           </div>
-                                          {b.target && (
-                                            <div className="text-[12px] font-bold text-brass">{b.target}</div>
-                                          )}
                                         </div>
 
-                                        {/* Jilid */}
+                                        {/* Target -- dulu "Hal x-y" ada di bawah nama
+                                            bulan, sekarang pindah ke kolomnya sendiri
+                                            (dulu berlabel Jilid/Tilawati). Warna brass
+                                            dipertahankan apa adanya spt sebelumnya. */}
                                         <div className="min-w-0 text-center">
-                                          {evaluasi ? (
+                                          {evaluasiTarget ? (
                                             <div className="text-[12.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
-                                              {b.jilid}
+                                              {b.target}
                                             </div>
                                           ) : (
-                                            <div className="text-[12.5px] font-bold text-text">
-                                              {b.jilid || '—'}
+                                            <div className="text-[12.5px] font-bold text-brass">
+                                              {b.target || '—'}
                                             </div>
                                           )}
                                         </div>
