@@ -120,22 +120,27 @@ function adalahEvaluasi(nilai: string | null) {
   return (nilai ?? '').trim().toLowerCase() === 'evaluasi';
 }
 
+/* w-full (bukan inline-flex auto-width) SENGAJA -- supaya lebar pil di
+   Minggu 1-4 SAMA PERSIS dgn lebar kolomnya, jadi tepi kiri/kanan pil
+   lurus dari baris paling atas sampai paling bawah (diminta owner:
+   "presisi tinggi dan lebarnya"), bukan melebar/menyempit ikut panjang
+   teks tiap baris. */
 function PilMinggu({ nilai }: { nilai: string | null }) {
-  if (!nilai) return <span className="text-[12px] text-text-faint">—</span>;
+  if (!nilai) return <span className="text-[11px] text-text-faint">—</span>;
   const evaluasi = adalahEvaluasi(nilai);
   if (evaluasi) {
     return (
       <span
-        className="inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap"
+        className="flex w-full items-center justify-center gap-1 rounded-[10px] border px-1.5 py-1 text-[11px] font-semibold whitespace-nowrap"
         style={{ background: EVALUASI_INDIGO.bg, borderColor: EVALUASI_INDIGO.border, color: EVALUASI_INDIGO.teks }}
       >
-        <Star size={12} strokeWidth={2} fill="currentColor" />
+        <Star size={11} strokeWidth={2} fill="currentColor" />
         {nilai}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center rounded-[10px] border border-border bg-panel-2 px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap text-text">
+    <span className="flex w-full items-center justify-center rounded-[10px] border border-border bg-panel-2 px-1.5 py-1 text-[11px] font-semibold whitespace-nowrap text-text">
       {nilai}
     </span>
   );
@@ -902,7 +907,11 @@ function KurikulumContent() {
                                             (lihat diskusi sebelumnya). Penanda posisinya
                                             cukup titik kecil di garis timeline sebelah
                                             kiri kartu ini. */}
-                                        <div className="min-w-0 text-center">
+                                        {/* Rata kiri (BUKAN center) -- yang di-tengahkan
+                                            cuma judul kolomnya ("Bulan" di header),
+                                            isinya sengaja rata kiri spt permintaan
+                                            owner. */}
+                                        <div className="min-w-0 text-left">
                                           <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
                                             {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
                                           </div>
@@ -911,14 +920,15 @@ function KurikulumContent() {
                                         {/* Target -- dulu "Hal x-y" ada di bawah nama
                                             bulan, sekarang pindah ke kolomnya sendiri
                                             (dulu berlabel Jilid/Tilawati). Warna brass
-                                            dipertahankan apa adanya spt sebelumnya. */}
+                                            dipertahankan apa adanya, font sedikit
+                                            diperkecil dari 12.5px -> 11.5px. */}
                                         <div className="min-w-0 text-center">
                                           {evaluasiTarget ? (
-                                            <div className="text-[12.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
+                                            <div className="text-[11.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
                                               {b.target}
                                             </div>
                                           ) : (
-                                            <div className="text-[12.5px] font-bold text-brass">
+                                            <div className="text-[11.5px] font-bold text-brass">
                                               {b.target || '—'}
                                             </div>
                                           )}
