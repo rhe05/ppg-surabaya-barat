@@ -33,6 +33,7 @@ import { useAuth } from '@/lib/auth-context';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 import TargetBulanan from '@/components/kurikulum/TargetBulanan';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
 /* Rentang kelas yang dilihat GURU di app lama sengaja dibatasi 1-6
@@ -213,6 +214,13 @@ function KurikulumContent() {
      (kurikulum_prota_delete_ppg_only). Tabel ini tidak punya deleted_at,
      jadi tidak ada jalur hapus halus seperti santri/guru. */
   const bolehHapus = profile?.role === 'admin_ppg';
+
+  /* Top bar putih (hamburger + brand + bell), TANPA hero hijau -- samakan
+     dgn Rencana Pembelajaran (JurnalHeaderChrome.tsx). HANYA utk guru:
+     admin sudah py AdminSidebar (RequireAuth.tsx) di halaman ini yang
+     sama -- menambahkan bar guru ini tanpa syarat akan menumpuk 2 bar
+     navigasi sekaligus di layar admin. */
+  const adalahGuru = profile?.role === 'guru';
 
   useEffect(() => {
     async function load() {
@@ -430,7 +438,9 @@ function KurikulumContent() {
   /* ── Gerbang kelas ── */
   if (!kelas) {
     return (
-      <div className="mx-auto max-w-5xl p-6">
+      <>
+        {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
+        <div className="mx-auto max-w-5xl p-6">
         <h1 className="mb-2 text-[24px] font-bold text-text">Kurikulum</h1>
         <p className="mb-6 text-[13px] text-text-dim">
           Pilih kelas dulu untuk melihat Program Tahunan, Semester, dan Bulanan.
@@ -479,13 +489,16 @@ function KurikulumContent() {
         {!kelompokId && (
           <p className="mt-4 text-[13px] text-text-dim">Pilih kelompok dulu.</p>
         )}
-      </div>
+        </div>
+      </>
     );
   }
 
   /* ── Isi kurikulum ── */
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <>
+      {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
+      <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-[24px] font-bold text-text">
@@ -776,7 +789,8 @@ function KurikulumContent() {
           onSimpan={simpanUbah}
         />
       )}
-    </div>
+      </div>
+    </>
   );
 }
 
