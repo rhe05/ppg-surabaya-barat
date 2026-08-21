@@ -739,21 +739,23 @@ function KurikulumContent() {
           const daftarPromes = promesPerProta.get(p.id) ?? [];
           const namaAsli = namaDari(p.kategori_kbm);
           const namaTampil = namaMateriTampil(namaAsli, kelas);
-          /* Pasangan Target/Deskripsi KEDUA -- SEMENTARA khusus materi
-             "Bacaan Al-Qur'an" (nama ASLI dicek, bukan namaTampil, supaya
-             tetap kena baik di kelas yg menampilkan "Baca Huruf..." maupun
-             kelas 4+ yg tetap "Bacaan Al-Qur'an"). Kategori lain TIDAK
-             disentuh, tetap 1 pasang spt semula. */
-          const isianProta: Isian[] = [
-            { label: 'Target', field: 'target', nilai: p.target ?? '' },
-            { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
-          ];
-          if (namaAsli === KATEGORI_BACAAN_ALQURAN) {
-            isianProta.push(
-              { label: 'Target 2', field: 'target2', nilai: p.target2 ?? '' },
-              { label: 'Deskripsi 2', field: 'deskripsi2', nilai: p.deskripsi2 ?? '', baris: true },
-            );
-          }
+          /* Materi "Bacaan Al-Qur'an" (nama ASLI dicek, bukan namaTampil,
+             supaya tetap kena baik di kelas yg menampilkan "Baca Huruf..."
+             maupun kelas 4+ yg tetap "Bacaan Al-Qur'an") SEMENTARA punya
+             borang berbeda -- Target 1/2 dicabut sama sekali, cukup
+             Deskripsi 1/2 diberi label "Semester 1"/"Semester 2" langsung
+             (bukan lagi field terpisah "Target"). Kategori lain TIDAK
+             disentuh, tetap Target+Deskripsi spt semula. */
+          const isianProta: Isian[] =
+            namaAsli === KATEGORI_BACAAN_ALQURAN
+              ? [
+                  { label: 'Semester 1', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
+                  { label: 'Semester 2', field: 'deskripsi2', nilai: p.deskripsi2 ?? '', baris: true },
+                ]
+              : [
+                  { label: 'Target', field: 'target', nilai: p.target ?? '' },
+                  { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
+                ];
           const aksiProta = [
             {
               label: 'Ubah',
@@ -789,33 +791,32 @@ function KurikulumContent() {
                       cukup jadi affordance-nya sendiri. */}
                   <div className="min-w-0 flex-1">
                     <span className="text-[16px] font-bold text-text">{namaTampil}</span>
-                    {/* Label "Semester 1"/"Semester 2" -- SEMENTARA khusus
-                        materi Bacaan Al-Qur'an (kategori lain tetap tanpa
-                        label, tidak disentuh), warnanya disamakan dgn
-                        "Semester N" di kartu Promes (teks polos, sage,
-                        tanpa bungkus pil). */}
-                    {namaAsli === KATEGORI_BACAAN_ALQURAN && (
-                      <div className="mt-1 text-[10.5px] font-bold text-sage">Semester 1</div>
-                    )}
-                    <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
-                    {p.deskripsi && (
-                      <div className="mt-1 whitespace-pre-line text-[12px] text-text">{p.deskripsi}</div>
-                    )}
-                    {/* Target/Deskripsi KEDUA -- cuma tampil kalau memang
-                        sudah diisi (skrg khusus materi Bacaan Al-Qur'an,
-                        lihat migrasi 20260822090000). */}
-                    {(p.target2 || p.deskripsi2) && (
-                      <div className="mt-2 border-t border-border pt-2">
-                        {namaAsli === KATEGORI_BACAAN_ALQURAN && (
-                          <div className="text-[10.5px] font-bold text-sage">Semester 2</div>
-                        )}
-                        {p.target2 && <div className="mt-1 text-[13px] text-text">{p.target2}</div>}
-                        {p.deskripsi2 && (
-                          <div className="mt-1 whitespace-pre-line text-[12px] text-text">
-                            {p.deskripsi2}
+                    {namaAsli === KATEGORI_BACAAN_ALQURAN ? (
+                      /* Materi Bacaan Al-Qur'an: Target 1/2 TIDAK ditampilkan
+                         sama sekali -- cukup Deskripsi 1/2, masing2 diberi
+                         label "Semester 1"/"Semester 2" (warna disamakan dgn
+                         "Semester N" polos di kartu Promes). */
+                      <>
+                        {p.deskripsi && (
+                          <div className="mt-1">
+                            <div className="text-[10.5px] font-bold text-sage">Semester 1</div>
+                            <div className="mt-0.5 whitespace-pre-line text-[12px] text-text">{p.deskripsi}</div>
                           </div>
                         )}
-                      </div>
+                        {p.deskripsi2 && (
+                          <div className="mt-2 border-t border-border pt-2">
+                            <div className="text-[10.5px] font-bold text-sage">Semester 2</div>
+                            <div className="mt-0.5 whitespace-pre-line text-[12px] text-text">{p.deskripsi2}</div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
+                        {p.deskripsi && (
+                          <div className="mt-1 whitespace-pre-line text-[12px] text-text">{p.deskripsi}</div>
+                        )}
+                      </>
                     )}
                   </div>
                 </button>
