@@ -367,6 +367,15 @@ function KurikulumContent() {
      sama -- menambahkan bar guru ini tanpa syarat akan menumpuk 2 bar
      navigasi sekaligus di layar admin. */
   const adalahGuru = profile?.role === 'guru';
+  /* Gerbang "Pilih Kelompok & Tahun" disembunyikan bukan cuma utk guru,
+     tapi jg admin_kelompok (diminta owner) -- keduanya sudah "terkunci"
+     ke SATU kelompok lewat profile.scope_kelompok_id (sumber nilai awal
+     kelompokId di useState di bawah), jadi memilihnya lagi di sini
+     redundan. admin_desa/admin_ppg TETAP melihat gerbang ini apa adanya
+     -- mereka membawahi BANYAK kelompok/tahun, jadi genuinely perlu
+     memilih. Data kurikulum di database TETAP per-kelompok apa adanya,
+     ini murni menyembunyikan langkah pilihnya dari layar. */
+  const sembunyikanGerbangKelompok = adalahGuru || profile?.role === 'admin_kelompok';
 
   useEffect(() => {
     async function load() {
@@ -615,24 +624,13 @@ function KurikulumContent() {
           Pilih kelas dulu untuk melihat Program Tahunan, Semester, dan Bulanan.
         </p>
 
-        {/* Kelompok & Tahun disembunyikan utk GURU (diminta owner): guru
-            sudah "konfirmasi kelp" lewat scope profilnya sendiri
-            (profile.scope_kelompok_id, sudah jadi nilai awal kelompokId
-            di useState atas) -- menampilkan pilihannya lagi di sini
-            terasa redundan. Tahun tetap diam-diam terkunci ke tahun
-            berjalan (default useState, kolomnya cuma disembunyikan, TIDAK
-            dihapus dari state) -- kurikulum guru selalu tahun ini.
-            Admin (admin_desa/admin_ppg yang membawahi >1 kelompok, dan
-            mungkin perlu lihat tahun lampau) TETAP melihat kedua field
-            ini apa adanya. */}
-        {!adalahGuru && (
+        {!sembunyikanGerbangKelompok && (
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={KELAS_LABEL}>Kelompok</label>
               <select
                 className={KELAS_INPUT}
                 value={kelompokId ?? ''}
-                disabled={profile?.role === 'admin_kelompok'}
                 onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
               >
                 <option value="">-- Pilih Kelompok --</option>
@@ -675,12 +673,14 @@ function KurikulumContent() {
             </button>
           ))}
         </div>
-        {!kelompokId && !adalahGuru && (
+        {!kelompokId && !sembunyikanGerbangKelompok && (
           <p className="mt-4 text-[13px] text-text-dim">Pilih kelompok dulu.</p>
         )}
-        {!kelompokId && adalahGuru && (
+        {!kelompokId && sembunyikanGerbangKelompok && (
           <p className="mt-4 text-[13px] text-red">
-            Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Kelp.
+            {adalahGuru
+              ? 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Kelp.'
+              : 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Desa/PPG.'}
           </p>
         )}
         </div>
