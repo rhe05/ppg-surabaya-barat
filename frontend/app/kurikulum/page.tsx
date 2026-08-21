@@ -32,7 +32,6 @@ import {
   ChevronDown,
   ChevronRight,
   ChevronUp,
-  FileText,
   MoreVertical,
   Pencil,
   Plus,
@@ -105,49 +104,39 @@ function namaDari(nilai: Tersemat) {
   return baris?.nama ?? '-';
 }
 
-/* Warna lingkaran ikon bulan di baris Probul, berputar per posisi (1-6)
-   dalam semester -- posisi 6 (bulan terakhir, biasanya evaluasi) sengaja
-   abu-abu, beda dari 5 lainnya. Meniru contoh tampilan yang diberikan
-   owner (kartu per-baris, bukan tabel polos). */
-const WARNA_POSISI_BULAN = [
-  { gradasi: 'linear-gradient(135deg, #60A5FA, #2563EB)', teks: '#2563EB', titik: '#3B82F6' },
-  { gradasi: 'linear-gradient(135deg, #6EE7B7, #059669)', teks: '#059669', titik: '#10B981' },
-  { gradasi: 'linear-gradient(135deg, #FCD34D, #D97706)', teks: '#D97706', titik: '#F59E0B' },
-  { gradasi: 'linear-gradient(135deg, #C4B5FD, #7C3AED)', teks: '#7C3AED', titik: '#8B5CF6' },
-  { gradasi: 'linear-gradient(135deg, #5EEAD4, #0D9488)', teks: '#0D9488', titik: '#14B8A6' },
-  { gradasi: 'linear-gradient(135deg, #D1D5DB, #6B7280)', teks: '#6B7280', titik: '#9CA3AF' },
-];
-
-/* Warna pil Minggu 1-3, TETAP per kolom (bukan per baris) -- Minggu 4
-   selalu ungu+bintang (dianggap pekan evaluasi apa pun isinya). Nilai
-   yang benar-benar berbunyi "Evaluasi" (case-insensitive) di kolom
-   manapun (termasuk Jilid) ikut memakai gaya ungu+bintang yang sama,
-   supaya baris bulan evaluasi (mis. akhir semester) terlihat konsisten. */
-const WARNA_MINGGU = [
-  { bg: 'rgba(5,150,105,0.08)', border: 'rgba(5,150,105,0.22)', teks: '#059669' },
-  { bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.22)', teks: '#2563EB' },
-  { bg: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.22)', teks: '#4F46E5' },
-];
-const WARNA_EVALUASI = { bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', teks: '#7C3AED' };
+/* Palet Probul SENGAJA ditekan jadi satu warna netral + SATU aksen
+   (indigo, dipakai di tempat lain di app ini utk aksi khusus) -- bukan
+   rotasi warna per baris/kolom spt draf pertama. Draf pertama (6 warna
+   lingkaran + 3 warna pil) terlihat "ramai tanpa makna": tiap kolom pil
+   SELALU warna yang sama di setiap baris, jadi warnanya tidak pernah
+   membawa informasi baru, cuma dekorasi -- ciri dashboard generic/AI,
+   bukan produk mahal (Stripe/Linear/Vercel selalu warna minim + aksen
+   tunggal). Sekarang warna HANYA muncul di satu tempat: pil Evaluasi
+   (indigo + bintang), justru supaya itu yang menonjol krn kontras
+   dengan sekitarnya yang netral -- bukan krn dia salah satu dari banyak
+   warna cerah. */
+const EVALUASI_INDIGO = { bg: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.22)', teks: '#4F46E5' };
 
 function adalahEvaluasi(nilai: string | null) {
   return (nilai ?? '').trim().toLowerCase() === 'evaluasi';
 }
 
-function PilMinggu({ nilai, warna }: { nilai: string | null; warna: { bg: string; border: string; teks: string } }) {
+function PilMinggu({ nilai }: { nilai: string | null }) {
   if (!nilai) return <span className="text-[12px] text-text-faint">—</span>;
   const evaluasi = adalahEvaluasi(nilai);
-  const gaya = evaluasi ? WARNA_EVALUASI : warna;
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap"
-      style={{ background: gaya.bg, borderColor: gaya.border, color: gaya.teks }}
-    >
-      {evaluasi ? (
+  if (evaluasi) {
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap"
+        style={{ background: EVALUASI_INDIGO.bg, borderColor: EVALUASI_INDIGO.border, color: EVALUASI_INDIGO.teks }}
+      >
         <Star size={12} strokeWidth={2} fill="currentColor" />
-      ) : (
-        <FileText size={12} strokeWidth={2} />
-      )}
+        {nilai}
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded-[10px] border border-border bg-panel-2 px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap text-text">
       {nilai}
     </span>
   );
@@ -886,31 +875,26 @@ function KurikulumContent() {
 
                               <div className="flex flex-col gap-2.5">
                                 {daftarProbul.map((b) => {
-                                  const posisi = (b.bulan - 1) % 6;
-                                  const warna = WARNA_POSISI_BULAN[posisi];
                                   const evaluasi = adalahEvaluasi(b.jilid);
                                   return (
                                     <div key={b.id} className="relative flex gap-3">
-                                      {/* Titik + garis penghubung -- kolom ini
-                                          selalu setinggi kartu di sampingnya
-                                          (default align-items:stretch flex),
-                                          jadi garisnya menyambung dari baris
+                                      {/* Titik + garis penghubung, satu warna netral
+                                          konsisten -- kolom ini selalu setinggi kartu
+                                          di sampingnya (default align-items:stretch
+                                          flex), jadi garisnya menyambung dari baris
                                           ke baris berikutnya secara alami. */}
                                       <div className="relative flex w-2 shrink-0 justify-center">
                                         <div className="absolute inset-y-0 w-px bg-border" />
-                                        <span
-                                          className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-4 ring-bg"
-                                          style={{ background: warna.titik }}
-                                        />
+                                        <span className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-text-faint ring-4 ring-bg" />
                                       </div>
 
                                       <div className="grid flex-1 grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] items-center gap-3 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
-                                        {/* Bulan */}
+                                        {/* Bulan -- lingkaran netral konsisten utk semua
+                                            baris, TIDAK berputar warna: warna yang sama
+                                            di setiap baris tidak membawa informasi apa
+                                            pun, cuma dekorasi (lihat catatan di atas). */}
                                         <div className="flex items-center gap-2.5">
-                                          <span
-                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
-                                            style={{ background: warna.gradasi }}
-                                          >
+                                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim">
                                             <Calendar size={17} strokeWidth={2} />
                                           </span>
                                           <div className="min-w-0">
@@ -919,10 +903,7 @@ function KurikulumContent() {
                                             </div>
                                             {b.target && (
                                               <div className="text-[10.5px] text-text-faint">
-                                                Target{' '}
-                                                <span className="font-bold" style={{ color: warna.teks }}>
-                                                  {b.target}
-                                                </span>
+                                                Target <span className="font-bold text-text-dim">{b.target}</span>
                                               </div>
                                             )}
                                           </div>
@@ -934,7 +915,7 @@ function KurikulumContent() {
                                             {namaDari(p.kategori_kbm)}
                                           </div>
                                           {evaluasi ? (
-                                            <div className="text-[12.5px] font-semibold text-text-dim">
+                                            <div className="text-[12.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
                                               {b.jilid}
                                             </div>
                                           ) : (
@@ -944,10 +925,10 @@ function KurikulumContent() {
                                           )}
                                         </div>
 
-                                        <PilMinggu nilai={b.minggu1} warna={WARNA_MINGGU[0]} />
-                                        <PilMinggu nilai={b.minggu2} warna={WARNA_MINGGU[1]} />
-                                        <PilMinggu nilai={b.minggu3} warna={WARNA_MINGGU[2]} />
-                                        <PilMinggu nilai={b.minggu4} warna={WARNA_EVALUASI} />
+                                        <PilMinggu nilai={b.minggu1} />
+                                        <PilMinggu nilai={b.minggu2} />
+                                        <PilMinggu nilai={b.minggu3} />
+                                        <PilMinggu nilai={b.minggu4} />
 
                                         {bolehTulis && (
                                           <div className="flex items-center justify-end gap-0.5">
