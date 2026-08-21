@@ -26,6 +26,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 type Kelas = { id: number; nama: string; santri_count: number };
 
@@ -270,18 +271,28 @@ function DataGenerusContent() {
 
   if (!guruId) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <h1 className="mb-2 text-[24px] font-bold text-text">Data Generus</h1>
-        <p className="text-[13px] text-text-dim">
-          Halaman ini untuk akun yang tertaut ke data guru. Akun Anda belum punya tautan itu
-          (<code>profiles.guru_id</code> masih kosong), jadi Data Generus belum bisa dipakai.
-        </p>
-      </div>
+      <main className="relative flex min-h-screen flex-col bg-bg">
+        <JurnalHeaderChrome tampilkanHero={false} />
+        <div className="mx-auto w-full max-w-3xl p-6">
+          <h1 className="mb-2 text-[24px] font-bold text-text">Data Generus</h1>
+          <p className="text-[13px] text-text-dim">
+            Halaman ini untuk akun yang tertaut ke data guru. Akun Anda belum punya tautan itu
+            (<code>profiles.guru_id</code> masih kosong), jadi Data Generus belum bisa dipakai.
+          </p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6 pb-28">
+    <main className="relative flex min-h-screen flex-col bg-bg">
+      {/* Top bar putih (hamburger + brand + bell), TANPA hero hijau --
+          samakan dgn layar turunan Jurnal (Rencana Pembelajaran dkk, lihat
+          JurnalHeaderChrome.tsx): layar sub-alur spt ini tidak perlu
+          mengulang info yang sudah dilihat guru di Dashboard, tapi tetap
+          butuh jalan kembali ke menu. */}
+      <JurnalHeaderChrome tampilkanHero={false} />
+      <div className="mx-auto w-full max-w-3xl p-6 pb-28">
       <KelasGate
         terbuka={gateTerbuka}
         ikon={<IkonKelas />}
@@ -410,7 +421,8 @@ function DataGenerusContent() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </main>
   );
 }
 
