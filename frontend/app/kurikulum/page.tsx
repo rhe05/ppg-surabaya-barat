@@ -718,9 +718,21 @@ function KurikulumContent() {
           <h1 className="text-[24px] font-bold text-text">
             Kurikulum {kelas === 'PAUD-TK' ? 'PAUD/TK' : 'Kelas ' + kelas}
           </h1>
-          <p className="text-[13px] text-text-dim">
-            {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Tahun {tahun}
-          </p>
+          {/* Subjudul diganti tagline (bukan "Kelp X . Tahun Y") khusus
+              guru & admin_kelompok -- diminta owner, fokus tampilan HP.
+              admin_desa/admin_ppg TETAP melihat kelompok+tahun apa
+              adanya, krn mereka membawahi banyak kelompok & info itu
+              genuinely relevan buat mereka. Font sedikit lebih kecil
+              (12px, bukan 13px) krn tagline-nya jauh lebih panjang. */}
+          {sembunyikanGerbangKelompok ? (
+            <p className="mt-0.5 text-[12px] leading-snug text-text-dim">
+              Garis-Garis Besar Materi dan Target Pembinaan Generus
+            </p>
+          ) : (
+            <p className="text-[13px] text-text-dim">
+              {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Tahun {tahun}
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 gap-2">
           {bolehTulis && (
