@@ -22,6 +22,11 @@
 
 BEGIN;
 
+-- Tipe kembalian berubah (dulu `public.santri` satu baris, sekarang
+-- `SETOF public.santri`) -- CREATE OR REPLACE menolak perubahan tipe
+-- kembalian (42P13), jadi fungsi lama WAJIB di-drop dulu.
+DROP FUNCTION IF EXISTS public.nonaktifkan_santri(jsonb);
+
 CREATE OR REPLACE FUNCTION public.nonaktifkan_santri(p jsonb)
  RETURNS SETOF public.santri
  LANGUAGE plpgsql
@@ -82,5 +87,10 @@ $function$;
 
 COMMENT ON FUNCTION public.nonaktifkan_santri(jsonb) IS
   'Tandai banyak santri sekaligus Pindah/Tidak Aktif: catat siklus_generus + soft-delete SEJAK tanggal peristiwa, satu transaksi. Khusus guru, dibatasi ke kelas yang dia ampu sendiri. jenis_siklus/tanggal/keterangan sama utk seluruh batch.';
+
+-- DROP FUNCTION di atas ikut menghapus GRANT lama -- WAJIB diberikan lagi,
+-- kalau tidak "authenticated" (semua peran login) kehilangan izin panggil
+-- fungsi ini sama sekali.
+GRANT EXECUTE ON FUNCTION public.nonaktifkan_santri(jsonb) TO authenticated;
 
 COMMIT;
