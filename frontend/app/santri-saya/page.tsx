@@ -24,6 +24,7 @@
    lamanya walau sekarang santrinya sudah tidak aktif. */
 
 import { useCallback, useEffect, useState } from 'react';
+import { User, UserPlus, ArrowLeftRight, Check } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -151,6 +152,150 @@ function NonaktifkanModal({
   );
 }
 
+/* Popup 2 pilihan di bawah tombol ikon orang (pengganti tombol teks
+   "+ Generus") -- pola dropdown-menu standar SaaS: overlay transparan +
+   panel melayang nempel ke tombol pemicu (anchor via `absolute` di
+   wrapper `relative`, BUKAN dihitung dari getBoundingClientRect spt
+   KelasGate/TanggalPicker -- posisinya selalu sama relatif tombolnya,
+   tidak perlu hitung ulang). */
+function TambahMenu({
+  terbuka,
+  onTutup,
+  onTambah,
+  onPindahKelas,
+  bisaPindahKelas,
+}: {
+  terbuka: boolean;
+  onTutup: () => void;
+  onTambah: () => void;
+  onPindahKelas: () => void;
+  bisaPindahKelas: boolean;
+}) {
+  if (!terbuka) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-[90]" onClick={onTutup} />
+      <div className="absolute top-full right-0 z-[91] mt-2 flex w-[220px] flex-col gap-0.5 rounded-[var(--radius-lg)] border border-border bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onTambah();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <UserPlus size={18} strokeWidth={2} className="shrink-0 text-brass" />
+          <span>+ Generus</span>
+        </button>
+        <button
+          type="button"
+          disabled={!bisaPindahKelas}
+          onClick={() => {
+            onTutup();
+            onPindahKelas();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ArrowLeftRight size={18} strokeWidth={2} className="shrink-0 text-indigo" />
+          <span>Pindah Kelas</span>
+        </button>
+        {!bisaPindahKelas && (
+          <p className="px-3 pt-1 pb-1.5 text-[11px] text-text-faint">
+            Anda hanya mengampu satu kelas.
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* Konfirmasi "Pindah Kelas" -- muncul SETELAH guru memilih santri (mode
+   centang di daftar) & menekan tombol "Pindah" di bilah bawah. Menampilkan
+   berapa santri terpilih + daftar kelas tujuan (kelas guru sendiri yang
+   LAIN dari kelas yang sedang dibuka -- satu-satunya tujuan yang valid dari
+   layar ini). RPC pindah_kelas_santri (migrasi 20260821150000) sebenarnya
+   juga mengizinkan kelas tujuan milik guru lain dalam kelompok yang sama,
+   tapi layar ini cuma tahu kelas guru yang sedang login. */
+function PindahKelasModal({
+  jumlah,
+  opsiKelas,
+  onKonfirmasi,
+  onBatal,
+}: {
+  jumlah: number;
+  opsiKelas: Kelas[];
+  onKonfirmasi: (kelasTujuanId: number) => Promise<void>;
+  onBatal: () => void;
+}) {
+  const [kelasTujuanId, setKelasTujuanId] = useState<number | null>(null);
+  const [menyimpan, setMenyimpan] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function konfirmasi() {
+    if (kelasTujuanId === null) return;
+    setMenyimpan(true);
+    setError(null);
+    try {
+      await onKonfirmasi(kelasTujuanId);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memindah kelas.');
+    } finally {
+      setMenyimpan(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
+        <h2 className="mb-1 text-[17px] font-bold text-text">Pindah Kelas</h2>
+        <p className="mb-4 text-[12.5px] text-text-dim">
+          {jumlah} santri terpilih akan dipindah ke kelas yang Anda pilih di bawah ini.
+        </p>
+
+        <div className="mb-4 flex flex-col gap-2.5">
+          {opsiKelas.map((k) => (
+            <label
+              key={k.id}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-card border-[1.5px] p-3 ${
+                kelasTujuanId === k.id ? 'border-indigo bg-[rgba(79,70,229,0.06)]' : 'border-border'
+              }`}
+            >
+              <input
+                type="radio"
+                name="kelas_tujuan"
+                className="shrink-0"
+                checked={kelasTujuanId === k.id}
+                onChange={() => setKelasTujuanId(k.id)}
+              />
+              <span className="text-[13.5px] font-bold text-text">Kelas {k.nama}</span>
+            </label>
+          ))}
+        </div>
+
+        {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onBatal}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={menyimpan || kelasTujuanId === null}
+            onClick={konfirmasi}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-indigo bg-indigo px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+          >
+            {menyimpan ? 'Memindah...' : 'Pindah'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const JENJANG_SINGKAT: Record<string, string> = {
   'PAUD/TK': 'PAUD/TK',
   'Cabe Rawit': 'Cabe Rawit',
@@ -194,6 +339,11 @@ function DataGenerusContent() {
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
   const [santriDinonaktifkan, setSantriDinonaktifkan] = useState<SantriRow | null>(null);
+
+  const [menuTambahTerbuka, setMenuTambahTerbuka] = useState(false);
+  const [modePindahKelas, setModePindahKelas] = useState(false);
+  const [terpilihPindah, setTerpilihPindah] = useState<Set<number>>(new Set());
+  const [konfirmasiPindahTerbuka, setKonfirmasiPindahTerbuka] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -269,6 +419,32 @@ function DataGenerusContent() {
   }
   function selesaiNonaktifkan() {
     setSantriDinonaktifkan(null);
+    muatSantri();
+  }
+
+  function mulaiPindahKelas() {
+    setTerpilihPindah(new Set());
+    setModePindahKelas(true);
+  }
+  function batalPindahKelas() {
+    setModePindahKelas(false);
+    setTerpilihPindah(new Set());
+  }
+  function toggleTerpilih(id: number) {
+    setTerpilihPindah((s) => {
+      const baru = new Set(s);
+      if (baru.has(id)) baru.delete(id);
+      else baru.add(id);
+      return baru;
+    });
+  }
+  async function konfirmasiPindahKelas(kelasTujuanId: number) {
+    const { error: err } = await supabase.rpc('pindah_kelas_santri', {
+      p: { santri_ids: Array.from(terpilihPindah), kelas_tujuan_id: kelasTujuanId },
+    });
+    if (err) throw new Error(err.message);
+    setKonfirmasiPindahTerbuka(false);
+    batalPindahKelas();
     muatSantri();
   }
 
@@ -364,16 +540,38 @@ function DataGenerusContent() {
             </div>
           )}
         </div>
-        {/* Tombol tambah -- sejajar judul, di kolom kanan (di bawah lonceng
-            top bar) -- gantikan tombol melayang di dasar layar sebelumnya. */}
+        {/* Mode Pindah Kelas aktif -> tombol jadi "Batal" (keluar mode
+            centang). Selain itu -> tombol ikon orang bulat, sejajar judul,
+            di bawah lonceng top bar (pengganti tombol teks "+ Generus"
+            sebelumnya + popup pilihan). */}
         {kelasAktif && (
-          <button
-            type="button"
-            onClick={bukaTambah}
-            className="mt-1.5 shrink-0 cursor-pointer rounded-full border border-brass bg-brass px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.96]"
-          >
-            + Generus
-          </button>
+          <div className="relative mt-1.5 shrink-0">
+            {modePindahKelas ? (
+              <button
+                type="button"
+                onClick={batalPindahKelas}
+                className="cursor-pointer rounded-full border border-border bg-panel-2 px-4 py-2 text-[13px] font-bold text-text active:scale-[0.96]"
+              >
+                Batal
+              </button>
+            ) : (
+              <button
+                type="button"
+                aria-label="Tambah / Pindah Kelas"
+                onClick={() => setMenuTambahTerbuka((v) => !v)}
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-brass text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.92]"
+              >
+                <User size={19} strokeWidth={2} />
+              </button>
+            )}
+            <TambahMenu
+              terbuka={menuTambahTerbuka}
+              onTutup={() => setMenuTambahTerbuka(false)}
+              onTambah={bukaTambah}
+              onPindahKelas={mulaiPindahKelas}
+              bisaPindahKelas={kelasList.length > 1}
+            />
+          </div>
         )}
       </div>
 
@@ -385,6 +583,12 @@ function DataGenerusContent() {
 
       {kelasAktif && (
         <>
+          {modePindahKelas && (
+            <p className="-mt-2 mb-4 text-[12.5px] text-text-dim">
+              Ketuk santri yang mau dipindah kelasnya, boleh lebih dari satu.
+            </p>
+          )}
+
           <div className="my-4">
             <input
               value={cari}
@@ -404,28 +608,74 @@ function DataGenerusContent() {
           )}
 
           <div className="flex flex-col gap-2.5">
-            {santriTersaring.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => bukaUbah(s)}
-                className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
-              >
-                <div className="min-w-0">
-                  <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
-                  <div className="mt-0.5 text-[11.5px] text-text-faint">
-                    NIS {s.nis ?? '-'} ·{' '}
-                    {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
+            {santriTersaring.map((s) => {
+              const dicentang = terpilihPindah.has(s.id);
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => (modePindahKelas ? toggleTerpilih(s.id) : bukaUbah(s))}
+                  className={`flex items-center justify-between gap-3 rounded-card border-[1.5px] p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99] ${
+                    modePindahKelas && dicentang ? 'border-indigo bg-[rgba(79,70,229,0.05)]' : 'border-border bg-panel'
+                  }`}
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {modePindahKelas && (
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          dicentang ? 'border-indigo bg-indigo text-white' : 'border-border text-transparent'
+                        }`}
+                      >
+                        <Check size={13} strokeWidth={3} />
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
+                      <div className="mt-0.5 text-[11.5px] text-text-faint">
+                        NIS {s.nis ?? '-'} ·{' '}
+                        {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                {s.jenjang_saat_ini && (
-                  <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
-                    {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
-                  </span>
-                )}
-              </button>
-            ))}
+                  {s.jenjang_saat_ini && (
+                    <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
+                      {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
+
+          {/* Bilah aksi bawah, muncul HANYA dlm mode Pindah Kelas -- fixed
+              ke viewport sungguhan spt catatan di komponen lain (bungkus
+              RequireAuth mobile sengaja bukan containing block). */}
+          {modePindahKelas && (
+            <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6">
+              <div className="flex w-full max-w-[430px] items-center justify-between gap-3 rounded-full border border-border bg-panel px-5 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
+                <span className="text-[13px] font-semibold text-text">
+                  {terpilihPindah.size} dipilih
+                </span>
+                <button
+                  type="button"
+                  disabled={terpilihPindah.size === 0}
+                  onClick={() => setKonfirmasiPindahTerbuka(true)}
+                  className="cursor-pointer rounded-full border border-indigo bg-indigo px-5 py-2 text-[13px] font-bold text-white active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Pindah
+                </button>
+              </div>
+            </div>
+          )}
+
+          {konfirmasiPindahTerbuka && (
+            <PindahKelasModal
+              jumlah={terpilihPindah.size}
+              opsiKelas={kelasList.filter((k) => k.id !== kelasId)}
+              onKonfirmasi={konfirmasiPindahKelas}
+              onBatal={() => setKonfirmasiPindahTerbuka(false)}
+            />
+          )}
         </>
       )}
       </div>
