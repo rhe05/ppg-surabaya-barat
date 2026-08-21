@@ -59,6 +59,7 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 
 type ItemNav = {
   href: string;
@@ -339,6 +340,21 @@ const BAGIAN: Bagian[] = [
   },
 ];
 
+// Lonceng "Permintaan Masuk" admin (5 aksi Data Generus guru, migrasi
+// 20260821180000) -- badge angka di sini + di AdminHeader.tsx, sama
+// pola "Persetujuan Akun" tapi dgn hitungan krn ini bisa menumpuk (guru
+// bisa ajukan banyak sekaligus, akun baru biasanya satu-satu).
+const ITEM_PERMINTAAN_GENERUS: ItemNav = {
+  href: '/permintaan-generus',
+  label: 'Permintaan Generus',
+  svg: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </>
+  ),
+};
+
 const ITEM_PENDAFTARAN: ItemNav = {
   href: '/pendaftaran',
   label: 'Persetujuan Akun',
@@ -371,6 +387,7 @@ export default function AdminSidebar() {
 
   const [ciut, setCiut] = useState(false);
   const [siap, setSiap] = useState(false);
+  const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
   const hoverRef = useRef<HTMLDivElement>(null);
 
   // Ciut/lebar diingat lintas sesi (localStorage) — app lama tidak
@@ -380,6 +397,24 @@ export default function AdminSidebar() {
     if (tersimpan === '1') setCiut(true);
     setSiap(true);
   }, []);
+
+  // Badge "Permintaan Generus" -- count() ter-scope otomatis oleh RLS
+  // permintaan_generus_select_scoped (migrasi 20260821180000), sama spt
+  // baris yang terlihat kalau di-select penuh.
+  useEffect(() => {
+    if (!profile?.role || !PERAN_ADMIN.includes(profile.role)) return;
+    let cancelled = false;
+    supabase
+      .from('permintaan_generus')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending')
+      .then(({ count }) => {
+        if (!cancelled) setJumlahPermintaan(count ?? 0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.role]);
 
   function toggleCiut() {
     setCiut((v) => {
@@ -396,7 +431,7 @@ export default function AdminSidebar() {
 
   const boleh = profile?.role ? PERAN_ADMIN.includes(profile.role) : false;
 
-  function tautan(item: ItemNav) {
+  function tautan(item: ItemNav, badge?: number) {
     const aktif = pathname === item.href || pathname?.startsWith(item.href + '/');
     return (
       <Link
@@ -404,7 +439,7 @@ export default function AdminSidebar() {
         href={item.href}
         title={ciut ? item.label : undefined}
         className={
-          'flex items-center gap-3 border-l-[3px] px-5 py-2.5 text-[13px] font-medium transition-colors duration-150 ' +
+          'relative flex items-center gap-3 border-l-[3px] px-5 py-2.5 text-[13px] font-medium transition-colors duration-150 ' +
           (ciut ? 'justify-center px-3' : '') +
           (aktif
             ? ' border-brass bg-[rgba(217,119,6,0.05)] font-semibold text-brass'
@@ -425,7 +460,17 @@ export default function AdminSidebar() {
         >
           {item.svg}
         </svg>
-        {!ciut && <span className="truncate">{item.label}</span>}
+        {!ciut && <span className="min-w-0 flex-1 truncate">{item.label}</span>}
+        {!!badge && (
+          <span
+            className={
+              'flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red px-[5px] text-[10px] font-bold text-white' +
+              (ciut ? ' absolute top-1 right-1' : '')
+            }
+          >
+            {badge > 9 ? '9+' : badge}
+          </span>
+        )}
       </Link>
     );
   }
@@ -505,7 +550,7 @@ export default function AdminSidebar() {
                 {bag.label}
               </div>
             )}
-            {bag.item.map(tautan)}
+            {bag.item.map((item) => tautan(item))}
           </div>
         ))}
 
@@ -516,6 +561,7 @@ export default function AdminSidebar() {
                 Akun
               </div>
             )}
+            {tautan(ITEM_PERMINTAAN_GENERUS, jumlahPermintaan)}
             {tautan(ITEM_PENDAFTARAN)}
           </div>
         )}

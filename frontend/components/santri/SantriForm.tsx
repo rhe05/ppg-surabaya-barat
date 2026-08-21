@@ -181,7 +181,13 @@ export default function SantriForm({
      tetap menolak kalau kelas ini bukan milik guru yang sedang login, jadi
      penguncian di sini kenyamanan, bukan satu-satunya pengaman. */
   kelasNgajiTerkunci?: string;
-  onSelesai: () => void;
+  /* `diajukan` true kalau pemanggil ini guru DAN sedang menambah santri
+     baru -- artinya BUKAN tersimpan langsung, cuma diajukan ke Admin Kelp
+     (lihat cabang `role === 'guru'` di simpan() bawah) -- pemanggil bisa
+     memakainya utk menampilkan pesan yang berbeda ("menunggu persetujuan"
+     vs "tersimpan"). Admin (SantriList.tsx) tidak perlu peduli parameter
+     ini, panggilannya tetap `onSelesai={load}` tanpa argumen. */
+  onSelesai: (diajukan?: boolean) => void;
   onBatal: () => void;
 }) {
   const { profile } = useAuth();
@@ -307,39 +313,51 @@ export default function SantriForm({
         const { error: err } = await supabase.from('santri').update(patch).eq('id', santri.id);
         if (err) throw new Error(err.message);
       } else {
+        const dataSantri = {
+          kelompok_id: Number(isian.kelompok_id),
+          nama: isian.nama.trim(),
+          gender: isian.gender,
+          tanggal_lahir: isian.tanggal_lahir,
+          jenjang_saat_ini: isian.jenjang_saat_ini,
+          nama_panggilan: isian.nama_panggilan,
+          tempat_lahir: isian.tempat_lahir,
+          pendidikan: isian.pendidikan,
+          kelas_sekolah: isian.kelas_sekolah,
+          kelas_ngaji: isian.kelas_ngaji,
+          status_nikah: isian.status_nikah,
+          mulai_ngaji: isian.mulai_ngaji,
+          alamat: isian.alamat,
+          rt: isian.rt,
+          rw: isian.rw,
+          kelurahan: isian.kelurahan,
+          kecamatan: isian.kecamatan,
+          kabupaten_kota: isian.kabupaten_kota,
+          provinsi: isian.provinsi,
+          kode_pos: isian.kode_pos,
+          nama_ayah: isian.nama_ayah,
+          nama_ibu: isian.nama_ibu,
+          nomor_wa: isian.nomor_wa,
+          nomor_wa_ayah: isian.nomor_wa_ayah,
+          nomor_wa_ibu: isian.nomor_wa_ibu,
+        };
+
+        if (profile?.role === 'guru') {
+          /* Guru TIDAK bisa lagi menambah santri langsung (migrasi
+             20260821180000) -- wajib lewat ajukan_permintaan_generus(),
+             ditahan pending sampai Admin Kelp menyetujui. */
+          const { error: err } = await supabase.rpc('ajukan_permintaan_generus', {
+            p: { jenis: 'tambah', payload: dataSantri },
+          });
+          if (err) throw new Error(err.message);
+          onSelesai(true);
+          return;
+        }
+
         /* Tambah WAJIB lewat RPC, bukan .insert() langsung: NIS harus
            dibuat dan ditulis dalam SATU transaksi, kalau tidak dua admin
            yang menyimpan bersamaan dapat NIS sama (dibuktikan di uji
            konkurensi migrasi 20260817100000). */
-        const { error: err } = await supabase.rpc('tambah_santri', {
-          p: {
-            kelompok_id: Number(isian.kelompok_id),
-            nama: isian.nama.trim(),
-            gender: isian.gender,
-            tanggal_lahir: isian.tanggal_lahir,
-            jenjang_saat_ini: isian.jenjang_saat_ini,
-            nama_panggilan: isian.nama_panggilan,
-            tempat_lahir: isian.tempat_lahir,
-            pendidikan: isian.pendidikan,
-            kelas_sekolah: isian.kelas_sekolah,
-            kelas_ngaji: isian.kelas_ngaji,
-            status_nikah: isian.status_nikah,
-            mulai_ngaji: isian.mulai_ngaji,
-            alamat: isian.alamat,
-            rt: isian.rt,
-            rw: isian.rw,
-            kelurahan: isian.kelurahan,
-            kecamatan: isian.kecamatan,
-            kabupaten_kota: isian.kabupaten_kota,
-            provinsi: isian.provinsi,
-            kode_pos: isian.kode_pos,
-            nama_ayah: isian.nama_ayah,
-            nama_ibu: isian.nama_ibu,
-            nomor_wa: isian.nomor_wa,
-            nomor_wa_ayah: isian.nomor_wa_ayah,
-            nomor_wa_ibu: isian.nomor_wa_ibu,
-          },
-        });
+        const { error: err } = await supabase.rpc('tambah_santri', { p: dataSantri });
         if (err) throw new Error(err.message);
       }
       onSelesai();

@@ -525,6 +525,7 @@ function DataGenerusContent() {
   const [konfirmasiPindahTerbuka, setKonfirmasiPindahTerbuka] = useState(false);
   const [konfirmasiNaikTerbuka, setKonfirmasiNaikTerbuka] = useState(false);
   const [konfirmasiNonaktifTerbuka, setKonfirmasiNonaktifTerbuka] = useState(false);
+  const [pesanTerkirim, setPesanTerkirim] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -593,10 +594,15 @@ function DataGenerusContent() {
     setSantriDiubah(s);
     setFormTerbuka(true);
   }
-  function selesaiForm() {
+  function selesaiForm(diajukan?: boolean) {
     setFormTerbuka(false);
     setSantriDiubah(null);
     muatSantri();
+    if (diajukan) tampilkanPesanTerkirim();
+  }
+  function tampilkanPesanTerkirim() {
+    setPesanTerkirim('Permintaan terkirim, menunggu persetujuan Admin Kelp.');
+    setTimeout(() => setPesanTerkirim(null), 5000);
   }
   function mulaiModeMassal(mode: 'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif') {
     setTerpilihMassal(new Set());
@@ -614,33 +620,44 @@ function DataGenerusContent() {
       return baru;
     });
   }
+  /* Keempat aksi massal ini TIDAK LAGI memanggil pindah_kelas_santri/
+     naikkan_jenjang_santri/nonaktifkan_santri langsung (migrasi
+     20260821180000, fungsi2 itu sekarang admin-only) -- semua lewat
+     ajukan_permintaan_generus(), ditahan pending sampai Admin Kelp
+     menyetujui/menolak (lonceng di top bar). */
   async function konfirmasiPindahKelas(kelasTujuanId: number) {
-    const { error: err } = await supabase.rpc('pindah_kelas_santri', {
-      p: { santri_ids: Array.from(terpilihMassal), kelas_tujuan_id: kelasTujuanId },
+    const { error: err } = await supabase.rpc('ajukan_permintaan_generus', {
+      p: {
+        jenis: 'pindah_kelas',
+        payload: { santri_ids: Array.from(terpilihMassal), kelas_tujuan_id: kelasTujuanId },
+      },
     });
     if (err) throw new Error(err.message);
     setKonfirmasiPindahTerbuka(false);
     batalModeMassal();
     muatSantri();
+    tampilkanPesanTerkirim();
   }
   async function konfirmasiNaikKelas() {
-    const { error: err } = await supabase.rpc('naikkan_jenjang_santri', {
-      p: { santri_ids: Array.from(terpilihMassal) },
+    const { error: err } = await supabase.rpc('ajukan_permintaan_generus', {
+      p: { jenis: 'naik_kelas', payload: { santri_ids: Array.from(terpilihMassal) } },
     });
     if (err) throw new Error(err.message);
     setKonfirmasiNaikTerbuka(false);
     batalModeMassal();
     muatSantri();
+    tampilkanPesanTerkirim();
   }
   async function konfirmasiNonaktifMassal(tanggal: string, keterangan: string) {
-    const jenis = modeMassal === 'pindah_domisili' ? 'Pindah' : 'Tidak Aktif';
-    const { error: err } = await supabase.rpc('nonaktifkan_santri', {
-      p: { santri_ids: Array.from(terpilihMassal), jenis_siklus: jenis, tanggal, keterangan },
+    const jenis = modeMassal === 'pindah_domisili' ? 'pindah_domisili' : 'non_aktif';
+    const { error: err } = await supabase.rpc('ajukan_permintaan_generus', {
+      p: { jenis, payload: { santri_ids: Array.from(terpilihMassal), tanggal, keterangan } },
     });
     if (err) throw new Error(err.message);
     setKonfirmasiNonaktifTerbuka(false);
     batalModeMassal();
     muatSantri();
+    tampilkanPesanTerkirim();
   }
 
   if (!guruId) {
@@ -687,6 +704,18 @@ function DataGenerusContent() {
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}
         />
+      )}
+
+      {/* Toast "menunggu persetujuan" -- muncul sesaat tiap kali salah satu
+          dari 5 aksi guru diajukan (migrasi 20260821180000), auto-hilang
+          5 detik. fixed spt tombol/bilah lain di layar ini -- lihat
+          catatan max-w-[430px] di elemen fixed serupa. */}
+      {pesanTerkirim && (
+        <div className="fixed inset-x-0 top-4 z-[600] flex justify-center px-6">
+          <div className="w-full max-w-[430px] rounded-[var(--radius-lg)] border border-indigo bg-[#EEF2FF] px-4 py-3 text-[13px] font-semibold text-indigo shadow-[0_8px_24px_rgba(79,70,229,0.2)]">
+            {pesanTerkirim}
+          </div>
+        </div>
       )}
 
       {/* Judul + chip pilih kelas digabung satu kolom, pola SAMA PERSIS

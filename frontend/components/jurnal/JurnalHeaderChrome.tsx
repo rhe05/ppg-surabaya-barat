@@ -24,11 +24,12 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
-import { Menu, Bell } from 'lucide-react';
+import { Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 
 const SINGKATAN_KATEGORI: Record<string, string> = {
   'Muballigh Tugasan': 'MT',
@@ -74,13 +75,7 @@ export default function JurnalHeaderChrome({ tampilkanHero = true }: { tampilkan
             </span>
           </div>
           <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              aria-label="Permintaan Masuk"
-              className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-            >
-              <Bell size={20} strokeWidth={2} />
-            </button>
+            <BellPermintaanGuru />
           </div>
         </div>
 

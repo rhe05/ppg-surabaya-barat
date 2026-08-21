@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -302,25 +303,7 @@ export default function GuruDashboard() {
 
           {/* .ia-icon-btn — :5046-5064 */}
           <div className="flex shrink-0 gap-2">
-            <button
-              type="button"
-              aria-label="Permintaan Masuk"
-              className="relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                width="20"
-                height="20"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-            </button>
+            <BellPermintaanGuru />
           </div>
         </div>
 
