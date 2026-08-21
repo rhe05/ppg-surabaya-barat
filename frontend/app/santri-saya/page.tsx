@@ -24,7 +24,16 @@
    lamanya walau sekarang santrinya sudah tidak aktif. */
 
 import { useCallback, useEffect, useState } from 'react';
-import { User, UserPlus, ArrowLeftRight, TrendingUp, Check } from 'lucide-react';
+import {
+  User,
+  UserPlus,
+  ArrowLeftRight,
+  TrendingUp,
+  House,
+  ArrowRight,
+  UserRoundX,
+  Check,
+} from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -33,11 +42,6 @@ import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriF
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 type Kelas = { id: number; nama: string; santri_count: number };
-
-const JENIS_SIKLUS: { nilai: 'Pindah' | 'Tidak Aktif'; label: string; keterangan: string }[] = [
-  { nilai: 'Pindah', label: 'Pindah', keterangan: 'Pindah ke kelompok/TPQ lain.' },
-  { nilai: 'Tidak Aktif', label: 'Tidak Aktif', keterangan: 'Berhenti ngaji, bukan karena pindah.' },
-];
 
 /* Urutan jenjang persis enum santri_jenjang -- dipakai cuma utk PRATINJAU
    di NaikKelasModal (nama lama -> nama baru); kenaikan sesungguhnya
@@ -51,22 +55,72 @@ function jenjangBerikutnya(sekarang: string | null): string | null {
   return JENJANG_URUT[idx + 1];
 }
 
+/* Satu sumber kebenaran per aksi massal: label bilah bawah, keterangan
+   ajakan, dan warna (kartu tercentang, tombol bilah bawah) -- dipakai di
+   3 tempat (caption, kartu, bilah bawah) supaya menambah aksi baru cukup
+   nambah satu baris di sini, bukan menambah ternary baru di 3 tempat. */
+const MASSAL: Record<
+  'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif',
+  { label: string; ajakan: string; border: string; bg: string; bgLembut: string }
+> = {
+  pindah: {
+    label: 'Pindah',
+    ajakan: 'Ketuk santri yang mau dipindah kelasnya, boleh lebih dari satu.',
+    border: 'border-indigo',
+    bg: 'border-indigo bg-indigo',
+    bgLembut: 'bg-[rgba(79,70,229,0.05)]',
+  },
+  naik: {
+    label: 'Naik Kelas',
+    ajakan: 'Ketuk santri yang mau dinaikkan jenjangnya, boleh lebih dari satu.',
+    border: 'border-sage',
+    bg: 'border-sage bg-sage',
+    bgLembut: 'bg-[rgba(5,150,105,0.05)]',
+  },
+  pindah_domisili: {
+    label: 'Pindah Domisili',
+    ajakan: 'Ketuk santri yang mau ditandai Pindah Domisili, boleh lebih dari satu.',
+    border: 'border-brass',
+    bg: 'border-brass bg-brass',
+    bgLembut: 'bg-[rgba(217,119,6,0.05)]',
+  },
+  non_aktif: {
+    label: 'Non Aktif',
+    ajakan: 'Ketuk santri yang mau ditandai Non Aktif, boleh lebih dari satu.',
+    border: 'border-red',
+    bg: 'border-red bg-red',
+    bgLembut: 'bg-[rgba(220,38,38,0.05)]',
+  },
+};
+
 function hariIni() {
   const now = new Date();
   const lokal = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
   return lokal.toISOString().slice(0, 10);
 }
 
-function NonaktifkanModal({
-  santri,
-  onSelesai,
+/* Konfirmasi "Pindah Domisili" / "Non Aktif" -- aksi massal (mode centang,
+   sama pola dgn Pindah Kelas & Naik Kelas), pengganti tombol "Hapus" yang
+   dulu ada DI DALAM form Ubah (satu santri). `jenis` sudah tetap ditentukan
+   dari menu mana yang diklik (bukan radio pilihan lagi spt versi lama) --
+   RPC nonaktifkan_santri (migrasi 20260821130000, jadi massal di migrasi
+   20260821170000) mencatat siklus_generus + soft-delete SEMUA santri
+   terpilih sejak tanggal yang sama, satu transaksi. */
+function NonaktifkanMassalModal({
+  jenis,
+  judul,
+  deskripsi,
+  jumlah,
+  onKonfirmasi,
   onBatal,
 }: {
-  santri: SantriRow;
-  onSelesai: () => void;
+  jenis: 'Pindah' | 'Tidak Aktif';
+  judul: string;
+  deskripsi: string;
+  jumlah: number;
+  onKonfirmasi: (tanggal: string, keterangan: string) => Promise<void>;
   onBatal: () => void;
 }) {
-  const [jenis, setJenis] = useState<'Pindah' | 'Tidak Aktif'>('Pindah');
   const [tanggal, setTanggal] = useState(hariIni);
   const [keterangan, setKeterangan] = useState('');
   const [menyimpan, setMenyimpan] = useState(false);
@@ -76,11 +130,7 @@ function NonaktifkanModal({
     setMenyimpan(true);
     setError(null);
     try {
-      const { error: err } = await supabase.rpc('nonaktifkan_santri', {
-        p: { santri_id: santri.id, jenis_siklus: jenis, tanggal, keterangan },
-      });
-      if (err) throw new Error(err.message);
-      onSelesai();
+      await onKonfirmasi(tanggal, keterangan);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
     } finally {
@@ -91,38 +141,13 @@ function NonaktifkanModal({
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
       <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
-        <h2 className="mb-1 text-[17px] font-bold text-text">Pindah / Tidak Aktif</h2>
+        <h2 className="mb-1 text-[17px] font-bold text-text">{judul}</h2>
         <p className="mb-4 text-[12.5px] text-text-dim">
-          {santri.nama} akan hilang dari Data Generus &amp; absensi baru sejak tanggal di bawah.
-          Riwayat kehadiran sebelumnya tetap tersimpan utuh di laporan.
+          {jumlah} santri terpilih {deskripsi} sejak tanggal di bawah. Riwayat kehadiran
+          sebelumnya tetap tersimpan utuh di laporan.
         </p>
 
-        <div className="mb-4 flex flex-col gap-2.5">
-          {JENIS_SIKLUS.map((j) => (
-            <label
-              key={j.nilai}
-              className={`flex cursor-pointer items-start gap-2.5 rounded-card border-[1.5px] p-3 ${
-                jenis === j.nilai ? 'border-brass bg-[rgba(217,119,6,0.06)]' : 'border-border'
-              }`}
-            >
-              <input
-                type="radio"
-                name="jenis_siklus"
-                className="mt-0.5"
-                checked={jenis === j.nilai}
-                onChange={() => setJenis(j.nilai)}
-              />
-              <span>
-                <span className="block text-[13.5px] font-bold text-text">{j.label}</span>
-                <span className="block text-[11.5px] text-text-faint">{j.keterangan}</span>
-              </span>
-            </label>
-          ))}
-        </div>
-
-        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
-          Sejak Tanggal
-        </label>
+        <label className="mb-1.5 block text-[12px] font-semibold text-text">Sejak Tanggal</label>
         <input
           type="date"
           value={tanggal}
@@ -130,13 +155,13 @@ function NonaktifkanModal({
           className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
         />
 
-        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+        <label className="mb-1.5 block text-[12px] font-semibold text-text">
           Keterangan (opsional)
         </label>
         <input
           value={keterangan}
           onChange={(e) => setKeterangan(e.target.value)}
-          placeholder="Misal: pindah ke TPQ Al-Ikhlas"
+          placeholder={jenis === 'Pindah' ? 'Misal: pindah ke TPQ Al-Ikhlas' : ''}
           className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
         />
 
@@ -154,9 +179,11 @@ function NonaktifkanModal({
             type="button"
             disabled={menyimpan}
             onClick={simpan}
-            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-red bg-red px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+            className={`flex-1 cursor-pointer rounded-[var(--radius)] border px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40 ${
+              jenis === 'Pindah' ? 'border-brass bg-brass' : 'border-red bg-red'
+            }`}
           >
-            {menyimpan ? 'Menyimpan...' : 'Simpan'}
+            {menyimpan ? 'Menyimpan...' : judul}
           </button>
         </div>
       </div>
@@ -175,14 +202,18 @@ function TambahMenu({
   onTutup,
   onTambah,
   onPindahKelas,
+  onPindahDomisili,
   onNaikKelas,
+  onNonAktif,
   bisaPindahKelas,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   onTambah: () => void;
   onPindahKelas: () => void;
+  onPindahDomisili: () => void;
   onNaikKelas: () => void;
+  onNonAktif: () => void;
   bisaPindahKelas: boolean;
 }) {
   if (!terbuka) return null;
@@ -222,12 +253,37 @@ function TambahMenu({
           type="button"
           onClick={() => {
             onTutup();
+            onPindahDomisili();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <span className="flex shrink-0 items-center gap-0.5 text-brass">
+            <House size={16} strokeWidth={2} />
+            <ArrowRight size={14} strokeWidth={2.5} />
+          </span>
+          <span>Pindah Domisili</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
             onNaikKelas();
           }}
           className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
         >
           <TrendingUp size={18} strokeWidth={2} className="shrink-0 text-sage" />
           <span>Naik Kelas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onNonAktif();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <UserRoundX size={18} strokeWidth={2} className="shrink-0 text-red" />
+          <span>Non Aktif</span>
         </button>
       </div>
     </>
@@ -456,17 +512,19 @@ function DataGenerusContent() {
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
-  const [santriDinonaktifkan, setSantriDinonaktifkan] = useState<SantriRow | null>(null);
 
   const [menuTambahTerbuka, setMenuTambahTerbuka] = useState(false);
-  /* null = mode normal (tap kartu = buka Ubah). 'pindah'/'naik' = mode
-     centang aksi massal -- tap kartu memilih/batal pilih, bukan buka
-     form. Satu set state dipakai bergantian utk kedua aksi supaya UI
-     kartu & bilah bawah tidak perlu diduplikasi. */
-  const [modeMassal, setModeMassal] = useState<'pindah' | 'naik' | null>(null);
+  /* null = mode normal (tap kartu = buka Ubah). Selain itu = mode centang
+     aksi massal -- tap kartu memilih/batal pilih, bukan buka form. Satu
+     set state dipakai bergantian utk ke-4 aksi supaya UI kartu & bilah
+     bawah tidak perlu diduplikasi 4x. */
+  const [modeMassal, setModeMassal] = useState<
+    'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif' | null
+  >(null);
   const [terpilihMassal, setTerpilihMassal] = useState<Set<number>>(new Set());
   const [konfirmasiPindahTerbuka, setKonfirmasiPindahTerbuka] = useState(false);
   const [konfirmasiNaikTerbuka, setKonfirmasiNaikTerbuka] = useState(false);
+  const [konfirmasiNonaktifTerbuka, setKonfirmasiNonaktifTerbuka] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -540,12 +598,7 @@ function DataGenerusContent() {
     setSantriDiubah(null);
     muatSantri();
   }
-  function selesaiNonaktifkan() {
-    setSantriDinonaktifkan(null);
-    muatSantri();
-  }
-
-  function mulaiModeMassal(mode: 'pindah' | 'naik') {
+  function mulaiModeMassal(mode: 'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif') {
     setTerpilihMassal(new Set());
     setModeMassal(mode);
   }
@@ -576,6 +629,16 @@ function DataGenerusContent() {
     });
     if (err) throw new Error(err.message);
     setKonfirmasiNaikTerbuka(false);
+    batalModeMassal();
+    muatSantri();
+  }
+  async function konfirmasiNonaktifMassal(tanggal: string, keterangan: string) {
+    const jenis = modeMassal === 'pindah_domisili' ? 'Pindah' : 'Tidak Aktif';
+    const { error: err } = await supabase.rpc('nonaktifkan_santri', {
+      p: { santri_ids: Array.from(terpilihMassal), jenis_siklus: jenis, tanggal, keterangan },
+    });
+    if (err) throw new Error(err.message);
+    setKonfirmasiNonaktifTerbuka(false);
     batalModeMassal();
     muatSantri();
   }
@@ -621,24 +684,8 @@ function DataGenerusContent() {
         <SantriForm
           santri={santriDiubah}
           kelasNgajiTerkunci={kelasAktif.nama}
-          onHapus={
-            santriDiubah
-              ? () => {
-                  setFormTerbuka(false);
-                  setSantriDinonaktifkan(santriDiubah);
-                }
-              : undefined
-          }
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}
-        />
-      )}
-
-      {santriDinonaktifkan && (
-        <NonaktifkanModal
-          santri={santriDinonaktifkan}
-          onSelesai={selesaiNonaktifkan}
-          onBatal={() => setSantriDinonaktifkan(null)}
         />
       )}
 
@@ -701,7 +748,9 @@ function DataGenerusContent() {
               onTutup={() => setMenuTambahTerbuka(false)}
               onTambah={bukaTambah}
               onPindahKelas={() => mulaiModeMassal('pindah')}
+              onPindahDomisili={() => mulaiModeMassal('pindah_domisili')}
               onNaikKelas={() => mulaiModeMassal('naik')}
+              onNonAktif={() => mulaiModeMassal('non_aktif')}
               bisaPindahKelas={kelasList.length > 1}
             />
           </div>
@@ -717,11 +766,7 @@ function DataGenerusContent() {
       {kelasAktif && (
         <>
           {modeMassal && (
-            <p className="-mt-2 mb-4 text-[12.5px] text-text-dim">
-              {modeMassal === 'pindah'
-                ? 'Ketuk santri yang mau dipindah kelasnya, boleh lebih dari satu.'
-                : 'Ketuk santri yang mau dinaikkan jenjangnya, boleh lebih dari satu.'}
-            </p>
+            <p className="-mt-2 mb-4 text-[12.5px] text-text-dim">{MASSAL[modeMassal].ajakan}</p>
           )}
 
           <div className="my-4">
@@ -745,29 +790,21 @@ function DataGenerusContent() {
           <div className="flex flex-col gap-2.5">
             {santriTersaring.map((s) => {
               const dicentang = terpilihMassal.has(s.id);
-              const modeNaik = modeMassal === 'naik';
+              const warna = modeMassal ? MASSAL[modeMassal] : null;
               return (
                 <button
                   key={s.id}
                   type="button"
                   onClick={() => (modeMassal ? toggleTerpilih(s.id) : bukaUbah(s))}
                   className={`flex items-center justify-between gap-3 rounded-card border-[1.5px] p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99] ${
-                    modeMassal && dicentang
-                      ? modeNaik
-                        ? 'border-sage bg-[rgba(5,150,105,0.05)]'
-                        : 'border-indigo bg-[rgba(79,70,229,0.05)]'
-                      : 'border-border bg-panel'
+                    warna && dicentang ? `${warna.border} ${warna.bgLembut}` : 'border-border bg-panel'
                   }`}
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     {modeMassal && (
                       <span
                         className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
-                          dicentang
-                            ? modeNaik
-                              ? 'border-sage bg-sage text-white'
-                              : 'border-indigo bg-indigo text-white'
-                            : 'border-border text-transparent'
+                          dicentang ? `${warna!.bg} text-white` : 'border-border text-transparent'
                         }`}
                       >
                         <Check size={13} strokeWidth={3} />
@@ -803,16 +840,14 @@ function DataGenerusContent() {
                 <button
                   type="button"
                   disabled={terpilihMassal.size === 0}
-                  onClick={() =>
-                    modeMassal === 'pindah'
-                      ? setKonfirmasiPindahTerbuka(true)
-                      : setKonfirmasiNaikTerbuka(true)
-                  }
-                  className={`cursor-pointer rounded-full border px-5 py-2 text-[13px] font-bold text-white active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${
-                    modeMassal === 'naik' ? 'border-sage bg-sage' : 'border-indigo bg-indigo'
-                  }`}
+                  onClick={() => {
+                    if (modeMassal === 'pindah') setKonfirmasiPindahTerbuka(true);
+                    else if (modeMassal === 'naik') setKonfirmasiNaikTerbuka(true);
+                    else setKonfirmasiNonaktifTerbuka(true);
+                  }}
+                  className={`cursor-pointer rounded-full border px-5 py-2 text-[13px] font-bold text-white active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 ${MASSAL[modeMassal].bg}`}
                 >
-                  {modeMassal === 'pindah' ? 'Pindah' : 'Naik Kelas'}
+                  {MASSAL[modeMassal].label}
                 </button>
               </div>
             </div>
@@ -834,6 +869,22 @@ function DataGenerusContent() {
               onBatal={() => setKonfirmasiNaikTerbuka(false)}
             />
           )}
+
+          {konfirmasiNonaktifTerbuka &&
+            (modeMassal === 'pindah_domisili' || modeMassal === 'non_aktif') && (
+              <NonaktifkanMassalModal
+                jenis={modeMassal === 'pindah_domisili' ? 'Pindah' : 'Tidak Aktif'}
+                judul={MASSAL[modeMassal].label}
+                deskripsi={
+                  modeMassal === 'pindah_domisili'
+                    ? 'akan ditandai pindah domisili'
+                    : 'akan ditandai tidak aktif'
+                }
+                jumlah={terpilihMassal.size}
+                onKonfirmasi={konfirmasiNonaktifMassal}
+                onBatal={() => setKonfirmasiNonaktifTerbuka(false)}
+              />
+            )}
         </>
       )}
       </div>
