@@ -72,6 +72,10 @@ type Prota = {
   urutan: number;
   target: string | null;
   deskripsi: string | null;
+  /* Pasangan Target/Deskripsi KEDUA -- sementara khusus materi "Bacaan
+     Al-Qur'an" (migrasi 20260822090000). NULL utk kategori lain. */
+  target2: string | null;
+  deskripsi2: string | null;
   kategori_kbm: Tersemat;
 };
 
@@ -103,6 +107,21 @@ function namaDari(nilai: Tersemat) {
   if (!nilai) return '-';
   const baris = Array.isArray(nilai) ? nilai[0] : nilai;
   return baris?.nama ?? '-';
+}
+
+/* Nama kategori KBM di DB TETAP "Bacaan Al-Qur'an" utk semua kelas --
+   ini murni ganti tampilan, bukan rename data, jadi Tambah Materi/
+   filter/dst tidak perlu ikut berubah. Kelas PAUD/TK s.d. 3 menampilkan
+   "Baca Huruf Al-Qur'an" (nama asli kategori sengaja dipakai sbg kunci
+   pencocokan, BUKAN label yang sudah diganti -- supaya konsisten dgn
+   fitur target2/deskripsi2 di bawah yang jg mengecek nama ASLI). */
+const KATEGORI_BACAAN_ALQURAN = "Bacaan Al-Qur'an";
+const KELAS_LABEL_BACA_HURUF = ['PAUD-TK', '1', '2', '3'];
+function namaMateriTampil(namaAsli: string, kelas: string | null) {
+  if (namaAsli === KATEGORI_BACAAN_ALQURAN && KELAS_LABEL_BACA_HURUF.includes(kelas ?? '')) {
+    return 'Baca Huruf Al-Qur\'an';
+  }
+  return namaAsli;
 }
 
 /* Palet Probul SENGAJA ditekan jadi satu warna netral + SATU aksen
@@ -381,7 +400,7 @@ function KurikulumContent() {
     try {
       const { data: dProta, error: e1 } = await supabase
         .from('kurikulum_prota')
-        .select('id, kelompok_id, tahun, kategori_kbm_id, kelas, urutan, target, deskripsi, kategori_kbm(nama)')
+        .select('id, kelompok_id, tahun, kategori_kbm_id, kelas, urutan, target, deskripsi, target2, deskripsi2, kategori_kbm(nama)')
         .eq('kelompok_id', kelompokId)
         .eq('tahun', tahun)
         .eq('kelas', kelas)
@@ -718,18 +737,32 @@ function KurikulumContent() {
         prota.map((p, indeks) => {
           const dibuka = terbuka.has(p.id);
           const daftarPromes = promesPerProta.get(p.id) ?? [];
+          const namaAsli = namaDari(p.kategori_kbm);
+          const namaTampil = namaMateriTampil(namaAsli, kelas);
+          /* Pasangan Target/Deskripsi KEDUA -- SEMENTARA khusus materi
+             "Bacaan Al-Qur'an" (nama ASLI dicek, bukan namaTampil, supaya
+             tetap kena baik di kelas yg menampilkan "Baca Huruf..." maupun
+             kelas 4+ yg tetap "Bacaan Al-Qur'an"). Kategori lain TIDAK
+             disentuh, tetap 1 pasang spt semula. */
+          const isianProta: Isian[] = [
+            { label: 'Target', field: 'target', nilai: p.target ?? '' },
+            { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
+          ];
+          if (namaAsli === KATEGORI_BACAAN_ALQURAN) {
+            isianProta.push(
+              { label: 'Target 2', field: 'target2', nilai: p.target2 ?? '' },
+              { label: 'Deskripsi 2', field: 'deskripsi2', nilai: p.deskripsi2 ?? '', baris: true },
+            );
+          }
           const aksiProta = [
             {
               label: 'Ubah',
               onClick: () =>
                 setUbah({
-                  judul: 'Ubah Prota — ' + namaDari(p.kategori_kbm),
+                  judul: 'Ubah Prota — ' + namaTampil,
                   tabel: 'kurikulum_prota',
                   id: p.id,
-                  isian: [
-                    { label: 'Target', field: 'target', nilai: p.target ?? '' },
-                    { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
-                  ],
+                  isian: isianProta,
                 }),
             },
             ...(bolehHapus ? [{ label: 'Hapus', onClick: () => hapusMateri(p), merah: true }] : []),
@@ -755,7 +788,7 @@ function KurikulumContent() {
                       longgar. Seluruh kartu tetap satu tombol klik penuh,
                       cukup jadi affordance-nya sendiri. */}
                   <div className="min-w-0 flex-1">
-                    <span className="text-[16px] font-bold text-text">{namaDari(p.kategori_kbm)}</span>
+                    <span className="text-[16px] font-bold text-text">{namaTampil}</span>
                     <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
                     {p.deskripsi && (
                       <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
