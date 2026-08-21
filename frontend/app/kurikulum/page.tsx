@@ -713,7 +713,7 @@ function KurikulumContent() {
   return (
     <>
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
-      <div className="mx-auto max-w-5xl p-6">
+      <div className="mx-auto max-w-5xl px-6 pb-6 pt-2 sm:pt-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[24px] font-bold text-text">
