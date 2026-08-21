@@ -295,7 +295,7 @@ function DataGenerusContent() {
           mengulang info yang sudah dilihat guru di Dashboard, tapi tetap
           butuh jalan kembali ke menu. */}
       <JurnalHeaderChrome tampilkanHero={false} />
-      <div className="mx-auto w-full max-w-3xl p-6 pb-28">
+      <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-28">
       <KelasGate
         terbuka={gateTerbuka}
         ikon={<IkonKelas />}
@@ -334,21 +334,33 @@ function DataGenerusContent() {
         />
       )}
 
-      <div className="mb-1 flex items-start justify-between gap-3">
-        <div>
-          <h1 className="text-[24px] font-bold text-text">Data Generus</h1>
-          <p className="text-[13px] text-text-dim">
-            {kelasAktif ? `Kelas ${kelasAktif.nama}` : 'Belum ada kelas dipilih'}
-          </p>
-        </div>
+      {/* Judul + chip pilih kelas digabung satu kolom, pola SAMA PERSIS
+          RencanaPembelajaranView.tsx: chip langsung mengganti kelasId di
+          tempat (tanpa popup) begitu ada >1 kelas, chip aktif ditandai
+          indigo. Popup KelasGate di atas tetap ada, tapi cuma kepakai
+          otomatis sekali saat layar pertama dibuka (>1 kelas & belum ada
+          pilihan) -- lihat efek muatKelas(). */}
+      <div className="mb-4 flex flex-col gap-1.5">
+        <div className="pt-1.5 text-[17px] font-extrabold text-text">Data Generus</div>
         {kelasList.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setGateTerbuka(true)}
-            className="shrink-0 cursor-pointer rounded-full border border-border bg-panel-2 px-3 py-1.5 text-[12px] font-semibold text-text active:scale-[0.97]"
-          >
-            Ganti Kelas
-          </button>
+          <div className="flex gap-2 overflow-x-auto">
+            {kelasList.map((k) => {
+              const aktif = k.id === kelasId;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setKelasId(k.id)}
+                  className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                    aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                  }`}
+                  style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                >
+                  {k.nama}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
 
