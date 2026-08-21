@@ -28,6 +28,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ArrowLeftRight,
   ChevronDown,
   ChevronUp,
   MoreVertical,
@@ -713,7 +714,7 @@ function KurikulumContent() {
     <>
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
       <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[24px] font-bold text-text">
             Kurikulum {kelas === 'PAUD-TK' ? 'PAUD/TK' : 'Kelas ' + kelas}
@@ -744,8 +745,13 @@ function KurikulumContent() {
               Tambah Materi
             </button>
           )}
-          <button onClick={() => setKelas(null)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
-            Ganti Kelas
+          <button
+            onClick={() => setKelas(null)}
+            aria-label="Ganti Kelas"
+            title="Ganti Kelas"
+            className={KELAS_TOMBOL_SEKUNDER + ' p-2.5'}
+          >
+            <ArrowLeftRight size={16} strokeWidth={2.5} />
           </button>
         </div>
       </div>
