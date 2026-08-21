@@ -29,7 +29,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ChevronDown,
-  ChevronRight,
   ChevronUp,
   MoreVertical,
   Pencil,
@@ -750,13 +749,11 @@ function KurikulumContent() {
                       return baru;
                     })
                   }
-                  className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 text-left"
+                  className="flex min-w-0 flex-1 cursor-pointer items-start text-left"
                 >
-                  {dibuka ? (
-                    <ChevronDown size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-indigo" />
-                  ) : (
-                    <ChevronRight size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-text-faint" />
-                  )}
+                  {/* Ikon chevron dicabut (diminta owner) -- kartu jadi lebih
+                      longgar. Seluruh kartu tetap satu tombol klik penuh,
+                      cukup jadi affordance-nya sendiri. */}
                   <div className="min-w-0 flex-1">
                     <span className="text-[16px] font-bold text-text">{namaDari(p.kategori_kbm)}</span>
                     <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
@@ -801,8 +798,19 @@ function KurikulumContent() {
                 </div>
               </div>
 
-              {dibuka && (
-                <div className="border-t border-border bg-panel-2 p-4">
+              {/* Buka/tutup dianimasikan lewat trik grid-template-rows
+                  0fr<->1fr (murni CSS, tidak perlu ukur tinggi via JS) --
+                  diminta owner "lebih canggih dan modern", bukan lagi
+                  muncul/hilang mendadak. Konten TETAP dirender terus
+                  (bukan {'{dibuka && (...)}'}) supaya transisinya punya
+                  sesuatu utk dianimasikan. */}
+              <div
+                className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out ${
+                  dibuka ? 'grid-rows-[1fr] border-t border-border' : 'grid-rows-[0fr]'
+                }`}
+              >
+                <div className="overflow-hidden bg-panel-2">
+                <div className="p-4">
                   {daftarPromes.length === 0 && (
                     <p className="text-[13px] text-text-dim">Belum ada program semester.</p>
                   )}
@@ -1012,7 +1020,8 @@ function KurikulumContent() {
                       );
                     })}
                   </div>
-                )}
+                </div>
+                </div>
               </div>
             );
           })}
