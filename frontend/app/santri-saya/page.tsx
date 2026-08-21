@@ -295,7 +295,7 @@ function DataGenerusContent() {
           mengulang info yang sudah dilihat guru di Dashboard, tapi tetap
           butuh jalan kembali ke menu. */}
       <JurnalHeaderChrome tampilkanHero={false} />
-      <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-28">
+      <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-8">
       <KelasGate
         terbuka={gateTerbuka}
         ikon={<IkonKelas />}
@@ -340,27 +340,40 @@ function DataGenerusContent() {
           indigo. Popup KelasGate di atas tetap ada, tapi cuma kepakai
           otomatis sekali saat layar pertama dibuka (>1 kelas & belum ada
           pilihan) -- lihat efek muatKelas(). */}
-      <div className="mb-4 flex flex-col gap-1.5">
-        <div className="pt-1.5 text-[17px] font-extrabold text-text">Data Generus</div>
-        {kelasList.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto">
-            {kelasList.map((k) => {
-              const aktif = k.id === kelasId;
-              return (
-                <button
-                  key={k.id}
-                  type="button"
-                  onClick={() => setKelasId(k.id)}
-                  className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
-                    aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
-                  }`}
-                  style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
-                >
-                  {k.nama}
-                </button>
-              );
-            })}
-          </div>
+      <div className="mb-4 flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <div className="pt-1.5 text-[17px] font-extrabold text-text">Data Generus</div>
+          {kelasList.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto">
+              {kelasList.map((k) => {
+                const aktif = k.id === kelasId;
+                return (
+                  <button
+                    key={k.id}
+                    type="button"
+                    onClick={() => setKelasId(k.id)}
+                    className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                      aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                    }`}
+                    style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                  >
+                    {k.nama}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {/* Tombol tambah -- sejajar judul, di kolom kanan (di bawah lonceng
+            top bar) -- gantikan tombol melayang di dasar layar sebelumnya. */}
+        {kelasAktif && (
+          <button
+            type="button"
+            onClick={bukaTambah}
+            className="mt-1.5 shrink-0 cursor-pointer rounded-full border border-brass bg-brass px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.96]"
+          >
+            + Generus
+          </button>
         )}
       </div>
 
@@ -412,22 +425,6 @@ function DataGenerusContent() {
                 )}
               </button>
             ))}
-          </div>
-
-          {/* fixed ke viewport SUNGGUHAN (bungkus RequireAuth mobile sengaja
-              bukan containing block, lihat komentarnya) -- makanya
-              pemusatan ke lebar 430px dilakukan lewat wrapper DI DALAM
-              elemen fixed ini, bukan left-1/2 langsung. */}
-          <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6">
-            <div className="w-full max-w-[430px] px-0 flex justify-center">
-              <button
-                type="button"
-                onClick={bukaTambah}
-                className="cursor-pointer rounded-full border border-brass bg-brass px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_28px_rgba(217,119,6,0.35)] active:scale-[0.97]"
-              >
-                + Tambah Generus
-              </button>
-            </div>
           </div>
         </>
       )}

@@ -14,9 +14,10 @@
      kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
      (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
 
 export type SantriRow = {
   id: number;
@@ -133,6 +134,25 @@ function kosongJadiNull(v: string): string | null {
   return t === '' ? null : t;
 }
 
+const NAMA_BULAN_SINGKAT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+];
+/* 'YYYY-MM-DD' -> "21 Agu 2026", buat ditampilkan di tombol pemicu
+   TanggalPicker (menggantikan <input type="date"> bawaan browser). */
+function formatTanggalTampil(v: string): string {
+  if (!v) return '';
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${String(d).padStart(2, '0')} ${NAMA_BULAN_SINGKAT[m - 1] ?? ''} ${y}`;
+}
+
+/* Nomor WA: hanya angka, digroup 4-4-4 dgn strip -- diketik apa pun,
+   karakter non-angka dibuang lalu diformat ulang dari nol setiap kali. */
+function formatNomorWa(v: string): string {
+  const digit = v.replace(/\D/g, '');
+  return digit.replace(/(\d{4})(?=\d)/g, '$1-');
+}
+
 const KELAS_INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
@@ -180,6 +200,21 @@ export default function SantriForm({
   const [kelasList, setKelasList] = useState<KelasNgaji[]>([]);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* Kalender custom (TanggalPicker), sama persis yang dipakai layar Input
+     Kehadiran -- gantikan <input type="date"> bawaan browser yg tampilannya
+     beda-beda tiap perangkat. Satu instance dipakai bergantian utk kedua
+     field tanggal (tglAktif menandai field mana yang sedang dibuka). */
+  const [tglAktif, setTglAktif] = useState<'tanggal_lahir' | 'mulai_ngaji' | null>(null);
+  const [posisiTgl, setPosisiTgl] = useState<PosisiPicker | null>(null);
+  const tglLahirRef = useRef<HTMLButtonElement>(null);
+  const mulaiNgajiRef = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl(field: 'tanggal_lahir' | 'mulai_ngaji', ref: React.RefObject<HTMLButtonElement | null>) {
+    const rect = ref.current?.getBoundingClientRect();
+    if (rect) setPosisiTgl({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setTglAktif(field);
+  }
 
   /* admin_kelompok & guru terkunci ke kelompoknya sendiri; admin_desa/
      admin_ppg memilih bebas. Pilihan di luar scope tetap ditolak RPC
@@ -229,6 +264,10 @@ export default function SantriForm({
       }
       return { ...s, [field]: nilai };
     });
+  }
+
+  function ubahWa(field: 'nomor_wa' | 'nomor_wa_ayah' | 'nomor_wa_ibu', nilaiMentah: string) {
+    ubah(field, formatNomorWa(nilaiMentah));
   }
 
   async function simpan(e: React.FormEvent) {
@@ -329,6 +368,16 @@ export default function SantriForm({
           {modeUbah ? 'Ubah Santri' : 'Tambah Santri'}
         </h2>
 
+        <TanggalPicker
+          terbuka={tglAktif !== null}
+          posisi={posisiTgl}
+          nilai={tglAktif ? isian[tglAktif] : ''}
+          onPilih={(v) => {
+            if (tglAktif) ubah(tglAktif, v);
+          }}
+          onTutup={() => setTglAktif(null)}
+        />
+
         <Bagian judul="Data Pokok">
           <div>
             <label className={KELAS_LABEL}>Kelompok *</label>
@@ -419,18 +468,20 @@ export default function SantriForm({
           </div>
           <div>
             <label className={KELAS_LABEL}>Tanggal Lahir *</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={isian.tanggal_lahir}
-              onChange={(e) => ubah('tanggal_lahir', e.target.value)}
-            />
+            <button
+              type="button"
+              ref={tglLahirRef}
+              onClick={() => bukaTgl('tanggal_lahir', tglLahirRef)}
+              className={`${KELAS_INPUT} text-left ${isian.tanggal_lahir ? '' : 'text-text-faint'}`}
+            >
+              {isian.tanggal_lahir ? formatTanggalTampil(isian.tanggal_lahir) : 'Pilih tanggal'}
+            </button>
           </div>
         </Bagian>
 
         <Bagian judul="Pendidikan & Ngaji">
           <div>
-            <label className={KELAS_LABEL}>Pendidikan</label>
+            <label className={KELAS_LABEL}>Pendidikan Formal</label>
             <select
               className={KELAS_INPUT}
               value={isian.pendidikan}
@@ -489,28 +540,35 @@ export default function SantriForm({
           </div>
           <div>
             <label className={KELAS_LABEL}>Mulai Ngaji</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={isian.mulai_ngaji}
-              onChange={(e) => ubah('mulai_ngaji', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Status Kesiapan</label>
-            <select
-              className={KELAS_INPUT}
-              value={isian.status_nikah}
-              onChange={(e) => ubah('status_nikah', e.target.value)}
+            <button
+              type="button"
+              ref={mulaiNgajiRef}
+              onClick={() => bukaTgl('mulai_ngaji', mulaiNgajiRef)}
+              className={`${KELAS_INPUT} text-left ${isian.mulai_ngaji ? '' : 'text-text-faint'}`}
             >
-              <option value="">-- Pilih Status --</option>
-              {STATUS_NIKAH.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              {isian.mulai_ngaji ? formatTanggalTampil(isian.mulai_ngaji) : 'Pilih tanggal'}
+            </button>
           </div>
+          {/* Status Kesiapan (nikah) cuma relevan utk jenjang paling atas --
+              "remaja pra nikah", di atas Remaja SMA. Jenjang lebih muda
+              tidak pernah butuh field ini. */}
+          {isian.jenjang_saat_ini === 'Remaja' && (
+            <div>
+              <label className={KELAS_LABEL}>Status Kesiapan</label>
+              <select
+                className={KELAS_INPUT}
+                value={isian.status_nikah}
+                onChange={(e) => ubah('status_nikah', e.target.value)}
+              >
+                <option value="">-- Pilih Status --</option>
+                {STATUS_NIKAH.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </Bagian>
 
         <Bagian judul="Orang Tua & Kontak">
@@ -523,6 +581,16 @@ export default function SantriForm({
             />
           </div>
           <div>
+            <label className={KELAS_LABEL}>Nomor WA Ayah</label>
+            <input
+              className={KELAS_INPUT}
+              inputMode="numeric"
+              value={isian.nomor_wa_ayah}
+              onChange={(e) => ubahWa('nomor_wa_ayah', e.target.value)}
+              placeholder="0812-3456-7890"
+            />
+          </div>
+          <div>
             <label className={KELAS_LABEL}>Nama Ibu</label>
             <input
               className={KELAS_INPUT}
@@ -531,29 +599,31 @@ export default function SantriForm({
             />
           </div>
           <div>
-            <label className={KELAS_LABEL}>Nomor WA Santri</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nomor_wa}
-              onChange={(e) => ubah('nomor_wa', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nomor WA Ayah</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nomor_wa_ayah}
-              onChange={(e) => ubah('nomor_wa_ayah', e.target.value)}
-            />
-          </div>
-          <div>
             <label className={KELAS_LABEL}>Nomor WA Ibu</label>
             <input
               className={KELAS_INPUT}
+              inputMode="numeric"
               value={isian.nomor_wa_ibu}
-              onChange={(e) => ubah('nomor_wa_ibu', e.target.value)}
+              onChange={(e) => ubahWa('nomor_wa_ibu', e.target.value)}
+              placeholder="0812-3456-7890"
             />
           </div>
+          {/* Nomor WA Santri: opsional, cuma muncul mulai jenjang Pra Remaja
+              ke atas -- santri PAUD/TK & Cabe Rawit belum wajar punya nomor
+              sendiri. */}
+          {isian.jenjang_saat_ini &&
+            !['PAUD/TK', 'Cabe Rawit'].includes(isian.jenjang_saat_ini) && (
+              <div>
+                <label className={KELAS_LABEL}>Nomor WA Santri</label>
+                <input
+                  className={KELAS_INPUT}
+                  inputMode="numeric"
+                  value={isian.nomor_wa}
+                  onChange={(e) => ubahWa('nomor_wa', e.target.value)}
+                  placeholder="0812-3456-7890"
+                />
+              </div>
+            )}
         </Bagian>
 
         <Bagian judul="Alamat">
