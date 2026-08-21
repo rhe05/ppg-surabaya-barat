@@ -11,14 +11,17 @@
    satu-satunya pengaman. Admin sudah punya jalur sendiri di /santri
    (desktop, tabel penuh lintas kelas) -- halaman ini tidak menggantikannya.
 
-   "Hapus" SENGAJA tidak ada -- diganti "Pindah / Tidak Aktif" lewat RPC
-   nonaktifkan_santri (migrasi 20260821130000): mencatat peristiwa ke
-   siklus_generus DAN men-soft-delete santri SEJAK TANGGAL PERISTIWA itu,
-   satu transaksi. santri.deleted_at dipakai sbg "sejak kapan tidak aktif",
-   bukan cuma "kapan diklik" -- itu yang membuat layar berperiode (Riwayat
-   Kehadiran, Laporan, Statistik, dst -- lihat migrasi 20260821140000 &
-   perubahan query terkait) tetap menunjukkan data lamanya walau sekarang
-   santrinya sudah tidak aktif. */
+   "Hapus" BUKAN hapus biasa -- kartu daftar tidak punya tombol hapus sama
+   sekali (diminta owner: satu tap kartu = satu aksi, buka form Ubah).
+   Tombol "Hapus" ada DI DALAM form Ubah (footer, lihat prop `onHapus` di
+   SantriForm) dan membuka NonaktifkanModal di bawah -- guru pilih
+   Pindah/Tidak Aktif, lalu RPC nonaktifkan_santri (migrasi 20260821130000)
+   mencatat peristiwa ke siklus_generus DAN men-soft-delete santri SEJAK
+   TANGGAL PERISTIWA itu, satu transaksi. santri.deleted_at dipakai sbg
+   "sejak kapan tidak aktif", bukan cuma "kapan diklik" -- itu yang membuat
+   layar berperiode (Riwayat Kehadiran, Laporan, Statistik, dst -- lihat
+   migrasi 20260821140000 & perubahan query terkait) tetap menunjukkan data
+   lamanya walau sekarang santrinya sudah tidak aktif. */
 
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
@@ -310,6 +313,14 @@ function DataGenerusContent() {
         <SantriForm
           santri={santriDiubah}
           kelasNgajiTerkunci={kelasAktif.nama}
+          onHapus={
+            santriDiubah
+              ? () => {
+                  setFormTerbuka(false);
+                  setSantriDinonaktifkan(santriDiubah);
+                }
+              : undefined
+          }
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}
         />
@@ -369,38 +380,25 @@ function DataGenerusContent() {
 
           <div className="flex flex-col gap-2.5">
             {santriTersaring.map((s) => (
-              <div
+              <button
                 key={s.id}
-                className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]"
+                type="button"
+                onClick={() => bukaUbah(s)}
+                className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
               >
-                <button
-                  type="button"
-                  onClick={() => bukaUbah(s)}
-                  className="flex w-full items-center justify-between gap-3 text-left active:opacity-70"
-                >
-                  <div className="min-w-0">
-                    <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
-                    <div className="mt-0.5 text-[11.5px] text-text-faint">
-                      NIS {s.nis ?? '-'} ·{' '}
-                      {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
-                    </div>
+                <div className="min-w-0">
+                  <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
+                  <div className="mt-0.5 text-[11.5px] text-text-faint">
+                    NIS {s.nis ?? '-'} ·{' '}
+                    {s.gender === 'L' ? 'Laki-laki' : s.gender === 'P' ? 'Perempuan' : '-'}
                   </div>
-                  {s.jenjang_saat_ini && (
-                    <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
-                      {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
-                    </span>
-                  )}
-                </button>
-                <div className="mt-2.5 flex justify-end border-t border-border pt-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setSantriDinonaktifkan(s)}
-                    className="cursor-pointer text-[11.5px] font-semibold text-red active:opacity-70"
-                  >
-                    Pindah / Tidak Aktif
-                  </button>
                 </div>
-              </div>
+                {s.jenjang_saat_ini && (
+                  <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[10.5px] font-bold text-sage">
+                    {JENJANG_SINGKAT[s.jenjang_saat_ini] ?? s.jenjang_saat_ini}
+                  </span>
+                )}
+              </button>
             ))}
           </div>
 

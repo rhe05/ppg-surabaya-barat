@@ -150,6 +150,7 @@ function Bagian({ judul, children }: { judul: string; children: React.ReactNode 
 export default function SantriForm({
   santri,
   kelasNgajiTerkunci,
+  onHapus,
   onSelesai,
   onBatal,
 }: {
@@ -161,6 +162,13 @@ export default function SantriForm({
      tetap menolak kalau kelas ini bukan milik guru yang sedang login, jadi
      penguncian di sini kenyamanan, bukan satu-satunya pengaman. */
   kelasNgajiTerkunci?: string;
+  /* Tombol "Hapus" di footer -- HANYA muncul kalau prop ini diberikan (jadi
+     admin lewat /santri, yang tidak memberi prop ini, tampilannya sama
+     sekali tidak berubah). Dipakai Data Generus guru (app/santri-saya):
+     bukan hapus langsung, pemanggilnya yang membuka popup pilihan
+     Pindah/Tidak Aktif (RPC nonaktifkan_santri) -- form ini sengaja tidak
+     tahu-menahu soal siklus_generus, cuma memberi tombolnya. */
+  onHapus?: () => void;
   onSelesai: () => void;
   onBatal: () => void;
 }) {
@@ -617,7 +625,16 @@ export default function SantriForm({
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
 
-        <div className="flex justify-end gap-3">
+        <div className="flex items-center justify-end gap-3">
+          {modeUbah && onHapus && (
+            <button
+              type="button"
+              onClick={onHapus}
+              className="mr-auto cursor-pointer rounded-[var(--radius)] border border-red bg-transparent px-4 py-2.5 text-[13px] font-semibold text-red transition-all duration-200 hover:bg-[rgba(220,38,38,0.06)]"
+            >
+              Hapus
+            </button>
+          )}
           <button
             type="button"
             onClick={onBatal}
