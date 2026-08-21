@@ -199,7 +199,7 @@ function TambahMenu({
           className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
         >
           <UserPlus size={18} strokeWidth={2} className="shrink-0 text-brass" />
-          <span>+ Generus</span>
+          <span>Generus</span>
         </button>
         <button
           type="button"
