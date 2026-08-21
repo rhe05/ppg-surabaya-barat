@@ -797,20 +797,14 @@ function KurikulumContent() {
                     )}
                     {/* Target/Deskripsi KEDUA -- cuma tampil kalau memang
                         sudah diisi (skrg khusus materi Bacaan Al-Qur'an,
-                        lihat migrasi 20260822090000). Diberi label kecil
-                        "Target 2"/"Deskripsi 2" supaya tidak rancu dgn
-                        pasangan pertama di atasnya. */}
+                        lihat migrasi 20260822090000). TANPA label "Target
+                        2"/"Deskripsi 2" (diminta owner) -- isinya saja,
+                        cuma dipisah garis dari pasangan pertama di atasnya. */}
                     {(p.target2 || p.deskripsi2) && (
                       <div className="mt-2 border-t border-border pt-2">
-                        {p.target2 && (
-                          <div className="text-[13px] text-text">
-                            <span className="text-[10.5px] font-bold text-text-faint uppercase">Target 2: </span>
-                            {p.target2}
-                          </div>
-                        )}
+                        {p.target2 && <div className="text-[13px] text-text">{p.target2}</div>}
                         {p.deskripsi2 && (
                           <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
-                            <span className="text-[10.5px] font-bold text-text-faint uppercase">Deskripsi 2: </span>
                             {p.deskripsi2}
                           </div>
                         )}
