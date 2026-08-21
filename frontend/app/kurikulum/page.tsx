@@ -815,14 +815,16 @@ function KurikulumContent() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            {/* Label "Promes" ditaruh sejajar/lurus dgn badge
-                                "Semester N" di baris yang sama, rata kanan
-                                blok ini (diminta owner). */}
+                            {/* Label "Promes" jadi badge hijau (sage) -- selaras
+                                dgn "Prota" yang sudah lebih dulu jadi badge indigo
+                                di kartu Prota. "Semester N" sebaliknya jadi teks
+                                biasa (tanpa bungkus pil), diberi warna sage supaya
+                                tetap terkait tema hijau tanpa jadi badge kedua. */}
                             <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10.5px] font-bold text-sage">Semester {s.semester}</span>
                               <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[10.5px] font-bold text-sage">
-                                Semester {s.semester}
+                                Promes
                               </span>
-                              <span className="text-[10.5px] font-bold text-text-dim">Promes</span>
                             </div>
                             <div className="mt-1.5 text-[13px] text-text">{s.target || '—'}</div>
                             {s.deskripsi && (
