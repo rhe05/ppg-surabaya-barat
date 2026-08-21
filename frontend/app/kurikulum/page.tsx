@@ -661,7 +661,7 @@ function KurikulumContent() {
               key={p.id}
               className="mb-4 overflow-hidden rounded-card border border-border border-l-[3px] border-l-indigo bg-panel shadow-[var(--shadow-card)]"
             >
-              <div className="flex items-start gap-2 p-4">
+              <div className="flex items-start justify-between gap-2 p-4">
                 <button
                   onClick={() =>
                     setTerbuka((s) => {
@@ -671,7 +671,7 @@ function KurikulumContent() {
                       return baru;
                     })
                   }
-                  className="flex flex-1 cursor-pointer items-start gap-2.5 text-left"
+                  className="flex min-w-0 flex-1 cursor-pointer items-start gap-2.5 text-left"
                 >
                   {dibuka ? (
                     <ChevronDown size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-indigo" />
@@ -679,12 +679,7 @@ function KurikulumContent() {
                     <ChevronRight size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-text-faint" />
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[16px] font-bold text-text">{namaDari(p.kategori_kbm)}</span>
-                      <span className="rounded-full bg-[rgba(79,70,229,0.1)] px-2 py-0.5 text-[10.5px] font-bold text-indigo">
-                        {daftarPromes.length} semester
-                      </span>
-                    </div>
+                    <span className="text-[16px] font-bold text-text">{namaDari(p.kategori_kbm)}</span>
                     <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
                     {p.deskripsi && (
                       <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
@@ -693,27 +688,36 @@ function KurikulumContent() {
                     )}
                   </div>
                 </button>
-                {bolehTulis && (
-                  <div className="flex shrink-0 items-center gap-0.5">
-                    <button
-                      onClick={() => geser(indeks, -1)}
-                      disabled={indeks === 0 || sibuk}
-                      title="Naikkan urutan"
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
-                    >
-                      <ChevronUp size={16} strokeWidth={2.2} />
-                    </button>
-                    <button
-                      onClick={() => geser(indeks, 1)}
-                      disabled={indeks === prota.length - 1 || sibuk}
-                      title="Turunkan urutan"
-                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
-                    >
-                      <ChevronDown size={16} strokeWidth={2.2} />
-                    </button>
-                    <KebabMenu item={aksiProta} />
-                  </div>
-                )}
+                {/* Badge jumlah semester SELALU di kanan atas kartu -- posisi
+                    tetap baik utk guru (bolehTulis=false, tidak ada baris
+                    aksi di bawahnya) maupun admin (baris aksi menyusul tepat
+                    di bawah badge, sama2 rata kanan). */}
+                <div className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="rounded-full bg-[rgba(79,70,229,0.1)] px-2 py-0.5 text-[10.5px] font-bold whitespace-nowrap text-indigo">
+                    {daftarPromes.length} semester
+                  </span>
+                  {bolehTulis && (
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        onClick={() => geser(indeks, -1)}
+                        disabled={indeks === 0 || sibuk}
+                        title="Naikkan urutan"
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
+                      >
+                        <ChevronUp size={16} strokeWidth={2.2} />
+                      </button>
+                      <button
+                        onClick={() => geser(indeks, 1)}
+                        disabled={indeks === prota.length - 1 || sibuk}
+                        title="Turunkan urutan"
+                        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
+                      >
+                        <ChevronDown size={16} strokeWidth={2.2} />
+                      </button>
+                      <KebabMenu item={aksiProta} />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {dibuka && (
