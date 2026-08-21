@@ -58,6 +58,10 @@ const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
+/* Versi singkat 3 huruf, KHUSUS kartu Probul (kolom Bulan) -- NAMA_BULAN
+   penuh di atas tetap dipakai apa adanya di tempat lain (judul modal
+   Ubah/Pencapaian, dst), tidak ikut disingkat. */
+const NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -851,7 +855,7 @@ function KurikulumContent() {
 
                         {daftarProbul.length > 0 && (
                           <div className="mt-3 overflow-x-auto">
-                            <div className="min-w-[580px]">
+                            <div className="min-w-[520px]">
                               {/* Header dibungkus struktur PERSIS SAMA dgn baris
                                   di bawahnya (spacer w-2 + gap-3, lalu grid
                                   dgn px-3 yang menyamai p-3 kartu) -- sebelumnya
@@ -862,7 +866,7 @@ function KurikulumContent() {
                                   yang sama, dijamin segaris. */}
                               <div className="flex gap-3 pb-2">
                                 <div className="w-2 shrink-0" />
-                                <div className="grid flex-1 grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] gap-2 px-3">
+                                <div className="grid flex-1 grid-cols-[46px_1fr_repeat(4,0.85fr)_68px] gap-2 px-3">
                                   {['Bulan', 'Target'].map((h) => (
                                     <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                       {h}
@@ -899,7 +903,7 @@ function KurikulumContent() {
                                         <span className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-text-faint ring-4 ring-bg" />
                                       </div>
 
-                                      <div className="grid flex-1 grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
+                                      <div className="grid flex-1 grid-cols-[46px_1fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
                                         {/* Bulan -- teks langsung, TANPA lingkaran/ikon
                                             dekoratif: nama bulan sudah swa-jelas, ikon
                                             kalender yang identik di tiap baris cuma
@@ -912,8 +916,8 @@ function KurikulumContent() {
                                             isinya sengaja rata kiri spt permintaan
                                             owner. */}
                                         <div className="min-w-0 text-left">
-                                          <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
-                                            {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
+                                          <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text">
+                                            {NAMA_BULAN_SINGKAT[b.bulan - 1] ?? b.bulan}
                                           </div>
                                         </div>
 
