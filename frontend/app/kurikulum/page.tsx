@@ -863,7 +863,7 @@ function KurikulumContent() {
 
                         {daftarProbul.length > 0 && (
                           <div className="mt-3 overflow-x-auto">
-                            <div className="min-w-[520px]">
+                            <div className="min-w-[490px]">
                               {/* Header dibungkus struktur PERSIS SAMA dgn baris
                                   di bawahnya (spacer w-2 + gap-3, lalu grid
                                   dgn px-3 yang menyamai p-3 kartu) -- sebelumnya
@@ -872,43 +872,37 @@ function KurikulumContent() {
                                   kelihatan "presisi" tapi sebetulnya sejajar
                                   kebetulan. Sekarang literally template & offset
                                   yang sama, dijamin segaris. */}
-                              <div className="flex gap-3 pb-2">
-                                <div className="w-2 shrink-0" />
-                                <div className="grid flex-1 grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] gap-2 px-3">
-                                  {['Bulan', 'Target'].map((h) => (
-                                    <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                      {h}
-                                    </div>
-                                  ))}
-                                  {[1, 2, 3, 4].map((n) => (
-                                    <div key={n} className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text">
-                                      Minggu {n}
-                                    </div>
-                                  ))}
-                                  {bolehTulis && (
-                                    <div className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
-                                      Aksi
-                                    </div>
-                                  )}
-                                </div>
+                              {/* Titik + garis timeline di kiri DICABUT (diminta
+                                  owner) supaya kolom bisa geser lebih ke kiri --
+                                  header & baris tidak lagi butuh spacer w-2 utk
+                                  saling segaris, grid-nya langsung dipakai apa
+                                  adanya. */}
+                              <div className="grid grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] gap-2 px-3 pb-2">
+                                {['Bulan', 'Target'].map((h) => (
+                                  <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                    {h}
+                                  </div>
+                                ))}
+                                {[1, 2, 3, 4].map((n) => (
+                                  <div key={n} className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text">
+                                    Minggu {n}
+                                  </div>
+                                ))}
+                                {bolehTulis && (
+                                  <div className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                    Aksi
+                                  </div>
+                                )}
                               </div>
 
                               <div className="flex flex-col gap-2.5">
                                 {daftarProbul.map((b) => {
                                   const evaluasiTarget = adalahEvaluasi(b.target);
                                   return (
-                                    <div key={b.id} className="relative flex gap-3">
-                                      {/* Titik + garis penghubung, satu warna netral
-                                          konsisten -- kolom ini selalu setinggi kartu
-                                          di sampingnya (default align-items:stretch
-                                          flex), jadi garisnya menyambung dari baris
-                                          ke baris berikutnya secara alami. */}
-                                      <div className="relative flex w-2 shrink-0 justify-center">
-                                        <div className="absolute inset-y-0 w-px bg-border" />
-                                        <span className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-text-faint ring-4 ring-bg" />
-                                      </div>
-
-                                      <div className="grid flex-1 grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
+                                    <div
+                                      key={b.id}
+                                      className="grid grid-cols-[46px_0.8fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]"
+                                    >
                                         {/* Bulan -- teks langsung, TANPA lingkaran/ikon
                                             dekoratif: nama bulan sudah swa-jelas, ikon
                                             kalender yang identik di tiap baris cuma
@@ -1006,21 +1000,20 @@ function KurikulumContent() {
                                           </div>
                                         )}
                                       </div>
-                                    </div>
-                                  );
-                                })}
+                                    );
+                                  })}
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
       {targetUntuk && kelompokId && (
         <TargetBulanan
