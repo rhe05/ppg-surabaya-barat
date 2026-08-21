@@ -846,21 +846,25 @@ function KurikulumContent() {
 
                         {daftarProbul.length > 0 && (
                           <div className="mt-3 overflow-x-auto">
-                            <div className="min-w-[760px]">
-                              {/* Header kolom -- 2 baris utk Mg1-4 (label
-                                  pendek + "Minggu N"), sejajar dgn grid
-                                  baris di bawahnya lewat template kolom
-                                  yang SAMA persis. */}
-                              <div className="grid grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] gap-3 px-3 pb-2">
+                            <div className="min-w-[580px]">
+                              {/* Header kolom -- template SAMA PERSIS dgn grid
+                                  baris di bawahnya (kolom lebar & gap identik)
+                                  supaya judul & isi selalu lurus segaris, dan
+                                  semua kolom di-tengahkan (text-center) sesuai
+                                  diminta owner. Kolom dipersempit + gap ditekan
+                                  (gap-2, bukan gap-3) + min-w diturunkan dari
+                                  760px ke 580px -- di HP jadi jauh lebih pendek
+                                  scroll sampingnya. */}
+                              <div className="grid grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] gap-2 px-3 pb-2">
                                 {/* "Jilid" -> "Tilawati" khusus PAUD/TK s.d. kelas 3
                                     (metode Tilawati) -- kelas lain tetap "Jilid". */}
                                 {['Bulan', ['PAUD-TK', '1', '2', '3'].includes(kelas ?? '') ? 'Tilawati' : 'Jilid'].map((h) => (
-                                  <div key={h} className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                  <div key={h} className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                     {h}
                                   </div>
                                 ))}
                                 {[1, 2, 3, 4].map((n) => (
-                                  <div key={n}>
+                                  <div key={n} className="text-center">
                                     <div className="text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                       Mg {n}
                                     </div>
@@ -868,7 +872,7 @@ function KurikulumContent() {
                                   </div>
                                 ))}
                                 {bolehTulis && (
-                                  <div className="text-right text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
+                                  <div className="text-center text-[10.5px] font-bold tracking-[0.04em] text-text uppercase">
                                     Aksi
                                   </div>
                                 )}
@@ -889,25 +893,27 @@ function KurikulumContent() {
                                         <span className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full bg-text-faint ring-4 ring-bg" />
                                       </div>
 
-                                      <div className="grid flex-1 grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] items-center gap-3 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
+                                      <div className="grid flex-1 grid-cols-[0.95fr_0.95fr_repeat(4,0.85fr)_68px] items-center gap-2 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
                                         {/* Bulan -- teks langsung, TANPA lingkaran/ikon
                                             dekoratif: nama bulan sudah swa-jelas, ikon
                                             kalender yang identik di tiap baris cuma
                                             menambah berat visual tanpa informasi baru
                                             (lihat diskusi sebelumnya). Penanda posisinya
                                             cukup titik kecil di garis timeline sebelah
-                                            kiri kartu ini. */}
-                                        <div className="min-w-0">
+                                            kiri kartu ini. Hal-nya diberi warna brass
+                                            (aksen utama app) supaya jelas kebaca sbg
+                                            TARGET, bukan sekadar teks biasa. */}
+                                        <div className="min-w-0 text-center">
                                           <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
                                             {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
                                           </div>
                                           {b.target && (
-                                            <div className="text-[12px] font-bold text-text">{b.target}</div>
+                                            <div className="text-[12px] font-bold text-brass">{b.target}</div>
                                           )}
                                         </div>
 
                                         {/* Jilid */}
-                                        <div className="min-w-0">
+                                        <div className="min-w-0 text-center">
                                           {evaluasi ? (
                                             <div className="text-[12.5px] font-semibold" style={{ color: EVALUASI_INDIGO.teks }}>
                                               {b.jilid}
@@ -919,13 +925,21 @@ function KurikulumContent() {
                                           )}
                                         </div>
 
-                                        <PilMinggu nilai={b.minggu1} />
-                                        <PilMinggu nilai={b.minggu2} />
-                                        <PilMinggu nilai={b.minggu3} />
-                                        <PilMinggu nilai={b.minggu4} />
+                                        <div className="flex justify-center">
+                                          <PilMinggu nilai={b.minggu1} />
+                                        </div>
+                                        <div className="flex justify-center">
+                                          <PilMinggu nilai={b.minggu2} />
+                                        </div>
+                                        <div className="flex justify-center">
+                                          <PilMinggu nilai={b.minggu3} />
+                                        </div>
+                                        <div className="flex justify-center">
+                                          <PilMinggu nilai={b.minggu4} />
+                                        </div>
 
                                         {bolehTulis && (
-                                          <div className="flex items-center justify-end gap-0.5">
+                                          <div className="flex items-center justify-center gap-0.5">
                                             <button
                                               onClick={() =>
                                                 setPencapaianUntuk({
