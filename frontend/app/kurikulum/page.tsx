@@ -27,6 +27,16 @@
      probul lalu promes satu per satu karena Sheets tidak punya FK. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Target,
+  GraduationCap,
+} from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -102,6 +112,66 @@ const KELAS_TOMBOL_UTAMA =
 const KELAS_TOMBOL_SEKUNDER =
   'cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-1.5 text-[12px] ' +
   'font-semibold text-text transition-all duration-200 hover:bg-border';
+
+/* ── Menu titik-tiga (aksi Prota) ────────────────────────────────────── */
+/* Ganti 2-4 tombol teks yang dulu selalu terlihat (Ubah/Hapus) jadi satu
+   ikon ⋮ + dropdown -- pola dropdown-menu standar SaaS, sama dgn
+   TambahMenu di app/santri-saya/page.tsx: overlay transparan + panel
+   nempel ke tombol pemicu. Mengurangi padatnya baris kanan kartu Prota. */
+function KebabMenu({ item }: { item: { label: string; onClick: () => void; merah?: boolean }[] }) {
+  const [terbuka, setTerbuka] = useState(false);
+  if (item.length === 0) return null;
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        aria-label="Aksi lain"
+        onClick={(e) => {
+          e.stopPropagation();
+          setTerbuka((v) => !v);
+        }}
+        className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
+      >
+        <MoreVertical size={17} strokeWidth={2} />
+      </button>
+      {terbuka && (
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={() => setTerbuka(false)} />
+          <div className="absolute top-full right-0 z-[91] mt-1 flex w-[160px] flex-col gap-0.5 rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+            {item.map((it) => (
+              <button
+                key={it.label}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTerbuka(false);
+                  it.onClick();
+                }}
+                className={
+                  'w-full cursor-pointer rounded-[8px] border-none bg-transparent px-2.5 py-2 text-left text-[13px] font-semibold active:bg-bg ' +
+                  (it.merah ? 'text-red' : 'text-text')
+                }
+              >
+                {it.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ── Skeleton loading ────────────────────────────────────────────────── */
+function SkeletonKartu() {
+  return (
+    <div className="mb-4 animate-pulse rounded-card border border-border bg-panel p-4">
+      <div className="h-4 w-2/5 rounded bg-panel-2" />
+      <div className="mt-3 h-3 w-4/5 rounded bg-panel-2" />
+      <div className="mt-2 h-3 w-3/5 rounded bg-panel-2" />
+    </div>
+  );
+}
 
 /* ── Modal ubah ──────────────────────────────────────────────────────── */
 
@@ -204,6 +274,7 @@ function KurikulumContent() {
   >(null);
   const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
   const [tambahKategori, setTambahKategori] = useState<string>('');
+  const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   /* Probul yang sedang dibuka panel pencapaian santrinya. */
   const [pencapaianUntuk, setPencapaianUntuk] = useState<{ id: number; judul: string } | null>(null);
@@ -372,6 +443,7 @@ function KurikulumContent() {
       if (e2) throw new Error(e2.message);
 
       setTambahKategori('');
+      setTambahTerbuka(false);
       setPesan('Materi baru ditambahkan.');
       await muat();
     } catch (e) {
@@ -480,9 +552,17 @@ function KurikulumContent() {
               key={k}
               disabled={!kelompokId}
               onClick={() => setKelas(k)}
-              className="cursor-pointer rounded-card border border-border bg-panel px-4 py-6 text-[15px] font-bold text-text shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass disabled:opacity-40"
+              className="group flex cursor-pointer flex-col items-center gap-2.5 rounded-card border border-border bg-panel px-4 py-6 text-center shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass hover:shadow-[0_6px_18px_rgba(217,119,6,0.14)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:shadow-[var(--shadow-card)]"
             >
-              {k === 'PAUD-TK' ? 'PAUD/TK' : 'Kelas ' + k}
+              <span
+                className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-extrabold text-white transition-transform duration-200 group-hover:scale-105"
+                style={{ background: 'linear-gradient(135deg, var(--brass) 0%, #B45309 100%)' }}
+              >
+                {k === 'PAUD-TK' ? <GraduationCap size={20} strokeWidth={2} /> : k}
+              </span>
+              <span className="text-[13.5px] font-bold text-text">
+                {k === 'PAUD-TK' ? 'PAUD/TK' : 'Kelas ' + k}
+              </span>
             </button>
           ))}
         </div>
@@ -508,41 +588,31 @@ function KurikulumContent() {
             {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Tahun {tahun}
           </p>
         </div>
-        <button onClick={() => setKelas(null)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
-          Ganti Kelas
-        </button>
-      </div>
-
-      {bolehTulis && (
-        <div className="mb-6 flex flex-wrap items-end gap-3 rounded-card border border-border bg-panel-2 p-4">
-          <div className="min-w-[240px] flex-1">
-            <label className={KELAS_LABEL}>Tambah materi ke kelas ini</label>
-            <select
-              className={KELAS_INPUT}
-              value={tambahKategori}
-              onChange={(e) => setTambahKategori(e.target.value)}
+        <div className="flex shrink-0 gap-2">
+          {bolehTulis && (
+            <button
+              onClick={() => setTambahTerbuka(true)}
+              className={KELAS_TOMBOL_UTAMA + ' flex items-center gap-1.5'}
             >
-              <option value="">-- Pilih Materi/Kategori KBM --</option>
-              {kategoriList.map((k) => (
-                <option key={k.id} value={k.id}>
-                  {k.nama}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button
-            onClick={tambahMateri}
-            disabled={!tambahKategori || sibuk}
-            className={KELAS_TOMBOL_UTAMA}
-          >
-            + Tambah Materi
+              <Plus size={15} strokeWidth={2.5} />
+              Tambah Materi
+            </button>
+          )}
+          <button onClick={() => setKelas(null)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
+            Ganti Kelas
           </button>
         </div>
-      )}
+      </div>
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-      {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+      {loading && (
+        <>
+          <SkeletonKartu />
+          <SkeletonKartu />
+          <SkeletonKartu />
+        </>
+      )}
       {!loading && !error && prota.length === 0 && (
         <p className="text-[13px] text-text-dim">
           Belum ada materi untuk kelas ini di tahun {tahun}.
@@ -553,12 +623,28 @@ function KurikulumContent() {
         prota.map((p, indeks) => {
           const dibuka = terbuka.has(p.id);
           const daftarPromes = promesPerProta.get(p.id) ?? [];
+          const aksiProta = [
+            {
+              label: 'Ubah',
+              onClick: () =>
+                setUbah({
+                  judul: 'Ubah Prota — ' + namaDari(p.kategori_kbm),
+                  tabel: 'kurikulum_prota',
+                  id: p.id,
+                  isian: [
+                    { label: 'Target', field: 'target', nilai: p.target ?? '' },
+                    { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
+                  ],
+                }),
+            },
+            ...(bolehHapus ? [{ label: 'Hapus', onClick: () => hapusMateri(p), merah: true }] : []),
+          ];
           return (
             <div
               key={p.id}
-              className="mb-4 rounded-card border border-border bg-panel shadow-[var(--shadow-card)]"
+              className="mb-4 overflow-hidden rounded-card border border-border border-l-[3px] border-l-indigo bg-panel shadow-[var(--shadow-card)]"
             >
-              <div className="flex items-start justify-between gap-4 p-4">
+              <div className="flex items-start gap-2 p-4">
                 <button
                   onClick={() =>
                     setTerbuka((s) => {
@@ -568,66 +654,47 @@ function KurikulumContent() {
                       return baru;
                     })
                   }
-                  className="flex-1 cursor-pointer text-left"
+                  className="flex flex-1 cursor-pointer items-start gap-2.5 text-left"
                 >
-                  <div className="text-[15px] font-bold text-text">{namaDari(p.kategori_kbm)}</div>
-                  <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
-                  {p.deskripsi && (
-                    <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
-                      {p.deskripsi}
-                    </div>
+                  {dibuka ? (
+                    <ChevronDown size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-indigo" />
+                  ) : (
+                    <ChevronRight size={18} strokeWidth={2.2} className="mt-0.5 shrink-0 text-text-faint" />
                   )}
-                  <div className="mt-2 text-[12px] text-text-dim">
-                    {dibuka ? '▾ Sembunyikan' : '▸ Lihat semester & bulanan'} ({daftarPromes.length} semester)
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-[16px] font-bold text-text">{namaDari(p.kategori_kbm)}</span>
+                      <span className="rounded-full bg-[rgba(79,70,229,0.1)] px-2 py-0.5 text-[10.5px] font-bold text-indigo">
+                        {daftarPromes.length} semester
+                      </span>
+                    </div>
+                    <div className="mt-1 text-[13px] text-text">{p.target || '—'}</div>
+                    {p.deskripsi && (
+                      <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
+                        {p.deskripsi}
+                      </div>
+                    )}
                   </div>
                 </button>
                 {bolehTulis && (
-                  <div className="flex shrink-0 flex-col items-end gap-2">
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => geser(indeks, -1)}
-                        disabled={indeks === 0 || sibuk}
-                        title="Naikkan urutan"
-                        className={KELAS_TOMBOL_SEKUNDER + ' disabled:opacity-30'}
-                      >
-                        ↑
-                      </button>
-                      <button
-                        onClick={() => geser(indeks, 1)}
-                        disabled={indeks === prota.length - 1 || sibuk}
-                        title="Turunkan urutan"
-                        className={KELAS_TOMBOL_SEKUNDER + ' disabled:opacity-30'}
-                      >
-                        ↓
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setUbah({
-                            judul: 'Ubah Prota — ' + namaDari(p.kategori_kbm),
-                            tabel: 'kurikulum_prota',
-                            id: p.id,
-                            isian: [
-                              { label: 'Target', field: 'target', nilai: p.target ?? '' },
-                              { label: 'Deskripsi', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
-                            ],
-                          })
-                        }
-                        className={KELAS_TOMBOL_SEKUNDER}
-                      >
-                        Ubah
-                      </button>
-                      {bolehHapus && (
-                        <button
-                          onClick={() => hapusMateri(p)}
-                          disabled={sibuk}
-                          className={KELAS_TOMBOL_SEKUNDER + ' text-red'}
-                        >
-                          Hapus
-                        </button>
-                      )}
-                    </div>
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <button
+                      onClick={() => geser(indeks, -1)}
+                      disabled={indeks === 0 || sibuk}
+                      title="Naikkan urutan"
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
+                    >
+                      <ChevronUp size={16} strokeWidth={2.2} />
+                    </button>
+                    <button
+                      onClick={() => geser(indeks, 1)}
+                      disabled={indeks === prota.length - 1 || sibuk}
+                      title="Turunkan urutan"
+                      className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2 disabled:opacity-30"
+                    >
+                      <ChevronDown size={16} strokeWidth={2.2} />
+                    </button>
+                    <KebabMenu item={aksiProta} />
                   </div>
                 )}
               </div>
@@ -640,11 +707,16 @@ function KurikulumContent() {
                   {daftarPromes.map((s) => {
                     const daftarProbul = probulPerPromes.get(s.id) ?? [];
                     return (
-                      <div key={s.id} className="mb-4 rounded-[var(--radius)] border border-border bg-panel p-3">
+                      <div
+                        key={s.id}
+                        className="mb-4 rounded-[var(--radius)] border border-border border-l-[3px] border-l-sage bg-panel p-3"
+                      >
                         <div className="flex items-start justify-between gap-3">
                           <div className="flex-1">
-                            <div className="text-[13px] font-bold text-text">Semester {s.semester}</div>
-                            <div className="mt-1 text-[13px] text-text">{s.target || '—'}</div>
+                            <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[10.5px] font-bold text-sage">
+                              Semester {s.semester}
+                            </span>
+                            <div className="mt-1.5 text-[13px] text-text">{s.target || '—'}</div>
                             {s.deskripsi && (
                               <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
                                 {s.deskripsi}
@@ -652,12 +724,13 @@ function KurikulumContent() {
                             )}
                           </div>
                           {bolehTulis && (
-                            <div className="flex shrink-0 gap-2">
+                            <div className="flex shrink-0 items-center gap-1">
                             <button
                               onClick={() => setTargetUntuk({ promes: s, prota: p })}
-                              className={KELAS_TOMBOL_SEKUNDER}
+                              title="Target Bulanan"
+                              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
                             >
-                              Target Bulanan
+                              <Target size={16} strokeWidth={2} />
                             </button>
                             <button
                               onClick={() =>
@@ -671,9 +744,10 @@ function KurikulumContent() {
                                   ],
                                 })
                               }
-                              className={KELAS_TOMBOL_SEKUNDER}
+                              title="Ubah"
+                              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
                             >
-                              Ubah
+                              <Pencil size={15} strokeWidth={2} />
                             </button>
                             </div>
                           )}
@@ -685,7 +759,10 @@ function KurikulumContent() {
                               <thead className="border-b border-border">
                                 <tr>
                                   {['Bulan', 'Jilid', 'Target', 'Mg 1', 'Mg 2', 'Mg 3', 'Mg 4'].map((h) => (
-                                    <th key={h} className="px-2 py-2 font-semibold text-text-dim uppercase">
+                                    <th
+                                      key={h}
+                                      className="px-2 py-2 text-[10.5px] font-bold tracking-[0.02em] text-text-faint uppercase"
+                                    >
                                       {h}
                                     </th>
                                   ))}
@@ -706,42 +783,46 @@ function KurikulumContent() {
                                     <td className="border-b border-border px-2 py-2 text-text">{b.minggu4 || '—'}</td>
                                     {bolehTulis && (
                                       <td className="border-b border-border px-2 py-2">
-                                        <button
-                                          onClick={() =>
-                                            setPencapaianUntuk({
-                                              id: b.id,
-                                              judul:
-                                                (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
-                                                ' — ' +
-                                                (b.target ?? 'tanpa target'),
-                                            })
-                                          }
-                                          className={KELAS_TOMBOL_SEKUNDER}
-                                        >
-                                          Pencapaian
-                                        </button>
-                                        <button
-                                          onClick={() =>
-                                            setUbah({
-                                              judul:
-                                                'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
-                                              tabel: 'kurikulum_probul',
-                                              id: b.id,
-                                              isian: [
-                                                { label: 'Jilid', field: 'jilid', nilai: b.jilid ?? '' },
-                                                { label: 'Target', field: 'target', nilai: b.target ?? '' },
-                                                { label: 'Deskripsi', field: 'deskripsi', nilai: b.deskripsi ?? '', baris: true },
-                                                { label: 'Minggu 1', field: 'minggu1', nilai: b.minggu1 ?? '' },
-                                                { label: 'Minggu 2', field: 'minggu2', nilai: b.minggu2 ?? '' },
-                                                { label: 'Minggu 3', field: 'minggu3', nilai: b.minggu3 ?? '' },
-                                                { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? '' },
-                                              ],
-                                            })
-                                          }
-                                          className={KELAS_TOMBOL_SEKUNDER}
-                                        >
-                                          Ubah
-                                        </button>
+                                        <div className="flex items-center gap-0.5">
+                                          <button
+                                            onClick={() =>
+                                              setPencapaianUntuk({
+                                                id: b.id,
+                                                judul:
+                                                  (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
+                                                  ' — ' +
+                                                  (b.target ?? 'tanpa target'),
+                                              })
+                                            }
+                                            title="Pencapaian"
+                                            className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
+                                          >
+                                            <Target size={14} strokeWidth={2} />
+                                          </button>
+                                          <button
+                                            onClick={() =>
+                                              setUbah({
+                                                judul:
+                                                  'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
+                                                tabel: 'kurikulum_probul',
+                                                id: b.id,
+                                                isian: [
+                                                  { label: 'Jilid', field: 'jilid', nilai: b.jilid ?? '' },
+                                                  { label: 'Target', field: 'target', nilai: b.target ?? '' },
+                                                  { label: 'Deskripsi', field: 'deskripsi', nilai: b.deskripsi ?? '', baris: true },
+                                                  { label: 'Minggu 1', field: 'minggu1', nilai: b.minggu1 ?? '' },
+                                                  { label: 'Minggu 2', field: 'minggu2', nilai: b.minggu2 ?? '' },
+                                                  { label: 'Minggu 3', field: 'minggu3', nilai: b.minggu3 ?? '' },
+                                                  { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? '' },
+                                                ],
+                                              })
+                                            }
+                                            title="Ubah"
+                                            className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
+                                          >
+                                            <Pencil size={13} strokeWidth={2} />
+                                          </button>
+                                        </div>
                                       </td>
                                     )}
                                   </tr>
@@ -788,6 +869,51 @@ function KurikulumContent() {
           onBatal={() => setUbah(null)}
           onSimpan={simpanUbah}
         />
+      )}
+
+      {tambahTerbuka && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
+            <h2 className="mb-1 text-[17px] font-bold text-text">Tambah Materi</h2>
+            <p className="mb-4 text-[12.5px] text-text-dim">
+              Pilih materi/kategori KBM yang mau ditambahkan ke kelas ini.
+            </p>
+            <label className={KELAS_LABEL}>Materi / Kategori KBM</label>
+            <select
+              className={KELAS_INPUT + ' mb-5'}
+              value={tambahKategori}
+              onChange={(e) => setTambahKategori(e.target.value)}
+            >
+              <option value="">-- Pilih Materi/Kategori KBM --</option>
+              {kategoriList.map((k) => (
+                <option key={k.id} value={k.id}>
+                  {k.nama}
+                </option>
+              ))}
+            </select>
+            {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setTambahTerbuka(false);
+                  setTambahKategori('');
+                }}
+                className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={tambahMateri}
+                disabled={!tambahKategori || sibuk}
+                className={KELAS_TOMBOL_UTAMA + ' flex-1'}
+              >
+                {sibuk ? 'Menyimpan...' : 'Tambah'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       </div>
     </>
