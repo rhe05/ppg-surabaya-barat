@@ -928,10 +928,18 @@ function KurikulumContent() {
                                 Promes
                               </span>
                             </div>
-                            <div className="mt-1.5 text-[13px] text-text">{s.target || '—'}</div>
+                            <div className="mt-1.5 text-[13px] font-bold text-text">{s.target || '—'}</div>
                             {s.deskripsi && (
-                              <div className="mt-1 whitespace-pre-line text-[12px] text-text-dim">
-                                {s.deskripsi}
+                              <div className="mt-1 text-[12px] text-text">
+                                {s.deskripsi
+                                  .split('\n')
+                                  .map((baris) => baris.trim())
+                                  .filter((baris) => baris !== '')
+                                  .map((baris, i) => (
+                                    <div key={i}>
+                                      {/^\d+[.)]\s/.test(baris) ? baris : `${i + 1}. ${baris}`}
+                                    </div>
+                                  ))}
                               </div>
                             )}
                           </div>
