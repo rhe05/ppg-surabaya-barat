@@ -28,7 +28,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Calendar,
   ChevronDown,
   ChevronRight,
   ChevronUp,
@@ -889,24 +888,22 @@ function KurikulumContent() {
                                       </div>
 
                                       <div className="grid flex-1 grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] items-center gap-3 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
-                                        {/* Bulan -- lingkaran netral konsisten utk semua
-                                            baris, TIDAK berputar warna: warna yang sama
-                                            di setiap baris tidak membawa informasi apa
-                                            pun, cuma dekorasi (lihat catatan di atas). */}
-                                        <div className="flex items-center gap-2.5">
-                                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim">
-                                            <Calendar size={17} strokeWidth={2} />
-                                          </span>
-                                          <div className="min-w-0">
-                                            <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
-                                              {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
-                                            </div>
-                                            {b.target && (
-                                              <div className="text-[10.5px] text-text-faint">
-                                                Target <span className="font-bold text-text-dim">{b.target}</span>
-                                              </div>
-                                            )}
+                                        {/* Bulan -- teks langsung, TANPA lingkaran/ikon
+                                            dekoratif: nama bulan sudah swa-jelas, ikon
+                                            kalender yang identik di tiap baris cuma
+                                            menambah berat visual tanpa informasi baru
+                                            (lihat diskusi sebelumnya). Penanda posisinya
+                                            cukup titik kecil di garis timeline sebelah
+                                            kiri kartu ini. */}
+                                        <div className="min-w-0">
+                                          <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
+                                            {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
                                           </div>
+                                          {b.target && (
+                                            <div className="text-[10.5px] text-text-faint">
+                                              Target <span className="font-bold text-text-dim">{b.target}</span>
+                                            </div>
+                                          )}
                                         </div>
 
                                         {/* Jilid */}
