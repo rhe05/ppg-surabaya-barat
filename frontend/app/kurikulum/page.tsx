@@ -28,12 +28,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Calendar,
   ChevronDown,
   ChevronRight,
   ChevronUp,
+  FileText,
   MoreVertical,
   Pencil,
   Plus,
+  Star,
   Target,
   GraduationCap,
 } from 'lucide-react';
@@ -100,6 +103,54 @@ function namaDari(nilai: Tersemat) {
   if (!nilai) return '-';
   const baris = Array.isArray(nilai) ? nilai[0] : nilai;
   return baris?.nama ?? '-';
+}
+
+/* Warna lingkaran ikon bulan di baris Probul, berputar per posisi (1-6)
+   dalam semester -- posisi 6 (bulan terakhir, biasanya evaluasi) sengaja
+   abu-abu, beda dari 5 lainnya. Meniru contoh tampilan yang diberikan
+   owner (kartu per-baris, bukan tabel polos). */
+const WARNA_POSISI_BULAN = [
+  { gradasi: 'linear-gradient(135deg, #60A5FA, #2563EB)', teks: '#2563EB', titik: '#3B82F6' },
+  { gradasi: 'linear-gradient(135deg, #6EE7B7, #059669)', teks: '#059669', titik: '#10B981' },
+  { gradasi: 'linear-gradient(135deg, #FCD34D, #D97706)', teks: '#D97706', titik: '#F59E0B' },
+  { gradasi: 'linear-gradient(135deg, #C4B5FD, #7C3AED)', teks: '#7C3AED', titik: '#8B5CF6' },
+  { gradasi: 'linear-gradient(135deg, #5EEAD4, #0D9488)', teks: '#0D9488', titik: '#14B8A6' },
+  { gradasi: 'linear-gradient(135deg, #D1D5DB, #6B7280)', teks: '#6B7280', titik: '#9CA3AF' },
+];
+
+/* Warna pil Minggu 1-3, TETAP per kolom (bukan per baris) -- Minggu 4
+   selalu ungu+bintang (dianggap pekan evaluasi apa pun isinya). Nilai
+   yang benar-benar berbunyi "Evaluasi" (case-insensitive) di kolom
+   manapun (termasuk Jilid) ikut memakai gaya ungu+bintang yang sama,
+   supaya baris bulan evaluasi (mis. akhir semester) terlihat konsisten. */
+const WARNA_MINGGU = [
+  { bg: 'rgba(5,150,105,0.08)', border: 'rgba(5,150,105,0.22)', teks: '#059669' },
+  { bg: 'rgba(37,99,235,0.08)', border: 'rgba(37,99,235,0.22)', teks: '#2563EB' },
+  { bg: 'rgba(79,70,229,0.08)', border: 'rgba(79,70,229,0.22)', teks: '#4F46E5' },
+];
+const WARNA_EVALUASI = { bg: 'rgba(124,58,237,0.08)', border: 'rgba(124,58,237,0.25)', teks: '#7C3AED' };
+
+function adalahEvaluasi(nilai: string | null) {
+  return (nilai ?? '').trim().toLowerCase() === 'evaluasi';
+}
+
+function PilMinggu({ nilai, warna }: { nilai: string | null; warna: { bg: string; border: string; teks: string } }) {
+  if (!nilai) return <span className="text-[12px] text-text-faint">—</span>;
+  const evaluasi = adalahEvaluasi(nilai);
+  const gaya = evaluasi ? WARNA_EVALUASI : warna;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-[10px] border px-2.5 py-1.5 text-[12px] font-semibold whitespace-nowrap"
+      style={{ background: gaya.bg, borderColor: gaya.border, color: gaya.teks }}
+    >
+      {evaluasi ? (
+        <Star size={12} strokeWidth={2} fill="currentColor" />
+      ) : (
+        <FileText size={12} strokeWidth={2} />
+      )}
+      {nilai}
+    </span>
+  );
 }
 
 const KELAS_INPUT =
@@ -807,84 +858,149 @@ function KurikulumContent() {
 
                         {daftarProbul.length > 0 && (
                           <div className="mt-3 overflow-x-auto">
-                            <table className="w-full border-collapse text-left text-[12px]">
-                              <thead className="border-b border-border">
-                                <tr>
-                                  {['Bulan', 'Jilid', 'Target', 'Mg 1', 'Mg 2', 'Mg 3', 'Mg 4'].map((h) => (
-                                    <th
-                                      key={h}
-                                      className="px-2 py-2 text-[10.5px] font-bold tracking-[0.02em] text-text-faint uppercase"
-                                    >
-                                      {h}
-                                    </th>
-                                  ))}
-                                  {bolehTulis && <th className="px-2 py-2"></th>}
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {daftarProbul.map((b) => (
-                                  <tr key={b.id} className="hover:bg-panel-2">
-                                    <td className="border-b border-border px-2 py-2 text-text">
-                                      {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
-                                    </td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.jilid || '—'}</td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.target || '—'}</td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.minggu1 || '—'}</td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.minggu2 || '—'}</td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.minggu3 || '—'}</td>
-                                    <td className="border-b border-border px-2 py-2 text-text">{b.minggu4 || '—'}</td>
-                                    {bolehTulis && (
-                                      <td className="border-b border-border px-2 py-2">
-                                        <div className="flex items-center gap-0.5">
-                                          <button
-                                            onClick={() =>
-                                              setPencapaianUntuk({
-                                                id: b.id,
-                                                judul:
-                                                  (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
-                                                  ' — ' +
-                                                  (b.target ?? 'tanpa target'),
-                                              })
-                                            }
-                                            title="Pencapaian"
-                                            className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
-                                          >
-                                            <Target size={14} strokeWidth={2} />
-                                          </button>
-                                          <button
-                                            onClick={() =>
-                                              setUbah({
-                                                judul:
-                                                  'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
-                                                tabel: 'kurikulum_probul',
-                                                id: b.id,
-                                                probulContext: { bulan: b.bulan, promesId: s.id },
-                                                isian: [
-                                                  { label: 'Jilid', field: 'jilid', nilai: b.jilid ?? '' },
-                                                  { label: 'Target', field: 'target', nilai: b.target ?? '' },
-                                                  { label: 'Deskripsi', field: 'deskripsi', nilai: b.deskripsi ?? '', baris: true },
-                                                  { label: 'Minggu 1', field: 'minggu1', nilai: b.minggu1 ?? '' },
-                                                  { label: 'Minggu 2', field: 'minggu2', nilai: b.minggu2 ?? '' },
-                                                  { label: 'Minggu 3', field: 'minggu3', nilai: b.minggu3 ?? '' },
-                                                  /* Minggu 4 default "Evaluasi" kalau masih kosong -- cuma
-                                                     nilai awal borang (belum tersimpan), tetap bebas
-                                                     diubah/dikosongkan sebelum disimpan. */
-                                                  { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? 'Evaluasi' },
-                                                ],
-                                              })
-                                            }
-                                            title="Ubah"
-                                            className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
-                                          >
-                                            <Pencil size={13} strokeWidth={2} />
-                                          </button>
-                                        </div>
-                                      </td>
-                                    )}
-                                  </tr>
+                            <div className="min-w-[760px]">
+                              {/* Header kolom -- 2 baris utk Mg1-4 (label
+                                  pendek + "Minggu N"), sejajar dgn grid
+                                  baris di bawahnya lewat template kolom
+                                  yang SAMA persis. */}
+                              <div className="grid grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] gap-3 px-3 pb-2">
+                                {['Bulan', 'Jilid'].map((h) => (
+                                  <div key={h} className="text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                    {h}
+                                  </div>
                                 ))}
-                              </tbody>
-                            </table>
+                                {[1, 2, 3, 4].map((n) => (
+                                  <div key={n}>
+                                    <div className="text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                      Mg {n}
+                                    </div>
+                                    <div className="text-[10px] text-text-faint">Minggu {n}</div>
+                                  </div>
+                                ))}
+                                {bolehTulis && (
+                                  <div className="text-right text-[10.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                                    Aksi
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col gap-2.5">
+                                {daftarProbul.map((b) => {
+                                  const posisi = (b.bulan - 1) % 6;
+                                  const warna = WARNA_POSISI_BULAN[posisi];
+                                  const evaluasi = adalahEvaluasi(b.jilid);
+                                  return (
+                                    <div key={b.id} className="relative flex gap-3">
+                                      {/* Titik + garis penghubung -- kolom ini
+                                          selalu setinggi kartu di sampingnya
+                                          (default align-items:stretch flex),
+                                          jadi garisnya menyambung dari baris
+                                          ke baris berikutnya secara alami. */}
+                                      <div className="relative flex w-2 shrink-0 justify-center">
+                                        <div className="absolute inset-y-0 w-px bg-border" />
+                                        <span
+                                          className="absolute top-1/2 z-10 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-4 ring-bg"
+                                          style={{ background: warna.titik }}
+                                        />
+                                      </div>
+
+                                      <div className="grid flex-1 grid-cols-[1.6fr_1fr_repeat(4,1fr)_84px] items-center gap-3 rounded-2xl border border-border bg-panel p-3 shadow-[var(--shadow-card)]">
+                                        {/* Bulan */}
+                                        <div className="flex items-center gap-2.5">
+                                          <span
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+                                            style={{ background: warna.gradasi }}
+                                          >
+                                            <Calendar size={17} strokeWidth={2} />
+                                          </span>
+                                          <div className="min-w-0">
+                                            <div className="text-[12.5px] font-extrabold tracking-[0.02em] text-text uppercase">
+                                              {NAMA_BULAN[b.bulan - 1] ?? b.bulan}
+                                            </div>
+                                            {b.target && (
+                                              <div className="text-[10.5px] text-text-faint">
+                                                Target{' '}
+                                                <span className="font-bold" style={{ color: warna.teks }}>
+                                                  {b.target}
+                                                </span>
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+
+                                        {/* Jilid */}
+                                        <div className="min-w-0">
+                                          <div className="truncate text-[11px] text-text-faint">
+                                            {namaDari(p.kategori_kbm)}
+                                          </div>
+                                          {evaluasi ? (
+                                            <div className="text-[12.5px] font-semibold text-text-dim">
+                                              {b.jilid}
+                                            </div>
+                                          ) : (
+                                            <div className="text-[12.5px] font-bold text-text">
+                                              {b.jilid || '—'}
+                                            </div>
+                                          )}
+                                        </div>
+
+                                        <PilMinggu nilai={b.minggu1} warna={WARNA_MINGGU[0]} />
+                                        <PilMinggu nilai={b.minggu2} warna={WARNA_MINGGU[1]} />
+                                        <PilMinggu nilai={b.minggu3} warna={WARNA_MINGGU[2]} />
+                                        <PilMinggu nilai={b.minggu4} warna={WARNA_EVALUASI} />
+
+                                        {bolehTulis && (
+                                          <div className="flex items-center justify-end gap-0.5">
+                                            <button
+                                              onClick={() =>
+                                                setPencapaianUntuk({
+                                                  id: b.id,
+                                                  judul:
+                                                    (NAMA_BULAN[b.bulan - 1] ?? b.bulan) +
+                                                    ' — ' +
+                                                    (b.target ?? 'tanpa target'),
+                                                })
+                                              }
+                                              title="Pencapaian"
+                                              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim transition-colors duration-150 hover:bg-panel-2"
+                                            >
+                                              <Target size={15} strokeWidth={2} />
+                                            </button>
+                                            <KebabMenu
+                                              item={[
+                                                {
+                                                  label: 'Ubah',
+                                                  onClick: () =>
+                                                    setUbah({
+                                                      judul:
+                                                        'Ubah Probul — ' + (NAMA_BULAN[b.bulan - 1] ?? b.bulan),
+                                                      tabel: 'kurikulum_probul',
+                                                      id: b.id,
+                                                      probulContext: { bulan: b.bulan, promesId: s.id },
+                                                      isian: [
+                                                        { label: 'Jilid', field: 'jilid', nilai: b.jilid ?? '' },
+                                                        { label: 'Target', field: 'target', nilai: b.target ?? '' },
+                                                        { label: 'Deskripsi', field: 'deskripsi', nilai: b.deskripsi ?? '', baris: true },
+                                                        { label: 'Minggu 1', field: 'minggu1', nilai: b.minggu1 ?? '' },
+                                                        { label: 'Minggu 2', field: 'minggu2', nilai: b.minggu2 ?? '' },
+                                                        { label: 'Minggu 3', field: 'minggu3', nilai: b.minggu3 ?? '' },
+                                                        /* Minggu 4 default "Evaluasi" kalau masih kosong -- cuma
+                                                           nilai awal borang (belum tersimpan), tetap bebas
+                                                           diubah/dikosongkan sebelum disimpan. */
+                                                        { label: 'Minggu 4', field: 'minggu4', nilai: b.minggu4 ?? 'Evaluasi' },
+                                                      ],
+                                                    }),
+                                                },
+                                              ]}
+                                            />
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
