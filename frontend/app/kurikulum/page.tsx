@@ -52,7 +52,20 @@ const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
    Dipertahankan supaya guru tidak dihadapkan pada kelas yang bukan
    urusannya. */
 const KELAS_LIST_GURU = ['1', '2', '3', '4', '5', '6'];
-const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
+/* Kurikulum berhenti jadi data per-kelompok (diminta owner 2026-08-22):
+   cuma admin_ppg ("admin aplikasi") yang boleh tulis, admin_desa/
+   admin_kelompok/guru semuanya lihat-saja sekarang. RLS kurikulum_prota/
+   promes/probul_insert|update_admin_only sudah disempitkan senada di
+   migrasi 20260822100000_kurikulum_akses_bersama.sql -- constant ini
+   HANYA gerbang UI, bukan satu2nya penjaga. */
+const PERAN_TULIS = ['admin_ppg'];
+/* Satu2nya kelompok yg pernah diisi datanya (Kelp Petemon, 94 baris
+   Prota) -- dijadikan "dasar" kurikulum bersama utk SEMUA kelp/desa,
+   bukan lagi dipilih per-admin. RLS SELECT kurikulum_prota/promes/probul
+   sudah dibuka utk semua peran aktif (migrasi yang sama di atas) supaya
+   admin_desa/admin_kelompok/guru dari kelp MANAPUN tetap bisa membacanya
+   walau scope mereka bukan kelompok ini. */
+const KELOMPOK_KURIKULUM_BERSAMA_ID = 1;
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
@@ -121,7 +134,6 @@ type Probul = {
   minggu4: string | null;
 };
 
-type Kelompok = { id: number; nama: string };
 type KategoriKbm = { id: number; nama: string; urutan: number };
 
 function namaDari(nilai: Tersemat) {
@@ -343,9 +355,8 @@ function KurikulumContent() {
   const { profile } = useAuth();
   const bolehTulis = PERAN_TULIS.includes(profile?.role ?? '');
 
-  const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
-  const [kelompokId, setKelompokId] = useState<number | null>(profile?.scope_kelompok_id ?? null);
-  const [tahun, setTahun] = useState<number>(new Date().getFullYear());
+  const kelompokId = KELOMPOK_KURIKULUM_BERSAMA_ID;
+  const tahun = new Date().getFullYear();
   const [kelas, setKelas] = useState<string | null>(null);
 
   const [prota, setProta] = useState<Prota[]>([]);
@@ -388,46 +399,6 @@ function KurikulumContent() {
      sama -- menambahkan bar guru ini tanpa syarat akan menumpuk 2 bar
      navigasi sekaligus di layar admin. */
   const adalahGuru = profile?.role === 'guru';
-  /* Gerbang "Pilih Kelompok & Tahun" disembunyikan utk guru, admin_kelompok,
-     DAN admin_desa (diminta owner, redesain desktop 2026-08-22) -- guru &
-     admin_kelompok sudah "terkunci" ke SATU kelompok lewat
-     profile.scope_kelompok_id (sumber nilai awal kelompokId di useState di
-     bawah). admin_desa TIDAK terkunci (mereka membawahi banyak kelompok),
-     jadi kelompoknya di-auto-pilih ke yang pertama di desanya (lihat effect
-     kelompokList di bawah) dan tetap punya affordance "Ganti" (bisaGantiKelompok)
-     -- BEDA dari admin_kelompok/guru yg genuinely tidak punya kelompok lain
-     utk dipilih. Hanya admin_ppg yang TETAP melihat gerbang penuh apa
-     adanya, krn dia satu-satunya yg membawahi SEMUA kelompok tanpa scope
-     desa. Data kurikulum di database TETAP per-kelompok apa adanya, ini
-     murni menyembunyikan langkah pilihnya dari layar. */
-  const sembunyikanGerbangKelompok =
-    adalahGuru || profile?.role === 'admin_kelompok' || profile?.role === 'admin_desa';
-  /* Subjudul tagline vs "Kelompok · Tahun" TETAP pakai kondisi lama (tanpa
-     admin_desa) -- admin_desa membawahi banyak kelompok jadi info kelompok
-     yang sedang dilihat genuinely relevan buat mereka, beda dari guru/
-     admin_kelompok yang cuma py satu kelompok jadi infonya redundan. */
-  const tampilkanTaglineSubjudul = adalahGuru || profile?.role === 'admin_kelompok';
-  const bisaGantiKelompok = profile?.role === 'admin_desa';
-  const [gantiKelompokTerbuka, setGantiKelompokTerbuka] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      let query = supabase.from('kelompok').select('id, nama').order('nama');
-      /* RLS `kelompok` TIDAK discope per-desa (qual = true utk semua
-         authenticated) -- filter desa_id WAJIB dilakukan di sini, bukan
-         mengandalkan RLS, supaya admin_desa cuma melihat kelompok
-         desanya sendiri. */
-      if (profile?.role === 'admin_desa' && profile.scope_desa_id) {
-        query = query.eq('desa_id', profile.scope_desa_id);
-      }
-      const { data } = await query;
-      setKelompokList(data ?? []);
-      if (!kelompokId && data && data.length > 0 && (data.length === 1 || profile?.role === 'admin_desa')) {
-        setKelompokId(data[0].id);
-      }
-    }
-    load();
-  }, [kelompokId, profile?.role, profile?.scope_desa_id]);
 
   /* ⚠️ Tabel `kategori_kbm` MENCAMPUR dua namespace: 11 mata pelajaran KBM
      (yang dipakai kurikulum_prota) dan 4 kategori JENJANG "Cabe Rawit",
@@ -667,80 +638,12 @@ function KurikulumContent() {
           Pilih kelas dulu untuk melihat Program Tahunan, Semester, dan Bulanan.
         </p>
 
-        {!sembunyikanGerbangKelompok && (
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className={KELAS_LABEL}>Kelompok</label>
-              <select
-                className={KELAS_INPUT}
-                value={kelompokId ?? ''}
-                onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">-- Pilih Kelompok --</option>
-                {kelompokList.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.nama}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={KELAS_LABEL}>Tahun</label>
-              <input
-                type="number"
-                className={KELAS_INPUT}
-                value={tahun}
-                onChange={(e) => setTahun(Number(e.target.value))}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* admin_desa: gerbang dropdown penuh disembunyikan (auto-terpilih
-            kelompok pertama di desanya), tapi TETAP butuh cara pindah
-            kelompok krn membawahi lebih dari satu -- affordance ringkas
-            "Kelompok: X · Ganti" ini menggantikannya, dropdown penuhnya
-            cuma muncul saat diklik. */}
-        {bisaGantiKelompok && (
-          <div className="mb-6">
-            {!gantiKelompokTerbuka ? (
-              <button
-                type="button"
-                onClick={() => setGantiKelompokTerbuka(true)}
-                className="cursor-pointer border-none bg-transparent p-0 text-[13px] font-semibold text-brass hover:underline"
-              >
-                Kelompok: {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Ganti
-              </button>
-            ) : (
-              <div className="max-w-xs">
-                <label className={KELAS_LABEL}>Kelompok</label>
-                <select
-                  className={KELAS_INPUT}
-                  value={kelompokId ?? ''}
-                  onChange={(e) => {
-                    setKelompokId(e.target.value ? Number(e.target.value) : null);
-                    setGantiKelompokTerbuka(false);
-                  }}
-                >
-                  <option value="">-- Pilih Kelompok --</option>
-                  {kelompokList.map((k) => (
-                    <option key={k.id} value={k.id}>
-                      {k.nama}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {(profile?.role === 'guru' ? KELAS_LIST_GURU : KELAS_LIST).map((k) => (
             <button
               key={k}
-              disabled={!kelompokId}
               onClick={() => setKelas(k)}
-              className="group flex cursor-pointer flex-col items-center gap-2.5 rounded-card border border-border bg-panel px-4 py-6 text-center shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass hover:shadow-[0_6px_18px_rgba(217,119,6,0.14)] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-border disabled:hover:shadow-[var(--shadow-card)]"
+              className="group flex cursor-pointer flex-col items-center gap-2.5 rounded-card border border-border bg-panel px-4 py-6 text-center shadow-[var(--shadow-card)] transition-all duration-200 hover:border-brass hover:shadow-[0_6px_18px_rgba(217,119,6,0.14)]"
             >
               <span
                 className="flex h-11 w-11 items-center justify-center rounded-full text-[15px] font-extrabold text-white transition-transform duration-200 group-hover:scale-105"
@@ -754,18 +657,6 @@ function KurikulumContent() {
             </button>
           ))}
         </div>
-        {!kelompokId && !sembunyikanGerbangKelompok && (
-          <p className="mt-4 text-[13px] text-text-dim">Pilih kelompok dulu.</p>
-        )}
-        {!kelompokId && sembunyikanGerbangKelompok && (
-          <p className="mt-4 text-[13px] text-red">
-            {adalahGuru
-              ? 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Kelp.'
-              : bisaGantiKelompok
-                ? 'Belum ada kelompok terdaftar di desa Anda -- hubungi Admin PPG.'
-                : 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Desa/PPG.'}
-          </p>
-        )}
         </div>
       </>
     );
@@ -781,21 +672,14 @@ function KurikulumContent() {
           <h1 className="text-[24px] font-bold text-text">
             Kurikulum {kelas === 'PAUD-TK' ? 'PAUD/TK' : 'Kelas ' + kelas}
           </h1>
-          {/* Subjudul diganti tagline (bukan "Kelp X . Tahun Y") khusus
-              guru & admin_kelompok -- diminta owner, fokus tampilan HP.
-              admin_desa/admin_ppg TETAP melihat kelompok+tahun apa
-              adanya, krn mereka membawahi banyak kelompok & info itu
-              genuinely relevan buat mereka. Font sedikit lebih kecil
-              (12px, bukan 13px) krn tagline-nya jauh lebih panjang. */}
-          {tampilkanTaglineSubjudul ? (
-            <p className="mt-0.5 text-[12px] leading-snug text-text-dim">
-              Garis-Garis Besar Materi dan Target Pembinaan Generus
-            </p>
-          ) : (
-            <p className="text-[13px] text-text-dim">
-              {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Tahun {tahun}
-            </p>
-          )}
+          {/* Subjudul SELALU tagline (bukan "Kelp X . Tahun Y") -- sejak
+              Kurikulum jadi data bersama utk SEMUA kelp/desa (diminta
+              owner 2026-08-22), nama kelompok sumbernya sudah tidak
+              relevan lagi buat siapa pun yang melihat, guru maupun
+              admin manapun. */}
+          <p className="mt-0.5 text-[12px] leading-snug text-text-dim">
+            Garis-Garis Besar Materi dan Target Pembinaan Generus
+          </p>
         </div>
         <div className="flex shrink-0 gap-2">
           {bolehTulis && (
