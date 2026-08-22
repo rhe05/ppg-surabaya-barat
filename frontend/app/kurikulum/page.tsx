@@ -388,24 +388,46 @@ function KurikulumContent() {
      sama -- menambahkan bar guru ini tanpa syarat akan menumpuk 2 bar
      navigasi sekaligus di layar admin. */
   const adalahGuru = profile?.role === 'guru';
-  /* Gerbang "Pilih Kelompok & Tahun" disembunyikan bukan cuma utk guru,
-     tapi jg admin_kelompok (diminta owner) -- keduanya sudah "terkunci"
-     ke SATU kelompok lewat profile.scope_kelompok_id (sumber nilai awal
-     kelompokId di useState di bawah), jadi memilihnya lagi di sini
-     redundan. admin_desa/admin_ppg TETAP melihat gerbang ini apa adanya
-     -- mereka membawahi BANYAK kelompok/tahun, jadi genuinely perlu
-     memilih. Data kurikulum di database TETAP per-kelompok apa adanya,
-     ini murni menyembunyikan langkah pilihnya dari layar. */
-  const sembunyikanGerbangKelompok = adalahGuru || profile?.role === 'admin_kelompok';
+  /* Gerbang "Pilih Kelompok & Tahun" disembunyikan utk guru, admin_kelompok,
+     DAN admin_desa (diminta owner, redesain desktop 2026-08-22) -- guru &
+     admin_kelompok sudah "terkunci" ke SATU kelompok lewat
+     profile.scope_kelompok_id (sumber nilai awal kelompokId di useState di
+     bawah). admin_desa TIDAK terkunci (mereka membawahi banyak kelompok),
+     jadi kelompoknya di-auto-pilih ke yang pertama di desanya (lihat effect
+     kelompokList di bawah) dan tetap punya affordance "Ganti" (bisaGantiKelompok)
+     -- BEDA dari admin_kelompok/guru yg genuinely tidak punya kelompok lain
+     utk dipilih. Hanya admin_ppg yang TETAP melihat gerbang penuh apa
+     adanya, krn dia satu-satunya yg membawahi SEMUA kelompok tanpa scope
+     desa. Data kurikulum di database TETAP per-kelompok apa adanya, ini
+     murni menyembunyikan langkah pilihnya dari layar. */
+  const sembunyikanGerbangKelompok =
+    adalahGuru || profile?.role === 'admin_kelompok' || profile?.role === 'admin_desa';
+  /* Subjudul tagline vs "Kelompok · Tahun" TETAP pakai kondisi lama (tanpa
+     admin_desa) -- admin_desa membawahi banyak kelompok jadi info kelompok
+     yang sedang dilihat genuinely relevan buat mereka, beda dari guru/
+     admin_kelompok yang cuma py satu kelompok jadi infonya redundan. */
+  const tampilkanTaglineSubjudul = adalahGuru || profile?.role === 'admin_kelompok';
+  const bisaGantiKelompok = profile?.role === 'admin_desa';
+  const [gantiKelompokTerbuka, setGantiKelompokTerbuka] = useState(false);
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase.from('kelompok').select('id, nama').order('nama');
+      let query = supabase.from('kelompok').select('id, nama').order('nama');
+      /* RLS `kelompok` TIDAK discope per-desa (qual = true utk semua
+         authenticated) -- filter desa_id WAJIB dilakukan di sini, bukan
+         mengandalkan RLS, supaya admin_desa cuma melihat kelompok
+         desanya sendiri. */
+      if (profile?.role === 'admin_desa' && profile.scope_desa_id) {
+        query = query.eq('desa_id', profile.scope_desa_id);
+      }
+      const { data } = await query;
       setKelompokList(data ?? []);
-      if (!kelompokId && data && data.length === 1) setKelompokId(data[0].id);
+      if (!kelompokId && data && data.length > 0 && (data.length === 1 || profile?.role === 'admin_desa')) {
+        setKelompokId(data[0].id);
+      }
     }
     load();
-  }, [kelompokId]);
+  }, [kelompokId, profile?.role, profile?.scope_desa_id]);
 
   /* ⚠️ Tabel `kategori_kbm` MENCAMPUR dua namespace: 11 mata pelajaran KBM
      (yang dipakai kurikulum_prota) dan 4 kategori JENJANG "Cabe Rawit",
@@ -674,6 +696,44 @@ function KurikulumContent() {
           </div>
         )}
 
+        {/* admin_desa: gerbang dropdown penuh disembunyikan (auto-terpilih
+            kelompok pertama di desanya), tapi TETAP butuh cara pindah
+            kelompok krn membawahi lebih dari satu -- affordance ringkas
+            "Kelompok: X · Ganti" ini menggantikannya, dropdown penuhnya
+            cuma muncul saat diklik. */}
+        {bisaGantiKelompok && (
+          <div className="mb-6">
+            {!gantiKelompokTerbuka ? (
+              <button
+                type="button"
+                onClick={() => setGantiKelompokTerbuka(true)}
+                className="cursor-pointer border-none bg-transparent p-0 text-[13px] font-semibold text-brass hover:underline"
+              >
+                Kelompok: {kelompokList.find((k) => k.id === kelompokId)?.nama ?? '-'} &middot; Ganti
+              </button>
+            ) : (
+              <div className="max-w-xs">
+                <label className={KELAS_LABEL}>Kelompok</label>
+                <select
+                  className={KELAS_INPUT}
+                  value={kelompokId ?? ''}
+                  onChange={(e) => {
+                    setKelompokId(e.target.value ? Number(e.target.value) : null);
+                    setGantiKelompokTerbuka(false);
+                  }}
+                >
+                  <option value="">-- Pilih Kelompok --</option>
+                  {kelompokList.map((k) => (
+                    <option key={k.id} value={k.id}>
+                      {k.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {(profile?.role === 'guru' ? KELAS_LIST_GURU : KELAS_LIST).map((k) => (
             <button
@@ -701,7 +761,9 @@ function KurikulumContent() {
           <p className="mt-4 text-[13px] text-red">
             {adalahGuru
               ? 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Kelp.'
-              : 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Desa/PPG.'}
+              : bisaGantiKelompok
+                ? 'Belum ada kelompok terdaftar di desa Anda -- hubungi Admin PPG.'
+                : 'Akun Anda belum tertaut ke kelompok manapun -- hubungi Admin Desa/PPG.'}
           </p>
         )}
         </div>
@@ -725,7 +787,7 @@ function KurikulumContent() {
               adanya, krn mereka membawahi banyak kelompok & info itu
               genuinely relevan buat mereka. Font sedikit lebih kecil
               (12px, bukan 13px) krn tagline-nya jauh lebih panjang. */}
-          {sembunyikanGerbangKelompok ? (
+          {tampilkanTaglineSubjudul ? (
             <p className="mt-0.5 text-[12px] leading-snug text-text-dim">
               Garis-Garis Besar Materi dan Target Pembinaan Generus
             </p>
