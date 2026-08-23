@@ -159,21 +159,23 @@ function namaMateriTampil(namaAsli: string, kelas: string | null) {
 
 /* Konsep borang Ubah Prota "2 semester, tanpa field Target terpisah" --
    sebelumnya cuma milik Bacaan Al-Qur'an -- sekarang dipakai jg utk
-   "Tulis Huruf Arab", diminta owner 2026-08-22, berlaku SEMUA kelas
-   (PAUD-TK s.d. 9) krn cek ini murni nama kategori, tidak pernah
-   difilter per kelas spt KELAS_LABEL_BACA_HURUF di atas.
+   "Tulis Huruf Arab" (2026-08-22) & "Hafalan Surat-Surat Al-Qur'an"
+   (2026-08-23), diminta owner, berlaku SEMUA kelas yg py baris Prota
+   kategori itu (PAUD-TK s.d. 9) krn cek ini murni nama kategori, tidak
+   pernah difilter per kelas spt KELAS_LABEL_BACA_HURUF di atas.
    BEDA kolom sumbernya dgn Bacaan Al-Qur'an (dicek langsung ke data
-   produksi dulu, bukan tebakan): Bacaan Al-Qur'an isi per-semesternya
-   selama ini ada di deskripsi/deskripsi2 (target selalu kosong utk
-   kategori itu). Tulis Huruf Arab KEBALIKANNYA -- targetnya SUDAH berisi
-   teks per-semester asli (dulu digabung 1 baris pakai pemisah "->" krn
-   belum ada kolom target2), deskripsinya cuma boilerplate seragam
-   ("Jenjang Caberawit — Materi Tulis Huruf Arab Kelas N", sama pola di
-   semua kelas, bukan konten per-semester). Makanya borangnya pakai
-   target/target2, BUKAN deskripsi/deskripsi2 -- migrasi
-   20260822110000_tulis_huruf_arab_semester_ganda.sql memecah data
+   produksi dulu, bukan tebakan, utk keduanya): Bacaan Al-Qur'an isi
+   per-semesternya selama ini ada di deskripsi/deskripsi2 (target selalu
+   kosong utk kategori itu). Tulis Huruf Arab & Hafalan Surat-Surat
+   Al-Qur'an KEBALIKANNYA -- targetnya SUDAH berisi teks per-semester
+   asli (dulu digabung 1 baris pakai pemisah "->" krn belum ada kolom
+   target2), deskripsinya cuma boilerplate seragam ("Jenjang Caberawit —
+   Materi X Kelas N", sama pola di semua kelas, bukan konten per-
+   semester). Makanya borangnya pakai target/target2, BUKAN deskripsi/
+   deskripsi2 -- migrasi 20260822110000_tulis_huruf_arab_semester_ganda.sql
+   & 20260823090000_hafalan_surat_semester_ganda.sql memecah data
    "A -> B" yang sudah ada jadi target=A, target2=B. */
-const KATEGORI_TULIS_HURUF_ARAB = 'Tulis Huruf Arab';
+const KATEGORI_TARGET_SEMESTER_GANDA = ['Tulis Huruf Arab', "Hafalan Surat-Surat Al-Qur'an"];
 
 /* Palet Probul SENGAJA ditekan jadi satu warna netral + SATU aksen
    (indigo, dipakai di tempat lain di app ini utk aksi khusus) -- bukan
@@ -776,22 +778,21 @@ function KurikulumContent() {
           const daftarPromes = promesPerProta.get(p.id) ?? [];
           const namaAsli = namaDari(p.kategori_kbm);
           const namaTampil = namaMateriTampil(namaAsli, kelas);
-          /* Materi "Bacaan Al-Qur'an" & "Tulis Huruf Arab" (nama ASLI dicek,
-             bukan namaTampil, supaya tetap kena baik di kelas yg
-             menampilkan "Baca Huruf..." maupun kelas 4+ yg tetap "Bacaan
-             Al-Qur'an") sama2 punya borang "2 semester, tanpa Target
-             terpisah" -- lihat komentar KATEGORI_TULIS_HURUF_ARAB di atas
-             utk kenapa kolom sumbernya beda (deskripsi/deskripsi2 utk
-             Bacaan Al-Qur'an, target/target2 utk Tulis Huruf Arab).
-             Kategori lain TIDAK disentuh, tetap Target+Deskripsi spt
-             semula. */
+          /* Materi "Bacaan Al-Qur'an" & kategori di KATEGORI_TARGET_SEMESTER_GANDA
+             (nama ASLI dicek, bukan namaTampil, supaya tetap kena baik di
+             kelas yg menampilkan "Baca Huruf..." maupun kelas 4+ yg tetap
+             "Bacaan Al-Qur'an") sama2 punya borang "2 semester, tanpa
+             Target terpisah" -- lihat komentar KATEGORI_TARGET_SEMESTER_GANDA
+             di atas utk kenapa kolom sumbernya beda (deskripsi/deskripsi2
+             utk Bacaan Al-Qur'an, target/target2 utk yang lain). Kategori
+             lain TIDAK disentuh, tetap Target+Deskripsi spt semula. */
           const isianProta: Isian[] =
             namaAsli === KATEGORI_BACAAN_ALQURAN
               ? [
                   { label: 'Semester 1', field: 'deskripsi', nilai: p.deskripsi ?? '', baris: true },
                   { label: 'Semester 2', field: 'deskripsi2', nilai: p.deskripsi2 ?? '', baris: true },
                 ]
-              : namaAsli === KATEGORI_TULIS_HURUF_ARAB
+              : KATEGORI_TARGET_SEMESTER_GANDA.includes(namaAsli)
                 ? [
                     { label: 'Semester 1', field: 'target', nilai: p.target ?? '', baris: true },
                     { label: 'Semester 2', field: 'target2', nilai: p.target2 ?? '', baris: true },
@@ -854,11 +855,12 @@ function KurikulumContent() {
                           </div>
                         )}
                       </>
-                    ) : namaAsli === KATEGORI_TULIS_HURUF_ARAB ? (
-                      /* Tulis Huruf Arab: konsep sama spt Bacaan Al-Qur'an
-                         (Semester 1/2, tanpa Target terpisah), tapi sumber
-                         datanya target/target2 -- lihat komentar
-                         KATEGORI_TULIS_HURUF_ARAB di atas. */
+                    ) : KATEGORI_TARGET_SEMESTER_GANDA.includes(namaAsli) ? (
+                      /* Tulis Huruf Arab & Hafalan Surat-Surat Al-Qur'an:
+                         konsep sama spt Bacaan Al-Qur'an (Semester 1/2,
+                         tanpa Target terpisah), tapi sumber datanya
+                         target/target2 -- lihat komentar
+                         KATEGORI_TARGET_SEMESTER_GANDA di atas. */
                       <>
                         {p.target && (
                           <div className="mt-1">
