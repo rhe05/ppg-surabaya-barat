@@ -21,16 +21,22 @@
    RencanaPembelajaranView.tsx yang hero-nya dihapus khusus) -- diminta
    owner cuma utk Rencana Pembelajaran. */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Calendar, Plus, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
+import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import ToastStack from '@/components/ui/ToastStack';
-import { mingguKeDariTanggal } from '@/lib/mingguBulan';
+import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
+
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
 
 type Kelas = { id: number; nama: string };
 type Baris = {
@@ -55,15 +61,45 @@ export default function PelaksanaanPembelajaranView() {
   const [kelasId, setKelasId] = useState<number | ''>('');
 
   const sekarang = new Date();
-  const tahun = sekarang.getFullYear();
-  const bulan = sekarang.getMonth() + 1;
-  const mingguKe = mingguKeDariTanggal(sekarang);
   const tanggalLabel = sekarang.toLocaleDateString('id-ID', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
   });
+
+  /* Bulan/Tahun/Minggu skrg BISA DIPILIH (diminta owner 2026-08-23,
+     ikon kalender + info Bulan/Tahun sama spt RencanaPembelajaranView.tsx)
+     -- sebelumnya SELALU "hari ini" (ketiganya diturunkan langsung dari
+     `sekarang`, bukan state). Default awal tetap bulan/tahun/minggu
+     berjalan (persis perilaku lama), guru cuma sekarang BISA geser ke
+     minggu/bulan lain utk menyusulkan pelaksanaan yg lupa ditandai. */
+  const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
+  const [tahun, setTahun] = useState(sekarang.getFullYear());
+  const [mingguKe, setMingguKe] = useState(mingguKeDariTanggal(sekarang));
+  const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
+  const [pemilihBulanTerbuka, setPemilihBulanTerbuka] = useState(false);
+  const [posisiPemilihBulan, setPosisiPemilihBulan] = useState<PosisiPicker | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
+
+  /* Minggu yg sedang dipilih tidak selalu ada di bulan baru (mis. pindah
+     dari bulan berminggu-5 ke bulan berminggu-4) -- turunkan ke minggu
+     terakhir yg valid drpd diam-diam query minggu yg tidak ada. */
+  useEffect(() => {
+    if (!rentangMinggu(tahun, bulan, mingguKe)) {
+      let mkValid = 1;
+      for (let mk = 1; mk <= 5; mk++) if (rentangMinggu(tahun, bulan, mk)) mkValid = mk;
+      setMingguKe(mkValid);
+    }
+  }, [tahun, bulan, mingguKe]);
+
+  /* Dipakai utk membedakan label "Hari Ini"/"Minggu Ini" (default, spt
+     semula) vs "Minggu {N}" polos (guru sedang menengok minggu/bulan
+     lain, bukan yg berjalan sekarang). */
+  const apakahMingguIni =
+    tahun === sekarang.getFullYear() &&
+    bulan === sekarang.getMonth() + 1 &&
+    mingguKe === mingguKeDariTanggal(sekarang);
 
   const [baris, setBaris] = useState<Baris[]>([]);
   const [terbukaId, setTerbukaId] = useState<number | null>(null); // baris yg catatannya sedang diperluas
@@ -202,7 +238,15 @@ export default function PelaksanaanPembelajaranView() {
   const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
   const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
 
-  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
+  const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
+  const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
+  const opsiMinggu = [1, 2, 3, 4, 5]
+    .filter((mk) => rentangMinggu(tahun, bulan, mk))
+    .map((mk) => ({
+      value: String(mk),
+      label: `Minggu ${mk}`,
+      sublabel: labelRentangMinggu(tahun, bulan, mk, NAMA_BULAN),
+    }));
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
@@ -216,38 +260,101 @@ export default function PelaksanaanPembelajaranView() {
       <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        <div className="mb-4 text-[17px] font-extrabold text-text">Pelaksanaan Pembelajaran</div>
-
-        {kelasList.length > 1 && (
-          <div className="mb-3">
-            <SelectKustom
-              value={kelasId === '' ? '' : String(kelasId)}
-              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
-              opsi={opsiKelas}
-              placeholder="-- Pilih Kelas --"
-            />
+        {/* Judul + chip kelas kiri, ikon kalender + info Bulan/Tahun kanan --
+            konsep & markup SAMA PERSIS RencanaPembelajaranView.tsx (diminta
+            owner 2026-08-23). Popup-nya (di bawah) py SATU dropdown lebih
+            banyak drpd punya Rencana: Minggu, krn Pelaksanaan kerja per-
+            minggu (bukan menampilkan semua minggu bulan itu sekaligus spt
+            Rencana) -- perlu tahu PERSIS minggu mana yg mau ditengok. */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="pt-1.5 text-[17px] font-extrabold text-text">Pelaksanaan Pembelajaran</div>
+            {kelasList.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {kelasList.map((k) => {
+                  const aktif = k.id === kelasId;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => setKelasId(k.id)}
+                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                        aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                      }`}
+                      style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                    >
+                      {k.nama}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              ref={ikonKalenderRef}
+              type="button"
+              aria-label="Pilih Bulan, Tahun, dan Minggu"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiPemilihBulan({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                }
+                setPemilihBulanTerbuka((v) => !v);
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+            >
+              <Calendar size={19} />
+            </button>
+            <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
+              {NAMA_BULAN[bulan - 1]} {tahun}
+            </span>
+          </div>
+        </div>
+
+        {pemilihBulanTerbuka && posisiPemilihBulan && (
+          <>
+            <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
+            <div
+              className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+              style={{ top: posisiPemilihBulan.top, right: posisiPemilihBulan.right }}
+            >
+              <div className="mb-2 flex gap-2">
+                <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+                <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
+              </div>
+              <SelectKustom value={String(mingguKe)} onChange={(v) => setMingguKe(Number(v))} opsi={opsiMinggu} />
+            </div>
+          </>
         )}
 
-        {/* Pil tanggal hari ini, tema hijau muda — persis screenshot owner. */}
+        {/* Pil tanggal, tema hijau muda — persis screenshot owner. Isinya
+            ikut minggu yg dipilih (bukan selalu "hari ini" lagi): kalau
+            minggu yg sedang dilihat memang minggu berjalan sekarang,
+            tetap tampil tanggal hari ini spt semula; kalau bukan, tampil
+            rentang tanggal minggu itu + label "Minggu N". */}
         <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sage">
             <Calendar size={18} />
           </span>
           <div>
-            <div className="text-[13.5px] font-bold text-sage">{tanggalLabel}</div>
-            <div className="text-[11px] text-text-dim">Hari ini</div>
+            <div className="text-[13.5px] font-bold text-sage">
+              {apakahMingguIni ? tanggalLabel : labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+            </div>
+            <div className="text-[11px] text-text-dim">{apakahMingguIni ? 'Hari ini' : `Minggu ${mingguKe}`}</div>
           </div>
         </div>
 
         {kelasId === '' ? (
-          <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat pelaksanaan hari ini.</p>
+          <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat pelaksanaan minggu ini.</p>
         ) : (
           <>
-            {/* Pertemuan Hari Ini */}
+            {/* Pertemuan Hari Ini/Minggu N */}
             <div className="mb-5 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
               <div className="mb-3 flex items-center justify-between">
-                <div className="text-[13px] font-bold text-text">Pertemuan Hari Ini</div>
+                <div className="text-[13px] font-bold text-text">
+                  {apakahMingguIni ? 'Pertemuan Hari Ini' : `Pertemuan Minggu ${mingguKe}`}
+                </div>
                 <div className="text-[11.5px] text-text-dim">
                   {disampaikan} dari {direncanakan} selesai
                 </div>
@@ -283,7 +390,9 @@ export default function PelaksanaanPembelajaranView() {
               </div>
             </div>
 
-            <div className="mb-3 text-[15px] font-bold text-text">Materi Hari Ini</div>
+            <div className="mb-3 text-[15px] font-bold text-text">
+              {apakahMingguIni ? 'Materi Hari Ini' : `Materi Minggu ${mingguKe}`}
+            </div>
 
             {loading && (
               <div className="mb-4 flex flex-col gap-2.5">
