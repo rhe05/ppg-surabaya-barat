@@ -771,6 +771,16 @@ export default function RencanaPembelajaranView() {
     }))
     .filter((m) => m.rentang !== null);
 
+  /* Semua kartu Minggu N Klasikal dibungkus SATU kartu bulan (diminta
+     owner 2026-08-23) -- "Materi Klasikal Agustus 2026 . 19 Hari Aktif",
+     19 = jumlah total jumlahHariAktifMinggu seluruh minggu bulan itu.
+     Tersembunyi bawaan, ketuk utk buka rincian per-minggu spt sekarang. */
+  const totalHariAktifBulan = mingguKlasikal.reduce(
+    (jumlah, { rentang }) => jumlah + jumlahHariAktifMinggu(tahun, bulan, rentang!),
+    0
+  );
+  const [klasikalBulanTerbuka, setKlasikalBulanTerbuka] = useState(false);
+
   /* Kartu Klasikal bisa dibuka/tutup per minggu (diminta owner 2026-08-23)
      -- rincian hariannya TERSEMBUNYI bawaan, klik header (Minggu N +
      tanggal + badge Klasikal) utk buka, klik lagi utk tutup. */
@@ -969,6 +979,25 @@ export default function RencanaPembelajaranView() {
               </div>
             ))}
 
+            {/* Kartu bulan Klasikal -- membungkus SEMUA kartu Minggu N
+                Klasikal di bawah jadi satu (diminta owner 2026-08-23).
+                Tersembunyi bawaan, ketuk header ("Materi Klasikal
+                Agustus 2026 . 19 Hari Aktif") utk buka rincian per-minggu. */}
+            <div className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+              <button
+                type="button"
+                onClick={() => setKlasikalBulanTerbuka((v) => !v)}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+              >
+                <span className="text-[14px] font-bold text-text">
+                  Materi Klasikal {NAMA_BULAN[bulan - 1]} {tahun}
+                </span>
+                <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                  {totalHariAktifBulan} Hari Aktif
+                </span>
+              </button>
+              {klasikalBulanTerbuka && (
+                <div className="flex flex-col gap-3 border-t border-border p-4">
             {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas,
                 badge "Klasikal" gantiin "N Materi". SELALU tampil Minggu
                 1-4 (+5 kalau bulannya punya) -- BEDA dari kartu Ngaji yg
@@ -1062,6 +1091,9 @@ export default function RencanaPembelajaranView() {
                 </div>
               );
             })}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
