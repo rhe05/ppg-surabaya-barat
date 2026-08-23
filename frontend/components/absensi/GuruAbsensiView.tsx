@@ -37,6 +37,7 @@ import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import Skeleton from '@/components/ui/Skeleton';
+import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
 export type KelasDetail = {
   id: number;
@@ -246,13 +247,18 @@ export default function GuruAbsensiView({
       />
       {/* Dirender DI LUAR .ia-header (overflow-hidden) — lihat catatan panjang
           di TanggalPicker.tsx. Posisinya dihitung dari ikon kalender saat
-          diklik (lihat onClick di bawah). */}
+          diklik (lihat onClick di bawah). Sabtu/Minggu + tanggal merah
+          dikunci (diminta owner 2026-08-23), sama pola dgn kalender
+          Tanggal Materi Klasikal -- absensi memang tidak diisi di hari
+          libur, jadi guru tidak perlu (dan tidak boleh) memilih tanggal
+          itu di sini. */}
       <TanggalPicker
         terbuka={tanggalTerbuka}
         posisi={posisiTanggal}
         nilai={tanggal}
         onPilih={onTanggalChange}
         onTutup={() => setTanggalTerbuka(false)}
+        tanggalNonaktif={nonaktifAkhirPekanLibur}
       />
 
       <KelasGate
