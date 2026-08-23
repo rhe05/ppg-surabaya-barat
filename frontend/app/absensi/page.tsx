@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
 import StatusModal from '@/components/absensi/StatusModal';
+import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
 const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
@@ -387,6 +388,22 @@ function AbsensiContent() {
         judul: 'Belum Bisa Disimpan',
         pesan:
           'Tidak bisa menyimpan absen untuk tanggal yang akan datang. Pilih tanggal hari ini atau tanggal yang sudah berlalu.',
+      });
+      return;
+    }
+
+    /* Kalender (TanggalPicker) sudah mengunci Sabtu/Minggu/tanggal merah
+       saat guru MEMILIH lewat ikon kalender -- tapi `tanggal` bisa juga
+       berupa nilai default "hari ini" yang belum pernah disentuh
+       pickernya sama sekali (dilaporkan owner: Neiza klik Simpan di hari
+       Minggu, tombolnya masih jalan). Pemeriksaan di sini adalah lapisan
+       kedua yang tidak bergantung pada picker sempat dibuka atau tidak. */
+    const libur = nonaktifAkhirPekanLibur(tanggal, new Date(tanggal + 'T00:00:00'));
+    if (libur) {
+      setStatusModal({
+        tone: 'warning',
+        judul: 'Tidak Bisa Disimpan',
+        pesan: `Tidak ada KBM pada ${libur.alasan.toLowerCase().startsWith('hari') ? libur.alasan : `tanggal merah (${libur.alasan})`}, absen tidak bisa disimpan.`,
       });
       return;
     }
