@@ -101,6 +101,56 @@ function formatTanggalDDMMYYYY(tgl: Date) {
 const INPUT_STYLE =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text placeholder:text-text-faint focus:border-brass focus:outline-none';
 
+/* Libur nasional + cuti bersama 2026, sesuai SKB 3 Menteri No. 1497 Thn
+   2025 / No. 2 Thn 2025 / No. 5 Thn 2025 (dicek via web, sumber resmi
+   Sekretariat Negara setneg.go.id -- bukan tebakan). Dipakai HANYA utk
+   kalender Tanggal Materi Klasikal (diminta owner 2026-08-23): Sabtu/
+   Minggu + tanggal merah tidak bisa diklik. ⚠️ Daftar ini KHUSUS 2026 --
+   Idul Fitri/Idul Adha/Nyepi/Imlek/Waisak dll geser tiap tahun (kalender
+   lunar), jadi kalau kalender ini dipakai lintas tahun (mis. guru buka
+   Januari 2027), tanggal merahnya TIDAK otomatis benar lagi. Perlu
+   diperbarui manual tiap tahun baru (cek SKB 3 Menteri terbaru), bukan
+   dihitung otomatis -- app ini sengaja tidak menebak tanggal lunar. */
+const LIBUR_NASIONAL_2026: Record<string, string> = {
+  '2026-01-01': 'Tahun Baru Masehi',
+  '2026-01-16': 'Isra Mikraj Nabi Muhammad SAW',
+  '2026-02-16': 'Cuti Bersama Tahun Baru Imlek',
+  '2026-02-17': 'Tahun Baru Imlek 2577',
+  '2026-03-18': 'Cuti Bersama Hari Suci Nyepi',
+  '2026-03-19': 'Hari Suci Nyepi (Tahun Baru Saka 1948)',
+  '2026-03-20': 'Cuti Bersama Idul Fitri',
+  '2026-03-21': 'Hari Raya Idul Fitri 1447 H',
+  '2026-03-22': 'Hari Raya Idul Fitri 1447 H',
+  '2026-03-23': 'Cuti Bersama Idul Fitri',
+  '2026-03-24': 'Cuti Bersama Idul Fitri',
+  '2026-04-03': 'Wafat Isa Almasih',
+  '2026-04-05': 'Hari Paskah',
+  '2026-05-01': 'Hari Buruh Internasional',
+  '2026-05-14': 'Kenaikan Isa Almasih',
+  '2026-05-15': 'Cuti Bersama Kenaikan Isa Almasih',
+  '2026-05-27': 'Hari Raya Idul Adha 1447 H',
+  '2026-05-28': 'Cuti Bersama Idul Adha',
+  '2026-05-31': 'Hari Raya Waisak 2570 BE',
+  '2026-06-01': 'Hari Lahir Pancasila',
+  '2026-06-16': 'Tahun Baru Islam 1448 H',
+  '2026-08-17': 'HUT Kemerdekaan RI',
+  '2026-08-25': 'Maulid Nabi Muhammad SAW',
+  '2026-12-24': 'Cuti Bersama Hari Raya Natal',
+  '2026-12-25': 'Hari Raya Natal',
+};
+
+/* Sabtu/Minggu + tanggal merah 2026 tidak bisa diklik di kalender
+   Tanggal Materi Klasikal (diminta owner 2026-08-23) -- lihat komentar
+   LIBUR_NASIONAL_2026 di atas soal keterbatasan lintas-tahunnya. */
+function nonaktifKalenderKlasikal(tglStr: string, tgl: Date): { alasan: string; merah?: boolean } | null {
+  const hari = tgl.getDay();
+  if (hari === 0) return { alasan: 'Hari Minggu' };
+  if (hari === 6) return { alasan: 'Hari Sabtu' };
+  const namaLibur = LIBUR_NASIONAL_2026[tglStr];
+  if (namaLibur) return { alasan: namaLibur, merah: true };
+  return null;
+}
+
 /* Kode kelas Kurikulum, urut PAUD-TK dulu -- dipakai HANYA utk memotong
    daftar "s.d. kelas N" pada dropdown Hafalan Surat klasikal di bawah.
    Kode ini beda namespace dari `kelas.nama` (ruang guru, "1A") -- lihat
@@ -1184,8 +1234,23 @@ export default function RencanaPembelajaranView() {
                     terbuka={tanggalKlasikalPickerTerbuka}
                     posisi={posisiTanggalKlasikalPicker}
                     nilai={tanggalKlasikalBaru}
-                    onPilih={setTanggalKlasikalBaru}
+                    onPilih={(v) => {
+                      setTanggalKlasikalBaru(v);
+                      /* Pengingat Jumat minggu ke-1/2 -- diminta owner
+                         2026-08-23. Pengecekan "minggu ke-1/2" pakai
+                         tanggal 1-14 (blok kasar rentangMinggu yg sama
+                         dgn kartu Klasikal di atas), BUKAN nama hari
+                         doang -- Jumat di minggu ke-3/4/5 TIDAK kena. */
+                      const tgl = new Date(v + 'T00:00:00');
+                      if (tgl.getDay() === 5 && tgl.getDate() <= 14) {
+                        push(
+                          'Ingat: Jumat minggu ke-1/2 biasanya jadwal latihan Pencak Silat Asad.',
+                          'info'
+                        );
+                      }
+                    }}
                     onTutup={() => setTanggalKlasikalPickerTerbuka(false)}
+                    tanggalNonaktif={nonaktifKalenderKlasikal}
                   />
                 </FieldTambah>
 

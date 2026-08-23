@@ -51,6 +51,7 @@ export default function TanggalPicker({
   nilai,
   onPilih,
   onTutup,
+  tanggalNonaktif,
 }: {
   terbuka: boolean;
   /* Dihitung pemanggil dari getBoundingClientRect() tombol pemicu (lihat
@@ -60,6 +61,14 @@ export default function TanggalPicker({
   nilai: string;
   onPilih: (v: string) => void;
   onTutup: () => void;
+  /* Opsional -- diminta owner 2026-08-23 utk kalender Tanggal Materi
+     Klasikal (Rencana Pembelajaran): kembalikan alasan (+ `merah` utk
+     tanggal libur nasional, beda warna dari akhir pekan biasa) kalau
+     tanggal itu TIDAK boleh diklik, atau null kalau boleh. Opsional &
+     default tidak membatasi apa pun -- pemanggil lain (GuruAbsensiView,
+     SantriForm, Tanggal Rencana Materi Ngaji) TIDAK terpengaruh sama
+     sekali kalau tidak mengisi prop ini. */
+  tanggalNonaktif?: (tglStr: string, tgl: Date) => { alasan: string; merah?: boolean } | null;
 }) {
   const dasar = nilai ? new Date(nilai + 'T00:00:00') : new Date();
   const [tahun, setTahun] = useState(dasar.getFullYear());
@@ -176,6 +185,20 @@ export default function TanggalPicker({
           {Array.from({ length: jumlahHari }, (_, i) => {
             const hari = i + 1;
             const tglStr = keTanggalString(tahun, bulan, hari);
+            const nonaktif = tanggalNonaktif?.(tglStr, new Date(tahun, bulan, hari)) ?? null;
+            if (nonaktif) {
+              return (
+                <span
+                  key={tglStr}
+                  title={nonaktif.alasan}
+                  className={`cursor-not-allowed rounded-lg py-1.5 text-center text-[12.5px] line-through opacity-50 ${
+                    nonaktif.merah ? 'text-red' : 'text-text-faint'
+                  }`}
+                >
+                  {hari}
+                </span>
+              );
+            }
             return (
               <button
                 key={tglStr}
