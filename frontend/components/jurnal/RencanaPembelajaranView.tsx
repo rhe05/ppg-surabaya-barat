@@ -931,9 +931,28 @@ export default function RencanaPembelajaranView() {
             ))}
 
             {/* Kartu bulan Klasikal -- membungkus SEMUA kartu Minggu N
-                Klasikal di bawah jadi satu (diminta owner 2026-08-23).
-                Tersembunyi bawaan, ketuk header ("Materi Klasikal
-                Agustus 2026 . 19 Hari Aktif") utk buka rincian per-minggu. */}
+                Klasikal di bawah jadi satu. Tersembunyi bawaan, ketuk
+                header ("Materi Klasikal Agustus 2026 . 19 Hari Aktif")
+                utk buka rincian per-minggu.
+
+                DIGERBANG (dataSiapUntukKelasIni || materiList.length > 0)
+                -- diperbaiki 2026-08-23, laporan owner "kartu ini lompat
+                ke bawah lalu balik lagi pas ganti kelas". Akar
+                masalahnya: kartu ini dulu render TANPA syarat (langsung
+                begitu kelasId terisi), padahal Skeleton di atasnya (lihat
+                komentar dataSiapUntukKelasIni) baru hilang belakangan
+                stlh fetch selesai -- jadi sempat ada sesaat Skeleton
+                (tinggi tetap ~200px) + kartu ini tampil BARENGAN, lalu
+                Skeleton hilang & baris Rencana Mingguan asli (tinggi
+                beda) menggantikannya, mendorong kartu ini naik/turun ke
+                posisi akhirnya. Sekarang kartu ini SAMA gerbangnya dgn
+                "Skeleton hilang" (kebalikan logisnya persis), jadi
+                keduanya selalu berganti serentak, tidak pernah tumpang
+                tindih sesaat. materiList.length>0 tetap disertakan (bukan
+                cuma dataSiapUntukKelasIni) supaya stale-while-revalidate
+                pas ganti antar-kelas yg sama2 sudah py cache tetap mulus
+                (tidak sempat hilang-muncul lagi). */}
+            {(dataSiapUntukKelasIni || materiList.length > 0) && (
             <div className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
               <button
                 type="button"
@@ -1057,6 +1076,7 @@ export default function RencanaPembelajaranView() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
