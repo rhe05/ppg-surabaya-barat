@@ -152,41 +152,41 @@ function nonaktifKalenderKlasikal(tglStr: string, tgl: Date): { alasan: string; 
   return null;
 }
 
-/* Label tanggal "hari aktif ngaji" utk kartu Klasikal (diminta owner
-   2026-08-23) -- BEDA dari labelRentangMinggu (blok kalender kasar 7
-   hari, dipakai kartu Ngaji, TIDAK disentuh): ini cuma menghitung
-   Senin-Jumat yg BUKAN tanggal merah (numpang LIBUR_NASIONAL_2026 yg
-   sama dgn kalender Tanggal Materi Klasikal, jadi kedua fitur konsisten
-   -- lihat keterbatasan lintas-tahunnya di komentar LIBUR_NASIONAL_2026).
-   Hari aktif yg TIDAK berurutan (mis. ada tanggal merah di tengah
-   minggu) ditampilkan sbg beberapa sub-rentang dipisah koma (mis.
-   "3-4, 6-7"), bukan dipaksa jadi satu rentang yg salah. */
-function labelHariAktifMinggu(tahun: number, bulan: number, rentang: { awal: number; akhir: number }) {
-  const hariAktif: number[] = [];
+/* Dua tanggal Senin-Jumat pertama & terakhir dlm rentang minggu itu --
+   dipakai kartu Klasikal (diminta owner 2026-08-23). BEDA dari
+   labelRentangMinggu (blok kalender kasar 7 hari, dipakai kartu Ngaji,
+   TIDAK disentuh): ini cuma buang Sabtu/Minggu di ujung, TIDAK
+   dipecah walau ada tanggal merah di tengahnya (mis. "24-28 Agustus
+   2026" tetap ditampilkan utuh walau tgl 25-nya libur) -- tanggal
+   merah cuma mengurangi angka di jumlahHariAktifMinggu di bawah,
+   bukan memecah rentang tanggalnya. */
+function labelRentangAktifMinggu(tahun: number, bulan: number, rentang: { awal: number; akhir: number }) {
+  const hariKerja: number[] = [];
+  for (let d = rentang.awal; d <= rentang.akhir; d++) {
+    if (new Date(tahun, bulan - 1, d).getDay() % 6 !== 0) hariKerja.push(d);
+  }
+  if (hariKerja.length === 0) return '—';
+  const awal = hariKerja[0];
+  const akhir = hariKerja[hariKerja.length - 1];
+  const rentangStr = awal === akhir ? `${awal}` : `${awal}-${akhir}`;
+  return `${rentangStr} ${NAMA_BULAN[bulan - 1]} ${tahun}`;
+}
+
+/* Jumlah hari aktif ngaji sungguhan (Senin-Jumat DIKURANGI tanggal
+   merah, numpang LIBUR_NASIONAL_2026 yg sama dgn kalender Tanggal
+   Materi Klasikal -- lihat keterbatasan lintas-tahunnya di komentar
+   LIBUR_NASIONAL_2026) -- ditampilkan terpisah di sebelah
+   labelRentangAktifMinggu sbg "N Hari Aktif", diminta owner 2026-08-23. */
+function jumlahHariAktifMinggu(tahun: number, bulan: number, rentang: { awal: number; akhir: number }) {
+  let jumlah = 0;
   for (let d = rentang.awal; d <= rentang.akhir; d++) {
     const tgl = new Date(tahun, bulan - 1, d);
-    const hari = tgl.getDay();
-    if (hari === 0 || hari === 6) continue;
+    if (tgl.getDay() % 6 === 0) continue;
     const iso = `${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
     if (LIBUR_NASIONAL_2026[iso]) continue;
-    hariAktif.push(d);
+    jumlah += 1;
   }
-  if (hariAktif.length === 0) return 'Tidak ada hari aktif';
-
-  const subRentang: string[] = [];
-  let awal = hariAktif[0];
-  let akhir = hariAktif[0];
-  for (let i = 1; i < hariAktif.length; i++) {
-    if (hariAktif[i] === akhir + 1) {
-      akhir = hariAktif[i];
-    } else {
-      subRentang.push(awal === akhir ? `${awal}` : `${awal}-${akhir}`);
-      awal = akhir = hariAktif[i];
-    }
-  }
-  subRentang.push(awal === akhir ? `${awal}` : `${awal}-${akhir}`);
-
-  return `${subRentang.join(', ')} ${NAMA_BULAN[bulan - 1]} ${tahun}`;
+  return jumlah;
 }
 
 /* Kode kelas Kurikulum, urut PAUD-TK dulu -- dipakai HANYA utk memotong
@@ -1028,7 +1028,8 @@ export default function RencanaPembelajaranView() {
                     >
                       <span className="text-[14px] font-bold text-text">Minggu {mingguKe}</span>
                       <span className="truncate text-[11.5px] text-text-dim">
-                        · {labelHariAktifMinggu(tahun, bulan, rentang!)}
+                        · {labelRentangAktifMinggu(tahun, bulan, rentang!)} · {jumlahHariAktifMinggu(tahun, bulan, rentang!)}{' '}
+                        Hari Aktif
                       </span>
                     </button>
                     <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
