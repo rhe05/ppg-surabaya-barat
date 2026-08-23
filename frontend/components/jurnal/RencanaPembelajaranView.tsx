@@ -99,13 +99,6 @@ function formatTanggalDDMMYYYY(tgl: Date) {
   return `${String(tgl.getDate()).padStart(2, '0')}-${String(tgl.getMonth() + 1).padStart(2, '0')}-${tgl.getFullYear()}`;
 }
 
-/* "Senin 24-08-2026" -- dipakai label menu titik-tiga kartu Klasikal
-   (pilih hari mana yg mau diubah). `iso` = tanggal_rencana ("YYYY-MM-DD"). */
-function labelHariTanggal(iso: string) {
-  const tgl = new Date(iso + 'T00:00:00');
-  return `${NAMA_HARI[tgl.getDay()]} ${formatTanggalDDMMYYYY(tgl)}`;
-}
-
 const INPUT_STYLE =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text placeholder:text-text-faint focus:border-brass focus:outline-none';
 
@@ -941,18 +934,21 @@ export default function RencanaPembelajaranView() {
 
             {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas,
                 badge "Klasikal" gantiin "N Materi". SELALU tampil Minggu
-                1-4 (+5 kalau bulannya punya, diminta owner 2026-08-23) --
-                BEDA dari kartu Ngaji yg cuma tampil kalau py data. "Minggu
-                N" + info tanggal SEBARIS, seluruh judul (bukan whole
-                header lagi -- ikon panah dicabut, gantinya titik-tiga di
-                sebelah badge Klasikal utk Ubah materi hari tertentu, lihat
-                KebabMenu di bawah) bisa diketuk utk buka/tutup rincian
-                harian -- tersembunyi bawaan, ketuk utk lihat, ketuk lagi
-                utk sembunyikan lagi. Isinya, kalau dibuka, dirinci PER
-                HARI KERJA (Senin-Jumat) dlm rentang minggu itu, bukan
-                cuma baris yg py data -- hari yg belum diisi tetap tampil
+                1-4 (+5 kalau bulannya punya) -- BEDA dari kartu Ngaji yg
+                cuma tampil kalau py data. "Minggu N" + info tanggal
+                SEBARIS, judul bisa diketuk utk buka/tutup rincian harian
+                -- tersembunyi bawaan, ketuk utk lihat, ketuk lagi utk
+                sembunyikan lagi. Isinya, kalau dibuka, dirinci PER HARI
+                KERJA (Senin-Jumat) dlm rentang minggu itu, bukan cuma
+                baris yg py data -- hari yg belum diisi tetap tampil
                 kosong (Haf Surat/Haf Doa blank) spy kelihatan "belum
-                diisi", sesuai contoh tampilan owner. */}
+                diisi". Titik-tiga Ubah Materi (diminta owner 2026-08-23,
+                PINDAH dari header kartu ke tiap baris hari) ada di kanan
+                atas SETIAP baris hari, sejajar nama harinya -- HANYA
+                muncul kalau hari itu sudah py data (KebabMenu return
+                null kalau item kosong), jadi otomatis kosong utk hari
+                yg belum diisi. Baris hari sendiri cuma muncul saat kartu
+                minggunya dibuka. */}
             {mingguKlasikal.map(({ mingguKe, rentang, materi }) => {
               const dibuka = klasikalDetailTerbuka.has(mingguKe);
               return (
@@ -971,19 +967,9 @@ export default function RencanaPembelajaranView() {
                         · {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
                       </span>
                     </button>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
-                        Klasikal
-                      </span>
-                      <KebabMenu
-                        item={materi
-                          .filter((m): m is Materi & { tanggal_rencana: string } => m.tanggal_rencana !== null)
-                          .map((m) => ({
-                            label: 'Edit ' + labelHariTanggal(m.tanggal_rencana),
-                            onClick: () => bukaEditKlasikal(m),
-                          }))}
-                      />
-                    </div>
+                    <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                      Klasikal
+                    </span>
                   </div>
                   {dibuka && (
                     <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
@@ -991,8 +977,13 @@ export default function RencanaPembelajaranView() {
                         const entri = materi.find((m) => m.tanggal_rencana === iso);
                         return (
                           <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
-                            <div className="text-[12.5px] font-bold text-text">
-                              {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="text-[12.5px] font-bold text-text">
+                                {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
+                              </div>
+                              <KebabMenu
+                                item={entri ? [{ label: 'Ubah Materi', onClick: () => bukaEditKlasikal(entri) }] : []}
+                              />
                             </div>
                             <div className="mt-1 text-[12px] text-text-dim">
                               Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
