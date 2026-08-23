@@ -47,12 +47,12 @@ import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-/* Rentang kelas yang dilihat GURU di app lama sengaja dibatasi 1-6
-   (KURIKULUM_MOBILE_KELAS_RANGE_, Modul_MaintainKurikulum.gs:150):
-   PAUD-TK dan 7-9 tidak dimunculkan untuk mereka walau datanya ada.
-   Dipertahankan supaya guru tidak dihadapkan pada kelas yang bukan
-   urusannya. */
-const KELAS_LIST_GURU = ['1', '2', '3', '4', '5', '6'];
+/* Rentang kelas yang dilihat GURU tadinya dibatasi 1-6 apa adanya dari
+   app lama (KURIKULUM_MOBILE_KELAS_RANGE_, Modul_MaintainKurikulum.gs:150).
+   PAUD-TK ditambahkan lagi (diminta owner 2026-08-23) -- guru mobile
+   sekarang py kelas binaan PAUD/TK jg. 7-9 TETAP tidak dimunculkan
+   (di luar permintaan ini, guru mobile masih belum py urusan ke sana). */
+const KELAS_LIST_GURU = ['PAUD-TK', '1', '2', '3', '4', '5', '6'];
 /* Kurikulum berhenti jadi data per-kelompok (diminta owner 2026-08-22):
    cuma admin_ppg ("admin aplikasi") yang boleh tulis, admin_desa/
    admin_kelompok/guru semuanya lihat-saja sekarang. RLS kurikulum_prota/
