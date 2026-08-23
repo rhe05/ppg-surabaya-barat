@@ -57,6 +57,7 @@ import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker'
 import { useToast } from '@/components/ui/useToast';
 import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
+import { namaMateriTampil } from '@/lib/kategori';
 
 type Kelas = { id: number; nama: string };
 type Materi = { id: number; minggu_ke: number; judul: string; status: string };
@@ -88,11 +89,16 @@ function InputIkon({
   onChange,
   placeholder,
   ikon,
+  list,
 }: {
   value: string;
   onChange: (v: string) => void;
   placeholder: string;
   ikon: React.ReactNode;
+  /* Opsional: id <datalist> yg menyediakan saran ketik-atau-pilih (native
+     HTML, bukan dropdown terkunci) -- dipakai field "Materi Ngaji" utk
+     menyarankan materi dari Kurikulum tanpa mengunci guru ke daftar itu. */
+  list?: string;
 }) {
   return (
     <div className="relative">
@@ -101,6 +107,7 @@ function InputIkon({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        list={list}
         className={`${INPUT_STYLE} pr-9`}
       />
       <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-text-faint">{ikon}</span>
@@ -137,6 +144,41 @@ export default function RencanaPembelajaranView() {
   // pesan kosong CUMA muncul kalau materiList kosong itu sudah pasti hasil
   // fetch utk kelas+bulan+tahun yg SEDANG aktif, bukan sisa/transisi.
   const [kunciMateriSiap, setKunciMateriSiap] = useState('');
+
+  /* Saran "Materi Ngaji" diambil dari Kurikulum kelompok guru ini sendiri
+     (kategori_kbm yg punya baris kurikulum_prota) -- diminta owner
+     2026-08-23, TETAP fleksibel: field-nya input+datalist (HTML native),
+     bukan <select> terkunci, jadi guru masih bisa mengetik apa saja di
+     luar daftar. Label per baris pakai namaMateriTampil (SAMA PERSIS dgn
+     yg tampil di layar Kurikulum, mis. "Baca Huruf Al-Qur'an" utk
+     PAUD-TK s.d. 3) supaya tidak membingungkan krn beda nama. Sengaja
+     TIDAK difilter ke satu kelas tertentu -- kelas ruang (tabel `kelas`,
+     "1A") dan kelas kurikulum (kode '1'..'9'/'PAUD-TK') dua namespace
+     terpisah tanpa kolom penghubung (lihat komentar panjang di
+     kurikulum/page.tsx), jadi union semua kategori kelompok ini lebih
+     aman drpd menebak pemetaannya & salah menyaring. */
+  const [opsiMateriKurikulum, setOpsiMateriKurikulum] = useState<string[]>([]);
+
+  useEffect(() => {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId) return;
+    supabase
+      .from('kurikulum_prota')
+      .select('kelas, kategori_kbm(nama)')
+      .eq('kelompok_id', kelompokId)
+      .eq('tahun', tahun)
+      .then(({ data }) => {
+        type Baris = { kelas: string | null; kategori_kbm: { nama: string } | { nama: string }[] | null };
+        const nama = (v: Baris['kategori_kbm']) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
+        const daftar = ((data ?? []) as Baris[])
+          .map((b) => {
+            const namaAsli = nama(b.kategori_kbm);
+            return namaAsli ? namaMateriTampil(namaAsli, b.kelas) : null;
+          })
+          .filter((v): v is string => v !== null);
+        setOpsiMateriKurikulum([...new Set(daftar)].sort());
+      });
+  }, [profile?.scope_kelompok_id, tahun]);
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
@@ -477,13 +519,19 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 pb-4">
-                <FieldTambah label="Materi Pembelajaran" wajib>
+                <FieldTambah label="Materi Ngaji" wajib>
                   <InputIkon
                     value={judulBaru}
                     onChange={setJudulBaru}
-                    placeholder="Pilih atau tulis materi pembelajaran"
+                    placeholder="Pilih dari Kurikulum atau tulis sendiri"
                     ikon={<BookOpen size={16} />}
+                    list="opsi-materi-ngaji"
                   />
+                  <datalist id="opsi-materi-ngaji">
+                    {opsiMateriKurikulum.map((nama) => (
+                      <option key={nama} value={nama} />
+                    ))}
+                  </datalist>
                 </FieldTambah>
 
                 <FieldTambah label="Topik">

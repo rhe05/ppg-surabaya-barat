@@ -41,7 +41,7 @@ import {
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { KATEGORI_JENJANG } from '@/lib/kategori';
+import { KATEGORI_JENJANG, KATEGORI_BACAAN_ALQURAN, namaMateriTampil } from '@/lib/kategori';
 import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -140,21 +140,6 @@ function namaDari(nilai: Tersemat) {
   if (!nilai) return '-';
   const baris = Array.isArray(nilai) ? nilai[0] : nilai;
   return baris?.nama ?? '-';
-}
-
-/* Nama kategori KBM di DB TETAP "Bacaan Al-Qur'an" utk semua kelas --
-   ini murni ganti tampilan, bukan rename data, jadi Tambah Materi/
-   filter/dst tidak perlu ikut berubah. Kelas PAUD/TK s.d. 3 menampilkan
-   "Baca Huruf Al-Qur'an" (nama asli kategori sengaja dipakai sbg kunci
-   pencocokan, BUKAN label yang sudah diganti -- supaya konsisten dgn
-   fitur target2/deskripsi2 di bawah yang jg mengecek nama ASLI). */
-const KATEGORI_BACAAN_ALQURAN = "Bacaan Al-Qur'an";
-const KELAS_LABEL_BACA_HURUF = ['PAUD-TK', '1', '2', '3'];
-function namaMateriTampil(namaAsli: string, kelas: string | null) {
-  if (namaAsli === KATEGORI_BACAAN_ALQURAN && KELAS_LABEL_BACA_HURUF.includes(kelas ?? '')) {
-    return 'Baca Huruf Al-Qur\'an';
-  }
-  return namaAsli;
 }
 
 /* Konsep borang Ubah Prota "2 semester, tanpa field Target terpisah" --
