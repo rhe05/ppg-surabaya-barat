@@ -46,13 +46,12 @@ import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
+/* Dulu guru dibatasi 1-6 (warisan app lama, KURIKULUM_MOBILE_KELAS_RANGE_
+   Modul_MaintainKurikulum.gs:150), lalu PAUD-TK ditambahkan lagi
+   (2026-08-23), sekarang 7-9 jg dibuka (2026-08-23, diminta owner) --
+   guru mobile lihat kelas SAMA PERSIS spt admin, jadi satu daftar
+   KELAS_LIST sudah cukup, tidak perlu daftar kedua khusus guru lagi. */
 const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-/* Rentang kelas yang dilihat GURU tadinya dibatasi 1-6 apa adanya dari
-   app lama (KURIKULUM_MOBILE_KELAS_RANGE_, Modul_MaintainKurikulum.gs:150).
-   PAUD-TK ditambahkan lagi (diminta owner 2026-08-23) -- guru mobile
-   sekarang py kelas binaan PAUD/TK jg. 7-9 TETAP tidak dimunculkan
-   (di luar permintaan ini, guru mobile masih belum py urusan ke sana). */
-const KELAS_LIST_GURU = ['PAUD-TK', '1', '2', '3', '4', '5', '6'];
 /* Kurikulum berhenti jadi data per-kelompok (diminta owner 2026-08-22):
    cuma admin_ppg ("admin aplikasi") yang boleh tulis, admin_desa/
    admin_kelompok/guru semuanya lihat-saja sekarang. RLS kurikulum_prota/
@@ -693,7 +692,7 @@ function KurikulumContent() {
         </p>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-          {(profile?.role === 'guru' ? KELAS_LIST_GURU : KELAS_LIST).map((k) => (
+          {KELAS_LIST.map((k) => (
             <button
               key={k}
               onClick={() => setKelas(k)}
