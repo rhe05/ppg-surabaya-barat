@@ -942,20 +942,42 @@ export default function RencanaPembelajaranView() {
                 KERJA (Senin-Jumat) dlm rentang minggu itu, bukan cuma
                 baris yg py data -- hari yg belum diisi tetap tampil
                 kosong (Haf Surat/Haf Doa blank) spy kelihatan "belum
-                diisi". Titik-tiga Ubah Materi (diminta owner 2026-08-23):
-                SATU per minggu (bukan per hari lagi -- sempat dicoba per
-                hari, owner minta balik jadi satu), diletakkan di baris
-                Senin (hari pertama, kanan atas sejajar nama harinya),
-                isinya daftar SEMUA hari yg sudah py data di minggu itu
-                (bukan cuma Senin) utk dipilih mana yg mau diubah. */}
+                diisi". Titik-tiga (diminta owner 2026-08-23): SATU per
+                minggu, diletakkan di baris Senin (hari pertama, kanan
+                atas sejajar nama harinya) -- SELALU ada, termasuk minggu
+                yg masih kosong (sebelumnya cuma muncul kalau py data).
+                Minggu yg py data -> daftar "Ubah <Hari>" per hari yg
+                terisi. Minggu yg masih kosong -> "Tambah Materi Klasikal"
+                (buka borang, tanggal Senin minggu itu diisi otomatis). */}
             {mingguKlasikal.map(({ mingguKe, rentang, materi }) => {
               const dibuka = klasikalDetailTerbuka.has(mingguKe);
-              const itemUbahMinggu = materi
-                .filter((m): m is Materi & { tanggal_rencana: string } => m.tanggal_rencana !== null)
-                .map((m) => ({
-                  label: 'Ubah ' + NAMA_HARI[new Date(m.tanggal_rencana + 'T00:00:00').getDay()],
-                  onClick: () => bukaEditKlasikal(m),
-                }));
+              const materiKlasikalMinggu = materi.filter(
+                (m): m is Materi & { tanggal_rencana: string } => m.tanggal_rencana !== null
+              );
+              /* Titik-tiga SELALU ada di tiap kartu minggu (diminta owner
+                 2026-08-23, sebelumnya cuma muncul di minggu yg py data) --
+                 minggu yg SUDAH py data menawarkan "Ubah <Hari>" per hari
+                 yg terisi; minggu yg MASIH kosong menawarkan "Tambah
+                 Materi Klasikal" (langsung buka borang, tanggal Senin
+                 minggu itu diisi otomatis sbg titik awal yg wajar). */
+              const seninMingguIni = hariSekolahDalamMinggu(tahun, bulan, rentang!)[0]?.iso;
+              const itemUbahMinggu =
+                materiKlasikalMinggu.length > 0
+                  ? materiKlasikalMinggu.map((m) => ({
+                      label: 'Ubah ' + NAMA_HARI[new Date(m.tanggal_rencana + 'T00:00:00').getDay()],
+                      onClick: () => bukaEditKlasikal(m),
+                    }))
+                  : seninMingguIni
+                    ? [
+                        {
+                          label: 'Tambah Materi Klasikal',
+                          onClick: () => {
+                            bukaFormKlasikal();
+                            setTanggalKlasikalBaru(seninMingguIni);
+                          },
+                        },
+                      ]
+                    : [];
               return (
                 <div
                   key={`klasikal-${mingguKe}`}
