@@ -21,6 +21,8 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import PengumumanKbmComposer from '@/components/pengumuman/PengumumanKbmComposer';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 const NAMA_BULAN = [
@@ -193,6 +195,7 @@ function PengumumanContent() {
   const [pesan, setPesan] = useState<string | null>(null);
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [sedangDiubah, setSedangDiubah] = useState<Pengumuman | null>(null);
+  const [komposerTerbuka, setKomposerTerbuka] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -286,15 +289,20 @@ function PengumumanContent() {
           </select>
         </div>
         {bolehTulis && kelompokId && (
-          <button
-            onClick={() => {
-              setSedangDiubah(null);
-              setFormTerbuka(true);
-            }}
-            className={KELAS_TOMBOL_UTAMA}
-          >
-            + Buat Pengumuman
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setKomposerTerbuka(true)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
+              Buat dari Jadwal KBM
+            </button>
+            <button
+              onClick={() => {
+                setSedangDiubah(null);
+                setFormTerbuka(true);
+              }}
+              className={KELAS_TOMBOL_UTAMA}
+            >
+              + Buat Pengumuman
+            </button>
+          </div>
         )}
       </div>
 
@@ -351,6 +359,55 @@ function PengumumanContent() {
           onSimpan={simpan}
         />
       )}
+
+      {komposerTerbuka && kelompokId && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+          <div className="my-8 w-full max-w-2xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-[20px] font-bold text-text">Pengumuman dari Jadwal KBM</h2>
+              <button onClick={() => setKomposerTerbuka(false)} className={KELAS_TOMBOL_SEKUNDER}>
+                Tutup
+              </button>
+            </div>
+            <PengumumanKbmComposer
+              kelompokId={kelompokId}
+              namaKelompok={kelompokList.find((k) => k.id === kelompokId)?.nama ?? ''}
+              onTersimpan={async () => {
+                setKomposerTerbuka(false);
+                await muat();
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Layar guru: bukan daftar CRUD admin, langsung komposer -- "dewan guru"
+   yang berbagi pengumuman jadwal KBM ke grup WA wali murid, jadi tujuan
+   utamanya SELALU "buat dari jadwal hari ini", bukan menelusuri arsip.
+   Migrasi 20260823110000 membuka INSERT `pengumuman` utk peran guru
+   (scoped ke kelompoknya sendiri) supaya Simpan di sini benar-benar bisa
+   dipakai, bukan cuma salin manual. */
+function PengumumanGuruView() {
+  const { profile, namaKelompok } = useAuth();
+  const kelompokId = profile?.scope_kelompok_id ?? null;
+
+  return (
+    <div className="flex min-h-screen flex-col bg-bg">
+      <JurnalHeaderChrome tampilkanHero={false} />
+      <div className="flex-1 p-4">
+        <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
+        <p className="mb-5 text-[12.5px] text-text-dim">
+          Susun pengumuman jadwal KBM hari ini, lalu salin ke grup WA wali murid.
+        </p>
+        {kelompokId ? (
+          <PengumumanKbmComposer kelompokId={kelompokId} namaKelompok={namaKelompok ?? ''} />
+        ) : (
+          <p className="text-[13px] text-text-dim">Kelompok belum diketahui.</p>
+        )}
+      </div>
     </div>
   );
 }
@@ -358,7 +415,13 @@ function PengumumanContent() {
 export default function PengumumanPage() {
   return (
     <RequireAuth>
-      <PengumumanContent />
+      <PengumumanRouter />
     </RequireAuth>
   );
+}
+
+function PengumumanRouter() {
+  const { profile } = useAuth();
+  if (profile?.role === 'guru') return <PengumumanGuruView />;
+  return <PengumumanContent />;
 }

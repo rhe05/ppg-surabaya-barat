@@ -8,8 +8,12 @@
    Item yang TIDAK dibawa: Pilih Kelas (sudah jadi bagian /absensi di app
    baru, bukan layar terpisah), Kelola Quote (fitur admin, disembunyikan
    juga di app lama via display:none), User Management (khusus admin).
-   RequireAuth (components/RequireAuth.tsx) sudah membatasi guru ke 6
-   halaman ini persis — menu ini cuma pintu masuknya. */
+   RequireAuth (components/RequireAuth.tsx) sudah membatasi guru ke
+   halaman-halaman ini persis — menu ini cuma pintu masuknya.
+
+   Pengumuman (2026-08-23) — fitur baru "Pengumuman Jadwal KBM": guru
+   susun+salin teks pengumuman WA dari jadwal_kbm hari itu, lihat
+   components/pengumuman/PengumumanKbmComposer.tsx. */
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -107,6 +111,16 @@ const ITEM_MENU: {
       <>
         <circle cx="12" cy="8" r="5" />
         <path d="M20 21a8 8 0 0 0-16 0" />
+      </>
+    ),
+  },
+  {
+    href: '/pengumuman',
+    label: 'Pengumuman',
+    svg: (
+      <>
+        <path d="M10.268 21a2 2 0 0 0 3.464 0" />
+        <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" />
       </>
     ),
   },
