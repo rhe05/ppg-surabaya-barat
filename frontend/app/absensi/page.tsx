@@ -50,7 +50,9 @@ function AbsensiContent() {
   const [tanggal, setTanggal] = useState(tanggalHariIni);
   const [kelompokId, setKelompokId] = useState<number | null>(null);
   const [opsiKelompok, setOpsiKelompok] = useState<Kelompok[]>([]);
-  const [opsiKelas, setOpsiKelas] = useState<{ id: number; nama: string }[]>([]);
+  const [opsiKelas, setOpsiKelas] = useState<
+    { id: number; nama: string; jam_mulai: string; ruangan: string }[]
+  >([]);
   /* '' = semua kelas. */
   const [kelasId, setKelasId] = useState<string>('');
 
@@ -133,9 +135,14 @@ function AbsensiContent() {
         setOpsiKelas([]);
         return;
       }
+      /* jam_mulai/ruangan ditambahkan (2026-08-23) supaya bisa dioper ke
+         RingkasanKelas sbg prop `kelasAwal` -- sebelumnya RingkasanKelas
+         mengambil ulang persis query `kelas` yang SAMA ini sendiri
+         (round-trip Supabase yang genuinely duplikat, kelas tidak
+         bergantung tanggal/rentang spt santri/absensi). */
       const { data } = await supabase
         .from('kelas')
-        .select('id, nama')
+        .select('id, nama, jam_mulai, ruangan')
         .eq('kelompok_id', kelompokId)
         .is('deleted_at', null)
         .order('nama');
@@ -651,7 +658,9 @@ function AbsensiContent() {
           </div>
         )}
       </div>
-      {kelompokId && <RingkasanKelas kelompokId={kelompokId} tanggal={tanggal} />}
+      {kelompokId && (
+        <RingkasanKelas kelompokId={kelompokId} tanggal={tanggal} kelasAwal={opsiKelas} />
+      )}
     </main>
   );
 }

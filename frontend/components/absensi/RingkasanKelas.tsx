@@ -56,15 +56,21 @@ async function ambilAbsensi(kelompokId: number, dari: string, sampai: string): P
 export default function RingkasanKelas({
   kelompokId,
   tanggal,
+  kelasAwal,
 }: {
   kelompokId: number;
   tanggal: string;
+  /* Daftar kelas kelompok ini, dioper dari layar induk (app/absensi/page.tsx)
+     -- BUKAN dimuat ulang di sini (diperbaiki 2026-08-23). Induk sudah
+     memuat persis query yang sama (dropdown filter kelasnya) tiap kali
+     kelompokId berubah; kelas TIDAK bergantung tanggal/rentang spt
+     santri/absensi, jadi aman dipakai apa adanya tanpa fetch kedua. */
+  kelasAwal: Kelas[];
 }) {
   const [mode, setMode] = useState<'hari' | 'rentang'>('hari');
   const [dari, setDari] = useState(tanggal);
   const [sampai, setSampai] = useState(tanggal);
 
-  const [kelas, setKelas] = useState<Kelas[]>([]);
   const [santri, setSantri] = useState<Santri[]>([]);
   const [absensi, setAbsensi] = useState<Absensi[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,25 +84,16 @@ export default function RingkasanKelas({
     setLoading(true);
     setError(null);
     try {
-      const [{ data: dKelas }, { data: dSantri, error: e1 }] = await Promise.all([
-        supabase
-          .from('kelas')
-          .select('id, nama, jam_mulai, ruangan')
-          .eq('kelompok_id', kelompokId)
-          .is('deleted_at', null)
-          .order('jam_mulai'),
-        /* Santri yang pindah/nonaktif SETELAH awal rentang ini tetap ikut --
-           deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
-           20260821130000), jadi ringkasan rentang lampau tetap menunjukkan
-           riwayatnya walau sekarang dia sudah tidak aktif. */
-        supabase
-          .from('santri')
-          .select('id, kelas_id')
-          .eq('kelompok_id', kelompokId)
-          .or(`deleted_at.is.null,deleted_at.gt.${rentangAktif.dari}`),
-      ]);
+      /* Santri yang pindah/nonaktif SETELAH awal rentang ini tetap ikut --
+         deleted_at dipakai sbg "sejak kapan tidak aktif" (migrasi
+         20260821130000), jadi ringkasan rentang lampau tetap menunjukkan
+         riwayatnya walau sekarang dia sudah tidak aktif. */
+      const { data: dSantri, error: e1 } = await supabase
+        .from('santri')
+        .select('id, kelas_id')
+        .eq('kelompok_id', kelompokId)
+        .or(`deleted_at.is.null,deleted_at.gt.${rentangAktif.dari}`);
       if (e1) throw new Error(e1.message);
-      setKelas((dKelas ?? []) as unknown as Kelas[]);
       setSantri((dSantri ?? []) as unknown as Santri[]);
       setAbsensi(await ambilAbsensi(kelompokId, rentangAktif.dari, rentangAktif.sampai));
     } catch (e) {
@@ -116,7 +113,12 @@ export default function RingkasanKelas({
       perSantri.set(a.santri_id, [...(perSantri.get(a.santri_id) ?? []), a.status]);
     }
 
-    const baris = kelas.map((k) => {
+    /* Urut jam_mulai (bukan nama) -- kelasAwal dioper dari induk terurut
+       nama (dropdown filter kelasnya), jadi diurut ulang di sini spy
+       tabel Ringkasan ini tetap urut jam spt sebelumnya. */
+    const baris = [...kelasAwal]
+      .sort((a, b) => a.jam_mulai.localeCompare(b.jam_mulai))
+      .map((k) => {
       const anggota = santri.filter((s) => s.kelas_id === k.id);
       const jumlah: Record<string, number> = { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
       let belum = 0;
@@ -130,9 +132,9 @@ export default function RingkasanKelas({
 
     const tanpaKelas = santri.filter((s) => s.kelas_id == null).length;
     return { baris, tanpaKelas };
-  }, [kelas, santri, absensi]);
+  }, [kelasAwal, santri, absensi]);
 
-  if (kelas.length === 0) return null;
+  if (kelasAwal.length === 0) return null;
 
   return (
     <div className="mt-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
