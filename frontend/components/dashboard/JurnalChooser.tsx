@@ -43,8 +43,18 @@ export default function JurnalChooser({
 
   if (!terbuka) return null;
 
+  /* TIDAK panggil onTutup() sebelum router.push() (diperbaiki 2026-08-23,
+     laporan owner "sekilas tampil Dashboard" saat pindah halaman) --
+     kalau ditutup duluan, popup ini hilang & Dashboard polos di
+     belakangnya sempat ke-render/ke-paint SEBELUM router.push() selesai
+     berpindah halaman (dua panggilan itu tidak dijamin "barengan" secara
+     visual walau sama-sama sinkron: setState popup vs kerja router
+     Next.js bukan hal yang sama). Popup ini DIBIARKAN tetap terbuka --
+     nanti ikut hilang sendiri pas seluruh pohon komponen halaman lama
+     (termasuk popup ini) di-unmount bareng saat halaman baru terpasang,
+     jadi transisinya terasa langsung nyambung, bukan "flash" ke Dashboard
+     polos di antaranya. */
   function pergi(tujuan: string) {
-    onTutup();
     router.push(tujuan);
   }
 

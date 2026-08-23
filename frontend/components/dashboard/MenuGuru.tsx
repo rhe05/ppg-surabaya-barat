@@ -140,10 +140,23 @@ export default function MenuGuru({
   if (!terbuka) return null;
 
   function klikItem(item: (typeof ITEM_MENU)[number]) {
-    onTutup();
-    if (item.aksi === 'kehadiran') onKehadiran();
-    else if (item.aksi === 'jurnal') onJurnal();
-    else if (item.href) router.push(item.href);
+    if (item.aksi === 'kehadiran') {
+      /* onTutup() DIPERLUKAN di sini -- ganti dari hamburger ke chooser
+         popup, dua-duanya cuma state lokal di halaman yg SAMA, tidak ada
+         navigasi/unmount yg bisa "menyusul" menutupnya sendiri. */
+      onTutup();
+      onKehadiran();
+    } else if (item.aksi === 'jurnal') {
+      onTutup();
+      onJurnal();
+    } else if (item.href) {
+      /* TIDAK onTutup() sebelum router.push() (diperbaiki 2026-08-23,
+         laporan owner "sekilas tampil Dashboard" saat pindah halaman) --
+         lihat komentar lengkap di JurnalChooser.tsx. Menu ini DIBIARKAN
+         tetap terbuka, ikut hilang sendiri pas halaman lama di-unmount
+         bareng saat halaman baru terpasang. */
+      router.push(item.href);
+    }
   }
 
   async function keluar() {

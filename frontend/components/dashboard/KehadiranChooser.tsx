@@ -60,8 +60,11 @@ export default function KehadiranChooser({
 
   if (!terbuka) return null;
 
+  /* TIDAK panggil onTutup() sebelum router.push() -- sama pola dgn
+     perbaikan JurnalChooser.tsx (2026-08-23, laporan owner "sekilas
+     tampil Dashboard" saat pindah halaman). Lihat komentar lengkap di
+     sana. */
   function pilih(tujuan: string) {
-    onTutup();
     router.push(tujuan);
   }
 
