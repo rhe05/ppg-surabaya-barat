@@ -46,13 +46,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
-  X, Plus, Check, CalendarDays, ClipboardList,
+  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
-import SelectKustom from '@/components/ui/SelectKustom';
+import SelectKustom, { type OpsiSelect } from '@/components/ui/SelectKustom';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import ToastStack from '@/components/ui/ToastStack';
@@ -69,6 +69,28 @@ const NAMA_BULAN = [
 
 const INPUT_STYLE =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text placeholder:text-text-faint focus:border-brass focus:outline-none';
+
+/* Kode kelas Kurikulum, urut PAUD-TK dulu -- dipakai HANYA utk memotong
+   daftar "s.d. kelas N" pada dropdown Hafalan Surat klasikal di bawah.
+   Kode ini beda namespace dari `kelas.nama` (ruang guru, "1A") -- lihat
+   komentar KATEGORI_TARGET_SEMESTER_GANDA / opsiMateriKurikulum di
+   bawah utk masalah tanpa-kolom-penghubungnya. */
+const KELAS_KURIKULUM_URUT = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+
+/* Pecah target/target2 Prota (bisa multi-baris bernomor, mis. "1. A\n2.
+   B") jadi baris lepas, buang nomor "1." di depan, buang baris yg
+   mengandung "menjaga hafalan" (case-insensitive) -- itu materi
+   PENGULANGAN, bukan materi baru, diminta owner dikecualikan dari
+   pilihan klasikal. */
+function barisHafalanDariTeks(teks: string | null): string[] {
+  if (!teks) return [];
+  return teks
+    .split('\n')
+    .map((b) => b.trim())
+    .filter((b) => b !== '')
+    .map((b) => b.replace(/^\d+[.)]\s*/, '').trim())
+    .filter((b) => b !== '' && !b.toLowerCase().includes('menjaga hafalan'));
+}
 
 let idSementara = -1;
 
@@ -180,6 +202,69 @@ export default function RencanaPembelajaranView() {
       });
   }, [profile?.scope_kelompok_id, tahun]);
 
+  /* Opsi "Hafalan Surat-Surat Al-Qur'an" utk borang Materi Klasikal --
+     diminta owner 2026-08-23, kumulatif: kelas ruang guru "N" menampilkan
+     materi PAUD-TK s.d. kelas N (tidak boleh lebih tinggi). Ruang & kelas
+     Kurikulum dua namespace TANPA kolom penghubung (sama masalahnya dgn
+     opsiMateriKurikulum di atas) -- batas atasnya diambil dari ANGKA
+     TERTINGGI di nama ruang (mis. "2 & 3A" -> batas kelas 3), disepakati
+     owner sbg pendekatan paling praktis. Ruang "PAUD/TK ..." (tanpa
+     angka) dikunci PAUD-TK saja; ruang "Pra Remaja"/"Remaja"/SMP/SMA
+     (jg tanpa angka, tapi jenjangnya di ATAS kelas 9) dianggap sudah
+     lulus semua jenjang SD -- tampilkan kumulatif penuh PAUD-TK s.d. 9. */
+  const [opsiHafalanSurat, setOpsiHafalanSurat] = useState<OpsiSelect[]>([]);
+
+  useEffect(() => {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId || kelasId === '') {
+      setOpsiHafalanSurat([]);
+      return;
+    }
+    const namaRuang = (kelasList.find((k) => k.id === kelasId)?.nama ?? '').toLowerCase();
+    let kelasTarget: string[];
+    if (namaRuang.includes('paud')) {
+      kelasTarget = ['PAUD-TK'];
+    } else if (/remaja|smp|sma/.test(namaRuang)) {
+      kelasTarget = KELAS_KURIKULUM_URUT;
+    } else {
+      const angka = [...namaRuang.matchAll(/\d+/g)].map((m) => Number(m[0]));
+      const batasAtas = angka.length > 0 ? Math.max(...angka) : 0;
+      kelasTarget = KELAS_KURIKULUM_URUT.slice(0, batasAtas + 1);
+    }
+
+    supabase
+      .from('kurikulum_prota')
+      .select('kelas, target, target2, kategori_kbm(nama)')
+      .eq('kelompok_id', kelompokId)
+      .eq('tahun', tahun)
+      .in('kelas', kelasTarget)
+      .then(({ data }) => {
+        type Baris = {
+          kelas: string | null;
+          target: string | null;
+          target2: string | null;
+          kategori_kbm: { nama: string } | { nama: string }[] | null;
+        };
+        const nama = (v: Baris['kategori_kbm']) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
+        const labelKelas = (k: string | null) => (k === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${k}`);
+        const peta = new Map<string, OpsiSelect>();
+        for (const b of (data ?? []) as Baris[]) {
+          if (nama(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
+          for (const [teks, semester] of [
+            [b.target, 1],
+            [b.target2, 2],
+          ] as const) {
+            for (const baris of barisHafalanDariTeks(teks)) {
+              if (!peta.has(baris)) {
+                peta.set(baris, { value: baris, label: baris, sublabel: `${labelKelas(b.kelas)} · Sem ${semester}` });
+              }
+            }
+          }
+        }
+        setOpsiHafalanSurat([...peta.values()]);
+      });
+  }, [profile?.scope_kelompok_id, kelasId, kelasList, tahun]);
+
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
   const [topikBaru, setTopikBaru] = useState('');
@@ -206,6 +291,71 @@ export default function RencanaPembelajaranView() {
     setReferensiBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
+  }
+
+  /* Materi Klasikal -- diminta owner 2026-08-23: sesi pembukaan KBM
+     (klasikal hafalan surat + klasikal hafalan doa/asmaul husna), beda
+     konsep dari Materi Ngaji per-minggu di atas. "+ Tambah Materi"
+     sekarang membuka pilihJenisTerbuka dulu (Materi Ngaji vs Materi
+     Klasikal), baru salah satu form-nya. Disimpan di tabel jurnal_materi
+     yg SAMA (kolom jenis/klasikal_hafalan_surat/klasikal_hafalan_doa,
+     migrasi 20260823100000) supaya numpang infrastruktur yg sudah ada
+     (RLS, trigger sync kelompok_id, soft-delete) drpd bikin tabel baru. */
+  const [pilihJenisTerbuka, setPilihJenisTerbuka] = useState(false);
+  const [klasikalTerbuka, setKlasikalTerbuka] = useState(false);
+  const [tanggalKlasikalBaru, setTanggalKlasikalBaru] = useState('');
+  const [tanggalKlasikalPickerTerbuka, setTanggalKlasikalPickerTerbuka] = useState(false);
+  const [posisiTanggalKlasikalPicker, setPosisiTanggalKlasikalPicker] = useState<PosisiPicker | null>(null);
+  const tanggalKlasikalBtnRef = useRef<HTMLButtonElement>(null);
+  const [hafalanSuratBaru, setHafalanSuratBaru] = useState('');
+  /* Materi Hafalan Do'a-Do'a Harian (termasuk Asmaul Husna) -- ketentuan
+     isian & sumbernya BELUM ditentukan owner ("buatkan dulu, nanti
+     menyusul"), jadi sementara input bebas ketik, bukan dropdown spt
+     Hafalan Surat. Opsional (tidak wajib), beda dari Hafalan Surat yg
+     wajib. */
+  const [hafalanDoaBaru, setHafalanDoaBaru] = useState('');
+  const [menyimpanKlasikal, setMenyimpanKlasikal] = useState(false);
+
+  function bukaFormKlasikal() {
+    setTanggalKlasikalBaru(new Date().toISOString().slice(0, 10));
+    setHafalanSuratBaru('');
+    setHafalanDoaBaru('');
+    setKlasikalTerbuka(true);
+  }
+
+  async function simpanKlasikalBaru() {
+    if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.trim().length === 0) return;
+    const judul = 'Klasikal — Hafalan Surat: ' + hafalanSuratBaru;
+    const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
+    const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
+    const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
+
+    const sementara: Materi = { id: idSementara--, minggu_ke: mingguKe, judul, status: 'belum' };
+    setMateriList((prev) => [...prev, sementara]);
+    setKlasikalTerbuka(false);
+    setMenyimpanKlasikal(true);
+
+    try {
+      const { error: err } = await supabase.from('jurnal_materi').insert({
+        kelas_id: kelasId,
+        tahun: tahunKlasikal,
+        bulan: bulanKlasikal,
+        minggu_ke: mingguKe,
+        judul,
+        tanggal_rencana: tanggalKlasikalBaru,
+        jenis: 'klasikal',
+        klasikal_hafalan_surat: hafalanSuratBaru,
+        klasikal_hafalan_doa: hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim(),
+      });
+      if (err) throw new Error(err.message);
+      push('Materi klasikal tersimpan.', 'sukses');
+      await muatMateri();
+    } catch (e) {
+      setMateriList((prev) => prev.filter((m) => m.id !== sementara.id));
+      push(e instanceof Error ? e.message : 'Gagal menyimpan materi klasikal.', 'error');
+    } finally {
+      setMenyimpanKlasikal(false);
+    }
   }
 
   useEffect(() => {
@@ -674,6 +824,179 @@ export default function RencanaPembelajaranView() {
             </div>
           </div>
         )}
+
+        {/* Pilih Jenis Materi -- gerbang baru sblm form (diminta owner
+            2026-08-23): Materi Ngaji (per-minggu, form lama) vs Materi
+            Klasikal (sesi pembukaan KBM: hafalan surat + hafalan doa). */}
+        {pilihJenisTerbuka && (
+          <div
+            className="fixed inset-0 z-[600] flex items-end justify-center bg-[rgba(15,23,42,0.55)] backdrop-blur-[3px] sm:items-center sm:p-6"
+            onClick={() => setPilihJenisTerbuka(false)}
+          >
+            <div
+              className="flex w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
+                <span className="h-1 w-9 rounded-full bg-border" />
+              </div>
+              <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
+                <div className="text-[16px] font-bold text-text">Tambah Materi</div>
+                <button
+                  type="button"
+                  onClick={() => setPilihJenisTerbuka(false)}
+                  aria-label="Tutup"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+                >
+                  <X size={15} strokeWidth={2.4} />
+                </button>
+              </div>
+              <div className="flex flex-col gap-2.5 px-6 pb-6">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPilihJenisTerbuka(false);
+                    bukaFormTambah();
+                  }}
+                  className="flex cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-panel-2 p-4 text-left transition-colors duration-150 hover:border-brass"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EEF2FF] text-indigo">
+                    <BookOpen size={20} strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold text-text">Materi Ngaji</span>
+                    <span className="block text-[12px] text-text-dim">Materi per-minggu spt biasa</span>
+                  </span>
+                  <ChevronRight size={18} className="shrink-0 text-text-faint" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPilihJenisTerbuka(false);
+                    bukaFormKlasikal();
+                  }}
+                  className="flex cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-panel-2 p-4 text-left transition-colors duration-150 hover:border-brass"
+                >
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[rgba(5,150,105,0.12)] text-sage">
+                    <Users size={20} strokeWidth={2} />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[14px] font-bold text-text">Materi Klasikal</span>
+                    <span className="block text-[12px] text-text-dim">Sesi pembukaan: hafalan surat & doa</span>
+                  </span>
+                  <ChevronRight size={18} className="shrink-0 text-text-faint" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tambah Materi Klasikal */}
+        {klasikalTerbuka && (
+          <div
+            className="fixed inset-0 z-[600] flex items-end justify-center bg-[rgba(15,23,42,0.55)] backdrop-blur-[3px] sm:items-center sm:p-6"
+            onClick={() => setKlasikalTerbuka(false)}
+          >
+            <div
+              className="flex max-h-[90vh] w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
+                <span className="h-1 w-9 rounded-full bg-border" />
+              </div>
+
+              <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
+                <div className="text-[16px] font-bold text-text">Tambah Materi Klasikal</div>
+                <button
+                  type="button"
+                  onClick={() => setKlasikalTerbuka(false)}
+                  aria-label="Tutup"
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+                >
+                  <X size={15} strokeWidth={2.4} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto px-6 pb-4">
+                <FieldTambah label="Tanggal" wajib>
+                  <button
+                    ref={tanggalKlasikalBtnRef}
+                    type="button"
+                    onClick={() => {
+                      const rect = tanggalKlasikalBtnRef.current?.getBoundingClientRect();
+                      if (rect) {
+                        setPosisiTanggalKlasikalPicker({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                      }
+                      setTanggalKlasikalPickerTerbuka((v) => !v);
+                    }}
+                    className={`${INPUT_STYLE} flex items-center justify-between`}
+                  >
+                    <span className={tanggalKlasikalBaru ? 'text-text' : 'text-text-faint'}>
+                      {tanggalKlasikalBaru
+                        ? new Date(tanggalKlasikalBaru + 'T00:00:00').toLocaleDateString('id-ID', {
+                            day: 'numeric',
+                            month: 'long',
+                            year: 'numeric',
+                          })
+                        : 'Pilih tanggal'}
+                    </span>
+                    <Calendar size={16} className="text-text-faint" />
+                  </button>
+                  <TanggalPicker
+                    terbuka={tanggalKlasikalPickerTerbuka}
+                    posisi={posisiTanggalKlasikalPicker}
+                    nilai={tanggalKlasikalBaru}
+                    onPilih={setTanggalKlasikalBaru}
+                    onTutup={() => setTanggalKlasikalPickerTerbuka(false)}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Hafalan Surat-Surat Al-Qur'an" wajib>
+                  <SelectKustom
+                    value={hafalanSuratBaru}
+                    onChange={setHafalanSuratBaru}
+                    opsi={opsiHafalanSurat}
+                    placeholder={
+                      opsiHafalanSurat.length === 0 ? 'Belum ada materi di Kurikulum' : '-- Pilih surat --'
+                    }
+                    ikon={<BookOpen size={16} />}
+                  />
+                </FieldTambah>
+
+                <FieldTambah label="Materi Hafalan Do'a-Do'a Harian">
+                  <InputIkon
+                    value={hafalanDoaBaru}
+                    onChange={setHafalanDoaBaru}
+                    placeholder="Termasuk Asmaul Husna -- ketentuan menyusul"
+                    ikon={<Tag size={16} />}
+                  />
+                </FieldTambah>
+              </div>
+
+              <div className="flex shrink-0 gap-2.5 border-t border-border px-6 py-4">
+                <button
+                  type="button"
+                  onClick={() => setKlasikalTerbuka(false)}
+                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[14px] font-semibold text-text"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  disabled={
+                    tanggalKlasikalBaru === '' || hafalanSuratBaru.trim().length === 0 || menyimpanKlasikal
+                  }
+                  onClick={simpanKlasikalBaru}
+                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+                >
+                  <Check size={16} strokeWidth={2.6} />
+                  Simpan Materi
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Tombol Tambah Materi — diminta owner (20 Agt): SELALU di bawah,
@@ -697,7 +1020,7 @@ export default function RencanaPembelajaranView() {
                 push('Pilih kelas dulu sebelum menambahkan materi.', 'info');
                 return;
               }
-              bukaFormTambah();
+              setPilihJenisTerbuka(true);
             }}
             className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(79,70,229,0.3)] transition-transform duration-150 active:scale-[0.98]"
             style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
