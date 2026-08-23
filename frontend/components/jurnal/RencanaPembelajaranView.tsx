@@ -92,6 +92,83 @@ function barisHafalanDariTeks(teks: string | null): string[] {
     .filter((b) => b !== '' && !b.toLowerCase().includes('menjaga hafalan'));
 }
 
+/* Urutan Juz 'Amma standar (surah 78-114), urutan Mushaf MENAIK
+   (An-Naba' dulu, An-Nas terakhir) -- dipakai menguraikan baris rentang
+   "X s/d Y" jadi surat satu per satu (diminta owner 2026-08-23). Rentang
+   di kurikulum ini SELALU ditulis MUNDUR dari nomor surat besar ke kecil
+   (dicek persis ke semua baris "Hafalan Surat-Surat Al-Qur'an" yg ada di
+   produksi -- bukan tebakan, mis. "Al-Kautsar(108) s/d Quraisy(106)",
+   "Al-Fiil(105) s/d Al-'Asr(103)", dst -- semuanya kontinu tanpa
+   lompatan). Ejaan baku dipakai sbg OUTPUT (bukan ejaan mentah di data,
+   yg kadang typo -- lihat ALIAS_SURAT). */
+const JUZ_AMMA_URUT = [
+  "An-Naba'", "An-Nazi'at", "'Abasa", 'At-Takwir', 'Al-Infitar', 'Al-Mutaffifin',
+  'Al-Insyiqaq', 'Al-Buruj', 'At-Tariq', "Al-A'la", 'Al-Ghasyiyah', 'Al-Fajr',
+  'Al-Balad', 'Asy-Syams', 'Al-Lail', 'Ad-Dhuha', 'Al-Insyirah', 'At-Tin',
+  "Al-'Alaq", 'Al-Qadr', 'Al-Bayyinah', 'Az-Zalzalah', "Al-'Adiyat", "Al-Qari'ah",
+  'At-Takatsur', "Al-'Asr", 'Al-Humazah', 'Al-Fiil', 'Quraisy', "Al-Ma'un",
+  'Al-Kautsar', 'Al-Kafirun', 'An-Nasr', 'Al-Lahab', 'Al-Ikhlas', 'Al-Falaq', 'An-Nas',
+];
+
+/* Ejaan yg PERSIS muncul di data produksi tapi beda dari ejaan baku di
+   atas (dicek langsung, bukan tebakan) -- dipetakan ke ejaan baku spy
+   tetap kena walau sumbernya typo/variasi lama. Key SUDAH dinormalisasi
+   lewat normalisasiNamaSurat(). */
+const ALIAS_SURAT: Record<string, string> = {
+  quraisyh: 'Quraisy',
+  alasyr: "Al-'Asr",
+  alqoriah: "Al-Qari'ah",
+  alzalzalah: 'Az-Zalzalah',
+};
+
+function normalisasiNamaSurat(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+const INDEKS_JUZ_AMMA = new Map<string, number>(
+  JUZ_AMMA_URUT.map((nama, i) => [normalisasiNamaSurat(nama), i])
+);
+
+function cariIndeksSurat(namaMentah: string): number | null {
+  const bersih = namaMentah.trim().replace(/^surat\s+|^surah\s+/i, '');
+  const kunci = normalisasiNamaSurat(bersih);
+  const alias = ALIAS_SURAT[kunci];
+  if (alias) return INDEKS_JUZ_AMMA.get(normalisasiNamaSurat(alias)) ?? null;
+  return INDEKS_JUZ_AMMA.get(kunci) ?? null;
+}
+
+/* Uraikan satu baris "X s/d Y" jadi surat satu per satu (diminta owner
+   2026-08-23, contoh dari owner: "Al-Fatihah s/d Al-Ikhlas" -> Al-
+   Fatihah, An-Nas, Al-Falaq, Al-Ikhlas). Kasus khusus "Al-Fatihah s/d
+   Y": Al-Fatihah bukan bagian Juz 'Amma & selalu diajarkan terpisah di
+   awal, jadi diuraikan jadi [Al-Fatihah, ...An-Nas s.d. Y] (An-Nas =
+   awal urutan hafalan juz 'amma, sesuai contoh owner). Baris tanpa
+   "s/d" (satu surat saja) dikembalikan apa adanya. Kalau salah satu
+   ujungnya TIDAK dikenali (typo baru yg belum ada di ALIAS_SURAT),
+   baris dikembalikan utuh apa adanya -- tidak didiamkan hilang. */
+function uraikanBarisHafalan(barisAsli: string): string[] {
+  const bagian = barisAsli.split(/\s+s\/d\s+/i);
+  const bersihkan = (s: string) => s.trim().replace(/^surat\s+|^surah\s+/i, '');
+  if (bagian.length !== 2) return [bersihkan(barisAsli)];
+
+  const namaA = bersihkan(bagian[0]);
+  const namaB = bersihkan(bagian[1]);
+
+  if (normalisasiNamaSurat(namaA) === 'alfatihah') {
+    const idxNas = INDEKS_JUZ_AMMA.get(normalisasiNamaSurat('An-Nas'))!;
+    const idxB = cariIndeksSurat(namaB);
+    if (idxB === null) return [barisAsli];
+    const rentang =
+      idxNas <= idxB ? JUZ_AMMA_URUT.slice(idxNas, idxB + 1) : JUZ_AMMA_URUT.slice(idxB, idxNas + 1).reverse();
+    return ['Al-Fatihah', ...rentang];
+  }
+
+  const idxA = cariIndeksSurat(namaA);
+  const idxB = cariIndeksSurat(namaB);
+  if (idxA === null || idxB === null) return [barisAsli];
+  return idxA <= idxB ? JUZ_AMMA_URUT.slice(idxA, idxB + 1) : JUZ_AMMA_URUT.slice(idxB, idxA + 1).reverse();
+}
+
 let idSementara = -1;
 
 function FieldTambah({ label, wajib, children }: { label: string; wajib?: boolean; children: React.ReactNode }) {
@@ -255,8 +332,14 @@ export default function RencanaPembelajaranView() {
             [b.target2, 2],
           ] as const) {
             for (const baris of barisHafalanDariTeks(teks)) {
-              if (!peta.has(baris)) {
-                peta.set(baris, { value: baris, label: baris, sublabel: `${labelKelas(b.kelas)} · Sem ${semester}` });
+              for (const surat of uraikanBarisHafalan(baris)) {
+                if (!peta.has(surat)) {
+                  peta.set(surat, {
+                    value: surat,
+                    label: surat,
+                    sublabel: `${labelKelas(b.kelas)} · Sem ${semester}`,
+                  });
+                }
               }
             }
           }
