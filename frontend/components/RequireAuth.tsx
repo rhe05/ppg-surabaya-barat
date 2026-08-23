@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import AdminSidebar from '@/components/dashboard/AdminSidebar';
@@ -57,9 +58,23 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   }, [loading, session, profile, pathname, router]);
 
   if (loading) {
+    /* Logo berdenyut (bukan teks "Memuat sesi..." polos) -- diminta owner
+       2026-08-23, standar produk SaaS profesional. Ini titik loading yang
+       PALING SERING dilihat di seluruh app (muncul di SETIAP pemuatan
+       halaman, sebelum peran diketahui), tapi peran itu sendiri (guru vs
+       admin, layout beda total) BELUM diketahui di sini -- jadi sengaja
+       branding netral, bukan skeleton layout tertentu yang bisa salah
+       tebak bentuk halamannya. */
     return (
-      <main className="flex min-h-screen items-center justify-center bg-gray-50">
-        <p className="text-sm text-gray-500">Memuat sesi...</p>
+      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
+        <Image
+          src="/logo-ruang-ngaji.png"
+          alt="Ruang Ngaji"
+          width={40}
+          height={36}
+          className="animate-pulse"
+        />
+        <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
       </main>
     );
   }
