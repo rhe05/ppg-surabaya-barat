@@ -60,12 +60,43 @@ import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mi
 import { namaMateriTampil } from '@/lib/kategori';
 
 type Kelas = { id: number; nama: string };
-type Materi = { id: number; minggu_ke: number; judul: string; status: string };
+type Materi = {
+  id: number;
+  minggu_ke: number;
+  judul: string;
+  status: string;
+  jenis: string;
+  tanggal_rencana: string | null;
+  klasikal_hafalan_surat: string | null;
+  klasikal_hafalan_doa: string | null;
+};
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
+
+const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+/* Hari sekolah (Senin-Jumat, TANPA Sabtu/Minggu) dlm satu rentang Minggu
+   N -- diminta owner 2026-08-23 utk kartu Klasikal per hari. Rentang
+   Minggu N sendiri (rentangMinggu, lib/mingguBulan.ts) masih blok
+   kalender kasar 7 hari (bisa mulai Sabtu/Minggu), jadi baris yg
+   ditampilkan cuma yg jatuh di hari kerja. */
+function hariSekolahDalamMinggu(tahun: number, bulan: number, rentang: { awal: number; akhir: number }) {
+  const hasil: { tgl: Date; iso: string }[] = [];
+  for (let d = rentang.awal; d <= rentang.akhir; d++) {
+    const tgl = new Date(tahun, bulan - 1, d);
+    if (tgl.getDay() >= 1 && tgl.getDay() <= 5) {
+      hasil.push({ tgl, iso: `${tahun}-${String(bulan).padStart(2, '0')}-${String(d).padStart(2, '0')}` });
+    }
+  }
+  return hasil;
+}
+
+function formatTanggalDDMMYYYY(tgl: Date) {
+  return `${String(tgl.getDate()).padStart(2, '0')}-${String(tgl.getMonth() + 1).padStart(2, '0')}-${tgl.getFullYear()}`;
+}
 
 const INPUT_STYLE =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text placeholder:text-text-faint focus:border-brass focus:outline-none';
@@ -465,7 +496,16 @@ export default function RencanaPembelajaranView() {
     const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
     const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
 
-    const sementara: Materi = { id: idSementara--, minggu_ke: mingguKe, judul, status: 'belum' };
+    const sementara: Materi = {
+      id: idSementara--,
+      minggu_ke: mingguKe,
+      judul,
+      status: 'belum',
+      jenis: 'klasikal',
+      tanggal_rencana: tanggalKlasikalBaru,
+      klasikal_hafalan_surat: suratTerpilih,
+      klasikal_hafalan_doa: hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim(),
+    };
     setMateriList((prev) => [...prev, sementara]);
     setKlasikalTerbuka(false);
     setMenyimpanKlasikal(true);
@@ -519,7 +559,7 @@ export default function RencanaPembelajaranView() {
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
-        .select('id, minggu_ke, judul, status')
+        .select('id, minggu_ke, judul, status, jenis, tanggal_rencana, klasikal_hafalan_surat, klasikal_hafalan_doa')
         .eq('kelas_id', kelasId)
         .eq('tahun', tahun)
         .eq('bulan', bulan)
@@ -547,7 +587,16 @@ export default function RencanaPembelajaranView() {
     const mingguKe = Number(mingguBaru);
 
     // Optimistic: baris sementara langsung tampil, modal langsung tertutup.
-    const sementara: Materi = { id: idSementara--, minggu_ke: mingguKe, judul, status: 'belum' };
+    const sementara: Materi = {
+      id: idSementara--,
+      minggu_ke: mingguKe,
+      judul,
+      status: 'belum',
+      jenis: 'ngaji',
+      tanggal_rencana: tanggalRencanaBaru,
+      klasikal_hafalan_surat: null,
+      klasikal_hafalan_doa: null,
+    };
     setMateriList((prev) => [...prev, sementara]);
     setTambahTerbuka(false);
     setMenyimpan(true);
@@ -581,15 +630,28 @@ export default function RencanaPembelajaranView() {
 
   const dataSiapUntukKelasIni = kunciMateriSiap === `${kelasId}-${tahun}-${bulan}`;
 
+  /* Materi Ngaji & Klasikal ditampilkan sbg KARTU TERPISAH per minggu
+     (diminta owner 2026-08-23) -- mingguDipakai TETAP cuma hitung Ngaji
+     spt semula (totalPertemuan jg ikut, KPI itu memang soal pertemuan
+     ngaji). Klasikal py turunan sendiri, mingguKlasikal, direntetkan
+     terpisah di JSX (lihat komentar di sana). */
   const mingguDipakai = [1, 2, 3, 4, 5]
     .map((mk) => ({
       mingguKe: mk,
       rentang: rentangMinggu(tahun, bulan, mk),
-      materi: materiList.filter((m) => m.minggu_ke === mk),
+      materi: materiList.filter((m) => m.minggu_ke === mk && m.jenis !== 'klasikal'),
     }))
     .filter((m) => m.rentang && m.materi.length > 0);
 
   const totalPertemuan = mingguDipakai.length;
+
+  const mingguKlasikal = [1, 2, 3, 4, 5]
+    .map((mk) => ({
+      mingguKe: mk,
+      rentang: rentangMinggu(tahun, bulan, mk),
+      materi: materiList.filter((m) => m.minggu_ke === mk && m.jenis === 'klasikal'),
+    }))
+    .filter((m) => m.rentang && m.materi.length > 0);
 
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
@@ -744,7 +806,7 @@ export default function RencanaPembelajaranView() {
         {kelasId === '' && (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat rencana.</p>
         )}
-        {kelasId !== '' && dataSiapUntukKelasIni && mingguDipakai.length === 0 && (
+        {kelasId !== '' && dataSiapUntukKelasIni && mingguDipakai.length === 0 && mingguKlasikal.length === 0 && (
           <p className="mb-4 text-[13px] text-text-dim">
             Belum ada materi direncanakan bulan ini. Tambahkan lewat tombol di bawah.
           </p>
@@ -773,6 +835,47 @@ export default function RencanaPembelajaranView() {
                     </li>
                   ))}
                 </ul>
+              </div>
+            ))}
+
+            {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas
+                (diminta owner 2026-08-23), badge "Klasikal" gantiin "N
+                Materi". Isinya dirinci PER HARI KERJA (Senin-Jumat) dlm
+                rentang minggu itu, bukan cuma baris yg py data -- hari yg
+                belum diisi tetap tampil kosong (Haf Surat/Haf Doa blank)
+                spy kelihatan "belum diisi", sesuai contoh tampilan owner. */}
+            {mingguKlasikal.map(({ mingguKe, rentang, materi }) => (
+              <div
+                key={`klasikal-${mingguKe}`}
+                className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+              >
+                <div className="mb-2 flex items-start justify-between gap-2">
+                  <div>
+                    <div className="text-[14px] font-bold text-text">Minggu {mingguKe}</div>
+                    <div className="text-[11.5px] text-text-dim">
+                      {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+                    </div>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                    Klasikal
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }) => {
+                    const entri = materi.find((m) => m.tanggal_rencana === iso);
+                    return (
+                      <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
+                        <div className="text-[12.5px] font-bold text-text">
+                          {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
+                        </div>
+                        <div className="mt-1 text-[12px] text-text-dim">
+                          Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
+                        </div>
+                        <div className="text-[12px] text-text-dim">Haf Doa: {entri?.klasikal_hafalan_doa ?? ''}</div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
