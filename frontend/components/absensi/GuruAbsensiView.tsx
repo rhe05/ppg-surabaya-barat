@@ -36,6 +36,7 @@ import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import Skeleton from '@/components/ui/Skeleton';
 
 export type KelasDetail = {
   id: number;
@@ -73,6 +74,19 @@ const WARNA_TOGGLE_AKTIF: Record<Status, { bg: string; teks: string }> = {
   sakit: { bg: 'var(--indigo)', teks: '#fff' },
   alpa: { bg: 'var(--red)', teks: '#fff' },
 };
+
+/* Baris skeleton bentuk santri -- diminta owner 2026-08-23, ganti teks
+   "Memuat..." polos (standar produk SaaS profesional). Bentuknya niru
+   baris santri asli: avatar bulat + nama + grup toggle status. */
+function SkeletonBarisSantri() {
+  return (
+    <div className="mb-2.5 flex items-center gap-3 rounded-[var(--radius-lg)] bg-panel p-3 shadow-[var(--shadow-subtle)]">
+      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+      <Skeleton className="h-[14px] flex-1" />
+      <Skeleton className="h-[26px] w-[132px] shrink-0" />
+    </div>
+  );
+}
 
 function namaDariKategori(nilai: KelasDetail['kategori_kbm']) {
   if (!nilai) return null;
@@ -483,7 +497,12 @@ export default function GuruAbsensiView({
         )}
 
         {loading ? (
-          <p className="py-8 text-center text-[13px] text-text-faint">Memuat...</p>
+          <>
+            <SkeletonBarisSantri />
+            <SkeletonBarisSantri />
+            <SkeletonBarisSantri />
+            <SkeletonBarisSantri />
+          </>
         ) : kelasId === null ? (
           <p className="py-8 text-center text-[13px] text-text-faint">
             Pilih kelas terlebih dahulu.

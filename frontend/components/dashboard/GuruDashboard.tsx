@@ -8,6 +8,7 @@ import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
+import Skeleton from '@/components/ui/Skeleton';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -62,6 +63,25 @@ const STATUS: {
   { kunci: 'sakit', label: 'SAKIT', warna: '#B45309', pill: 'rgba(180, 83, 9, 0.12)' },
   { kunci: 'alpa', label: 'ALPA', warna: '#DC2626', pill: 'rgba(220, 38, 38, 0.12)' },
 ];
+
+/* Kartu skeleton bentuk kelas -- diminta owner 2026-08-23, ganti teks
+   "Memuat data..." polos (standar produk SaaS profesional, sama pola dgn
+   Skeleton di RencanaPembelajaranView.tsx/kurikulum/page.tsx). Bentuknya
+   niru kartu kelas asli: judul + baris info + 5 kotak statistik, supaya
+   layout tidak "melompat" pas data sungguhan datang menggantikannya. */
+function SkeletonKartuKelas() {
+  return (
+    <div className="mb-2.5 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+      <Skeleton className="h-[18px] w-2/5" />
+      <Skeleton className="mt-2 h-[15px] w-3/5" />
+      <div className="mt-3 grid grid-cols-5 gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-[58px] w-full" />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function batasBulan(tahun: number, bulan: number) {
   const dua = (n: number) => String(n).padStart(2, '0');
@@ -415,7 +435,12 @@ export default function GuruDashboard() {
 
       {/* .ia-dashboard-view — :5212-5216 */}
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[100px]">
-        {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+        {loading && (
+          <>
+            <SkeletonKartuKelas />
+            <SkeletonKartuKelas />
+          </>
+        )}
         {!loading && error && <p className="text-[13px] text-red">{error}</p>}
 
         {!loading && !error && guruId == null && (
