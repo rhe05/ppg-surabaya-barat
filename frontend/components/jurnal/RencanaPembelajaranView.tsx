@@ -390,7 +390,10 @@ export default function RencanaPembelajaranView() {
   const [tanggalKlasikalPickerTerbuka, setTanggalKlasikalPickerTerbuka] = useState(false);
   const [posisiTanggalKlasikalPicker, setPosisiTanggalKlasikalPicker] = useState<PosisiPicker | null>(null);
   const tanggalKlasikalBtnRef = useRef<HTMLButtonElement>(null);
-  const [hafalanSuratBaru, setHafalanSuratBaru] = useState('');
+  /* Cek list (bukan dropdown pilih-satu lagi) -- diminta owner
+     2026-08-23: guru bisa pilih BEBERAPA surat sekaligus (mis. Al-
+     Fatihah + An-Nas), bukan cuma satu. */
+  const [hafalanSuratBaru, setHafalanSuratBaru] = useState<string[]>([]);
   /* Materi Hafalan Do'a-Do'a Harian (termasuk Asmaul Husna) -- ketentuan
      isian & sumbernya BELUM ditentukan owner ("buatkan dulu, nanti
      menyusul"), jadi sementara input bebas ketik, bukan dropdown spt
@@ -401,14 +404,19 @@ export default function RencanaPembelajaranView() {
 
   function bukaFormKlasikal() {
     setTanggalKlasikalBaru(new Date().toISOString().slice(0, 10));
-    setHafalanSuratBaru('');
+    setHafalanSuratBaru([]);
     setHafalanDoaBaru('');
     setKlasikalTerbuka(true);
   }
 
+  function toggleHafalanSurat(nilai: string) {
+    setHafalanSuratBaru((prev) => (prev.includes(nilai) ? prev.filter((v) => v !== nilai) : [...prev, nilai]));
+  }
+
   async function simpanKlasikalBaru() {
-    if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.trim().length === 0) return;
-    const judul = 'Klasikal — Hafalan Surat: ' + hafalanSuratBaru;
+    if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0) return;
+    const suratTerpilih = hafalanSuratBaru.join(', ');
+    const judul = 'Klasikal — Hafalan Surat: ' + suratTerpilih;
     const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
     const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
     const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
@@ -427,7 +435,7 @@ export default function RencanaPembelajaranView() {
         judul,
         tanggal_rencana: tanggalKlasikalBaru,
         jenis: 'klasikal',
-        klasikal_hafalan_surat: hafalanSuratBaru,
+        klasikal_hafalan_surat: suratTerpilih,
         klasikal_hafalan_doa: hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim(),
       });
       if (err) throw new Error(err.message);
@@ -1035,15 +1043,45 @@ export default function RencanaPembelajaranView() {
                 </FieldTambah>
 
                 <FieldTambah label="Hafalan Surat-Surat Al-Qur'an" wajib>
-                  <SelectKustom
-                    value={hafalanSuratBaru}
-                    onChange={setHafalanSuratBaru}
-                    opsi={opsiHafalanSurat}
-                    placeholder={
-                      opsiHafalanSurat.length === 0 ? 'Belum ada materi di Kurikulum' : '-- Pilih surat --'
-                    }
-                    ikon={<BookOpen size={16} />}
-                  />
+                  {opsiHafalanSurat.length === 0 ? (
+                    <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
+                  ) : (
+                    <div className="max-h-[260px] overflow-y-auto rounded-[var(--radius)] border border-border">
+                      {opsiHafalanSurat.map((o) => {
+                        const dipilih = hafalanSuratBaru.includes(o.value);
+                        return (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => toggleHafalanSurat(o.value)}
+                            aria-pressed={dipilih}
+                            className={`flex w-full cursor-pointer items-center gap-2.5 border-b border-border px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0 hover:bg-panel-2 ${
+                              dipilih ? 'bg-[rgba(79,70,229,0.06)]' : ''
+                            }`}
+                          >
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
+                                dipilih ? 'border-indigo bg-indigo' : 'border-border bg-panel'
+                              }`}
+                            >
+                              {dipilih && <Check size={13} strokeWidth={3} className="text-white" />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13px] font-semibold text-text">{o.label}</span>
+                              {o.sublabel && (
+                                <span className="block truncate text-[11px] text-text-faint">{o.sublabel}</span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {hafalanSuratBaru.length > 0 && (
+                    <div className="mt-1.5 text-[11.5px] text-text-dim">
+                      Dipilih ({hafalanSuratBaru.length}): {hafalanSuratBaru.join(', ')}
+                    </div>
+                  )}
                 </FieldTambah>
 
                 <FieldTambah label="Materi Hafalan Do'a-Do'a Harian">
@@ -1067,7 +1105,7 @@ export default function RencanaPembelajaranView() {
                 <button
                   type="button"
                   disabled={
-                    tanggalKlasikalBaru === '' || hafalanSuratBaru.trim().length === 0 || menyimpanKlasikal
+                    tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0 || menyimpanKlasikal
                   }
                   onClick={simpanKlasikalBaru}
                   className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
