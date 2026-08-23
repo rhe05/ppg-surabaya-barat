@@ -10,7 +10,10 @@
    sendiri baru ditambahkan belakangan — bukan hasil migrasi, ini pertama
    kali dibangun di app baru. */
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+
+const TUJUAN = ['/absensi', '/absensi/riwayat'];
 
 function IkonInput() {
   return (
@@ -58,13 +61,21 @@ export default function KehadiranChooser({
 }) {
   const router = useRouter();
 
+  /* Prefetch kedua tujuan begitu popup ini DIBUKA -- lihat komentar
+     panjang di MenuGuru.tsx (2026-08-23) ttg kenapa "tutup belakangan"
+     (dipakai sblmnya utk perbaiki flash Dashboard) dibatalkan lagi
+     krn bikin app terasa lambat di SEMUA navigasi. */
+  useEffect(() => {
+    if (!terbuka) return;
+    for (const tujuan of TUJUAN) router.prefetch(tujuan);
+  }, [terbuka, router]);
+
   if (!terbuka) return null;
 
-  /* TIDAK panggil onTutup() sebelum router.push() -- sama pola dgn
-     perbaikan JurnalChooser.tsx (2026-08-23, laporan owner "sekilas
-     tampil Dashboard" saat pindah halaman). Lihat komentar lengkap di
-     sana. */
+  /* onTutup() SEBELUM router.push() -- dikembalikan (diperbaiki
+     2026-08-23), lihat komentar prefetch di atas ttg kenapa. */
   function pilih(tujuan: string) {
+    onTutup();
     router.push(tujuan);
   }
 

@@ -29,8 +29,11 @@
    langsung, lebih terawat & konsisten dgn ikon lain kalau nanti
    di-update lucide-react-nya). */
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { BookOpen, ClipboardCheck, History, ChevronRight, X } from 'lucide-react';
+
+const TUJUAN = ['/jurnal/rencana', '/jurnal/pelaksanaan', '/jurnal/riwayat'];
 
 export default function JurnalChooser({
   terbuka,
@@ -41,20 +44,24 @@ export default function JurnalChooser({
 }) {
   const router = useRouter();
 
+  /* Prefetch ketiga tujuan begitu popup ini DIBUKA -- diperbaiki
+     2026-08-23, lihat komentar panjang di MenuGuru.tsx ttg kenapa
+     ("dulu klik langsung bereaksi, sekarang ada jeda" -- gantinya
+     "tutup belakangan" yg dulu dipakai utk perbaiki flash Dashboard,
+     ternyata bikin app terasa lambat di SEMUA navigasi). Prefetch
+     menyerang akar masalah keduanya: popup boleh nutup instan lagi
+     (reaksi cepat) krn halaman tujuannya sudah siap duluan. */
+  useEffect(() => {
+    if (!terbuka) return;
+    for (const tujuan of TUJUAN) router.prefetch(tujuan);
+  }, [terbuka, router]);
+
   if (!terbuka) return null;
 
-  /* TIDAK panggil onTutup() sebelum router.push() (diperbaiki 2026-08-23,
-     laporan owner "sekilas tampil Dashboard" saat pindah halaman) --
-     kalau ditutup duluan, popup ini hilang & Dashboard polos di
-     belakangnya sempat ke-render/ke-paint SEBELUM router.push() selesai
-     berpindah halaman (dua panggilan itu tidak dijamin "barengan" secara
-     visual walau sama-sama sinkron: setState popup vs kerja router
-     Next.js bukan hal yang sama). Popup ini DIBIARKAN tetap terbuka --
-     nanti ikut hilang sendiri pas seluruh pohon komponen halaman lama
-     (termasuk popup ini) di-unmount bareng saat halaman baru terpasang,
-     jadi transisinya terasa langsung nyambung, bukan "flash" ke Dashboard
-     polos di antaranya. */
+  /* onTutup() SEBELUM router.push() -- dikembalikan (diperbaiki
+     2026-08-23), lihat komentar prefetch di atas ttg kenapa. */
   function pergi(tujuan: string) {
+    onTutup();
     router.push(tujuan);
   }
 

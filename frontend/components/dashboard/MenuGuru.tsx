@@ -11,6 +11,7 @@
    RequireAuth (components/RequireAuth.tsx) sudah membatasi guru ke 6
    halaman ini persis — menu ini cuma pintu masuknya. */
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
@@ -137,24 +138,43 @@ export default function MenuGuru({
   const router = useRouter();
   const { signOut } = useAuth();
 
+  /* Prefetch SEMUA tujuan href begitu menu ini DIBUKA (bukan pas
+     diklik) -- diperbaiki 2026-08-23, gantinya "tutup belakangan" yg
+     bikin app terasa lambat (laporan owner: "dulu klik langsung
+     bereaksi, sekarang ada jeda"). Duduk perkaranya: nutup popup dulu
+     baru pindah halaman (pola SEMULA, sblm 2026-08-23 pagi) itu
+     TERASA instan krn popup-nya sendiri yg kasih reaksi visual instan
+     -- tapi kalau chunk halaman tujuan belum pernah dimuat, Dashboard
+     polos di baliknya sempat kelihatan SEBELUM router selesai
+     berpindah (bug yg diperbaiki 2026-08-23 pagi dgn "biarkan popup
+     tetap terbuka sampai unmount"). Itu MENGHILANGKAN bug flash tapi
+     jg MENGHILANGKAN reaksi instan (popup diam menunggu, terasa
+     lambat utk SEMUA navigasi). Prefetch di sini menyerang akar
+     masalah keduanya sekaligus: begitu chunk halaman tujuan sudah
+     dimuat duluan (selagi menu masih terbuka, guru belum tentu
+     langsung klik), pindah halaman jadi HAMPIR SEKETIKA begitu diklik
+     -- popup boleh nutup instan lagi (reaksi cepat) TANPA sempat
+     kelihatan Dashboard polos (krn halaman barunya sudah siap). */
+  useEffect(() => {
+    if (!terbuka) return;
+    for (const item of ITEM_MENU) {
+      if (item.href) router.prefetch(item.href);
+    }
+  }, [terbuka, router]);
+
   if (!terbuka) return null;
 
   function klikItem(item: (typeof ITEM_MENU)[number]) {
     if (item.aksi === 'kehadiran') {
-      /* onTutup() DIPERLUKAN di sini -- ganti dari hamburger ke chooser
-         popup, dua-duanya cuma state lokal di halaman yg SAMA, tidak ada
-         navigasi/unmount yg bisa "menyusul" menutupnya sendiri. */
       onTutup();
       onKehadiran();
     } else if (item.aksi === 'jurnal') {
       onTutup();
       onJurnal();
     } else if (item.href) {
-      /* TIDAK onTutup() sebelum router.push() (diperbaiki 2026-08-23,
-         laporan owner "sekilas tampil Dashboard" saat pindah halaman) --
-         lihat komentar lengkap di JurnalChooser.tsx. Menu ini DIBIARKAN
-         tetap terbuka, ikut hilang sendiri pas halaman lama di-unmount
-         bareng saat halaman baru terpasang. */
+      /* onTutup() SEBELUM router.push() -- dikembalikan (diperbaiki
+         2026-08-23), lihat komentar prefetch di atas ttg kenapa. */
+      onTutup();
       router.push(item.href);
     }
   }
