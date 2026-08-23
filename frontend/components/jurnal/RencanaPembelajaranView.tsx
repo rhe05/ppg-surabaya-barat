@@ -46,7 +46,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
-  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
+  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, ChevronDown, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -703,6 +703,19 @@ export default function RencanaPembelajaranView() {
     }))
     .filter((m) => m.rentang && m.materi.length > 0);
 
+  /* Kartu Klasikal bisa dibuka/tutup per minggu (diminta owner 2026-08-23)
+     -- rincian hariannya TERSEMBUNYI bawaan, klik header (Minggu N +
+     tanggal + badge Klasikal) utk buka, klik lagi utk tutup. */
+  const [klasikalDetailTerbuka, setKlasikalDetailTerbuka] = useState<Set<number>>(new Set());
+  function toggleKlasikalDetail(mingguKe: number) {
+    setKlasikalDetailTerbuka((prev) => {
+      const baru = new Set(prev);
+      if (baru.has(mingguKe)) baru.delete(mingguKe);
+      else baru.add(mingguKe);
+      return baru;
+    });
+  }
+
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
   const opsiMinggu = [1, 2, 3, 4, 5]
@@ -888,46 +901,67 @@ export default function RencanaPembelajaranView() {
               </div>
             ))}
 
-            {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas
-                (diminta owner 2026-08-23), badge "Klasikal" gantiin "N
-                Materi". Isinya dirinci PER HARI KERJA (Senin-Jumat) dlm
-                rentang minggu itu, bukan cuma baris yg py data -- hari yg
-                belum diisi tetap tampil kosong (Haf Surat/Haf Doa blank)
-                spy kelihatan "belum diisi", sesuai contoh tampilan owner. */}
-            {mingguKlasikal.map(({ mingguKe, rentang, materi }) => (
-              <div
-                key={`klasikal-${mingguKe}`}
-                className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-              >
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[14px] font-bold text-text">Minggu {mingguKe}</div>
-                    <div className="text-[11.5px] text-text-dim">
-                      {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+            {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas,
+                badge "Klasikal" gantiin "N Materi". Diminta owner
+                2026-08-23: "Minggu N" + info tanggal SEBARIS (bukan
+                bertumpuk lagi), dan seluruh kartu bisa diketuk utk buka/
+                tutup rincian harian -- tersembunyi bawaan, ketuk header
+                utk lihat, ketuk lagi utk sembunyikan lagi. Isinya, kalau
+                dibuka, dirinci PER HARI KERJA (Senin-Jumat) dlm rentang
+                minggu itu, bukan cuma baris yg py data -- hari yg belum
+                diisi tetap tampil kosong (Haf Surat/Haf Doa blank) spy
+                kelihatan "belum diisi", sesuai contoh tampilan owner. */}
+            {mingguKlasikal.map(({ mingguKe, rentang, materi }) => {
+              const dibuka = klasikalDetailTerbuka.has(mingguKe);
+              return (
+                <div
+                  key={`klasikal-${mingguKe}`}
+                  className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleKlasikalDetail(mingguKe)}
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 p-4 text-left"
+                  >
+                    <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                      <span className="text-[14px] font-bold text-text">Minggu {mingguKe}</span>
+                      <span className="truncate text-[11.5px] text-text-dim">
+                        · {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+                      </span>
                     </div>
-                  </div>
-                  <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
-                    Klasikal
-                  </span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                        Klasikal
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-text-faint transition-transform duration-150 ${dibuka ? 'rotate-180' : ''}`}
+                      />
+                    </span>
+                  </button>
+                  {dibuka && (
+                    <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
+                      {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }) => {
+                        const entri = materi.find((m) => m.tanggal_rencana === iso);
+                        return (
+                          <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
+                            <div className="text-[12.5px] font-bold text-text">
+                              {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
+                            </div>
+                            <div className="mt-1 text-[12px] text-text-dim">
+                              Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
+                            </div>
+                            <div className="text-[12px] text-text-dim">
+                              Haf Doa: {entri?.klasikal_hafalan_doa ?? ''}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-col gap-2.5">
-                  {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }) => {
-                    const entri = materi.find((m) => m.tanggal_rencana === iso);
-                    return (
-                      <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
-                        <div className="text-[12.5px] font-bold text-text">
-                          {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
-                        </div>
-                        <div className="mt-1 text-[12px] text-text-dim">
-                          Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
-                        </div>
-                        <div className="text-[12px] text-text-dim">Haf Doa: {entri?.klasikal_hafalan_doa ?? ''}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
