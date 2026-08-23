@@ -942,15 +942,20 @@ export default function RencanaPembelajaranView() {
                 KERJA (Senin-Jumat) dlm rentang minggu itu, bukan cuma
                 baris yg py data -- hari yg belum diisi tetap tampil
                 kosong (Haf Surat/Haf Doa blank) spy kelihatan "belum
-                diisi". Titik-tiga Ubah Materi (diminta owner 2026-08-23,
-                PINDAH dari header kartu ke tiap baris hari) ada di kanan
-                atas SETIAP baris hari, sejajar nama harinya -- HANYA
-                muncul kalau hari itu sudah py data (KebabMenu return
-                null kalau item kosong), jadi otomatis kosong utk hari
-                yg belum diisi. Baris hari sendiri cuma muncul saat kartu
-                minggunya dibuka. */}
+                diisi". Titik-tiga Ubah Materi (diminta owner 2026-08-23):
+                SATU per minggu (bukan per hari lagi -- sempat dicoba per
+                hari, owner minta balik jadi satu), diletakkan di baris
+                Senin (hari pertama, kanan atas sejajar nama harinya),
+                isinya daftar SEMUA hari yg sudah py data di minggu itu
+                (bukan cuma Senin) utk dipilih mana yg mau diubah. */}
             {mingguKlasikal.map(({ mingguKe, rentang, materi }) => {
               const dibuka = klasikalDetailTerbuka.has(mingguKe);
+              const itemUbahMinggu = materi
+                .filter((m): m is Materi & { tanggal_rencana: string } => m.tanggal_rencana !== null)
+                .map((m) => ({
+                  label: 'Ubah ' + NAMA_HARI[new Date(m.tanggal_rencana + 'T00:00:00').getDay()],
+                  onClick: () => bukaEditKlasikal(m),
+                }));
               return (
                 <div
                   key={`klasikal-${mingguKe}`}
@@ -973,7 +978,7 @@ export default function RencanaPembelajaranView() {
                   </div>
                   {dibuka && (
                     <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
-                      {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }) => {
+                      {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }, indeks) => {
                         const entri = materi.find((m) => m.tanggal_rencana === iso);
                         return (
                           <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
@@ -981,9 +986,7 @@ export default function RencanaPembelajaranView() {
                               <div className="text-[12.5px] font-bold text-text">
                                 {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
                               </div>
-                              <KebabMenu
-                                item={entri ? [{ label: 'Ubah Materi', onClick: () => bukaEditKlasikal(entri) }] : []}
-                              />
+                              {indeks === 0 && <KebabMenu item={itemUbahMinggu} />}
                             </div>
                             <div className="mt-1 text-[12px] text-text-dim">
                               Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
