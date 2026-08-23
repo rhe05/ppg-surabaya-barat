@@ -207,7 +207,13 @@ export default function PelaksanaanPembelajaranView() {
   return (
     <main className="flex min-h-screen flex-col bg-bg">
       <ToastStack toasts={toasts} onDismiss={dismiss} />
-      <JurnalHeaderChrome />
+      {/* Hero hijau (nama/peran/kelompok) DIHAPUS (diminta owner 2026-08-23,
+          susulan dari keputusan yg sama di RencanaPembelajaranView.tsx) --
+          murni pengulangan info yang sudah dilihat guru di Dashboard, tidak
+          ada nilai tambah utk layar sub-alur spt ini. Top bar putih
+          (hamburger+brand+bell) TETAP ADA -- itu satu-satunya jalan guru
+          kembali ke menu, tidak boleh hilang (lihat JurnalHeaderChrome.tsx). */}
+      <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
         <div className="mb-4 text-[17px] font-extrabold text-text">Pelaksanaan Pembelajaran</div>
