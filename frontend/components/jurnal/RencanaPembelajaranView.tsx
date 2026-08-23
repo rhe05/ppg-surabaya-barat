@@ -46,12 +46,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
-  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, ChevronDown, Info,
+  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
+import KebabMenu from '@/components/ui/KebabMenu';
 import SelectKustom, { type OpsiSelect } from '@/components/ui/SelectKustom';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
@@ -96,6 +97,13 @@ function hariSekolahDalamMinggu(tahun: number, bulan: number, rentang: { awal: n
 
 function formatTanggalDDMMYYYY(tgl: Date) {
   return `${String(tgl.getDate()).padStart(2, '0')}-${String(tgl.getMonth() + 1).padStart(2, '0')}-${tgl.getFullYear()}`;
+}
+
+/* "Senin 24-08-2026" -- dipakai label menu titik-tiga kartu Klasikal
+   (pilih hari mana yg mau diubah). `iso` = tanggal_rencana ("YYYY-MM-DD"). */
+function labelHariTanggal(iso: string) {
+  const tgl = new Date(iso + 'T00:00:00');
+  return `${NAMA_HARI[tgl.getDay()]} ${formatTanggalDDMMYYYY(tgl)}`;
 }
 
 const INPUT_STYLE =
@@ -526,11 +534,28 @@ export default function RencanaPembelajaranView() {
      wajib. */
   const [hafalanDoaBaru, setHafalanDoaBaru] = useState('');
   const [menyimpanKlasikal, setMenyimpanKlasikal] = useState(false);
+  /* null = mode Tambah (INSERT baris baru). Angka = mode Ubah (UPDATE
+     baris itu) -- diminta owner 2026-08-23, dibuka lewat titik-tiga di
+     kartu Klasikal (lihat KebabMenu di JSX). */
+  const [editKlasikalId, setEditKlasikalId] = useState<number | null>(null);
 
   function bukaFormKlasikal() {
+    setEditKlasikalId(null);
     setTanggalKlasikalBaru(new Date().toISOString().slice(0, 10));
     setHafalanSuratBaru([]);
     setHafalanDoaBaru('');
+    setKlasikalTerbuka(true);
+  }
+
+  function bukaEditKlasikal(m: Materi) {
+    setEditKlasikalId(m.id);
+    setTanggalKlasikalBaru(m.tanggal_rencana ?? '');
+    setHafalanSuratBaru(
+      m.klasikal_hafalan_surat
+        ? m.klasikal_hafalan_surat.split(',').map((s) => s.trim()).filter((s) => s !== '')
+        : []
+    );
+    setHafalanDoaBaru(m.klasikal_hafalan_doa ?? '');
     setKlasikalTerbuka(true);
   }
 
@@ -545,23 +570,28 @@ export default function RencanaPembelajaranView() {
     const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
     const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
     const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
+    const doa = hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim();
+    const idDiubah = editKlasikalId;
 
     const sementara: Materi = {
-      id: idSementara--,
+      id: idDiubah ?? idSementara--,
       minggu_ke: mingguKe,
       judul,
       status: 'belum',
       jenis: 'klasikal',
       tanggal_rencana: tanggalKlasikalBaru,
       klasikal_hafalan_surat: suratTerpilih,
-      klasikal_hafalan_doa: hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim(),
+      klasikal_hafalan_doa: doa,
     };
-    setMateriList((prev) => [...prev, sementara]);
+    const materiListSebelum = materiList;
+    setMateriList((prev) =>
+      idDiubah ? prev.map((m) => (m.id === idDiubah ? sementara : m)) : [...prev, sementara]
+    );
     setKlasikalTerbuka(false);
     setMenyimpanKlasikal(true);
 
     try {
-      const { error: err } = await supabase.from('jurnal_materi').insert({
+      const payload = {
         kelas_id: kelasId,
         tahun: tahunKlasikal,
         bulan: bulanKlasikal,
@@ -570,13 +600,16 @@ export default function RencanaPembelajaranView() {
         tanggal_rencana: tanggalKlasikalBaru,
         jenis: 'klasikal',
         klasikal_hafalan_surat: suratTerpilih,
-        klasikal_hafalan_doa: hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim(),
-      });
+        klasikal_hafalan_doa: doa,
+      };
+      const { error: err } = idDiubah
+        ? await supabase.from('jurnal_materi').update(payload).eq('id', idDiubah)
+        : await supabase.from('jurnal_materi').insert(payload);
       if (err) throw new Error(err.message);
-      push('Materi klasikal tersimpan.', 'sukses');
+      push(idDiubah ? 'Materi klasikal diperbarui.' : 'Materi klasikal tersimpan.', 'sukses');
       await muatMateri();
     } catch (e) {
-      setMateriList((prev) => prev.filter((m) => m.id !== sementara.id));
+      setMateriList(materiListSebelum);
       push(e instanceof Error ? e.message : 'Gagal menyimpan materi klasikal.', 'error');
     } finally {
       setMenyimpanKlasikal(false);
@@ -695,13 +728,18 @@ export default function RencanaPembelajaranView() {
 
   const totalPertemuan = mingguDipakai.length;
 
+  /* Kartu Klasikal SELALU tampil Minggu 1-4 (diminta owner 2026-08-23) --
+     BEDA dari kartu Ngaji (mingguDipakai) yg cuma tampil kalau py data.
+     Minggu 5 ikut cuma kalau bulannya memang punya (rentangMinggu balik
+     non-null) -- Februari non-kabisat (28 hari, pas 4x7) satu2nya bulan
+     yg TIDAK dapat Minggu 5, semua bulan lain (29-31 hari) dapat. */
   const mingguKlasikal = [1, 2, 3, 4, 5]
     .map((mk) => ({
       mingguKe: mk,
       rentang: rentangMinggu(tahun, bulan, mk),
       materi: materiList.filter((m) => m.minggu_ke === mk && m.jenis === 'klasikal'),
     }))
-    .filter((m) => m.rentang && m.materi.length > 0);
+    .filter((m) => m.rentang !== null);
 
   /* Kartu Klasikal bisa dibuka/tutup per minggu (diminta owner 2026-08-23)
      -- rincian hariannya TERSEMBUNYI bawaan, klik header (Minggu N +
@@ -902,15 +940,19 @@ export default function RencanaPembelajaranView() {
             ))}
 
             {/* Kartu Klasikal -- TERPISAH dari kartu Minggu N Ngaji di atas,
-                badge "Klasikal" gantiin "N Materi". Diminta owner
-                2026-08-23: "Minggu N" + info tanggal SEBARIS (bukan
-                bertumpuk lagi), dan seluruh kartu bisa diketuk utk buka/
-                tutup rincian harian -- tersembunyi bawaan, ketuk header
-                utk lihat, ketuk lagi utk sembunyikan lagi. Isinya, kalau
-                dibuka, dirinci PER HARI KERJA (Senin-Jumat) dlm rentang
-                minggu itu, bukan cuma baris yg py data -- hari yg belum
-                diisi tetap tampil kosong (Haf Surat/Haf Doa blank) spy
-                kelihatan "belum diisi", sesuai contoh tampilan owner. */}
+                badge "Klasikal" gantiin "N Materi". SELALU tampil Minggu
+                1-4 (+5 kalau bulannya punya, diminta owner 2026-08-23) --
+                BEDA dari kartu Ngaji yg cuma tampil kalau py data. "Minggu
+                N" + info tanggal SEBARIS, seluruh judul (bukan whole
+                header lagi -- ikon panah dicabut, gantinya titik-tiga di
+                sebelah badge Klasikal utk Ubah materi hari tertentu, lihat
+                KebabMenu di bawah) bisa diketuk utk buka/tutup rincian
+                harian -- tersembunyi bawaan, ketuk utk lihat, ketuk lagi
+                utk sembunyikan lagi. Isinya, kalau dibuka, dirinci PER
+                HARI KERJA (Senin-Jumat) dlm rentang minggu itu, bukan
+                cuma baris yg py data -- hari yg belum diisi tetap tampil
+                kosong (Haf Surat/Haf Doa blank) spy kelihatan "belum
+                diisi", sesuai contoh tampilan owner. */}
             {mingguKlasikal.map(({ mingguKe, rentang, materi }) => {
               const dibuka = klasikalDetailTerbuka.has(mingguKe);
               return (
@@ -918,27 +960,31 @@ export default function RencanaPembelajaranView() {
                   key={`klasikal-${mingguKe}`}
                   className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
                 >
-                  <button
-                    type="button"
-                    onClick={() => toggleKlasikalDetail(mingguKe)}
-                    className="flex w-full cursor-pointer items-center justify-between gap-2 p-4 text-left"
-                  >
-                    <div className="flex min-w-0 flex-1 items-baseline gap-1.5">
+                  <div className="flex items-center justify-between gap-2 p-4">
+                    <button
+                      type="button"
+                      onClick={() => toggleKlasikalDetail(mingguKe)}
+                      className="flex min-w-0 flex-1 cursor-pointer items-baseline gap-1.5 border-none bg-transparent text-left"
+                    >
                       <span className="text-[14px] font-bold text-text">Minggu {mingguKe}</span>
                       <span className="truncate text-[11.5px] text-text-dim">
                         · {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
                       </span>
-                    </div>
-                    <span className="flex shrink-0 items-center gap-1.5">
+                    </button>
+                    <div className="flex shrink-0 items-center gap-1.5">
                       <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
                         Klasikal
                       </span>
-                      <ChevronDown
-                        size={16}
-                        className={`text-text-faint transition-transform duration-150 ${dibuka ? 'rotate-180' : ''}`}
+                      <KebabMenu
+                        item={materi
+                          .filter((m): m is Materi & { tanggal_rencana: string } => m.tanggal_rencana !== null)
+                          .map((m) => ({
+                            label: 'Edit ' + labelHariTanggal(m.tanggal_rencana),
+                            onClick: () => bukaEditKlasikal(m),
+                          }))}
                       />
-                    </span>
-                  </button>
+                    </div>
+                  </div>
                   {dibuka && (
                     <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
                       {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }) => {
@@ -1228,7 +1274,9 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                <div className="text-[16px] font-bold text-text">Tambah Materi Klasikal</div>
+                <div className="text-[16px] font-bold text-text">
+                  {editKlasikalId ? 'Ubah Materi Klasikal' : 'Tambah Materi Klasikal'}
+                </div>
                 <button
                   type="button"
                   onClick={() => setKlasikalTerbuka(false)}
@@ -1362,7 +1410,7 @@ export default function RencanaPembelajaranView() {
                   style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
                 >
                   <Check size={16} strokeWidth={2.6} />
-                  Simpan Materi
+                  {editKlasikalId ? 'Simpan Perubahan' : 'Simpan Materi'}
                 </button>
               </div>
             </div>
