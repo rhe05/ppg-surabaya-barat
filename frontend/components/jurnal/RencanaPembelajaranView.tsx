@@ -1030,13 +1030,18 @@ export default function RencanaPembelajaranView() {
               const itemUbahMinggu =
                 materiKlasikalMinggu.length > 0
                   ? materiKlasikalMinggu.map((m) => ({
-                      label: 'Ubah ' + NAMA_HARI[new Date(m.tanggal_rencana + 'T00:00:00').getDay()],
+                      /* "Edit Materi" (diminta owner 2026-08-23) -- nama
+                         hari TETAP disertakan (mis. "Edit Materi Senin")
+                         krn daftar ini bisa berisi lebih dari satu hari
+                         sekaligus, tanpa nama hari jadi tidak bisa
+                         dibedakan mana yg mana. */
+                      label: 'Edit Materi ' + NAMA_HARI[new Date(m.tanggal_rencana + 'T00:00:00').getDay()],
                       onClick: () => bukaEditKlasikal(m),
                     }))
                   : seninMingguIni
                     ? [
                         {
-                          label: 'Tambah Materi Klasikal',
+                          label: '+ Materi Klasikal',
                           onClick: () => {
                             bukaFormKlasikal();
                             setTanggalKlasikalBaru(seninMingguIni);
@@ -1069,11 +1074,18 @@ export default function RencanaPembelajaranView() {
                     <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
                       {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }, indeks) => {
                         const entri = materi.find((m) => m.tanggal_rencana === iso);
+                        /* Tanggal merah dikasih warna beda (diminta owner
+                           2026-08-23) -- baris itu TETAP tampil (bukan
+                           disembunyikan, guru mungkin masih perlu tahu
+                           ada libur di hari itu), nama liburnya ikut
+                           ditampilkan spy jelas kenapa merah. */
+                        const namaLibur = LIBUR_NASIONAL_2026[iso];
                         return (
                           <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="text-[12.5px] font-bold text-text">
+                              <div className={`text-[12.5px] font-bold ${namaLibur ? 'text-red' : 'text-text'}`}>
                                 {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
+                                {namaLibur && <span className="ml-1 font-semibold">· {namaLibur}</span>}
                               </div>
                               {indeks === 0 && <KebabMenu item={itemUbahMinggu} />}
                             </div>
