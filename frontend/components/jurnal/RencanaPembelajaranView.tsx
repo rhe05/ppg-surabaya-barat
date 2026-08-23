@@ -46,7 +46,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
-  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight,
+  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -171,12 +171,56 @@ function uraikanBarisHafalan(barisAsli: string): string[] {
 
 let idSementara = -1;
 
-function FieldTambah({ label, wajib, children }: { label: string; wajib?: boolean; children: React.ReactNode }) {
+/* Ikon info + tooltip ketuk-utk-buka (BUKAN hover -- form ini dipakai di
+   HP, hover tidak ada) -- diminta owner 2026-08-23 utk panduan batas
+   maks surat Hafalan Surat klasikal. Overlay transparan spy tutup lagi
+   saat ketuk di luar, sama pola dgn KebabMenu.tsx di kurikulum/page.tsx. */
+function LabelInfo({ teks }: { teks: string }) {
+  const [terbuka, setTerbuka] = useState(false);
+  return (
+    <span className="relative inline-flex align-middle">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setTerbuka((v) => !v);
+        }}
+        aria-label="Info"
+        className="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 text-text-faint"
+      >
+        <Info size={14} strokeWidth={2} />
+      </button>
+      {terbuka && (
+        <>
+          <div className="fixed inset-0 z-[700]" onClick={() => setTerbuka(false)} />
+          <div className="absolute top-full left-0 z-[701] mt-1.5 w-[230px] rounded-[var(--radius)] border border-border bg-panel p-2.5 text-[11.5px] leading-snug font-normal text-text shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+            {teks}
+          </div>
+        </>
+      )}
+    </span>
+  );
+}
+
+function FieldTambah({
+  label,
+  wajib,
+  info,
+  children,
+}: {
+  label: string;
+  wajib?: boolean;
+  /* Opsional: teks tooltip info singkat, muncul lewat ikon (i) di
+     samping label -- lihat LabelInfo di atas. */
+  info?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="mb-3.5">
-      <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+      <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text-dim">
         {label} {wajib && <span className="text-red">*</span>}
         {!wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
+        {info && <LabelInfo teks={info} />}
       </label>
       {children}
     </div>
@@ -1042,7 +1086,11 @@ export default function RencanaPembelajaranView() {
                   />
                 </FieldTambah>
 
-                <FieldTambah label="Hafalan Surat-Surat Al-Qur'an" wajib>
+                <FieldTambah
+                  label="Hafalan Surat-Surat Al-Qur'an"
+                  wajib
+                  info="Batas maksimal: satu halaman Al-Qur'an Pojok. Toleransi tambah satu surat jika diperlukan."
+                >
                   {opsiHafalanSurat.length === 0 ? (
                     <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
                   ) : (
