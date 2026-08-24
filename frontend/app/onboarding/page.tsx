@@ -322,7 +322,7 @@ export default function OnboardingPage() {
   }
 
   async function cariGuru() {
-    if (!namaValid) return;
+    if (!namaValid || !namaKelompokKlaim.trim()) return;
     setErrorCari(null);
     setCarianGuru('mencari');
     setKandidatGuru([]);
@@ -330,6 +330,7 @@ export default function OnboardingPage() {
     try {
       const { data, error: errCari } = await supabase.rpc('cari_guru_untuk_klaim', {
         p_nama: nama.trim(),
+        p_kelompok: namaKelompokKlaim.trim(),
       });
       if (errCari) {
         setErrorCari(errCari.message);
@@ -357,6 +358,7 @@ export default function OnboardingPage() {
       const { error: errKlaim } = await supabase.rpc('klaim_akun_guru', {
         p_guru_id: guruId,
         p_nama: nama.trim(),
+        p_kelompok: namaKelompokKlaim.trim(),
       });
       if (errKlaim) {
         setErrorKlaim(errKlaim.message);
@@ -596,9 +598,24 @@ export default function OnboardingPage() {
               admin, tidak perlu verifikasi email. */}
           {lingkup === 'kelompok' && peran === 'guru' && carianGuru !== 'manual' && (
             <div className="mb-5">
+              <div className="mb-3">
+                <label className="mb-2 block text-[12px] font-medium text-text" htmlFor="kelompok-klaim-guru">
+                  Nama kelompok
+                </label>
+                <input
+                  id="kelompok-klaim-guru"
+                  type="text"
+                  value={namaKelompokKlaim}
+                  onChange={(e) => setNamaKelompokKlaim(e.target.value)}
+                  placeholder="Misal: Kelp Petemon"
+                  autoComplete="off"
+                  className={KELAS_INPUT}
+                />
+              </div>
+
               <button
                 type="button"
-                disabled={!namaValid || carianGuru === 'mencari'}
+                disabled={!namaValid || !namaKelompokKlaim.trim() || carianGuru === 'mencari'}
                 onClick={cariGuru}
                 className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-[#FFFBEB] px-4 py-3 text-[13.5px] font-semibold text-brass disabled:cursor-not-allowed disabled:opacity-60"
               >
