@@ -656,11 +656,6 @@ export default function OnboardingPage() {
               sudah ada spt tabel guru. */}
           {lingkup === 'kelompok' && peran === 'admin_kelompok' && carianAdminKelp !== 'manual' && (
             <div className="mb-5">
-              <p className="mb-2 text-[12px] font-medium text-text">Hubungkan ke undangan admin kelp</p>
-              <p className="mb-3 text-[12.5px] text-text">
-                Ketik nama kelompok persis seperti yang disampaikan admin yang mengundang Anda.
-              </p>
-
               <div className="mb-3">
                 <label className="mb-2 block text-[12px] font-medium text-text" htmlFor="kelompok-klaim">
                   Nama kelompok
@@ -682,7 +677,7 @@ export default function OnboardingPage() {
                 onClick={cariAdminKelp}
                 className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-[#FFFBEB] px-4 py-3 text-[13.5px] font-semibold text-brass disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {carianAdminKelp === 'mencari' ? 'Mencari...' : 'Cari undangan saya'}
+                {carianAdminKelp === 'mencari' ? 'Memproses...' : 'Daftar'}
               </button>
 
               {errorCariAdminKelp && (
