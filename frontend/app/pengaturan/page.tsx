@@ -41,6 +41,15 @@ type EntriKalender = {
   jenis: JenisOverride;
   catatan: string | null;
 };
+type Tersemat = { nama: string } | { nama: string }[] | null;
+type Undangan = {
+  id: number;
+  nama_lengkap: string;
+  kelompok_id: number;
+  profile_id: string | null;
+  claimed_at: string | null;
+  kelompok: Tersemat;
+};
 type BarisKop = {
   baris_ke: number;
   teks: string;
@@ -76,6 +85,14 @@ function PengaturanContent() {
   const { profile } = useAuth();
   const adalahPpg = profile?.role === 'admin_ppg';
   const bolehAturKop = ['admin_ppg', 'admin_desa', 'admin_kelompok'].includes(profile?.role ?? '');
+  /* Undang Admin Kelp -- SENGAJA cuma dua peran (bukan tiga spt bolehAturKop
+     di atas), diminta owner eksplisit: "yang bisa daftarkan ada dua: admin
+     aplikasi dan admin desa". admin_kelompok TIDAK boleh mengundang
+     admin_kelompok lain -- sama persis batas wewenang setujui_pendaftaran()
+     utk peran admin_kelompok (migrasi 20260819090000), RLS
+     admin_kelp_undangan_tulis_ppg_desa (20260824110000) menegakkan hal yg
+     sama di server, ini cuma cermin di UI. */
+  const bolehUndangAdminKelp = ['admin_ppg', 'admin_desa'].includes(profile?.role ?? '');
 
   /* ── Quote ── */
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -98,6 +115,14 @@ function PengaturanContent() {
   const [tanggalBaru, setTanggalBaru] = useState('');
   const [jenisBaru, setJenisBaru] = useState<JenisOverride>('aktif');
   const [catatanBaru, setCatatanBaru] = useState('');
+
+  /* ── Undang Admin Kelp (2026-08-24) -- PPG-wide (bukan per-kelompok),
+     jadi TIDAK berbagi kelompokId dgn dua fitur di atas: satu admin_ppg
+     bisa mengundang ke kelompok mana pun sekaligus, tidak masuk akal
+     dibatasi ke satu kelompok yang sedang dipilih di form Kop Surat. */
+  const [daftarUndangan, setDaftarUndangan] = useState<Undangan[]>([]);
+  const [namaUndanganBaru, setNamaUndanganBaru] = useState('');
+  const [kelompokUndanganBaru, setKelompokUndanganBaru] = useState<number | ''>('');
 
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -223,6 +248,60 @@ function PengaturanContent() {
     }
   }
 
+  const muatUndangan = useCallback(async () => {
+    if (!bolehUndangAdminKelp) return;
+    const { data, error: err } = await supabase
+      .from('admin_kelp_undangan')
+      .select('id, nama_lengkap, kelompok_id, profile_id, claimed_at, kelompok:kelompok_id(nama)')
+      .order('created_at', { ascending: false });
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setDaftarUndangan((data ?? []) as unknown as Undangan[]);
+  }, [bolehUndangAdminKelp]);
+
+  useEffect(() => {
+    muatUndangan();
+  }, [muatUndangan]);
+
+  async function undangAdminKelp() {
+    if (!namaUndanganBaru.trim() || !kelompokUndanganBaru) return;
+    setSibuk(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const { error: err } = await supabase.from('admin_kelp_undangan').insert({
+        nama_lengkap: namaUndanganBaru.trim(),
+        kelompok_id: kelompokUndanganBaru,
+        dibuat_oleh: profile?.id ?? null,
+      });
+      if (err) throw new Error(err.message);
+      setNamaUndanganBaru('');
+      setKelompokUndanganBaru('');
+      setPesan('Undangan dibuat. Sampaikan nama kelompok & nama lengkap ini ke orangnya.');
+      await muatUndangan();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal membuat undangan.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  async function hapusUndangan(u: Undangan) {
+    if (!window.confirm(`Batalkan undangan "${u.nama_lengkap}"?`)) return;
+    setError(null);
+    setPesan(null);
+    try {
+      const { error: err } = await supabase.from('admin_kelp_undangan').delete().eq('id', u.id);
+      if (err) throw new Error(err.message);
+      setPesan('Undangan dibatalkan.');
+      await muatUndangan();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
+    }
+  }
+
   async function tambahQuote() {
     if (!quoteBaru.trim()) return;
     setSibuk(true);
@@ -310,11 +389,91 @@ function PengaturanContent() {
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="mb-2 text-[24px] font-bold text-text">Pengaturan</h1>
       <p className="mb-6 text-[13px] text-text-dim">
-        Kutipan harian, kop surat untuk laporan PDF, dan kalender kelompok.
+        Kutipan harian, kop surat untuk laporan PDF, kalender kelompok, dan undangan admin kelp.
       </p>
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+      {/* ── Undang Admin Kelp ── */}
+      {bolehUndangAdminKelp && (
+        <div className="mb-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
+          <div className="mb-1 text-[15px] font-bold text-text">Undang Admin Kelp</div>
+          <p className="mb-4 text-[12px] text-text-dim">
+            Masukkan nama lengkap calon admin kelompok + kelompok yang akan dia kelola. Sampaikan
+            KEDUA data ini ke orangnya -- saat mendaftar (Masuk dengan Google), dia cukup mengetik
+            nama kelompok &amp; nama lengkapnya persis seperti ini, akun langsung aktif tanpa
+            menunggu persetujuan lagi.
+          </p>
+
+          <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[var(--radius)] border border-border bg-panel-2 p-3.5">
+            <div className="min-w-[200px] flex-1">
+              <label className={KELAS_LABEL}>Nama Lengkap</label>
+              <input
+                className={KELAS_INPUT}
+                value={namaUndanganBaru}
+                onChange={(e) => setNamaUndanganBaru(e.target.value)}
+                placeholder="Nama sesuai KTP/yang biasa dipakai"
+              />
+            </div>
+            <div className="min-w-[200px] flex-1">
+              <label className={KELAS_LABEL}>Kelompok</label>
+              <select
+                className={KELAS_INPUT}
+                value={kelompokUndanganBaru}
+                onChange={(e) => setKelompokUndanganBaru(e.target.value ? Number(e.target.value) : '')}
+              >
+                <option value="">-- Pilih Kelompok --</option>
+                {kelompokList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={undangAdminKelp}
+              disabled={sibuk || !namaUndanganBaru.trim() || !kelompokUndanganBaru}
+              className={KELAS_TOMBOL_UTAMA}
+            >
+              Undang
+            </button>
+          </div>
+
+          {daftarUndangan.length === 0 && (
+            <p className="text-[13px] text-text-dim">Belum ada undangan admin kelp.</p>
+          )}
+          {daftarUndangan.map((u) => {
+            const namaKelompok = Array.isArray(u.kelompok) ? u.kelompok[0]?.nama : u.kelompok?.nama;
+            return (
+              <div
+                key={u.id}
+                className="mb-2 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
+                  <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
+                  <span
+                    className={
+                      'rounded-full px-2 py-0.5 text-[11px] font-bold ' +
+                      (u.profile_id
+                        ? 'bg-[rgba(5,150,105,0.12)] text-sage'
+                        : 'bg-[rgba(217,119,6,0.12)] text-brass')
+                    }
+                  >
+                    {u.profile_id ? 'Sudah Bergabung' : 'Menunggu'}
+                  </span>
+                </div>
+                {!u.profile_id && (
+                  <button onClick={() => hapusUndangan(u)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
+                    Batalkan
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Kop Surat ── */}
       <div className="mb-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">

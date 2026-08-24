@@ -49,6 +49,14 @@ type KandidatGuru = {
   desa_nama: string;
 };
 
+type KandidatAdminKelp = {
+  undangan_id: number;
+  nama_lengkap: string;
+  kelompok_id: number;
+  kelompok_nama: string;
+  desa_nama: string;
+};
+
 type Pendaftaran = {
   nama_lengkap: string;
   peran_diminta: Peran;
@@ -188,6 +196,20 @@ export default function OnboardingPage() {
   const [mengklaim, setMengklaim] = useState(false);
   const [errorKlaim, setErrorKlaim] = useState<string | null>(null);
 
+  /* Jalur klaim cepat admin_kelompok (2026-08-24): SAMA polanya dgn klaim
+     guru di atas, tapi dua kunci wajib (nama LENGKAP + nama KELOMPOK,
+     bukan nama saja) -- diminta owner eksplisit: admin py privilese lebih
+     tinggi drpd guru, kelompok bukan cuma penyaring kandidat tapi bagian
+     dari verifikasinya sendiri. `nama` (state di atas) dipakai bersama
+     utk field Nama Lengkap -- cuma nama kelompok yang perlu state baru. */
+  const [namaKelompokKlaim, setNamaKelompokKlaim] = useState('');
+  const [carianAdminKelp, setCarianAdminKelp] = useState<'idle' | 'mencari' | 'hasil' | 'manual'>('idle');
+  const [kandidatAdminKelp, setKandidatAdminKelp] = useState<KandidatAdminKelp[]>([]);
+  const [undanganTerpilih, setUndanganTerpilih] = useState<number | null>(null);
+  const [errorCariAdminKelp, setErrorCariAdminKelp] = useState<string | null>(null);
+  const [mengklaimAdminKelp, setMengklaimAdminKelp] = useState(false);
+  const [errorKlaimAdminKelp, setErrorKlaimAdminKelp] = useState<string | null>(null);
+
   /* Sudah punya peran = tidak ada yang perlu didaftarkan lagi. */
   useEffect(() => {
     if (profile?.role) router.replace('/dashboard');
@@ -268,6 +290,13 @@ export default function OnboardingPage() {
     setGuruTerpilih(null);
     setErrorCari(null);
     setErrorKlaim(null);
+    // Pencarian admin_kelompok lama juga dibuang, alasan sama.
+    setNamaKelompokKlaim('');
+    setCarianAdminKelp('idle');
+    setKandidatAdminKelp([]);
+    setUndanganTerpilih(null);
+    setErrorCariAdminKelp(null);
+    setErrorKlaimAdminKelp(null);
   }
 
   async function cariGuru() {
@@ -315,6 +344,53 @@ export default function OnboardingPage() {
       setErrorKlaim('Gagal terhubung ke server — periksa koneksi Anda');
     } finally {
       setMengklaim(false);
+    }
+  }
+
+  async function cariAdminKelp() {
+    if (!namaValid || !namaKelompokKlaim.trim()) return;
+    setErrorCariAdminKelp(null);
+    setCarianAdminKelp('mencari');
+    setKandidatAdminKelp([]);
+    setUndanganTerpilih(null);
+    try {
+      const { data, error: errCari } = await supabase.rpc('cari_admin_kelp_untuk_klaim', {
+        p_nama: nama.trim(),
+        p_kelompok: namaKelompokKlaim.trim(),
+      });
+      if (errCari) {
+        setErrorCariAdminKelp(errCari.message);
+        setCarianAdminKelp('idle');
+        return;
+      }
+      setKandidatAdminKelp((data ?? []) as KandidatAdminKelp[]);
+      setCarianAdminKelp('hasil');
+    } catch {
+      setErrorCariAdminKelp('Gagal terhubung ke server — periksa koneksi Anda');
+      setCarianAdminKelp('idle');
+    }
+  }
+
+  async function klaimAdminKelp(undanganId: number) {
+    setErrorKlaimAdminKelp(null);
+    setMengklaimAdminKelp(true);
+    try {
+      const { error: errKlaim } = await supabase.rpc('klaim_admin_kelp', {
+        p_undangan_id: undanganId,
+        p_nama: nama.trim(),
+        p_kelompok: namaKelompokKlaim.trim(),
+      });
+      if (errKlaim) {
+        setErrorKlaimAdminKelp(errKlaim.message);
+        return;
+      }
+      // Sama alasannya dgn klaimGuru: navigasi keras supaya peran baru
+      // langsung terbawa, bukan menunggu AuthProvider memuat ulang profil.
+      window.location.assign('/dashboard');
+    } catch {
+      setErrorKlaimAdminKelp('Gagal terhubung ke server — periksa koneksi Anda');
+    } finally {
+      setMengklaimAdminKelp(false);
     }
   }
 
@@ -573,7 +649,110 @@ export default function OnboardingPage() {
             </div>
           )}
 
-          {lingkup === 'kelompok' && (peran !== 'guru' || carianGuru === 'manual') && (
+          {/* Jalur klaim cepat admin_kelompok (2026-08-24) -- SAMA polanya
+              dgn klaim guru di atas, tapi dua kunci wajib (nama kelompok +
+              nama lengkap), krn undangannya dibuat admin_ppg/admin_desa
+              lewat /pengaturan (Undang Admin Kelp), bukan dari data yang
+              sudah ada spt tabel guru. */}
+          {lingkup === 'kelompok' && peran === 'admin_kelompok' && carianAdminKelp !== 'manual' && (
+            <div className="mb-5">
+              <p className="mb-2 text-[12px] font-medium text-text">Hubungkan ke undangan admin kelp</p>
+              <p className="mb-3 text-[12.5px] text-text">
+                Ketik nama kelompok persis seperti yang disampaikan admin yang mengundang Anda.
+              </p>
+
+              <div className="mb-3">
+                <label className="mb-2 block text-[12px] font-medium text-text" htmlFor="kelompok-klaim">
+                  Nama kelompok
+                </label>
+                <input
+                  id="kelompok-klaim"
+                  type="text"
+                  value={namaKelompokKlaim}
+                  onChange={(e) => setNamaKelompokKlaim(e.target.value)}
+                  placeholder="Misal: Kelp Petemon"
+                  autoComplete="off"
+                  className={KELAS_INPUT}
+                />
+              </div>
+
+              <button
+                type="button"
+                disabled={!namaValid || !namaKelompokKlaim.trim() || carianAdminKelp === 'mencari'}
+                onClick={cariAdminKelp}
+                className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-[#FFFBEB] px-4 py-3 text-[13.5px] font-semibold text-brass disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {carianAdminKelp === 'mencari' ? 'Mencari...' : 'Cari undangan saya'}
+              </button>
+
+              {errorCariAdminKelp && (
+                <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+                  {errorCariAdminKelp}
+                </p>
+              )}
+
+              {carianAdminKelp === 'hasil' && kandidatAdminKelp.length === 0 && (
+                <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
+                  Tidak ditemukan undangan dengan nama &amp; kelompok ini. Periksa lagi ejaannya, atau
+                  hubungi admin yang mengundang Anda -- atau daftar manual di bawah.
+                </div>
+              )}
+
+              {carianAdminKelp === 'hasil' && kandidatAdminKelp.length > 0 && (
+                <div className="mt-3">
+                  <p className="mb-2 text-[12px] font-medium text-text">
+                    {kandidatAdminKelp.length === 1
+                      ? 'Ditemukan satu undangan yang cocok:'
+                      : `Ditemukan ${kandidatAdminKelp.length} undangan dengan nama ini — pilih yang mana Anda:`}
+                  </p>
+                  <div className="grid gap-2">
+                    {kandidatAdminKelp.map((k) => (
+                      <KartuPilihan
+                        key={k.undangan_id}
+                        terpilih={undanganTerpilih === k.undangan_id}
+                        judul={k.kelompok_nama}
+                        ringkas={`Desa ${k.desa_nama}`}
+                        onClick={() => {
+                          setUndanganTerpilih(k.undangan_id);
+                          setErrorKlaimAdminKelp(null);
+                        }}
+                      />
+                    ))}
+                  </div>
+
+                  {errorKlaimAdminKelp && (
+                    <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+                      {errorKlaimAdminKelp}
+                    </p>
+                  )}
+
+                  <button
+                    type="button"
+                    disabled={undanganTerpilih === null || mengklaimAdminKelp}
+                    onClick={() => undanganTerpilih !== null && klaimAdminKelp(undanganTerpilih)}
+                    className="mt-3 w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brand-green px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {mengklaimAdminKelp ? 'Menghubungkan...' : 'Ya, ini saya — Hubungkan akun'}
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCarianAdminKelp('manual');
+                  setErrorCariAdminKelp(null);
+                }}
+                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text hover:text-brass hover:underline"
+              >
+                Tidak ketemu / bukan saya — daftar manual
+              </button>
+            </div>
+          )}
+
+          {lingkup === 'kelompok' &&
+            (peran !== 'guru' || carianGuru === 'manual') &&
+            (peran !== 'admin_kelompok' || carianAdminKelp === 'manual') && (
             <div className="mb-5">
               <p className="mb-2 text-[12px] font-medium text-text">Kelompok</p>
               <div className="grid gap-2">
@@ -633,7 +812,8 @@ export default function OnboardingPage() {
               di atas sudah langsung menuntaskan, jadi tombol Lanjut cuma
               membingungkan (dan scopeTerisi selalu false utk guru krn
               kelompokId sengaja tidak pernah diisi di jalur ini). */}
-          {!(peran === 'guru' && carianGuru !== 'manual') && (
+          {!(peran === 'guru' && carianGuru !== 'manual') &&
+            !(peran === 'admin_kelompok' && carianAdminKelp !== 'manual') && (
             <button
               type="button"
               disabled={!namaValid || !peran || !scopeTerisi}
