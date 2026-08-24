@@ -27,55 +27,57 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 
-const ITEM_MENU: {
-  label: string;
-  href: string;
-  svg: React.ReactNode;
-}[] = [
-  {
-    href: '/dashboard',
-    label: 'Dashboard',
-    svg: (
-      <>
-        <rect width="7" height="9" x="3" y="3" rx="1" />
-        <rect width="7" height="5" x="14" y="3" rx="1" />
-        <rect width="7" height="9" x="14" y="12" rx="1" />
-        <rect width="7" height="5" x="3" y="16" rx="1" />
-      </>
-    ),
-  },
-  {
-    href: '/permintaan-generus',
-    label: 'Permintaan Generus',
-    svg: (
-      <>
-        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-      </>
-    ),
-  },
-  {
-    href: '/pendaftaran',
-    label: 'Registrasi',
-    svg: (
-      <>
-        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="m16 11 2 2 4-4" />
-      </>
-    ),
-  },
-  {
-    href: '/pengumuman',
-    label: 'Pengumuman',
-    svg: (
-      <>
-        <path d="m3 11 18-5v12L3 14v-3z" />
-        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
-      </>
-    ),
-  },
-];
+function itemMenu(role: string | undefined): { label: string; href: string; svg: React.ReactNode }[] {
+  return [
+    {
+      href: '/dashboard',
+      label: 'Dashboard',
+      svg: (
+        <>
+          <rect width="7" height="9" x="3" y="3" rx="1" />
+          <rect width="7" height="5" x="14" y="3" rx="1" />
+          <rect width="7" height="9" x="14" y="12" rx="1" />
+          <rect width="7" height="5" x="3" y="16" rx="1" />
+        </>
+      ),
+    },
+    {
+      href: '/permintaan-generus',
+      label: 'Permintaan Generus',
+      svg: (
+        <>
+          <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+          <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+        </>
+      ),
+    },
+    {
+      /* admin_kelompok: "Registrasi" langsung ke /registrasi-guru
+         (klaim cepat guru sekelompoknya, diminta owner 2026-08-24) --
+         admin_desa/admin_ppg tetap ke /pendaftaran (antrean persetujuan
+         akun lama, itu tanggung jawab mereka, bukan admin_kelompok). */
+      href: role === 'admin_kelompok' ? '/registrasi-guru' : '/pendaftaran',
+      label: 'Registrasi',
+      svg: (
+        <>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="m16 11 2 2 4-4" />
+        </>
+      ),
+    },
+    {
+      href: '/pengumuman',
+      label: 'Pengumuman',
+      svg: (
+        <>
+          <path d="m3 11 18-5v12L3 14v-3z" />
+          <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+        </>
+      ),
+    },
+  ];
+}
 
 export default function MenuAdmin({
   terbuka,
@@ -87,9 +89,11 @@ export default function MenuAdmin({
   onTutup: () => void;
 }) {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
 
   if (!terbuka || !posisi) return null;
+
+  const daftarItem = itemMenu(profile?.role ?? undefined);
 
   function pergi(href: string) {
     onTutup();
@@ -109,7 +113,7 @@ export default function MenuAdmin({
         style={{ top: posisi.top, left: posisi.left }}
         className="fixed z-[591] flex w-[220px] flex-col gap-0.5 rounded-[var(--radius-lg)] bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.22)]"
       >
-        {ITEM_MENU.map((item) => (
+        {daftarItem.map((item) => (
           <button
             key={item.href}
             type="button"

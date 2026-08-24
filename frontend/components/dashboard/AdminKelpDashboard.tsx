@@ -419,7 +419,7 @@ export default function AdminKelpDashboard() {
 
           <button
             type="button"
-            onClick={() => router.push('/pendaftaran')}
+            onClick={() => router.push('/registrasi-guru')}
             className="flex cursor-pointer items-center gap-3 rounded-card border border-border bg-panel p-3.5 text-left shadow-[0_2px_10px_rgba(0,0,0,0.05)] active:scale-[0.98]"
           >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(79,70,229,0.12)] text-indigo">
@@ -427,7 +427,7 @@ export default function AdminKelpDashboard() {
             </span>
             <span className="min-w-0 flex-1">
               <span className="block text-[13.5px] font-bold text-text">Registrasi</span>
-              <span className="block text-[11.5px] text-text-dim">Akun baru yang menunggu peran</span>
+              <span className="block text-[11.5px] text-text-dim">Daftarkan guru kelompok Anda</span>
             </span>
           </button>
 
