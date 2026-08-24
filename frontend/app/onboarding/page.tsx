@@ -607,7 +607,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={namaKelompokKlaim}
                   onChange={(e) => setNamaKelompokKlaim(e.target.value)}
-                  placeholder="Misal: Kelp Petemon"
+                  placeholder="Misal: Petemon"
                   autoComplete="off"
                   className={KELAS_INPUT}
                 />
@@ -696,7 +696,7 @@ export default function OnboardingPage() {
                   type="text"
                   value={namaKelompokKlaim}
                   onChange={(e) => setNamaKelompokKlaim(e.target.value)}
-                  placeholder="Misal: Kelp Petemon"
+                  placeholder="Misal: Petemon"
                   autoComplete="off"
                   className={KELAS_INPUT}
                 />
