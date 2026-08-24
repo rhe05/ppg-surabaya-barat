@@ -426,7 +426,7 @@ export default function AdminKelpDashboard() {
               <ClipboardCheck size={18} />
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[13.5px] font-bold text-text">Persetujuan Akun</span>
+              <span className="block text-[13.5px] font-bold text-text">Registrasi</span>
               <span className="block text-[11.5px] text-text-dim">Akun baru yang menunggu peran</span>
             </span>
           </button>

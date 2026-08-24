@@ -209,7 +209,7 @@ function PendaftaranContent() {
   if (!adalahAdmin) {
     return (
       <div className="mx-auto max-w-4xl p-6">
-        <h1 className="mb-2 text-[24px] font-bold text-text">Pendaftaran Akun</h1>
+        <h1 className="mb-2 text-[24px] font-bold text-text">Registrasi</h1>
         <p className="text-[13.5px] text-text-dim">
           Halaman ini hanya untuk admin kelompok, admin desa, dan admin aplikasi.
         </p>
@@ -229,7 +229,7 @@ function PendaftaranContent() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
-      <h1 className="mb-2 text-[24px] font-bold text-text">Pendaftaran Akun</h1>
+      <h1 className="mb-2 text-[24px] font-bold text-text">Registrasi</h1>
       <p className="mb-6 text-[13.5px] text-text-dim">
         Permintaan peran dari akun baru. Menyetujui berarti memberi orang itu akses data sesuai
         peran dan lingkup di bawah — pastikan Anda mengenalinya.

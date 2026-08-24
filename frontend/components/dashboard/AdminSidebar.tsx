@@ -31,8 +31,10 @@
      tanpa pengelompokan; ini PENINGKATAN sengaja (diminta owner: "boleh
      lebih baik", standar sidebar modern selalu dikelompokkan begini utk
      nav sepanjang ini), bukan copy 1:1.
-   - "Persetujuan Akun" (/pendaftaran) hanya utk 3 peran admin, sama
-     seperti app/pendaftaran/page.tsx (PERAN_ADMIN).
+   - "Registrasi" (/pendaftaran, dulu berlabel "Persetujuan Akun" --
+     diganti 2026-08-24 supaya SAMA dgn label di menu mobile admin_kelp
+     & kartu jalan pintas AdminKelpDashboard.tsx) hanya utk 3 peran
+     admin, sama seperti app/pendaftaran/page.tsx (PERAN_ADMIN).
    - Item "User Management" app lama SENGAJA TIDAK ada di sini -- belum
      ada halaman setara di app baru (di luar cakupan tugas ini, bukan
      terlewat).
@@ -357,7 +359,7 @@ const ITEM_PERMINTAAN_GENERUS: ItemNav = {
 
 const ITEM_PENDAFTARAN: ItemNav = {
   href: '/pendaftaran',
-  label: 'Persetujuan Akun',
+  label: 'Registrasi',
   svg: (
     <>
       <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
