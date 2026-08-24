@@ -384,7 +384,13 @@ export default function OnboardingPage() {
         setCarianAdminKelp('idle');
         return;
       }
-      setKandidatAdminKelp((data ?? []) as KandidatAdminKelp[]);
+      const hasil = (data ?? []) as KandidatAdminKelp[];
+      setKandidatAdminKelp(hasil);
+      // Nama + kelompok sudah dua kunci sekaligus -- praktis selalu tepat
+      // satu kandidat, jadi langsung dipilihkan (diminta owner: hilangkan
+      // langkah checklist/centang supaya terasa alur pendaftaran biasa,
+      // bukan menu pilihan teknis).
+      setUndanganTerpilih(hasil[0]?.undangan_id ?? null);
       setCarianAdminKelp('hasil');
     } catch {
       setErrorCariAdminKelp('Gagal terhubung ke server — periksa koneksi Anda');
@@ -712,28 +718,8 @@ export default function OnboardingPage() {
 
               {carianAdminKelp === 'hasil' && kandidatAdminKelp.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-2 text-[12px] font-medium text-text">
-                    {kandidatAdminKelp.length === 1
-                      ? 'Ditemukan satu undangan yang cocok:'
-                      : `Ditemukan ${kandidatAdminKelp.length} undangan dengan nama ini — pilih yang mana Anda:`}
-                  </p>
-                  <div className="grid gap-2">
-                    {kandidatAdminKelp.map((k) => (
-                      <KartuPilihan
-                        key={k.undangan_id}
-                        terpilih={undanganTerpilih === k.undangan_id}
-                        judul={k.kelompok_nama}
-                        ringkas={`Desa ${k.desa_nama}`}
-                        onClick={() => {
-                          setUndanganTerpilih(k.undangan_id);
-                          setErrorKlaimAdminKelp(null);
-                        }}
-                      />
-                    ))}
-                  </div>
-
                   {errorKlaimAdminKelp && (
-                    <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+                    <p className="mb-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
                       {errorKlaimAdminKelp}
                     </p>
                   )}
@@ -742,9 +728,9 @@ export default function OnboardingPage() {
                     type="button"
                     disabled={undanganTerpilih === null || mengklaimAdminKelp}
                     onClick={() => undanganTerpilih !== null && klaimAdminKelp(undanganTerpilih)}
-                    className="mt-3 w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brand-green px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                    className="w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brand-green px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {mengklaimAdminKelp ? 'Menghubungkan...' : 'Ya, ini saya — Hubungkan akun'}
+                    {mengklaimAdminKelp ? 'Memproses...' : 'Lanjutkan'}
                   </button>
                 </div>
               )}
