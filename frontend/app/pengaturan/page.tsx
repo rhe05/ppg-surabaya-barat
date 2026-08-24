@@ -218,8 +218,18 @@ function PengaturanContent() {
     muatKalender();
   }, [muatKalender]);
 
+  /* Tanggal yang sama TIDAK boleh ditandai dua kali (diminta owner
+     2026-08-24: "tombolnya mati kalau sudah pernah diinput di hari yang
+     sama") -- tabel py UNIQUE (kelompok_id, tanggal) (migrasi
+     20260824100000) yang SUDAH menolaknya di DB, tapi tanpa penjaga di
+     sini kegagalannya muncul sbg pesan Postgres mentah (23505) yang
+     membingungkan. Dicek di klien SUPAYA tombol "Tambah" mati duluan
+     (bukan cuma ditolak setelah diklik), 23505 di catch tetap jadi
+     jaring pengaman kedua (mis. race dua sesi admin sekaligus). */
+  const kalenderTanggalBaruSudahAda = daftarKalender.find((e) => e.tanggal === tanggalBaru) ?? null;
+
   async function tambahKalender() {
-    if (!kelompokId || !tanggalBaru) return;
+    if (!kelompokId || !tanggalBaru || kalenderTanggalBaruSudahAda) return;
     setSibuk(true);
     setError(null);
     setPesan(null);
@@ -231,7 +241,12 @@ function PengaturanContent() {
         catatan: catatanBaru.trim() || null,
         dibuat_oleh: profile?.id ?? null,
       });
-      if (err) throw new Error(err.message);
+      if (err) {
+        if (err.code === '23505') {
+          throw new Error('Tanggal ini sudah ditandai sebelumnya. Hapus dulu di bawah untuk mengubahnya.');
+        }
+        throw new Error(err.message);
+      }
       setTanggalBaru('');
       setCatatanBaru('');
       setPesan('Kalender kelompok diperbarui.');
@@ -680,6 +695,11 @@ function PengaturanContent() {
                     value={tanggalBaru}
                     onChange={(e) => setTanggalBaru(e.target.value)}
                   />
+                  {kalenderTanggalBaruSudahAda && (
+                    <p className="mt-1 text-[11px] font-semibold text-red">
+                      Sudah ditandai {kalenderTanggalBaruSudahAda.jenis === 'aktif' ? 'Tetap Aktif' : 'Libur Mendadak'}.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className={KELAS_LABEL}>Jenis</label>
@@ -703,7 +723,7 @@ function PengaturanContent() {
                 </div>
                 <button
                   onClick={tambahKalender}
-                  disabled={sibuk || !tanggalBaru}
+                  disabled={sibuk || !tanggalBaru || !!kalenderTanggalBaruSudahAda}
                   className={KELAS_TOMBOL_UTAMA}
                 >
                   Tambah

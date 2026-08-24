@@ -284,7 +284,11 @@ export default function AdminKelpDashboard() {
   }, [muatKalenderHariIni]);
 
   async function tandaiLiburHariIni() {
-    if (!kelompokId || !alasanLibur.trim()) return;
+    /* Kalau kalenderHariIni sudah terisi, tombol "Tandai Libur" di JSX
+       bawah SUDAH tidak dirender lagi (diganti "Batalkan") -- baris ini
+       murni jaring pengaman kedua (mis. dua tab admin sama2 terbuka),
+       biar tidak dobel-insert lalu gagal dgn pesan Postgres mentah. */
+    if (!kelompokId || !alasanLibur.trim() || kalenderHariIni) return;
     setSibukKalender(true);
     try {
       const { error: err } = await supabase.from('kalender_kelompok').insert({
@@ -294,7 +298,15 @@ export default function AdminKelpDashboard() {
         catatan: alasanLibur.trim(),
         dibuat_oleh: profile?.id ?? null,
       });
-      if (err) throw new Error(err.message);
+      if (err) {
+        if (err.code === '23505') {
+          setModalLiburTerbuka(false);
+          setAlasanLibur('');
+          await muatKalenderHariIni();
+          return;
+        }
+        throw new Error(err.message);
+      }
 
       /* Pengumuman OTOMATIS (2026-08-24, diminta owner) -- begitu admin
          menandai libur, guru kelompoknya harus lihat kabar ini lewat
