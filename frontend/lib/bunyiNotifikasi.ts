@@ -1,9 +1,9 @@
-/* Bunyi notifikasi (tiga nada naik, ~900ms -- diperpanjang 2026-08-24,
-   dua nada ~300ms sebelumnya dirasa owner kurang lama/kurang kedengaran)
-   -- disintesis lewat Web Audio API, BUKAN file audio (tidak nambah
-   aset biner ke repo, tidak ada isu lisensi, ukuran nol). Dipakai
-   BellPermintaanGuru.tsx begitu ada sesuatu BARU yang perlu diperhatikan
-   (Perlu Tindakan/Permintaan belum dibaca).
+/* Bunyi notifikasi (tiga nada naik, ~1.7 detik -- diperpanjang LAGI
+   2026-08-24 malam, versi ~900ms sebelumnya masih dirasa owner kurang
+   lama) -- disintesis lewat Web Audio API, BUKAN file audio (tidak
+   nambah aset biner ke repo, tidak ada isu lisensi, ukuran nol).
+   Dipakai BellPermintaanGuru.tsx begitu ada sesuatu BARU yang perlu
+   diperhatikan (Perlu Tindakan/Permintaan belum dibaca).
 
    Browser bisa memblokir audio tanpa gesture pengguna (autoplay policy)
    -- gagal diam2 lewat try/catch, JANGAN sampai lempar error yang
@@ -32,12 +32,14 @@ export function mainkanBunyiNotifikasi() {
     }
 
     // A5 -> C#6 -> E6, tiga nada naik yang lembut & lebih terasa
-    // durasinya, bukan bunyi datar/mengagetkan.
-    nada(880, 0, 0.28, 0.15);
-    nada(1108.73, 0.16, 0.32, 0.13);
-    nada(1318.5, 0.34, 0.48, 0.11);
+    // durasinya, bukan bunyi datar/mengagetkan. Jeda & durasi per nada
+    // diperpanjang (2026-08-24 malam) supaya total bunyi terasa
+    // "lama"/kedengaran jelas, bukan sekilas lalu.
+    nada(880, 0, 0.5, 0.15);
+    nada(1108.73, 0.32, 0.6, 0.13);
+    nada(1318.5, 0.68, 1.0, 0.11);
 
-    setTimeout(() => ctx.close(), 1200);
+    setTimeout(() => ctx.close(), 2000);
   } catch {
     // Diblokir browser atau AudioContext tidak tersedia -- diamkan.
   }
