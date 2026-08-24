@@ -279,24 +279,31 @@ export async function muatRingkasanPerKelas(
   });
 }
 
-/* "Absensi Belum di Input" PER GURU, per bulan (2026-08-24, diminta
-   owner: dulu kartu ini "Guru Belum Isi Absen" HANYA hari ini, sekarang
-   direntang jadi bulan berjalan + dihitung PER GURU "sudah berapa hari
-   belum diisi"). BEDA dari lib/pengingatAbsen.ts (7 hari mundur, per
-   guru login sendiri, dipakai bell/banner guru): ini se-KELOMPOK,
-   rentang SEBULAN PENUH, dipakai admin.
+/* "Absensi Belum di Input" PER KELAS, per bulan (2026-08-24, diminta
+   owner: dulu kartu ini "Guru Belum Isi Absen" HANYA hari ini per
+   kelas, lalu sempat diringkas per GURU -- owner minta balik ke per
+   KELAS krn satu guru bisa pegang lebih dari satu kelas, digabung jadi
+   satu angka malah menyembunyikan kelas mana yang sebenarnya bolong).
+   BEDA dari lib/pengingatAbsen.ts (7 hari mundur, per guru login
+   sendiri, dipakai bell/banner guru): ini se-KELOMPOK, rentang SEBULAN
+   PENUH, dipakai admin.
 
    "Hari yang dihitung" = tanggal2 dalam bulan itu yang lolos
    buatCekNonaktif (weekend/libur nasional DITUMPANGI pengecualian
    kalender_kelompok -- SAMA definisi "hari kerja" dgn Input
    Kehadiran/pengingatAbsen), dibatasi s.d. KEMARIN kalau bulan yang
    dipilih adalah bulan berjalan (hari ini blm tentu selesai sesinya --
-   sama prinsip dgn pengingatAbsen.ts). "Belum diisi" per kelas = SAMA
-   definisi dgn 'Hari Aktif' (kelas itu NOL baris absensi di tanggal
-   itu). Per guru = union tanggal belum-diisi dari SEMUA kelas
-   miliknya (bukan dijumlah per-kelas -- 1 guru yg 2 kelasnya sama2
-   bolong di tanggal yg sama dihitung 1 hari, bukan 2). */
-export type GuruBelumIsiBulan = { guruId: number; guruNama: string; jumlahHari: number };
+   sama prinsip dgn pengingatAbsen.ts). "Belum diisi" = SAMA definisi
+   dgn 'Hari Aktif' (kelas itu NOL baris absensi di tanggal itu).
+   `totalHari` = jumlah hari kerja yang dihitung bulan itu (penyebut
+   persentase), sama utk semua kelas dalam bulan yang sama. */
+export type KelasBelumIsiBulan = {
+  kelasId: number;
+  kelasNama: string;
+  guruNama: string;
+  jumlahHari: number;
+  totalHari: number;
+};
 
 function tanggalStrLokal(d: Date) {
   const dua = (n: number) => String(n).padStart(2, '0');
@@ -307,7 +314,7 @@ export async function muatAbsensiBelumDiisiBulan(
   kelompokId: number,
   tahun: number,
   bulan: number,
-): Promise<GuruBelumIsiBulan[]> {
+): Promise<KelasBelumIsiBulan[]> {
   const sekarang = new Date();
   const bulanBerjalan = tahun === sekarang.getFullYear() && bulan === sekarang.getMonth() + 1;
 
@@ -330,13 +337,13 @@ export async function muatAbsensiBelumDiisiBulan(
 
   const { data: kelasData, error: errKelas } = await supabase
     .from('kelas')
-    .select('id, guru_id, santri_count, guru:guru_id(nama)')
+    .select('id, nama, guru_id, santri_count, guru:guru_id(nama)')
     .eq('kelompok_id', kelompokId)
     .is('deleted_at', null);
   if (errKelas) throw errKelas;
 
   type Tersemat = { nama: string } | { nama: string }[] | null;
-  type BarisKelas = { id: number; guru_id: number | null; santri_count: number; guru: Tersemat };
+  type BarisKelas = { id: number; nama: string; guru_id: number | null; santri_count: number; guru: Tersemat };
   const namaDari = (v: Tersemat) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
 
   const kelasAktif = ((kelasData ?? []) as BarisKelas[]).filter((k) => k.santri_count > 0 && k.guru_id != null);
@@ -382,22 +389,19 @@ export async function muatAbsensiBelumDiisiBulan(
     }
   }
 
-  const belumPerGuru = new Map<number, { nama: string; tanggal: Set<string> }>();
-  kelasAktif.forEach((k) => {
-    if (k.guru_id == null) return;
-    if (!belumPerGuru.has(k.guru_id)) {
-      belumPerGuru.set(k.guru_id, { nama: namaDari(k.guru) ?? '-', tanggal: new Set() });
-    }
-    const acc = belumPerGuru.get(k.guru_id)!;
-    const set = terisi.get(k.id);
-    for (const tgl of kandidat) {
-      if (!set?.has(tgl)) acc.tanggal.add(tgl);
-    }
-  });
-
-  return [...belumPerGuru.entries()]
-    .map(([guruId, v]) => ({ guruId, guruNama: v.nama, jumlahHari: v.tanggal.size }))
-    .filter((g) => g.jumlahHari > 0)
+  return kelasAktif
+    .map((k) => {
+      const set = terisi.get(k.id);
+      const jumlahHari = kandidat.filter((tgl) => !set?.has(tgl)).length;
+      return {
+        kelasId: k.id,
+        kelasNama: k.nama,
+        guruNama: namaDari(k.guru) ?? '-',
+        jumlahHari,
+        totalHari: kandidat.length,
+      };
+    })
+    .filter((k) => k.jumlahHari > 0)
     .sort((a, b) => b.jumlahHari - a.jumlahHari);
 }
 

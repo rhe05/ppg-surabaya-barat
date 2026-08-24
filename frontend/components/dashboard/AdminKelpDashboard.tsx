@@ -51,7 +51,7 @@ import {
   type RingkasanHariIni,
   type GuruIzinAktif,
   type KelasRingkasan,
-  type GuruBelumIsiBulan,
+  type KelasBelumIsiBulan,
 } from '@/lib/ringkasanAdminKelp';
 
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
@@ -174,7 +174,7 @@ export default function AdminKelpDashboard() {
      tutup rinciannya, sama pola dgn "Ringkasan Kehadiran" di atas.
      Dimuat eager (bukan lazy spt rincian kelas) krn badge jumlah guru
      di kondisi TERTUTUP tetap perlu datanya. */
-  const [belumIsiBulan, setBelumIsiBulan] = useState<GuruBelumIsiBulan[]>([]);
+  const [belumIsiBulan, setBelumIsiBulan] = useState<KelasBelumIsiBulan[]>([]);
   const [loadingBelumIsi, setLoadingBelumIsi] = useState(true);
   const [detailBelumIsiTerbuka, setDetailBelumIsiTerbuka] = useState(false);
 
@@ -615,15 +615,24 @@ export default function AdminKelpDashboard() {
               />
             </button>
             {detailBelumIsiTerbuka && (
-              <div className="flex flex-col gap-1.5 border-t border-[#FDE68A] px-4 pt-3 pb-4">
-                {belumIsiBulan.map((g) => (
-                  <div key={g.guruId} className="flex items-center justify-between text-[12.5px]">
-                    <span className="font-semibold text-[#92400E]">{namaPanggilanGuru(g.guruNama)}</span>
-                    <span className="text-[#92400E]/80">
-                      {NAMA_BULAN[bulan - 1]} belum isi {g.jumlahHari} hari
-                    </span>
-                  </div>
-                ))}
+              <div className="flex flex-col gap-2.5 border-t border-[#FDE68A] px-4 pt-3 pb-4">
+                {belumIsiBulan.map((k) => {
+                  const persen = k.totalHari > 0 ? Math.round((k.jumlahHari / k.totalHari) * 100) : 0;
+                  return (
+                    <div key={k.kelasId} className="flex items-center justify-between gap-3 text-[12.5px]">
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold text-[#92400E]">{k.kelasNama}</span>
+                        <span className="block text-[11.5px] text-[#92400E]/80">{namaPanggilanGuru(k.guruNama)}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-semibold text-[#92400E]">
+                          Belum isi {k.jumlahHari} dari {k.totalHari} hari
+                        </span>
+                        <span className="block text-[11.5px] text-[#92400E]/80">{persen}%</span>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
