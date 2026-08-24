@@ -37,7 +37,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarOff, CalendarCheck2, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -45,10 +45,12 @@ import Skeleton from '@/components/ui/Skeleton';
 import {
   muatRingkasanHariIni,
   muatRingkasanBulan,
+  muatRingkasanPerKelas,
   muatGuruSedangIzin,
   tanggalHariIniLokal,
   type RingkasanHariIni,
   type GuruIzinAktif,
+  type KelasRingkasan,
 } from '@/lib/ringkasanAdminKelp';
 
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
@@ -77,6 +79,31 @@ const STATUS: { kunci: keyof Omit<RingkasanHariIni, 'totalKelas' | 'kelasSudahDi
   { kunci: 'sakit', label: 'SAKIT', warna: '#B45309' },
   { kunci: 'alpa', label: 'ALPA', warna: '#DC2626' },
 ];
+
+/* Rincian per kelas (2026-08-24) -- pill warna disamakan PERSIS dgn
+   GuruDashboard.tsx (STATUS const di sana), supaya kartunya benar2
+   terasa "diambil dari dashboard guru", bukan gaya baru. */
+const STATUS_KELAS: { kunci: keyof Omit<KelasRingkasan, 'kelasId' | 'kelasNama' | 'guruNama' | 'kategori' | 'ruangan' | 'jamMulai' | 'jamSelesai' | 'santriCount' | 'hariAktif'>; label: string; warna: string; pill: string }[] = [
+  { kunci: 'hadir', label: 'HADIR', warna: '#059669', pill: 'rgba(5, 150, 105, 0.12)' },
+  { kunci: 'izin', label: 'IZIN', warna: '#4F46E5', pill: 'rgba(79, 70, 229, 0.12)' },
+  { kunci: 'sakit', label: 'SAKIT', warna: '#B45309', pill: 'rgba(180, 83, 9, 0.12)' },
+  { kunci: 'alpa', label: 'ALPA', warna: '#DC2626', pill: 'rgba(220, 38, 38, 0.12)' },
+];
+
+function jamSingkat(nilai: string | null) {
+  return nilai ? nilai.slice(0, 5) : null;
+}
+
+function durasiMenitKelas(mulai: string | null, selesai: string | null) {
+  const a = jamSingkat(mulai);
+  const b = jamSingkat(selesai);
+  if (!a || !b) return null;
+  const [ha, ma] = a.split(':').map(Number);
+  const [hb, mb] = b.split(':').map(Number);
+  if ([ha, ma, hb, mb].some((n) => Number.isNaN(n))) return null;
+  const selisih = hb * 60 + mb - (ha * 60 + ma);
+  return selisih > 0 ? selisih : null;
+}
 
 function SkeletonKpi() {
   return (
@@ -111,9 +138,18 @@ export default function AdminKelpDashboard() {
   const [tahun, setTahun] = useState(sekarangAwal.getFullYear());
   const [kalenderKpiTerbuka, setKalenderKpiTerbuka] = useState(false);
   const [posisiKalenderKpi, setPosisiKalenderKpi] = useState<{ top: number; right: number } | null>(null);
-  const ikonKalenderKpiRef = useRef<HTMLButtonElement>(null);
+  const ikonKalenderKpiRef = useRef<HTMLSpanElement>(null);
   const [ringkasanBulan, setRingkasanBulan] = useState<RingkasanHariIni | null>(null);
   const [loadingBulan, setLoadingBulan] = useState(true);
+
+  /* Rincian per kelas (2026-08-24, diminta owner) -- diklik utk buka/
+     tutup, data baru dimuat SETELAH dibuka (bukan sekaligus dgn KPI
+     bulan di atas, supaya beban query tidak dobel kalau owner tidak
+     pernah membuka rinciannya). Diklik lagi -> tutup, state kelasnya
+     TETAP disimpan (tidak fetch ulang) sampai bulan/tahun berganti. */
+  const [detailKelasTerbuka, setDetailKelasTerbuka] = useState(false);
+  const [kelasRingkasan, setKelasRingkasan] = useState<KelasRingkasan[] | null>(null);
+  const [loadingKelas, setLoadingKelas] = useState(false);
 
   const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
   const [memuatKalender, setMemuatKalender] = useState(true);
@@ -174,6 +210,29 @@ export default function AdminKelpDashboard() {
       batal = true;
     };
   }, [kelompokId, tahun, bulan]);
+
+  useEffect(() => {
+    setKelasRingkasan(null);
+  }, [kelompokId, tahun, bulan]);
+
+  useEffect(() => {
+    if (!detailKelasTerbuka || !kelompokId || kelasRingkasan !== null) return;
+    let batal = false;
+    setLoadingKelas(true);
+    muatRingkasanPerKelas(kelompokId, tahun, bulan)
+      .then((hasil) => {
+        if (!batal) setKelasRingkasan(hasil);
+      })
+      .catch((e) => {
+        if (!batal) setError(e instanceof Error ? e.message : 'Gagal memuat rincian kelas.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingKelas(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [detailKelasTerbuka, kelompokId, tahun, bulan, kelasRingkasan]);
 
   useEffect(() => {
     let batal = false;
@@ -347,34 +406,41 @@ export default function AdminKelpDashboard() {
 
         {!loadingBulan && ringkasanBulan && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 flex items-start justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setDetailKelasTerbuka((v) => !v)}
+              className="mb-3 flex w-full cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-0 text-left"
+            >
               <div className="min-w-0">
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
                   <span className="text-[11.5px] text-text-dim">
                     {ringkasanBulan.kelasSudahDiabsen} dari {ringkasanBulan.totalKelas} kelas
                   </span>
+                  <ChevronDown
+                    size={14}
+                    className={`shrink-0 text-text-faint transition-transform duration-200 ${detailKelasTerbuka ? 'rotate-180' : ''}`}
+                  />
                 </div>
                 <div className="mt-0.5 text-[11px] text-text-faint">
                   {NAMA_BULAN[bulan - 1]} {tahun} · {persenKelasSelesai}% kelas terisi
                 </div>
               </div>
-              <button
-                ref={ikonKalenderKpiRef}
-                type="button"
+              <span
+                role="button"
                 aria-label="Pilih Bulan dan Tahun"
-                onClick={() => {
-                  const rect = ikonKalenderKpiRef.current?.getBoundingClientRect();
-                  if (rect) {
-                    setPosisiKalenderKpi({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-                  }
+                ref={ikonKalenderKpiRef}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                  setPosisiKalenderKpi({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
                   setKalenderKpiTerbuka((v) => !v);
                 }}
-                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
               >
                 <Calendar size={17} />
-              </button>
-            </div>
+              </span>
+            </button>
             <div className="grid grid-cols-4 gap-2">
               {STATUS.map((st) => {
                 const nilai = ringkasanBulan[st.kunci];
@@ -402,6 +468,87 @@ export default function AdminKelpDashboard() {
                 );
               })}
             </div>
+
+            {detailKelasTerbuka && (
+              <div className="mt-4 flex flex-col gap-2.5 border-t border-border pt-4">
+                {loadingKelas && (
+                  <>
+                    <Skeleton className="h-[120px] w-full" />
+                    <Skeleton className="h-[120px] w-full" />
+                  </>
+                )}
+                {!loadingKelas && kelasRingkasan && kelasRingkasan.length === 0 && (
+                  <p className="text-[12.5px] text-text-dim">Belum ada kelas dengan santri di kelompok ini.</p>
+                )}
+                {!loadingKelas &&
+                  kelasRingkasan?.map((k) => {
+                    const totalStatusKelas = k.hadir + k.izin + k.sakit + k.alpa;
+                    const menit = durasiMenitKelas(k.jamMulai, k.jamSelesai);
+                    const info: string[] = [k.guruNama];
+                    if (k.ruangan) info.push(k.ruangan);
+                    info.push(`${k.santriCount} Santri`);
+                    if (jamSingkat(k.jamMulai) && jamSingkat(k.jamSelesai)) {
+                      info.push(
+                        `${jamSingkat(k.jamMulai)}–${jamSingkat(k.jamSelesai)}${menit != null ? ` · Durasi ${menit} Menit` : ''}`,
+                      );
+                    }
+                    return (
+                      <div key={k.kelasId} className="rounded-[var(--radius-lg)] border border-border bg-panel-2 p-3.5">
+                        <div className="mb-1 flex items-baseline justify-between">
+                          <span className="text-[14px] font-bold text-text">
+                            {k.kelasNama}
+                            {k.kategori === 'Cabe Rawit' && (
+                              <span className="text-[11.5px] font-semibold text-sage"> · Cabe Rawit</span>
+                            )}
+                          </span>
+                        </div>
+                        <div className="mb-1 text-[12px] font-semibold text-text-dim">{info.join(' · ')}</div>
+                        <div className="mt-3 grid grid-cols-5 gap-1.5">
+                          <div
+                            className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
+                            style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)' }}
+                          >
+                            <span className="text-[16px] leading-none font-extrabold text-white tabular-nums">
+                              {k.hariAktif}
+                            </span>
+                            <span className="mt-px text-[9.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                              Hari
+                            </span>
+                            <span className="text-[9.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                              Aktif
+                            </span>
+                          </div>
+                          {STATUS_KELAS.map((st) => {
+                            const nilai = k[st.kunci];
+                            const persen = totalStatusKelas > 0 ? Math.round((nilai / totalStatusKelas) * 100) : null;
+                            return (
+                              <div
+                                key={st.kunci}
+                                className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel px-1 pt-2.5 pb-[9px]"
+                              >
+                                <span className="text-[16px] leading-none font-extrabold tabular-nums" style={{ color: st.warna }}>
+                                  {nilai}
+                                </span>
+                                {persen !== null && (
+                                  <span
+                                    className="rounded-full px-[6px] py-0.5 text-[9.5px] leading-none font-bold tabular-nums"
+                                    style={{ background: st.pill, color: st.warna }}
+                                  >
+                                    {persen}%
+                                  </span>
+                                )}
+                                <span className="mt-px text-center text-[9.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                                  {st.label}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
           </div>
         )}
 

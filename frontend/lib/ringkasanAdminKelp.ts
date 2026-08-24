@@ -151,6 +151,133 @@ export async function muatRingkasanBulan(
   return muatRingkasanRentang(kelompokId, awal, akhir);
 }
 
+/* Rincian PER KELAS (2026-08-24) -- diminta owner: kartu "Ringkasan
+   Kehadiran" bisa diklik utk membuka rincian tiap kelas di bawahnya,
+   tampilannya "cukup card dashboard kehadiran guru" (kelas+nama guru,
+   5 kotak Hari Aktif/Hadir/Izin/Sakit/Alpa) -- data & rumusnya SAMA
+   PERSIS dgn kotak-kotak di GuruDashboard.tsx (Hari Aktif = jumlah
+   TANGGAL BERBEDA yg py absensi, persentase dari total 4 status),
+   cuma di sini SATU kelompok ditampilkan sekaligus & disertai nama
+   guru pengampu tiap kelas (guru sendiri tidak perlu, dia cuma py
+   kelasnya sendiri). */
+export type KelasRingkasan = {
+  kelasId: number;
+  kelasNama: string;
+  guruNama: string;
+  kategori: string | null;
+  ruangan: string | null;
+  jamMulai: string | null;
+  jamSelesai: string | null;
+  santriCount: number;
+  hariAktif: number;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+};
+
+export async function muatRingkasanPerKelas(
+  kelompokId: number,
+  tahun: number,
+  bulan: number,
+): Promise<KelasRingkasan[]> {
+  const dua = (n: number) => String(n).padStart(2, '0');
+  const awal = `${tahun}-${dua(bulan)}-01`;
+  const akhirTanggal = new Date(tahun, bulan, 0).getDate();
+  const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
+
+  const { data: kelasData, error: errKelas } = await supabase
+    .from('kelas')
+    .select('id, nama, guru_id, santri_count, jam_mulai, jam_selesai, ruangan, guru:guru_id(nama), kategori_kbm(nama)')
+    .eq('kelompok_id', kelompokId)
+    .is('deleted_at', null)
+    .order('jam_mulai');
+  if (errKelas) throw errKelas;
+
+  type Tersemat = { nama: string } | { nama: string }[] | null;
+  type BarisKelas = {
+    id: number;
+    nama: string;
+    guru_id: number | null;
+    santri_count: number;
+    jam_mulai: string | null;
+    jam_selesai: string | null;
+    ruangan: string | null;
+    guru: Tersemat;
+    kategori_kbm: Tersemat;
+  };
+  const namaDari = (v: Tersemat) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
+
+  const kelasList = (kelasData ?? []) as BarisKelas[];
+  const kelasAktif = kelasList.filter((k) => k.santri_count > 0);
+  const kelasIds = kelasAktif.map((k) => k.id);
+  if (kelasIds.length === 0) return [];
+
+  const { data: santriData, error: errSantri } = await supabase
+    .from('santri')
+    .select('id, kelas_id')
+    .in('kelas_id', kelasIds)
+    .is('deleted_at', null);
+  if (errSantri) throw errSantri;
+
+  const kelasDariSantri = new Map<number, number>();
+  (santriData ?? []).forEach((s) => {
+    if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
+  });
+
+  const akumulasi = new Map<number, { tanggal: Set<string>; hadir: number; izin: number; sakit: number; alpa: number }>();
+  kelasIds.forEach((id) => akumulasi.set(id, { tanggal: new Set(), hadir: 0, izin: 0, sakit: 0, alpa: 0 }));
+
+  if (kelasDariSantri.size > 0) {
+    const santriIds = [...kelasDariSantri.keys()];
+    const UKURAN_HALAMAN = 1000;
+    for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+      const { data, error: errAbsensi } = await supabase
+        .from('absensi')
+        .select('santri_id, tanggal, status')
+        .in('santri_id', santriIds)
+        .gte('tanggal', awal)
+        .lte('tanggal', akhir)
+        .is('deleted_at', null)
+        .order('id', { ascending: true })
+        .range(dari, dari + UKURAN_HALAMAN - 1);
+      if (errAbsensi) throw errAbsensi;
+
+      const batch = data ?? [];
+      batch.forEach((a) => {
+        const kId = kelasDariSantri.get(a.santri_id);
+        const acc = kId != null ? akumulasi.get(kId) : undefined;
+        if (!acc) return;
+        acc.tanggal.add(a.tanggal);
+        if (a.status === 'hadir') acc.hadir++;
+        else if (a.status === 'izin') acc.izin++;
+        else if (a.status === 'sakit') acc.sakit++;
+        else if (a.status === 'alpa') acc.alpa++;
+      });
+      if (batch.length < UKURAN_HALAMAN) break;
+    }
+  }
+
+  return kelasAktif.map((k) => {
+    const acc = akumulasi.get(k.id);
+    return {
+      kelasId: k.id,
+      kelasNama: k.nama,
+      guruNama: namaDari(k.guru) ?? '-',
+      kategori: namaDari(k.kategori_kbm),
+      ruangan: k.ruangan,
+      jamMulai: k.jam_mulai,
+      jamSelesai: k.jam_selesai,
+      santriCount: k.santri_count,
+      hariAktif: acc?.tanggal.size ?? 0,
+      hadir: acc?.hadir ?? 0,
+      izin: acc?.izin ?? 0,
+      sakit: acc?.sakit ?? 0,
+      alpa: acc?.alpa ?? 0,
+    };
+  });
+}
+
 /* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,
    guru_izin TIDAK punya alur persetujuan admin (self-declared, tidak
    spt permintaan_generus), jadi ini murni "siapa yg sedang tidak masuk
