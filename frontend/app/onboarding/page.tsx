@@ -110,6 +110,18 @@ const KELAS_INPUT =
   'text-text placeholder:text-text-faint focus:border-brass ' +
   'focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 
+/* Tombol sekunder "ghost" -- diminta owner (2026-08-24): tautan teks
+   polos tanpa bungkus ("Tidak ketemu.../daftar manual", "Keluar")
+   terasa murahan/belum jadi. Dibungkus jadi tombol bulat pil bertepi
+   tipis (border, bukan bg solid -- tetap kalah menonjol drpd tombol
+   brass/hijau utama di atasnya), target sentuh 44px, transisi halus
+   spt tombol lain di app ini -- bukan lagi teks polos yg cuma berganti
+   warna+underline saat hover. */
+const KELAS_TOMBOL_GHOST =
+  'mt-2.5 flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-[var(--radius-button)] ' +
+  'border border-border bg-transparent px-4 text-center text-[13px] font-medium text-text-dim ' +
+  'transition-colors duration-150 hover:border-brass hover:bg-[#FFFBEB] hover:text-brass active:scale-[0.98]';
+
 /* Kartu pilihan: tinggi minimum 44px mengikuti aturan target sentuh app lama,
    dan penanda terpilih TIDAK hanya warna — ada cincin + tanda centang, supaya
    tetap terbaca pada layar terang dan bagi yang sulit membedakan warna. */
@@ -481,11 +493,7 @@ export default function OnboardingPage() {
         >
           Ubah pendaftaran
         </button>
-        <button
-          type="button"
-          onClick={keluar}
-          className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text hover:text-brass hover:underline"
-        >
+        <button type="button" onClick={keluar} className={KELAS_TOMBOL_GHOST}>
           Keluar
         </button>
       </Kartu>
@@ -642,7 +650,7 @@ export default function OnboardingPage() {
                   setCarianGuru('manual');
                   setErrorCari(null);
                 }}
-                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text hover:text-brass hover:underline"
+                className={KELAS_TOMBOL_GHOST}
               >
                 Tidak ketemu / bukan saya — daftar manual
               </button>
@@ -738,7 +746,7 @@ export default function OnboardingPage() {
                   setCarianAdminKelp('manual');
                   setErrorCariAdminKelp(null);
                 }}
-                className="mt-3 w-full cursor-pointer border-none bg-transparent p-2 text-[12.5px] text-text hover:text-brass hover:underline"
+                className={KELAS_TOMBOL_GHOST}
               >
                 Tidak ketemu / bukan saya — daftar manual
               </button>
@@ -821,7 +829,7 @@ export default function OnboardingPage() {
           <button
             type="button"
             onClick={keluar}
-            className="mt-2.5 w-full cursor-pointer border-none bg-transparent p-2 text-[13px] text-text hover:text-brass hover:underline"
+            className={KELAS_TOMBOL_GHOST}
           >
             Keluar
           </button>
