@@ -348,7 +348,20 @@ export default function PelaksanaanPembelajaranView() {
         {kelasId === '' ? (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat pelaksanaan minggu ini.</p>
         ) : (
-          <>
+          /* key={kelasId} sengaja memaksa blok ini remount tiap kelas
+             berganti (termasuk PEMILIHAN PERTAMA dari placeholder "Pilih
+             kelas dulu" di atas) -- diminta owner 2026-08-24: momen itu
+             sebelumnya langsung "muncul" tanpa transisi (blok kartu
+             Pertemuan+Materi sekaligus nongol penuh, kartu2 di bawah
+             "Materi Hari Ini" kelihatan ngejump). `.animasi-konten-muncul`
+             (opacity-only, sama dgn dipakai RequireAuth.tsx utk transisi
+             loading->konten) memberi fade-in halus tiap kali blok ini
+             muncul/berganti isi. Remount div ini AMAN thd data -- `baris`
+             dkk tetap di state komponen induk, bukan di dalam div ini,
+             jadi teknik "list lama diredupkan sambil kelas baru dimuat"
+             (loading && baris.length>0 -> opacity-40, lihat di bawah)
+             tetap jalan normal di dalamnya. */
+          <div key={kelasId} className="animasi-konten-muncul">
             {/* Pertemuan Hari Ini/Minggu N */}
             <div className="mb-5 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
               <div className="mb-3 flex items-center justify-between">
@@ -529,7 +542,7 @@ export default function PelaksanaanPembelajaranView() {
               <Check size={18} strokeWidth={2} />
               {menyimpan ? 'Menyimpan...' : 'Simpan Pelaksanaan'}
             </button>
-          </>
+          </div>
         )}
       </div>
     </main>
