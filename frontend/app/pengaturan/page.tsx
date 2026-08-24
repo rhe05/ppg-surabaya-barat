@@ -70,6 +70,15 @@ const BARIS_KOSONG = (n: number): BarisKop => ({
   align: 'center',
 });
 
+/* "Senin, 24 Agustus 2026 · 14:32" -- dipakai kolom "Sudah Bergabung"
+   (kapan orangnya benar2 mengklaim akun, bukan kapan diundang). */
+function formatWaktuBergabung(iso: string) {
+  const d = new Date(iso);
+  const tanggal = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const jam = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  return `${tanggal} · ${jam}`;
+}
+
 const KELAS_INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
@@ -123,6 +132,11 @@ function PengaturanContent() {
   const [daftarUndangan, setDaftarUndangan] = useState<Undangan[]>([]);
   const [namaUndanganBaru, setNamaUndanganBaru] = useState('');
   const [kelompokUndanganBaru, setKelompokUndanganBaru] = useState<number | ''>('');
+  /* Daftar "Sudah Bergabung" auto-hide (collapsed) -- diminta owner:
+     datanya akan terus bertambah seiring makin banyak admin kelp
+     terdaftar, jadi TIDAK ditampilkan penuh spt "Menunggu" (yg memang
+     perlu selalu kelihatan krn actionable). */
+  const [tampilkanSudahBergabung, setTampilkanSudahBergabung] = useState(false);
 
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -398,13 +412,7 @@ function PengaturanContent() {
       {/* ── Undang Admin Kelp ── */}
       {bolehUndangAdminKelp && (
         <div className="mb-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
-          <div className="mb-1 text-[15px] font-bold text-text">Undang Admin Kelp</div>
-          <p className="mb-4 text-[12px] text-text-dim">
-            Masukkan nama lengkap calon admin kelompok + kelompok yang akan dia kelola. Sampaikan
-            KEDUA data ini ke orangnya -- saat mendaftar (Masuk dengan Google), dia cukup mengetik
-            nama kelompok &amp; nama lengkapnya persis seperti ini, akun langsung aktif tanpa
-            menunggu persetujuan lagi.
-          </p>
+          <div className="mb-4 text-[15px] font-bold text-text">Registrasi</div>
 
           <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[var(--radius)] border border-border bg-panel-2 p-3.5">
             <div className="min-w-[200px] flex-1">
@@ -436,42 +444,87 @@ function PengaturanContent() {
               disabled={sibuk || !namaUndanganBaru.trim() || !kelompokUndanganBaru}
               className={KELAS_TOMBOL_UTAMA}
             >
-              Undang
+              Daftar
             </button>
           </div>
 
-          {daftarUndangan.length === 0 && (
-            <p className="text-[13px] text-text-dim">Belum ada undangan admin kelp.</p>
-          )}
-          {daftarUndangan.map((u) => {
-            const namaKelompok = Array.isArray(u.kelompok) ? u.kelompok[0]?.nama : u.kelompok?.nama;
+          {(() => {
+            const menunggu = daftarUndangan.filter((u) => !u.profile_id);
+            const sudahBergabung = daftarUndangan.filter((u) => u.profile_id);
             return (
-              <div
-                key={u.id}
-                className="mb-2 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
-                  <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
-                  <span
-                    className={
-                      'rounded-full px-2 py-0.5 text-[11px] font-bold ' +
-                      (u.profile_id
-                        ? 'bg-[rgba(5,150,105,0.12)] text-sage'
-                        : 'bg-[rgba(217,119,6,0.12)] text-brass')
-                    }
-                  >
-                    {u.profile_id ? 'Sudah Bergabung' : 'Menunggu'}
-                  </span>
-                </div>
-                {!u.profile_id && (
-                  <button onClick={() => hapusUndangan(u)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
-                    Batalkan
-                  </button>
+              <>
+                {menunggu.length === 0 && sudahBergabung.length === 0 && (
+                  <p className="text-[13px] text-text-dim">Belum ada yang didaftarkan.</p>
                 )}
-              </div>
+
+                {menunggu.map((u) => {
+                  const namaKelompok = Array.isArray(u.kelompok) ? u.kelompok[0]?.nama : u.kelompok?.nama;
+                  return (
+                    <div
+                      key={u.id}
+                      className="mb-2 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
+                        <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
+                        <span className="rounded-full bg-[rgba(217,119,6,0.12)] px-2 py-0.5 text-[11px] font-bold text-brass">
+                          Menunggu
+                        </span>
+                      </div>
+                      <button onClick={() => hapusUndangan(u)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
+                        Batalkan
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Auto-hide (diminta owner): daftar yang sudah bergabung akan
+                    terus bertambah, jadi disembunyikan lipat secara default --
+                    "Menunggu" di atas TETAP selalu tampil krn actionable. */}
+                {sudahBergabung.length > 0 && (
+                  <div className={menunggu.length > 0 ? 'mt-3' : undefined}>
+                    <button
+                      type="button"
+                      onClick={() => setTampilkanSudahBergabung((v) => !v)}
+                      className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius)] border-none bg-transparent px-1 py-1.5 text-left text-[12.5px] font-semibold text-text-dim"
+                    >
+                      <span>Sudah Bergabung ({sudahBergabung.length})</span>
+                      <span className="text-[11px]">{tampilkanSudahBergabung ? 'Sembunyikan ▲' : 'Tampilkan ▼'}</span>
+                    </button>
+                    {tampilkanSudahBergabung && (
+                      <div className="mt-1.5">
+                        {sudahBergabung.map((u) => {
+                          const namaKelompok = Array.isArray(u.kelompok) ? u.kelompok[0]?.nama : u.kelompok?.nama;
+                          return (
+                            <div
+                              key={u.id}
+                              className="mb-2 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
+                            >
+                              <div className="flex flex-wrap items-center gap-3">
+                                <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
+                                <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
+                                <span className="rounded-full bg-[rgba(79,70,229,0.12)] px-2 py-0.5 text-[11px] font-bold text-indigo">
+                                  Admin Kelp
+                                </span>
+                                <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[11px] font-bold text-sage">
+                                  Sudah Bergabung
+                                </span>
+                              </div>
+                              {u.claimed_at && (
+                                <div className="mt-1 text-[11px] text-text-faint">
+                                  Bergabung {formatWaktuBergabung(u.claimed_at)}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
             );
-          })}
+          })()}
         </div>
       )}
 
