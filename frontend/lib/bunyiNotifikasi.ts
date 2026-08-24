@@ -1,6 +1,7 @@
-/* Bunyi notifikasi singkat (dua nada naik, ~300ms, mirip chime Slack) --
-   disintesis lewat Web Audio API, BUKAN file audio (tidak nambah aset
-   biner ke repo, tidak ada isu lisensi, ukuran nol). Dipakai
+/* Bunyi notifikasi (tiga nada naik, ~900ms -- diperpanjang 2026-08-24,
+   dua nada ~300ms sebelumnya dirasa owner kurang lama/kurang kedengaran)
+   -- disintesis lewat Web Audio API, BUKAN file audio (tidak nambah
+   aset biner ke repo, tidak ada isu lisensi, ukuran nol). Dipakai
    BellPermintaanGuru.tsx begitu ada sesuatu BARU yang perlu diperhatikan
    (Perlu Tindakan/Permintaan belum dibaca).
 
@@ -30,11 +31,13 @@ export function mainkanBunyiNotifikasi() {
       osc.stop(mulai + jeda + durasi + 0.02);
     }
 
-    // A5 -> E6, interval naik yang lembut, bukan bunyi datar/mengagetkan.
-    nada(880, 0, 0.12, 0.15);
-    nada(1318.5, 0.09, 0.18, 0.12);
+    // A5 -> C#6 -> E6, tiga nada naik yang lembut & lebih terasa
+    // durasinya, bukan bunyi datar/mengagetkan.
+    nada(880, 0, 0.28, 0.15);
+    nada(1108.73, 0.16, 0.32, 0.13);
+    nada(1318.5, 0.34, 0.48, 0.11);
 
-    setTimeout(() => ctx.close(), 500);
+    setTimeout(() => ctx.close(), 1200);
   } catch {
     // Diblokir browser atau AudioContext tidak tersedia -- diamkan.
   }
