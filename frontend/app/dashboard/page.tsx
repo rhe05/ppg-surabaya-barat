@@ -43,35 +43,42 @@ function AdminDashboard() {
   );
 }
 
+function LayarMemuatDashboard() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
+      <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={40} height={36} className="animate-pulse" />
+      <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
+    </main>
+  );
+}
+
 /* App lama memilih dashboard berdasarkan role (Script_Main.html:227-245):
    role 'guru' dikunci ke layar mobile-nya sendiri dan tidak pernah melihat
    shell admin. Percabangan di bawah meniru itu -- murni memilih markup,
    tidak mengubah cara data di-fetch.
 
-   admin_kelompok (2026-08-24, Tier 1 fitur mobile admin_kelp) DAPAT DUA
-   markup tergantung device SUNGGUHAN, beda dari guru yang selalu satu
-   markup apa pun device-nya -- di layar lebar tetap AdminDashboard biasa
-   (sidebar desktop, TIDAK disentuh), di layar sempit AdminKelpDashboard
-   (kartu KPI + jalan pintas, gaya GuruDashboard). useIsMobile null
-   selama belum diketahui (window belum ada) -- SENGAJA ditahan di layar
-   netral, BUKAN default ke salah satu markup, supaya tidak sempat
-   kelihatan salah pilih lalu "lompat" begitu device sungguhan diketahui
-   (pola sama dgn `siap` di AdminSidebar.tsx). */
+   Guard `!profile?.role` (2026-08-24, dilaporkan owner: klik "Masuk" di
+   /auth/login lalu router.push('/dashboard') sempat kelihatan sekilas
+   "dashboard desktop" sebelum ke tampilan yg benar) -- RequireAuth.tsx
+   sendiri SUDAH menahan di layar loading selama `profile` masih null,
+   tapi begitu profile TIBA, komponen ini langsung jalan; kalau pada
+   render itu `profile.role` belum genap terisi (mis. akun baru yg
+   belum diarahkan ke /onboarding, atau jendela sangat singkat sesaat
+   query profil baru selesai) percabangan LAMA di bawah ini jatuh ke
+   `return <AdminDashboard />` (fallback paling akhir) HANYA krn bukan
+   'guru'/'admin_kelompok' -- padahal itu bukan berarti admin_ppg/desa,
+   melainkan "belum tahu". Guard ini menutup celah itu: jangan pernah
+   defaultkan ke tampilan desktop selama peran belum benar2 diketahui. */
 function DashboardContent() {
   const { profile } = useAuth();
   const isMobile = useIsMobile();
 
-  if (profile?.role === 'guru') return <GuruDashboard />;
+  if (!profile?.role) return <LayarMemuatDashboard />;
 
-  if (profile?.role === 'admin_kelompok') {
-    if (isMobile === null) {
-      return (
-        <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
-          <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={40} height={36} className="animate-pulse" />
-          <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
-        </main>
-      );
-    }
+  if (profile.role === 'guru') return <GuruDashboard />;
+
+  if (profile.role === 'admin_kelompok') {
+    if (isMobile === null) return <LayarMemuatDashboard />;
     if (isMobile) return <AdminKelpDashboard />;
   }
 
