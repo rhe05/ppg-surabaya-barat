@@ -16,18 +16,46 @@
       bukan tabel kaku), yang tadinya kurang cuma NAVIGASI menuju sana
       dari HP (ditambal via AdminHeader.tsx + MenuAdmin.tsx).
 
+   Susulan Tier 2 (2026-08-24):
+   4. "Kalender Hari Ini" -- quick-toggle kalender_kelompok (lib/
+      kalenderKelompok.ts) LANGSUNG dari HP, tanpa buka /pengaturan
+      desktop -- kebutuhan aslinya "hujan deras, libur mendadak hari
+      ini" itu keputusan cepat, bukan yg mau diketik lewat form desktop.
+      Kelola tanggal LAIN (bukan hari ini) tetap lewat /pengaturan.
+   5. "Guru Sedang Izin/Cuti" -- read-only, guru_izin TIDAK py alur
+      persetujuan admin (self-declared), murni "siapa yg tidak masuk
+      hari ini" spy admin tahu tanpa perlu ditanya manual.
+   6. "Kehadiran 30 Hari" -- ringkas persen + tren mini, numpang RPC
+      statistik_kehadiran yg sudah ada (dipakai /statistik desktop),
+      TIDAK ada query/RPC baru -- "Lihat Detail" ke /statistik utk
+      analisis penuh (per kelompok, top/bottom santri, demografi).
+
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
    ditempel gaya lain. */
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ClipboardCheck, Megaphone, UserCheck } from 'lucide-react';
+import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { CalendarOff, CalendarCheck2, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
-import { muatRingkasanHariIni, type RingkasanHariIni } from '@/lib/ringkasanAdminKelp';
+import { muatRingkasanHariIni, muatGuruSedangIzin, tanggalHariIniLokal, type RingkasanHariIni, type GuruIzinAktif } from '@/lib/ringkasanAdminKelp';
+
+type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
+type TitikTren = { tanggal: string; persen: number | null };
+type StatistikRingkas = { persen: number | null; tren: TitikTren[] };
+
+const GAYA_TOOLTIP = {
+  background: 'var(--panel)',
+  border: '1px solid var(--border)',
+  borderRadius: 'var(--radius)',
+  boxShadow: 'var(--shadow-card)',
+  fontSize: 12,
+  color: 'var(--text)',
+};
 
 const STATUS: { kunci: keyof Omit<RingkasanHariIni, 'totalKelas' | 'kelasSudahDiabsen' | 'guruBelumIsi'>; label: string; warna: string }[] = [
   { kunci: 'hadir', label: 'HADIR', warna: '#059669' },
@@ -58,6 +86,15 @@ export default function AdminKelpDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
+
+  const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
+  const [memuatKalender, setMemuatKalender] = useState(true);
+  const [sibukKalender, setSibukKalender] = useState(false);
+
+  const [guruIzin, setGuruIzin] = useState<GuruIzinAktif[]>([]);
+
+  const [statistik, setStatistik] = useState<StatistikRingkas | null>(null);
+  const [memuatStatistik, setMemuatStatistik] = useState(true);
 
   const muat = useCallback(async () => {
     if (!kelompokId) {
@@ -94,6 +131,95 @@ export default function AdminKelpDashboard() {
     };
   }, []);
 
+  const muatKalenderHariIni = useCallback(async () => {
+    if (!kelompokId) {
+      setMemuatKalender(false);
+      return;
+    }
+    setMemuatKalender(true);
+    const { data } = await supabase
+      .from('kalender_kelompok')
+      .select('id, jenis, catatan')
+      .eq('kelompok_id', kelompokId)
+      .eq('tanggal', tanggalHariIniLokal())
+      .maybeSingle();
+    setKalenderHariIni((data as StatusKalenderHariIni) ?? null);
+    setMemuatKalender(false);
+  }, [kelompokId]);
+
+  useEffect(() => {
+    muatKalenderHariIni();
+  }, [muatKalenderHariIni]);
+
+  async function tandaiLiburHariIni() {
+    if (!kelompokId) return;
+    setSibukKalender(true);
+    try {
+      const { error: err } = await supabase.from('kalender_kelompok').insert({
+        kelompok_id: kelompokId,
+        tanggal: tanggalHariIniLokal(),
+        jenis: 'libur',
+        dibuat_oleh: profile?.id ?? null,
+      });
+      if (err) throw new Error(err.message);
+      await Promise.all([muatKalenderHariIni(), muat()]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
+    } finally {
+      setSibukKalender(false);
+    }
+  }
+
+  async function batalkanKalenderHariIni() {
+    if (!kalenderHariIni) return;
+    setSibukKalender(true);
+    try {
+      const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', kalenderHariIni.id);
+      if (err) throw new Error(err.message);
+      await Promise.all([muatKalenderHariIni(), muat()]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
+    } finally {
+      setSibukKalender(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    muatGuruSedangIzin(kelompokId)
+      .then((hasil) => {
+        if (!batal) setGuruIzin(hasil);
+      })
+      .catch(() => {
+        // Non-kritis -- gagal diam-diam, bagian sekunder dashboard.
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
+  useEffect(() => {
+    if (!kelompokId) {
+      setMemuatStatistik(false);
+      return;
+    }
+    let batal = false;
+    setMemuatStatistik(true);
+    (async () => {
+      const { data } = await supabase.rpc('statistik_kehadiran', {
+        p: { kelompok_id: kelompokId, hari: 30 },
+      });
+      if (batal) return;
+      const hasil = data as { ringkas?: { persen: number | null }; tren?: TitikTren[] } | null;
+      setStatistik({ persen: hasil?.ringkas?.persen ?? null, tren: hasil?.tren ?? [] });
+      setMemuatStatistik(false);
+    })();
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
   const totalStatus = ringkasan ? ringkasan.hadir + ringkasan.izin + ringkasan.sakit + ringkasan.alpa : 0;
   const persenKelasSelesai =
     ringkasan && ringkasan.totalKelas > 0
@@ -106,6 +232,53 @@ export default function AdminKelpDashboard() {
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+        {!memuatKalender && (
+          <div
+            className={`mb-4 flex items-center gap-3 rounded-card border p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
+              kalenderHariIni ? 'border-[#FDE68A] bg-[#FFFBEB]' : 'border-border bg-panel'
+            }`}
+          >
+            <span
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                kalenderHariIni ? 'bg-[#FEF3C7] text-[#B45309]' : 'bg-panel-2 text-text-dim'
+              }`}
+            >
+              {kalenderHariIni?.jenis === 'libur' ? <CalendarOff size={17} /> : <CalendarCheck2 size={17} />}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className={`text-[12.5px] font-bold ${kalenderHariIni ? 'text-[#92400E]' : 'text-text'}`}>
+                {kalenderHariIni
+                  ? kalenderHariIni.jenis === 'libur'
+                    ? 'Hari ini ditandai LIBUR'
+                    : 'Hari ini ditandai TETAP AKTIF'
+                  : 'Kalender hari ini normal'}
+              </div>
+              {kalenderHariIni?.catatan && (
+                <div className="text-[11px] text-[#92400E]/80">{kalenderHariIni.catatan}</div>
+              )}
+            </div>
+            {kalenderHariIni ? (
+              <button
+                type="button"
+                disabled={sibukKalender}
+                onClick={batalkanKalenderHariIni}
+                className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-[#B45309] bg-transparent px-3 py-1.5 text-[11.5px] font-bold text-[#B45309] disabled:opacity-50"
+              >
+                Batalkan
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={sibukKalender}
+                onClick={tandaiLiburHariIni}
+                className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
+              >
+                Tandai Libur
+              </button>
+            )}
+          </div>
+        )}
 
         {loading && <SkeletonKpi />}
 
@@ -165,6 +338,62 @@ export default function AdminKelpDashboard() {
 
         {!loading && ringkasan && ringkasan.guruBelumIsi.length === 0 && ringkasan.totalKelas > 0 && (
           <p className="mb-4 text-[12.5px] text-sage">Semua kelas sudah diabsen hari ini. Alhamdulillah.</p>
+        )}
+
+        {guruIzin.length > 0 && (
+          <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <div className="mb-2 flex items-center gap-2 text-[13px] font-bold text-text">
+              <UserX size={15} className="text-text-dim" />
+              Guru Sedang Izin/Cuti ({guruIzin.length})
+            </div>
+            <div className="flex flex-col gap-1.5">
+              {guruIzin.map((g) => (
+                <div key={g.guruId} className="flex items-center justify-between text-[12.5px]">
+                  <span className="font-semibold text-text">{g.guruNama}</span>
+                  <span className="text-text-dim">
+                    {g.jenis === 'cuti' ? 'Cuti' : 'Izin'} s.d. {g.tanggalSelesai}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!memuatStatistik && statistik && statistik.tren.length > 0 && (
+          <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <div className="mb-1 flex items-center justify-between">
+              <div className="text-[13px] font-bold text-text">Kehadiran 30 Hari</div>
+              <button
+                type="button"
+                onClick={() => router.push('/statistik')}
+                className="cursor-pointer border-none bg-transparent text-[11.5px] font-bold text-brass"
+              >
+                Lihat Detail
+              </button>
+            </div>
+            {statistik.persen !== null && (
+              <div className="mb-1 text-[22px] font-extrabold text-text">{statistik.persen}%</div>
+            )}
+            <div className="h-[90px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={statistik.tren} margin={{ top: 4, right: 4, bottom: 0, left: -30 }}>
+                  <XAxis
+                    dataKey="tanggal"
+                    tick={{ fill: 'var(--text-dim)', fontSize: 10 }}
+                    stroke="var(--border)"
+                    tickFormatter={(t: string) => t.slice(5)}
+                    minTickGap={30}
+                  />
+                  <YAxis domain={[0, 100]} hide />
+                  <Tooltip
+                    contentStyle={GAYA_TOOLTIP}
+                    formatter={(v) => [`${v}%`, 'Kehadiran']}
+                  />
+                  <Line type="monotone" dataKey="persen" stroke="var(--brass)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
         )}
 
         <div className="mb-3 text-[13px] font-bold text-text">Jalan Pintas</div>

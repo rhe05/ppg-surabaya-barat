@@ -123,3 +123,51 @@ export async function muatRingkasanHariIni(kelompokId: number): Promise<Ringkasa
     guruBelumIsi,
   };
 }
+
+/* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,
+   guru_izin TIDAK punya alur persetujuan admin (self-declared, tidak
+   spt permintaan_generus), jadi ini murni "siapa yg sedang tidak masuk
+   hari ini", bukan antrean yang perlu diputuskan. RLS guru_izin_select_
+   scoped (migrasi 20260818190000) sudah mengizinkan admin_kelompok baca
+   kelompoknya sendiri -- tidak ada migrasi baru. */
+export type GuruIzinAktif = {
+  guruId: number;
+  guruNama: string;
+  jenis: string;
+  tanggalMulai: string;
+  tanggalSelesai: string;
+  alasanKategori: string | null;
+};
+
+export async function muatGuruSedangIzin(kelompokId: number): Promise<GuruIzinAktif[]> {
+  const hariIni = tanggalHariIniLokal();
+  const { data, error } = await supabase
+    .from('guru_izin')
+    .select('guru_id, jenis, tanggal_mulai, tanggal_selesai, alasan_kategori, guru:guru_id(nama)')
+    .eq('kelompok_id', kelompokId)
+    .lte('tanggal_mulai', hariIni)
+    .gte('tanggal_selesai', hariIni);
+  if (error) throw error;
+
+  type Baris = {
+    guru_id: number;
+    jenis: string;
+    tanggal_mulai: string;
+    tanggal_selesai: string;
+    alasan_kategori: string | null;
+    guru: { nama: string } | { nama: string }[] | null;
+  };
+  return ((data ?? []) as Baris[]).map((b) => {
+    const guru = Array.isArray(b.guru) ? b.guru[0] : b.guru;
+    return {
+      guruId: b.guru_id,
+      guruNama: guru?.nama ?? '-',
+      jenis: b.jenis,
+      tanggalMulai: b.tanggal_mulai,
+      tanggalSelesai: b.tanggal_selesai,
+      alasanKategori: b.alasan_kategori,
+    };
+  });
+}
+
+export { tanggalHariIniLokal };
