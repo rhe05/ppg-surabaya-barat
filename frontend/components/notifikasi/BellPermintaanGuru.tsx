@@ -39,6 +39,16 @@ import { Bell, CalendarClock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { hitungAbsenBelumDiisi, type AbsenHilang } from '@/lib/pengingatAbsen';
+import { mainkanBunyiNotifikasi } from '@/lib/bunyiNotifikasi';
+
+/* Lonceng ini REMOUNT tiap pindah halaman (Dashboard/Kurikulum/Jurnal
+   dst masing2 punya RequireAuth+tree sendiri) -- tanpa penanda lintas-
+   navigasi, bunyi akan berdenting ULANG tiap kali guru pindah layar
+   selama backlog yang SAMA belum selesai, terasa mengganggu. sessionStorage
+   (bukan localStorage) menyimpan angka TERBESAR yang sudah pernah
+   dibunyikan dalam sesi tab ini -- bunyi cuma main lagi kalau totalnya
+   naik MELEBIHI itu (ada yang benar2 baru), bukan tiap render/navigasi. */
+const KUNCI_SESI_BUNYI = 'ruangngaji_bunyi_pengingat_terakhir';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -120,6 +130,15 @@ export default function BellPermintaanGuru() {
 
   const belumDibacaPermintaan = daftar.filter((r) => r.status !== 'pending' && !r.guru_dibaca).length;
   const belumDibaca = absenHilang.length + belumDibacaPermintaan;
+
+  useEffect(() => {
+    if (belumDibaca === 0) return;
+    const terakhir = Number(sessionStorage.getItem(KUNCI_SESI_BUNYI) ?? '0');
+    if (belumDibaca > terakhir) {
+      mainkanBunyiNotifikasi();
+      sessionStorage.setItem(KUNCI_SESI_BUNYI, String(belumDibaca));
+    }
+  }, [belumDibaca]);
 
   const perKelasAbsen = new Map<number, { nama: string; tanggal: string[] }>();
   for (const h of absenHilang) {
