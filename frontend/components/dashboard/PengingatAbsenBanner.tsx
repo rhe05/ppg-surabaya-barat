@@ -26,16 +26,20 @@
    -- kalau tidak, kelas kosong akan SELALU muncul "belum diisi" krn
    memang tidak pernah bisa py absensi.
 
-   Ditutup (tombol X) HANYA utk sesi tampilan ini (state lokal, bukan
-   localStorage) -- muncul lagi di kunjungan Dashboard berikutnya selama
-   masih ada yang belum diisi. Sengaja begini (bukan "jangan tampilkan
-   lagi permanen"): pengingat kehadiran itu berulang scr alami (hari
-   kerja baru = potensi kekurangan baru), menutup permanen kontraproduktif
-   thd tujuan fiturnya. */
+   TANPA tombol tutup (diputuskan owner 2026-08-24, ronde kedua): ini
+   status "ada tindakan yang diperlukan", bukan info yang boleh diabaikan
+   -- pola GitHub "failing checks"/Linear "overdue", bukan pola toast yang
+   boleh di-dismiss. Kalau ada tombol X, guru bisa menutupnya sekali lalu
+   lupa padahal absennya tetap kosong; tanpa tombol itu, satu-satunya
+   cara banner ini hilang adalah datanya BENAR-BENAR terisi. Ini otomatis
+   terjadi lewat effect di bawah yang menghitung ulang tiap kali komponen
+   dimuat (kembali ke Dashboard dari /absensi setelah Simpan, atau dari
+   menu Input Kehadiran mana pun) -- tidak butuh mekanisme refresh
+   tambahan. */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { CalendarClock, X } from 'lucide-react';
+import { CalendarClock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
@@ -67,7 +71,6 @@ export default function PengingatAbsenBanner({
 }) {
   const router = useRouter();
   const [hilang, setHilang] = useState<Hilang[]>([]);
-  const [ditutup, setDitutup] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -153,7 +156,7 @@ export default function PengingatAbsenBanner({
     };
   }, [kelas]);
 
-  if (loading || ditutup || hilang.length === 0) return null;
+  if (loading || hilang.length === 0) return null;
 
   const perKelas = new Map<number, { nama: string; tanggal: string[] }>();
   for (const h of hilang) {
@@ -191,14 +194,6 @@ export default function PengingatAbsenBanner({
             Isi Sekarang
           </button>
         </div>
-        <button
-          type="button"
-          aria-label="Tutup pengingat"
-          onClick={() => setDitutup(true)}
-          className="flex h-7 w-7 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-[#B45309]/70 transition-colors duration-150 hover:bg-[#FEF3C7]"
-        >
-          <X size={15} />
-        </button>
       </div>
     </div>
   );
