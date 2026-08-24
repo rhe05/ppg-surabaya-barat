@@ -675,7 +675,12 @@ export default function AdminKelpDashboard() {
         )}
 
         {!loadingBelumIsi && belumIsiBulan.length === 0 && (
-          <p className="mb-4 text-[12.5px] text-sage">Absensi bulan ini sudah lengkap diisi. Alhamdulillah.</p>
+          <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D1FAE5] text-sage">
+              <CalendarCheck2 size={17} />
+            </span>
+            <span className="text-[13px] font-bold text-sage">Alhamdulillah, Absensi Sudah di Input</span>
+          </div>
         )}
 
         {guruIzin.length > 0 && (
