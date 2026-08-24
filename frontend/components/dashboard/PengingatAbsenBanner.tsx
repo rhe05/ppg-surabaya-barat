@@ -3,28 +3,18 @@
 /* Banner pengingat "belum input absen" di Dashboard guru (opsi 1 dari 2
    yang diajukan owner 2026-08-24 -- opsi 2, push notification OS-level
    sungguhan, butuh app jadi PWA dulu, SENGAJA belum dikerjakan, itu
-   proyek terpisah yang lebih besar).
+   proyek terpisah yang lebih besar). Susulan 2026-08-24: pengingat yang
+   SAMA juga muncul di lonceng (BellPermintaanGuru.tsx, tampil di semua
+   halaman guru bukan cuma Dashboard) -- algoritma "kelas+tanggal mana
+   yang belum diisi" dipindah ke lib/pengingatAbsen.ts supaya keduanya
+   TIDAK menduplikasi query/logikanya sendiri2.
 
    Pola SaaS standar (Slack/Notion/Linear "catch-up nudge"): banner amber
    (BUKAN merah -- ini pengingat, bukan error) muncul di atas daftar
-   kelas Dashboard begitu guru buka app, berisi tanggal2 kerja 7 hari
-   terakhir yang kelasnya belum py baris absensi sama sekali, dgn tombol
-   "Isi Sekarang" yang LANGSUNG lompat ke /absensi dgn kelas+tanggal
-   sudah terisi (deep-link lewat query string, lihat app/absensi/page.tsx)
-   -- bukan cuma pemberitahuan pasif, tapi satu tap menuju penyelesaian.
-
-   Jendela dicek: 7 hari kalender ke belakang dari KEMARIN (bukan hari
-   ini -- sesi hari ini mungkin belum selesai/belum waktunya), disaring
-   Sabtu/Minggu/tanggal merah pakai nonaktifAkhirPekanLibur yang sama
-   dgn kalender Input Kehadiran, supaya definisi "hari kerja" konsisten
-   di seluruh app.
-
-   "Belum diisi" = kelas itu NOL baris absensi utk tanggal itu (bukan
-   sebagian) -- sama dgn definisi "Hari Aktif" di GuruDashboard/Riwayat
-   Kehadiran (tanggalPerKelas Set, hariAktif = ukurannya). Kelas dgn 0
-   santri aktif SENGAJA dilewati (pemanggil menyaring lewat prop `kelas`)
-   -- kalau tidak, kelas kosong akan SELALU muncul "belum diisi" krn
-   memang tidak pernah bisa py absensi.
+   kelas Dashboard begitu guru buka app, dgn tombol "Isi Sekarang" yang
+   LANGSUNG lompat ke /absensi dgn kelas+tanggal sudah terisi (deep-link
+   lewat query string, lihat app/absensi/page.tsx) -- bukan cuma
+   pemberitahuan pasif, tapi satu tap menuju penyelesaian.
 
    TANPA tombol tutup (diputuskan owner 2026-08-24, ronde kedua): ini
    status "ada tindakan yang diperlukan", bukan info yang boleh diabaikan
@@ -40,27 +30,17 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarClock } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
-
-const JUMLAH_HARI_DICEK = 7;
+import { hitungAbsenBelumDiisi, type AbsenHilang } from '@/lib/pengingatAbsen';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-function tanggalStr(d: Date) {
-  const dua = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
-}
-
 function labelTanggalPendek(tglStr: string) {
   const d = new Date(tglStr + 'T00:00:00');
   return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]}`;
 }
-
-type Hilang = { kelasId: number; kelasNama: string; tanggal: string };
 
 export default function PengingatAbsenBanner({
   kelas,
@@ -70,87 +50,22 @@ export default function PengingatAbsenBanner({
   kelas: { id: number; nama: string }[];
 }) {
   const router = useRouter();
-  const [hilang, setHilang] = useState<Hilang[]>([]);
+  const [hilang, setHilang] = useState<AbsenHilang[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let batal = false;
-
-    async function cek() {
-      if (kelas.length === 0) {
-        setLoading(false);
-        return;
-      }
-
-      const kandidat: string[] = [];
-      const sekarang = new Date();
-      for (let i = 1; i <= JUMLAH_HARI_DICEK; i++) {
-        const d = new Date(sekarang);
-        d.setDate(d.getDate() - i);
-        const s = tanggalStr(d);
-        if (!nonaktifAkhirPekanLibur(s, d)) kandidat.push(s);
-      }
-      if (kandidat.length === 0) {
-        setLoading(false);
-        return;
-      }
-      const awal = kandidat[kandidat.length - 1];
-      const akhir = kandidat[0];
-
-      try {
-        const kelasIds = kelas.map((k) => k.id);
-        const { data: santriData, error: errSantri } = await supabase
-          .from('santri')
-          .select('id, kelas_id')
-          .in('kelas_id', kelasIds)
-          .is('deleted_at', null);
-        if (errSantri) throw errSantri;
-
-        const kelasDariSantri = new Map<number, number>();
-        (santriData ?? []).forEach((s) => {
-          if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
-        });
-
-        const terisi = new Map<number, Set<string>>();
-        kelasIds.forEach((id) => terisi.set(id, new Set()));
-
-        if (kelasDariSantri.size > 0) {
-          const santriIds = [...kelasDariSantri.keys()];
-          const { data: absensiData, error: errAbsensi } = await supabase
-            .from('absensi')
-            .select('santri_id, tanggal')
-            .in('santri_id', santriIds)
-            .gte('tanggal', awal)
-            .lte('tanggal', akhir)
-            .is('deleted_at', null);
-          if (errAbsensi) throw errAbsensi;
-
-          (absensiData ?? []).forEach((a) => {
-            const kId = kelasDariSantri.get(a.santri_id);
-            if (kId != null) terisi.get(kId)?.add(a.tanggal);
-          });
-        }
-
-        if (batal) return;
-        const daftar: Hilang[] = [];
-        for (const k of kelas) {
-          for (const tgl of kandidat) {
-            if (!terisi.get(k.id)?.has(tgl)) {
-              daftar.push({ kelasId: k.id, kelasNama: k.nama, tanggal: tgl });
-            }
-          }
-        }
-        daftar.sort((a, b) => a.tanggal.localeCompare(b.tanggal));
-        setHilang(daftar);
-      } catch {
+    hitungAbsenBelumDiisi(kelas)
+      .then((daftar) => {
+        if (!batal) setHilang(daftar);
+      })
+      .catch(() => {
         // Pengingat bersifat non-kritis -- gagal diam-diam, jangan
         // mengganggu Dashboard dgn pesan error utk fitur sekunder ini.
-      } finally {
+      })
+      .finally(() => {
         if (!batal) setLoading(false);
-      }
-    }
-
-    cek();
+      });
     return () => {
       batal = true;
     };

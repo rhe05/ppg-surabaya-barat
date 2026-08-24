@@ -3,22 +3,52 @@
 /* Lonceng "Permintaan Masuk" utk GURU (top bar JurnalHeaderChrome.tsx +
    GuruDashboard.tsx) -- menampilkan status 5 aksi Data Generus yang sudah
    diajukan (migrasi 20260821180000: tambah/pindah kelas/naik kelas/
-   pindah domisili/non aktif, SEMUA wajib lewat persetujuan Admin Kelp).
+   pindah domisili/non aktif, SEMUA wajib lewat persetujuan Admin Kelp),
+   DITAMBAH (2026-08-24) bagian "Perlu Tindakan" -- absen yang belum
+   diisi, algoritma sama dgn PengingatAbsenBanner.tsx (lib/pengingatAbsen.ts).
 
-   Badge angka = jumlah permintaan yang SUDAH DIPUTUSKAN (approved/
-   rejected) TAPI belum ditandai dibaca guru (guru_dibaca=false) -- bukan
-   jumlah pending, krn owner minta lonceng ini utk "info sudah
-   terkonfirmasi", bukan pengingat menunggu. Dropdown tetap menampilkan
-   SEMUA (termasuk yang masih pending) supaya guru bisa memantau progres.
+   Digabung ke lonceng yang SAMA (bukan bikin ikon lonceng kedua) --
+   pola SaaS standar (Gmail/Slack/GitHub: satu lonceng utk segala jenis
+   notifikasi, dibedakan lewat bagian/label di dalam dropdown, bukan
+   ikon terpisah-pisah). Alasan utamanya: lonceng ini tampil di HAMPIR
+   semua halaman guru sedangkan PengingatAbsenBanner cuma di Dashboard --
+   guru yang langsung ke Kurikulum/Jurnal tanpa lewat Dashboard tidak
+   akan pernah lihat pengingatnya kalau cuma lewat banner.
 
-   Ditandai dibaca OTOMATIS begitu dropdown dibuka (bukan per-item) --
-   cukup utk kebutuhan saat ini, konsisten dgn pola "buka = sudah lihat"
-   yang umum di notifikasi semacam ini. */
+   Badge angka = JUMLAH digabung dari dua sumber yang beda sifat (pola
+   umum juga di Gmail -- semua kategori dijumlah jadi satu angka, lalu
+   dipisah section di dalam dropdown):
+   - Perlu Tindakan (absen belum diisi) -- "tugas belum selesai", SELALU
+     dihitung selama masih ada yang kosong.
+   - Permintaan Data Generus yang SUDAH DIPUTUSKAN (approved/rejected)
+     TAPI belum ditandai dibaca guru -- "kotak masuk belum dibaca", BUKAN
+     jumlah pending (owner minta bagian ini utk "info sudah terkonfirmasi").
+   Dropdown Permintaan tetap menampilkan SEMUA (termasuk yang masih
+   pending) supaya guru bisa memantau progres.
+
+   Ditandai dibaca OTOMATIS begitu dropdown dibuka (bukan per-item,
+   khusus bagian Permintaan) -- cukup utk kebutuhan saat ini, konsisten
+   dgn pola "buka = sudah lihat" yang umum di notifikasi semacam ini.
+   Perlu Tindakan TIDAK py status "dibaca" -- hilang sendiri begitu
+   absennya benar2 terisi (persis PengingatAbsenBanner, tanpa tombol
+   tutup), bukan begitu dropdown dibuka. */
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bell } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Bell, CalendarClock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { hitungAbsenBelumDiisi, type AbsenHilang } from '@/lib/pengingatAbsen';
+
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+function labelTanggalPendek(tglStr: string) {
+  const d = new Date(tglStr + 'T00:00:00');
+  return `${d.getDate()} ${NAMA_BULAN[d.getMonth()]}`;
+}
 
 type Permintaan = {
   id: number;
@@ -44,8 +74,10 @@ function formatTanggal(iso: string) {
 
 export default function BellPermintaanGuru() {
   const { profile } = useAuth();
+  const router = useRouter();
   const guruId = profile?.guru_id ?? null;
   const [daftar, setDaftar] = useState<Permintaan[]>([]);
+  const [absenHilang, setAbsenHilang] = useState<AbsenHilang[]>([]);
   const [terbuka, setTerbuka] = useState(false);
 
   const muat = useCallback(async () => {
@@ -59,11 +91,43 @@ export default function BellPermintaanGuru() {
     setDaftar((data ?? []) as Permintaan[]);
   }, [guruId]);
 
+  /* Lonceng ini dirender di halaman APA PUN (Dashboard, Kurikulum,
+     Jurnal, dst) yang belum tentu sudah py daftar kelas guru siap pakai
+     spt GuruDashboard -- jadi ambil sendiri di sini, bukan lewat prop.
+     Query kecil (kelas milik 1 guru), duplikasi dgn fetch GuruDashboard
+     KHUSUS di halaman Dashboard bisa terjadi tapi murah & tidak berarti
+     dibanding kerumitan mengalirkan prop lintas banyak halaman. */
+  const muatAbsenHilang = useCallback(async () => {
+    if (!guruId) return;
+    const { data } = await supabase
+      .from('kelas')
+      .select('id, nama, santri_count')
+      .eq('guru_id', guruId)
+      .is('deleted_at', null);
+    const kelasAktif = (data ?? []).filter((k) => k.santri_count > 0);
+    try {
+      const hasil = await hitungAbsenBelumDiisi(kelasAktif.map((k) => ({ id: k.id, nama: k.nama })));
+      setAbsenHilang(hasil);
+    } catch {
+      // Non-kritis -- gagal diam-diam, jangan mengganggu lonceng.
+    }
+  }, [guruId]);
+
   useEffect(() => {
     muat();
-  }, [muat]);
+    muatAbsenHilang();
+  }, [muat, muatAbsenHilang]);
 
-  const belumDibaca = daftar.filter((r) => r.status !== 'pending' && !r.guru_dibaca).length;
+  const belumDibacaPermintaan = daftar.filter((r) => r.status !== 'pending' && !r.guru_dibaca).length;
+  const belumDibaca = absenHilang.length + belumDibacaPermintaan;
+
+  const perKelasAbsen = new Map<number, { nama: string; tanggal: string[] }>();
+  for (const h of absenHilang) {
+    const ada = perKelasAbsen.get(h.kelasId);
+    if (ada) ada.tanggal.push(h.tanggal);
+    else perKelasAbsen.set(h.kelasId, { nama: h.kelasNama, tanggal: [h.tanggal] });
+  }
+  const absenPalingAwal = absenHilang[0];
 
   async function toggle() {
     const buka = !terbuka;
@@ -98,6 +162,43 @@ export default function BellPermintaanGuru() {
         <>
           <div className="fixed inset-0 z-[590]" onClick={() => setTerbuka(false)} />
           <div className="absolute top-full right-0 z-[591] mt-2 max-h-[70vh] w-[300px] overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+            {absenHilang.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 text-[12px] font-bold tracking-[0.02em] text-brass uppercase">
+                  Perlu Tindakan
+                </div>
+                <div className="mb-1 rounded-[10px] bg-[#FFFBEB] px-2.5 py-2.5">
+                  <div className="mb-1.5 flex items-start gap-2">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#FEF3C7] text-[#B45309]">
+                      <CalendarClock size={13} />
+                    </span>
+                    <div className="min-w-0 flex-1 text-[12px] leading-snug text-[#92400E]">
+                      <div className="font-bold">Ada absen yang belum diisi</div>
+                      <div className="mt-0.5 flex flex-col gap-0.5 text-[#92400E]/85">
+                        {[...perKelasAbsen.values()].map((k, idx) => (
+                          <div key={idx}>
+                            <span className="font-semibold">{k.nama}</span>
+                            {': '}
+                            {k.tanggal.map(labelTanggalPendek).join(', ')}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTerbuka(false);
+                      router.push(`/absensi?kelasId=${absenPalingAwal.kelasId}&tanggal=${absenPalingAwal.tanggal}`);
+                    }}
+                    className="ml-8 cursor-pointer rounded-[var(--radius-button)] border-none bg-[#B45309] px-3 py-1.5 text-[11.5px] font-bold text-white transition-transform duration-150 active:scale-[0.96]"
+                  >
+                    Isi Sekarang
+                  </button>
+                </div>
+              </>
+            )}
+
             <div className="px-2 py-1.5 text-[12px] font-bold tracking-[0.02em] text-text-faint uppercase">
               Permintaan Data Generus
             </div>
