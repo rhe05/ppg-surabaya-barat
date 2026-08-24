@@ -72,6 +72,7 @@ import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 // Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
@@ -667,13 +668,25 @@ function RiwayatKehadiranContent() {
                   </th>
                   {tanggalList.map((tgl) => {
                     const d = new Date(tgl + 'T00:00:00');
+                    /* Tanggal merah nasional (LIBUR_NASIONAL_2026) yang
+                       jatuh di hari kerja tetap muncul sbg kolom (matrix
+                       ini cuma menyaring Sabtu/Minggu, bukan hari libur) --
+                       diminta owner: tandai kolomnya warna merah supaya
+                       kelihatan kenapa sel di bawahnya kosong/tidak wajib
+                       diisi, bukan cuma tebakan. */
+                    const namaLibur = LIBUR_NASIONAL_2026[tgl];
                     return (
                       <th
                         key={tgl}
-                        className="sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border bg-panel-2 px-2.5 py-2 text-center text-[11px] font-bold text-text"
+                        title={namaLibur}
+                        className={`sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border px-2.5 py-2 text-center text-[11px] font-bold ${
+                          namaLibur ? 'bg-[#FEF2F2] text-red' : 'bg-panel-2 text-text'
+                        }`}
                       >
                         {d.getDate()}
-                        <span className="mt-0.5 block text-[9px] font-semibold text-text">
+                        <span
+                          className={`mt-0.5 block text-[9px] font-semibold ${namaLibur ? 'text-red' : 'text-text'}`}
+                        >
                           {HARI_PENDEK[d.getDay()]}
                         </span>
                       </th>
