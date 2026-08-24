@@ -111,22 +111,14 @@ const KELAS_INPUT =
   'text-text placeholder:text-text-faint focus:border-brass ' +
   'focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 
-/* Tombol sekunder "ghost" -- diminta owner (2026-08-24): tautan teks
-   polos tanpa bungkus ("Tidak ketemu.../daftar manual", "Keluar")
-   terasa murahan/belum jadi. Dibungkus jadi tombol bulat pil bertepi
-   tipis (border, bukan bg solid -- tetap kalah menonjol drpd tombol
-   brass/hijau utama di atasnya), target sentuh 44px, transisi halus
-   spt tombol lain di app ini -- bukan lagi teks polos yg cuma berganti
-   warna+underline saat hover. */
-const KELAS_TOMBOL_GHOST =
-  'mt-2.5 flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-[var(--radius-button)] ' +
-  'border border-border bg-transparent px-4 text-center text-[13px] font-medium text-text-dim ' +
-  'transition-colors duration-150 hover:border-brass hover:bg-[#FFFBEB] hover:text-brass active:scale-[0.98]';
-
-/* Tombol Keluar -- warna beda dari tombol ghost netral di atas (diminta
-   owner 2026-08-24): merah pudar khas aksi "keluar/sign out", bukan
-   abu-abu netral yang sama dgn tautan fallback lain -- standar SaaS
-   (sign-out selalu dibedakan warnanya dari aksi netral lain). */
+/* Tombol Keluar -- pil bertepi tipis (bukan teks polos, diminta owner
+   2026-08-24 supaya tidak terasa murahan/belum jadi), merah pudar khas
+   aksi "keluar/sign out" -- standar SaaS (sign-out selalu dibedakan
+   warnanya dari aksi netral lain). Dulu ada jg KELAS_TOMBOL_GHOST utk
+   dua tombol fallback "daftar manual" (guru & admin_kelp) dgn warna
+   netral -- keduanya sudah dihapus (diminta owner susulan: jalur klaim
+   cepat kini satu2nya jalan, tanpa fallback manual), jadi konstanta itu
+   ikut dibuang drpd dibiarkan tidak terpakai. */
 const KELAS_TOMBOL_KELUAR =
   'mt-2.5 flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-[var(--radius-button)] ' +
   'border border-border bg-transparent px-4 text-center text-[13px] font-medium text-red/80 ' +
@@ -571,11 +563,11 @@ export default function OnboardingPage() {
               autoComplete="off"
               className={KELAS_INPUT}
             />
-            <p className="mt-1.5 text-[12px] text-text">
-              {peran === 'guru' && carianGuru !== 'manual'
-                ? 'Ketik nama lengkap Anda seperti yang admin catat, lalu cari di bawah.'
-                : 'Nama ini yang muncul di aplikasi dan dilihat admin saat menyetujui.'}
-            </p>
+            {!(peran === 'guru' && carianGuru !== 'manual') && (
+              <p className="mt-1.5 text-[12px] text-text">
+                Nama ini yang muncul di aplikasi dan dilihat admin saat menyetujui.
+              </p>
+            )}
           </div>
 
           <div className="mb-5">
@@ -595,24 +587,16 @@ export default function OnboardingPage() {
 
           {/* Jalur klaim cepat guru (20 Agt): ganti picker Kelompok dgn
               pencarian nama ke tabel guru yang sudah ada -- tidak perlu
-              admin, tidak perlu verifikasi email. Kalau tidak ketemu,
-              "Daftar manual" turun ke picker Kelompok yang sama seperti
-              admin_kelompok (alur lama, menunggu persetujuan admin). */}
+              admin, tidak perlu verifikasi email. */}
           {lingkup === 'kelompok' && peran === 'guru' && carianGuru !== 'manual' && (
             <div className="mb-5">
-              <p className="mb-2 text-[12px] font-medium text-text">Hubungkan ke data guru</p>
-              <p className="mb-3 text-[12.5px] text-text">
-                Nama di atas akan dicocokkan ke data guru yang sudah terdaftar. Besar/kecil huruf
-                tidak masalah.
-              </p>
-
               <button
                 type="button"
                 disabled={!namaValid || carianGuru === 'mencari'}
                 onClick={cariGuru}
                 className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-[#FFFBEB] px-4 py-3 text-[13.5px] font-semibold text-brass disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {carianGuru === 'mencari' ? 'Mencari...' : 'Cari data saya'}
+                {carianGuru === 'mencari' ? 'Memproses...' : 'Daftar'}
               </button>
 
               {errorCari && (
@@ -625,7 +609,7 @@ export default function OnboardingPage() {
                 <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
                   Nama <span className="font-semibold text-text">&ldquo;{nama.trim()}&rdquo;</span>{' '}
                   tidak ditemukan di data guru yang sudah terdaftar. Periksa lagi ejaannya, atau
-                  daftar manual di bawah.
+                  hubungi admin kelompok.
                 </div>
               )}
 
@@ -667,17 +651,6 @@ export default function OnboardingPage() {
                   </button>
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCarianGuru('manual');
-                  setErrorCari(null);
-                }}
-                className={KELAS_TOMBOL_GHOST}
-              >
-                Tidak ketemu / bukan saya — daftar manual
-              </button>
             </div>
           )}
 
