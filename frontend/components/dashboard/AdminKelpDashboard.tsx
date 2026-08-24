@@ -228,7 +228,7 @@ export default function AdminKelpDashboard() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader judul="Dashboard" />
+      <AdminHeader judul="Dashboard" tampilkanLogo />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
