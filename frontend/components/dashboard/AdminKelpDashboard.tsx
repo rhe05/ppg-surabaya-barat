@@ -295,6 +295,30 @@ export default function AdminKelpDashboard() {
         dibuat_oleh: profile?.id ?? null,
       });
       if (err) throw new Error(err.message);
+
+      /* Pengumuman OTOMATIS (2026-08-24, diminta owner) -- begitu admin
+         menandai libur, guru kelompoknya harus lihat kabar ini lewat
+         lonceng (BellPermintaanGuru.tsx), bukan cuma diam2 di kalender
+         yang tidak semua orang buka. Insert biasa ke tabel `pengumuman`
+         yang SUDAH ada (halaman /pengumuman, RLS-nya sudah izinkan
+         admin_kelompok insert scoped kelompoknya sendiri -- migrasi
+         20260818140000), TIDAK ada tabel/kolom baru. Kegagalan di sini
+         SENGAJA tidak membatalkan penandaan kalender di atas (aksi utama
+         sudah berhasil) -- diam2 saja kalau pengumumannya gagal dibuat. */
+      const hariIniStr = tanggalHariIniLokal();
+      const [thnP, blnP, tglP] = hariIniStr.split('-').map(Number);
+      try {
+        await supabase.from('pengumuman').insert({
+          kelompok_id: kelompokId,
+          judul: `Libur KBM Hari Ini (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
+          isi: alasanLibur.trim(),
+          tanggal: hariIniStr,
+          dibuat_oleh: profile?.id ?? null,
+        });
+      } catch {
+        // Non-kritis -- penandaan kalender tetap berhasil walau ini gagal.
+      }
+
       setModalLiburTerbuka(false);
       setAlasanLibur('');
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);

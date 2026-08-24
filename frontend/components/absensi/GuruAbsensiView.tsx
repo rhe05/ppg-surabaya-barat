@@ -204,6 +204,15 @@ export default function GuruAbsensiView({
   }, [kelasDetail, kelasId]);
 
   const aktif = kelasDetail.find((k) => k.id === kelasId) ?? null;
+
+  /* Tombol Simpan BENAR-BENAR dikunci (HTML disabled) di tanggal libur
+     (2026-08-24, diminta owner) -- sebelumnya tombolnya tetap bisa
+     diklik dan cuma menampilkan popup peringatan (lihat handleSimpanGuru
+     di app/absensi/page.tsx). Popup itu TETAP ada sbg lapisan kedua
+     (jaga2 kalau `tanggal` berubah lewat jalur lain tanpa re-render
+     tombol ini), tapi sekarang guru tidak bisa menekannya sama sekali
+     di tanggal yang memang tidak ada KBM. */
+  const liburTanggalDipilih = tanggalNonaktif(tanggal, new Date(tanggal + 'T00:00:00'));
   const ringkasan = STATUS_URUT.reduce(
     (acc, s) => {
       acc[s.kunci] = santri.filter((sn) => (pilihan[sn.id] ?? 'hadir') === s.kunci).length;
@@ -591,12 +600,14 @@ export default function GuruAbsensiView({
             <button
               type="button"
               onClick={onSimpan}
-              disabled={saving || loading}
-              className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60"
+              disabled={saving || loading || !!liburTanggalDipilih}
+              className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               style={{
-                background: sudahTersimpanSemua
+                background: liburTanggalDipilih
                   ? 'linear-gradient(135deg, #94A3B8, #64748B)'
-                  : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
+                  : sudahTersimpanSemua
+                    ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                    : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
                 boxShadow: sudahTersimpanSemua
                   ? '0 4px 12px rgba(100,116,139,0.25)'
                   : '0 6px 16px rgba(5,150,105,0.3)',
@@ -604,9 +615,11 @@ export default function GuruAbsensiView({
             >
               {saving
                 ? 'Menyimpan...'
-                : sudahTersimpanSemua
-                  ? '✓ Absen Tersimpan'
-                  : 'Simpan Kehadiran'}
+                : liburTanggalDipilih
+                  ? 'Tidak Ada KBM (Libur)'
+                  : sudahTersimpanSemua
+                    ? '✓ Absen Tersimpan'
+                    : 'Simpan Kehadiran'}
             </button>
           </div>
         </div>

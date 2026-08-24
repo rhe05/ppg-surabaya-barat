@@ -47,11 +47,26 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
-import { Bell, CalendarClock } from 'lucide-react';
+import { Bell, CalendarClock, Megaphone } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { hitungAbsenBelumDiisi, type AbsenHilang } from '@/lib/pengingatAbsen';
 import { mainkanBunyiNotifikasi } from '@/lib/bunyiNotifikasi';
+
+/* Bagian "Pengumuman" (2026-08-24, diminta owner) -- awalnya khusus utk
+   pengumuman "Libur KBM" yang dibuat OTOMATIS begitu admin_kelompok
+   menandai libur (AdminKelpDashboard.tsx, "Tandai Libur"), tapi
+   ditampilkan utk SEMUA pengumuman kelompok (baik dibuat manual lewat
+   /pengumuman maupun otomatis) -- guru cuma py satu lonceng, tidak
+   masuk akal kalau lonceng itu cuma "tahu" sebagian pengumuman.
+   Belum-dibaca dilacak client-side (localStorage id pengumuman terbesar
+   yang sudah pernah dilihat) BUKAN kolom DB baru -- pengumuman adalah
+   broadcast ke SATU kelompok (bukan baris per-guru spt permintaan_generus
+   yang punya guru_dibaca), jadi "siapa yang sudah baca yang mana" wajar
+   dilacak per-perangkat, bukan disimpan server. */
+const KUNCI_PENGUMUMAN_DIBACA = 'ruangngaji_pengumuman_dibaca_id';
+
+type Pengumuman = { id: number; judul: string; isi: string; tanggal: string };
 
 /* Lonceng ini REMOUNT tiap pindah halaman (Dashboard/Kurikulum/Jurnal
    dst masing2 punya RequireAuth+tree sendiri) -- tanpa penanda lintas-
@@ -100,6 +115,8 @@ export default function BellPermintaanGuru() {
   const guruId = profile?.guru_id ?? null;
   const [daftar, setDaftar] = useState<Permintaan[]>([]);
   const [absenHilang, setAbsenHilang] = useState<AbsenHilang[]>([]);
+  const [pengumuman, setPengumuman] = useState<Pengumuman[]>([]);
+  const [idPengumumanDibaca, setIdPengumumanDibaca] = useState(0);
   const [terbuka, setTerbuka] = useState(false);
   const [posisi, setPosisi] = useState<{ top: number; right: number } | null>(null);
   const tombolRef = useRef<HTMLButtonElement>(null);
@@ -140,13 +157,27 @@ export default function BellPermintaanGuru() {
     }
   }, [guruId, profile?.scope_kelompok_id]);
 
+  const muatPengumuman = useCallback(async () => {
+    if (!profile?.scope_kelompok_id) return;
+    const { data } = await supabase
+      .from('pengumuman')
+      .select('id, judul, isi, tanggal')
+      .eq('kelompok_id', profile.scope_kelompok_id)
+      .order('id', { ascending: false })
+      .limit(10);
+    setPengumuman((data ?? []) as Pengumuman[]);
+  }, [profile?.scope_kelompok_id]);
+
   useEffect(() => {
     muat();
     muatAbsenHilang();
-  }, [muat, muatAbsenHilang]);
+    muatPengumuman();
+    setIdPengumumanDibaca(Number(localStorage.getItem(KUNCI_PENGUMUMAN_DIBACA) ?? '0'));
+  }, [muat, muatAbsenHilang, muatPengumuman]);
 
   const belumDibacaPermintaan = daftar.filter((r) => r.status !== 'pending' && !r.guru_dibaca).length;
-  const belumDibaca = absenHilang.length + belumDibacaPermintaan;
+  const belumDibacaPengumuman = pengumuman.filter((p) => p.id > idPengumumanDibaca).length;
+  const belumDibaca = absenHilang.length + belumDibacaPermintaan + belumDibacaPengumuman;
 
   useEffect(() => {
     if (belumDibaca === 0) return;
@@ -173,6 +204,14 @@ export default function BellPermintaanGuru() {
     }
     setTerbuka(buka);
     if (!buka) return;
+
+    if (pengumuman.length > 0) {
+      const idTerbesar = Math.max(...pengumuman.map((p) => p.id));
+      if (idTerbesar > idPengumumanDibaca) {
+        localStorage.setItem(KUNCI_PENGUMUMAN_DIBACA, String(idTerbesar));
+        setIdPengumumanDibaca(idTerbesar);
+      }
+    }
 
     const idBelumDibaca = daftar.filter((r) => r.status !== 'pending' && !r.guru_dibaca).map((r) => r.id);
     if (idBelumDibaca.length === 0) return;
@@ -242,6 +281,32 @@ export default function BellPermintaanGuru() {
                     Isi Sekarang
                   </button>
                 </div>
+              </>
+            )}
+
+            {pengumuman.length > 0 && (
+              <>
+                <div className="px-2 py-1.5 text-[12px] font-bold tracking-[0.02em] text-text-faint uppercase">
+                  Pengumuman
+                </div>
+                {pengumuman.slice(0, 5).map((p) => (
+                  <div key={p.id} className="mb-1 rounded-[10px] px-2 py-2.5 hover:bg-bg">
+                    <div className="flex items-start gap-2">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgba(5,150,105,0.12)] text-sage">
+                        <Megaphone size={13} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="truncate text-[12.5px] font-bold text-text">{p.judul}</span>
+                          <span className="shrink-0 text-[10.5px] text-text-faint">
+                            {labelTanggalPendek(p.tanggal)}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-text-dim">{p.isi}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </>
             )}
 

@@ -73,6 +73,7 @@ import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
+import { muatOverrideKelompok, type OverrideKelompok } from '@/lib/kalenderKelompok';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 // Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
@@ -190,6 +191,28 @@ function RiwayatKehadiranContent() {
   const [baris, setBaris] = useState<{ santri: Santri; selByDate: Record<string, SelAbsensi> }[]>(
     [],
   );
+
+  /* Override kalender per kelompok (kalender_kelompok, 2026-08-24) --
+     dulu kolom merah di sini CUMA libur nasional (LIBUR_NASIONAL_2026).
+     Diminta owner: hari yang admin_kelompok tandai libur MENDADAK
+     (mis. lewat "Tandai Libur" di Dashboard admin_kelp) juga harus
+     kelihatan merah di sini, bukan cuma warna beda -- guru bisa langsung
+     tahu KENAPA sel di bawahnya kosong tanpa perlu buka kalender lain.
+     'aktif' (kelp tetap masuk di tanggal merah nasional) SENGAJA tidak
+     mengubah warna kolom nasional itu -- persis prinsip lib/kalenderKelompok.ts
+     ("kalender tanggal merah biarkan saja tetap merah"), cuma menambah
+     kolom BARU yang merah kalau jenisnya 'libur'. */
+  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  useEffect(() => {
+    if (!profile?.scope_kelompok_id) return;
+    let batal = false;
+    muatOverrideKelompok(profile.scope_kelompok_id).then((peta) => {
+      if (!batal) setOverrideKelompok(peta);
+    });
+    return () => {
+      batal = true;
+    };
+  }, [profile?.scope_kelompok_id]);
   const [hariAktif, setHariAktif] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -675,19 +698,26 @@ function RiwayatKehadiranContent() {
                        kelihatan kenapa sel di bawahnya kosong/tidak wajib
                        diisi, bukan cuma tebakan. */
                     const namaLibur = LIBUR_NASIONAL_2026[tgl];
+                    /* Libur MENDADAK per kelompok (bukan nasional) --
+                       ov.jenis === 'libur' di tanggal yang bukan tanggal
+                       merah nasional. 'aktif' TIDAK diproses di sini
+                       (bukan tujuannya kolom ini). */
+                    const ov = overrideKelompok.get(tgl);
+                    const liburKelompok = ov?.jenis === 'libur' ? (ov.catatan || 'Libur') : null;
+                    const tandaiMerah = !!namaLibur || !!liburKelompok;
                     return (
                       <th
                         key={tgl}
-                        title={namaLibur}
+                        title={namaLibur || liburKelompok || undefined}
                         className={`sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border px-2.5 py-2 text-center text-[11px] font-bold ${
-                          namaLibur ? 'bg-[#FEF2F2] text-red' : 'bg-panel-2 text-text'
+                          tandaiMerah ? 'bg-[#FEF2F2] text-red' : 'bg-panel-2 text-text'
                         }`}
                       >
                         {d.getDate()}
                         <span
-                          className={`mt-0.5 block text-[9px] font-semibold ${namaLibur ? 'text-red' : 'text-text'}`}
+                          className={`mt-0.5 block text-[9px] font-semibold ${tandaiMerah ? 'text-red' : 'text-text'}`}
                         >
-                          {HARI_PENDEK[d.getDay()]}
+                          {liburKelompok ? 'Libur' : HARI_PENDEK[d.getDay()]}
                         </span>
                       </th>
                     );
