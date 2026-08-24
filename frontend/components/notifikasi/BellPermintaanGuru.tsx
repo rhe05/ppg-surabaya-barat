@@ -130,12 +130,15 @@ export default function BellPermintaanGuru() {
       .is('deleted_at', null);
     const kelasAktif = (data ?? []).filter((k) => k.santri_count > 0);
     try {
-      const hasil = await hitungAbsenBelumDiisi(kelasAktif.map((k) => ({ id: k.id, nama: k.nama })));
+      const hasil = await hitungAbsenBelumDiisi(
+        kelasAktif.map((k) => ({ id: k.id, nama: k.nama })),
+        profile?.scope_kelompok_id,
+      );
       setAbsenHilang(hasil);
     } catch {
       // Non-kritis -- gagal diam-diam, jangan mengganggu lonceng.
     }
-  }, [guruId]);
+  }, [guruId, profile?.scope_kelompok_id]);
 
   useEffect(() => {
     muat();

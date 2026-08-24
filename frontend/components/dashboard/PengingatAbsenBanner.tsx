@@ -30,6 +30,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarClock } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 import { hitungAbsenBelumDiisi, type AbsenHilang } from '@/lib/pengingatAbsen';
 
 const NAMA_BULAN = [
@@ -50,12 +51,14 @@ export default function PengingatAbsenBanner({
   kelas: { id: number; nama: string }[];
 }) {
   const router = useRouter();
+  const { profile } = useAuth();
+  const kelompokId = profile?.scope_kelompok_id ?? null;
   const [hilang, setHilang] = useState<AbsenHilang[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let batal = false;
-    hitungAbsenBelumDiisi(kelas)
+    hitungAbsenBelumDiisi(kelas, kelompokId)
       .then((daftar) => {
         if (!batal) setHilang(daftar);
       })
@@ -69,7 +72,7 @@ export default function PengingatAbsenBanner({
     return () => {
       batal = true;
     };
-  }, [kelas]);
+  }, [kelas, kelompokId]);
 
   if (loading || hilang.length === 0) return null;
 

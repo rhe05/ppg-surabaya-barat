@@ -43,7 +43,7 @@
      tertutup -- tidak menunggu round-trip Supabase. Kalau INSERT gagal,
      baris sementara itu ditarik lagi + toast error. */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
   X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
@@ -59,7 +59,8 @@ import { useToast } from '@/components/ui/useToast';
 import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
 import { namaMateriTampil } from '@/lib/kategori';
-import { LIBUR_NASIONAL_2026, nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
+import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
+import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -392,6 +393,27 @@ export default function RencanaPembelajaranView() {
         setOpsiMateriKurikulum([...new Set(daftar)].sort());
       });
   }, [profile?.scope_kelompok_id, tahun]);
+
+  /* Pengecualian kalender per kelompok (kalender_kelompok, 2026-08-24) --
+     kelp yang tetap masuk di tanggal merah ('aktif') atau libur mendadak
+     di hari kerja biasa ('libur'), diatur admin lewat /pengaturan. Cuma
+     dipakai utk MENGUNCI kalender Tanggal Materi Klasikal (tanggalNonaktif
+     di bawah) -- pewarnaan hari libur di kartu Klasikal (LIBUR_NASIONAL_2026
+     langsung) SENGAJA TIDAK disentuh, diminta owner eksplisit ("kalender
+     tanggal merah biarkan saja tetap merah"). */
+  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  useEffect(() => {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId) return;
+    let batal = false;
+    muatOverrideKelompok(kelompokId).then((peta) => {
+      if (!batal) setOverrideKelompok(peta);
+    });
+    return () => {
+      batal = true;
+    };
+  }, [profile?.scope_kelompok_id]);
+  const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
 
   /* Opsi "Hafalan Surat-Surat Al-Qur'an" utk borang Materi Klasikal --
      diminta owner 2026-08-23, kumulatif: kelas ruang guru "N" menampilkan
@@ -1401,7 +1423,7 @@ export default function RencanaPembelajaranView() {
                       }
                     }}
                     onTutup={() => setTanggalKlasikalPickerTerbuka(false)}
-                    tanggalNonaktif={nonaktifAkhirPekanLibur}
+                    tanggalNonaktif={cekNonaktif}
                   />
                 </FieldTambah>
 

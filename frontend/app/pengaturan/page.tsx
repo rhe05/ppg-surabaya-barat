@@ -23,6 +23,7 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import type { JenisOverride } from '@/lib/kalenderKelompok';
 
 /* MVP app lama baru memakai kategori 'cabe-rawit'; strukturnya sudah
    kategori-scoped sehingga menambah kategori lain nanti tidak perlu
@@ -34,6 +35,12 @@ const JUDUL_BARIS = ['Nama TPQ/TPA', 'Nomor Izin Operasional', 'Alamat'];
 
 type Kelompok = { id: number; nama: string };
 type Quote = { id: number; teks: string };
+type EntriKalender = {
+  id: number;
+  tanggal: string;
+  jenis: JenisOverride;
+  catatan: string | null;
+};
 type BarisKop = {
   baris_ke: number;
   teks: string;
@@ -81,6 +88,16 @@ function PengaturanContent() {
   const [pakaiGaris, setPakaiGaris] = useState(true);
   const [garisAtas, setGarisAtas] = useState(true);
   const [baris, setBaris] = useState<BarisKop[]>([1, 2, 3].map(BARIS_KOSONG));
+
+  /* ── Kalender Kelompok (2026-08-24) -- pengecualian kalender per
+     kelompok, dikonsumsi kalender Input Kehadiran & Materi Klasikal
+     (lib/kalenderKelompok.ts). Berbagi `kelompokId` yang sama dgn Kop
+     Surat di atas -- kedua fitur sama2 diatur per kelompok, tidak perlu
+     pemilih kelompok kedua. */
+  const [daftarKalender, setDaftarKalender] = useState<EntriKalender[]>([]);
+  const [tanggalBaru, setTanggalBaru] = useState('');
+  const [jenisBaru, setJenisBaru] = useState<JenisOverride>('aktif');
+  const [catatanBaru, setCatatanBaru] = useState('');
 
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -145,6 +162,66 @@ function PengaturanContent() {
   useEffect(() => {
     muatKop();
   }, [muatKop]);
+
+  const muatKalender = useCallback(async () => {
+    if (!kelompokId) {
+      setDaftarKalender([]);
+      return;
+    }
+    const { data, error: err } = await supabase
+      .from('kalender_kelompok')
+      .select('id, tanggal, jenis, catatan')
+      .eq('kelompok_id', kelompokId)
+      .order('tanggal', { ascending: false });
+    if (err) {
+      setError(err.message);
+      return;
+    }
+    setDaftarKalender((data ?? []) as EntriKalender[]);
+  }, [kelompokId]);
+
+  useEffect(() => {
+    muatKalender();
+  }, [muatKalender]);
+
+  async function tambahKalender() {
+    if (!kelompokId || !tanggalBaru) return;
+    setSibuk(true);
+    setError(null);
+    setPesan(null);
+    try {
+      const { error: err } = await supabase.from('kalender_kelompok').insert({
+        kelompok_id: kelompokId,
+        tanggal: tanggalBaru,
+        jenis: jenisBaru,
+        catatan: catatanBaru.trim() || null,
+        dibuat_oleh: profile?.id ?? null,
+      });
+      if (err) throw new Error(err.message);
+      setTanggalBaru('');
+      setCatatanBaru('');
+      setPesan('Kalender kelompok diperbarui.');
+      await muatKalender();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menambah tanggal.');
+    } finally {
+      setSibuk(false);
+    }
+  }
+
+  async function hapusKalender(entri: EntriKalender) {
+    if (!window.confirm(`Hapus pengecualian tanggal ${entri.tanggal}?`)) return;
+    setError(null);
+    setPesan(null);
+    try {
+      const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', entri.id);
+      if (err) throw new Error(err.message);
+      setPesan('Tanggal dihapus.');
+      await muatKalender();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menghapus.');
+    }
+  }
 
   async function tambahQuote() {
     if (!quoteBaru.trim()) return;
@@ -233,7 +310,7 @@ function PengaturanContent() {
     <div className="mx-auto max-w-4xl p-6">
       <h1 className="mb-2 text-[24px] font-bold text-text">Pengaturan</h1>
       <p className="mb-6 text-[13px] text-text-dim">
-        Kutipan harian dan kop surat untuk laporan PDF.
+        Kutipan harian, kop surat untuk laporan PDF, dan kalender kelompok.
       </p>
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
@@ -368,6 +445,93 @@ function PengaturanContent() {
                 {sibuk ? 'Menyimpan...' : 'Simpan Kop Surat'}
               </button>
             )}
+          </>
+        )}
+      </div>
+
+      {/* ── Kalender Kelompok ── */}
+      <div className="mb-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
+        <div className="mb-1 text-[15px] font-bold text-text">Kalender Kelompok</div>
+        <p className="mb-4 text-[12px] text-text-dim">
+          Tandai tanggal yang berbeda dari kalender libur nasional -- kelompok tetap masuk di
+          tanggal merah, atau libur mendadak di hari kerja biasa. Berlaku untuk kalender Input
+          Kehadiran &amp; Materi Klasikal. Kalender libur nasional sendiri tidak berubah.
+        </p>
+
+        {!kelompokId && <p className="text-[13px] text-text-dim">Pilih kelompok di atas dulu.</p>}
+
+        {kelompokId && (
+          <>
+            {bolehAturKop && (
+              <div className="mb-4 flex flex-wrap items-end gap-3 rounded-[var(--radius)] border border-border bg-panel-2 p-3.5">
+                <div>
+                  <label className={KELAS_LABEL}>Tanggal</label>
+                  <input
+                    type="date"
+                    className={KELAS_INPUT}
+                    value={tanggalBaru}
+                    onChange={(e) => setTanggalBaru(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className={KELAS_LABEL}>Jenis</label>
+                  <select
+                    className={KELAS_INPUT}
+                    value={jenisBaru}
+                    onChange={(e) => setJenisBaru(e.target.value as JenisOverride)}
+                  >
+                    <option value="aktif">Tetap Aktif (meski tanggal merah)</option>
+                    <option value="libur">Libur Mendadak (meski hari kerja)</option>
+                  </select>
+                </div>
+                <div className="min-w-[200px] flex-1">
+                  <label className={KELAS_LABEL}>Catatan (opsional)</label>
+                  <input
+                    className={KELAS_INPUT}
+                    value={catatanBaru}
+                    onChange={(e) => setCatatanBaru(e.target.value)}
+                    placeholder="Misal: Maulid Nabi tetap KBM"
+                  />
+                </div>
+                <button
+                  onClick={tambahKalender}
+                  disabled={sibuk || !tanggalBaru}
+                  className={KELAS_TOMBOL_UTAMA}
+                >
+                  Tambah
+                </button>
+              </div>
+            )}
+
+            {daftarKalender.length === 0 && (
+              <p className="text-[13px] text-text-dim">Belum ada pengecualian kalender.</p>
+            )}
+            {daftarKalender.map((entri) => (
+              <div
+                key={entri.id}
+                className="mb-2 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-[13px] font-semibold text-text">{entri.tanggal}</span>
+                  <span
+                    className={
+                      'rounded-full px-2 py-0.5 text-[11px] font-bold ' +
+                      (entri.jenis === 'aktif'
+                        ? 'bg-[rgba(5,150,105,0.12)] text-sage'
+                        : 'bg-[rgba(220,38,38,0.12)] text-red')
+                    }
+                  >
+                    {entri.jenis === 'aktif' ? 'Tetap Aktif' : 'Libur Mendadak'}
+                  </span>
+                  {entri.catatan && <span className="text-[12px] text-text-dim">{entri.catatan}</span>}
+                </div>
+                {bolehAturKop && (
+                  <button onClick={() => hapusKalender(entri)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
+                    Hapus
+                  </button>
+                )}
+              </div>
+            ))}
           </>
         )}
       </div>

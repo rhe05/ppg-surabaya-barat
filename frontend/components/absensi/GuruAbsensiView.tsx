@@ -37,7 +37,6 @@ import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import Skeleton from '@/components/ui/Skeleton';
-import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
 export type KelasDetail = {
   id: number;
@@ -153,10 +152,16 @@ export default function GuruAbsensiView({
   error,
   pesan,
   onSimpan,
+  tanggalNonaktif,
 }: {
   namaGuru: string;
   tanggal: string;
   onTanggalChange: (v: string) => void;
+  /* Sabtu/Minggu/tanggal merah TERKUNCI, DITUMPANGI pengecualian per
+     kelompok (kalender_kelompok, lib/kalenderKelompok.ts) -- dihitung di
+     app/absensi/page.tsx (satu2nya pemilik kelompokId), bukan di sini,
+     supaya komponen ini tetap murni presentasi spt komentar di atas. */
+  tanggalNonaktif: (tglStr: string, tgl: Date) => { alasan: string; merah?: boolean } | null;
   kelasDetail: KelasDetail[];
   kelasId: number | null;
   onPilihKelas: (id: number) => void;
@@ -258,7 +263,7 @@ export default function GuruAbsensiView({
         nilai={tanggal}
         onPilih={onTanggalChange}
         onTutup={() => setTanggalTerbuka(false)}
-        tanggalNonaktif={nonaktifAkhirPekanLibur}
+        tanggalNonaktif={tanggalNonaktif}
       />
 
       <KelasGate

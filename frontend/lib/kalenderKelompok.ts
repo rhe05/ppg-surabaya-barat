@@ -1,0 +1,46 @@
+/* Pengecualian kalender per kelompok (2026-08-24) -- kelp yang TETAP
+   masuk ngaji walau tanggal merah nasional ('aktif'), atau LIBUR
+   MENDADAK di hari kerja biasa ('libur'). Diatur admin lewat
+   app/pengaturan/page.tsx, disimpan di tabel `kalender_kelompok`
+   (migrasi 20260824100000).
+
+   Kalender libur NASIONAL sendiri (LIBUR_NASIONAL_2026,
+   nonaktifAkhirPekanLibur) TIDAK disentuh sama sekali oleh berkas ini --
+   diminta owner eksplisit ("kalender tanggal merah biarkan saja tetap
+   merah"). File ini murni menumpangkan pengecualian per kelompok DI
+   ATAS aturan nasional itu:
+   - 'aktif' MEMBUKA kunci tanggal merah nasional (kelp tetap masuk) --
+     TIDAK mengubah warna, murni soal bisa-diklik-atau-tidak di kalender.
+   - 'libur' MENGUNCI tanggal yang sebetulnya hari kerja biasa, ditandai
+     merah persis gaya libur nasional (owner tidak minta warna beda). */
+
+import { supabase } from './supabase';
+import { nonaktifAkhirPekanLibur } from './liburNasional';
+
+export type JenisOverride = 'aktif' | 'libur';
+export type OverrideKelompok = { jenis: JenisOverride; catatan: string | null };
+
+export async function muatOverrideKelompok(
+  kelompokId: number,
+): Promise<Map<string, OverrideKelompok>> {
+  const { data } = await supabase
+    .from('kalender_kelompok')
+    .select('tanggal, jenis, catatan')
+    .eq('kelompok_id', kelompokId);
+  const peta = new Map<string, OverrideKelompok>();
+  (data ?? []).forEach((r) => peta.set(r.tanggal, { jenis: r.jenis as JenisOverride, catatan: r.catatan }));
+  return peta;
+}
+
+/* Gabungkan kalender libur nasional (statis) dgn pengecualian per
+   kelompok -- hasilnya cocok langsung dgn prop `tanggalNonaktif`
+   TanggalPicker.tsx & dipakai jg sbg filter kandidat "hari kerja" di
+   lib/pengingatAbsen.ts (bell/banner pengingat absen). */
+export function buatCekNonaktif(override: Map<string, OverrideKelompok>) {
+  return (tglStr: string, tgl: Date): { alasan: string; merah?: boolean } | null => {
+    const ov = override.get(tglStr);
+    if (ov?.jenis === 'aktif') return null;
+    if (ov?.jenis === 'libur') return { alasan: ov.catatan || 'Libur (kelompok)', merah: true };
+    return nonaktifAkhirPekanLibur(tglStr, tgl);
+  };
+}

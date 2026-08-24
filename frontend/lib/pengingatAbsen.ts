@@ -6,9 +6,12 @@
 
    Jendela dicek: 7 hari kalender ke belakang dari KEMARIN (bukan hari
    ini -- sesi hari ini mungkin belum selesai/belum waktunya), disaring
-   Sabtu/Minggu/tanggal merah pakai nonaktifAkhirPekanLibur yang sama
-   dgn kalender Input Kehadiran, supaya definisi "hari kerja" konsisten
-   di seluruh app.
+   pakai buatCekNonaktif (lib/kalenderKelompok.ts -- kalender libur
+   nasional DITUMPANGI pengecualian per kelompok, kalau kelompokId
+   diisi), supaya definisi "hari kerja" konsisten dgn kalender Input
+   Kehadiran/Materi Klasikal. Kelp yang py override 'aktif' di tanggal
+   merah IKUT dicek (bukan dilewati), kelp yang py override 'libur' di
+   hari kerja biasa TIDAK dicek (bukan dianggap "belum diisi").
 
    "Belum diisi" = kelas itu NOL baris absensi utk tanggal itu (bukan
    sebagian) -- sama dgn definisi "Hari Aktif" di GuruDashboard/Riwayat
@@ -17,7 +20,7 @@
    bisa py absensi. */
 
 import { supabase } from './supabase';
-import { nonaktifAkhirPekanLibur } from './liburNasional';
+import { muatOverrideKelompok, buatCekNonaktif } from './kalenderKelompok';
 
 const JUMLAH_HARI_DICEK = 7;
 
@@ -30,8 +33,12 @@ function tanggalStr(d: Date) {
 
 export async function hitungAbsenBelumDiisi(
   kelas: { id: number; nama: string }[],
+  kelompokId?: number | null,
 ): Promise<AbsenHilang[]> {
   if (kelas.length === 0) return [];
+
+  const override = kelompokId != null ? await muatOverrideKelompok(kelompokId) : new Map();
+  const cekNonaktif = buatCekNonaktif(override);
 
   const kandidat: string[] = [];
   const sekarang = new Date();
@@ -39,7 +46,7 @@ export async function hitungAbsenBelumDiisi(
     const d = new Date(sekarang);
     d.setDate(d.getDate() - i);
     const s = tanggalStr(d);
-    if (!nonaktifAkhirPekanLibur(s, d)) kandidat.push(s);
+    if (!cekNonaktif(s, d)) kandidat.push(s);
   }
   if (kandidat.length === 0) return [];
   const awal = kandidat[kandidat.length - 1];

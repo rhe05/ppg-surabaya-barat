@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
 import StatusModal from '@/components/absensi/StatusModal';
-import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
+import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 
 const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
@@ -65,6 +65,28 @@ function AbsensiContent() {
   >([]);
   /* '' = semua kelas. */
   const [kelasId, setKelasId] = useState<string>(() => searchParams.get('kelasId') || '');
+
+  /* Pengecualian kalender per kelompok (kalender_kelompok, 2026-08-24) --
+     kelp yang tetap masuk di tanggal merah ('aktif') atau libur mendadak
+     di hari kerja biasa ('libur'), diatur admin lewat /pengaturan. Dimuat
+     di sini (satu2nya pemilik kelompokId di halaman ini) lalu digabung
+     dgn kalender libur nasional (buatCekNonaktif) jadi SATU fungsi yang
+     dipakai baik utk mengunci kalender (GuruAbsensiView) MAUPUN penjaga
+     saat Simpan (handleSimpanGuru) -- keduanya WAJIB konsisten, kalau
+     tidak guru bisa memilih tanggal di kalender tapi ditolak saat Simpan
+     (atau sebaliknya). */
+  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    muatOverrideKelompok(kelompokId).then((peta) => {
+      if (!batal) setOverrideKelompok(peta);
+    });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+  const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
 
   const [santri, setSantri] = useState<Santri[]>([]);
   const [tersimpan, setTersimpan] = useState<Record<number, AbsensiRow>>({});
@@ -407,7 +429,7 @@ function AbsensiContent() {
        pickernya sama sekali (dilaporkan owner: Neiza klik Simpan di hari
        Minggu, tombolnya masih jalan). Pemeriksaan di sini adalah lapisan
        kedua yang tidak bergantung pada picker sempat dibuka atau tidak. */
-    const libur = nonaktifAkhirPekanLibur(tanggal, new Date(tanggal + 'T00:00:00'));
+    const libur = cekNonaktif(tanggal, new Date(tanggal + 'T00:00:00'));
     if (libur) {
       setStatusModal({
         tone: 'warning',
@@ -521,6 +543,7 @@ function AbsensiContent() {
           }
           loading={loading}
           saving={saving}
+          tanggalNonaktif={cekNonaktif}
           sudahTersimpanSemua={sudahTersimpanSemua}
           /* Sukses (dgn kutipan) ditampilkan lewat StatusModal, bukan banner
              hijau — supaya tidak dobel dgn popup. Konflik versi (40001)
