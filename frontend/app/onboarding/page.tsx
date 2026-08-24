@@ -123,6 +123,15 @@ const KELAS_TOMBOL_GHOST =
   'border border-border bg-transparent px-4 text-center text-[13px] font-medium text-text-dim ' +
   'transition-colors duration-150 hover:border-brass hover:bg-[#FFFBEB] hover:text-brass active:scale-[0.98]';
 
+/* Tombol Keluar -- warna beda dari tombol ghost netral di atas (diminta
+   owner 2026-08-24): merah pudar khas aksi "keluar/sign out", bukan
+   abu-abu netral yang sama dgn tautan fallback lain -- standar SaaS
+   (sign-out selalu dibedakan warnanya dari aksi netral lain). */
+const KELAS_TOMBOL_KELUAR =
+  'mt-2.5 flex min-h-[44px] w-full cursor-pointer items-center justify-center rounded-[var(--radius-button)] ' +
+  'border border-border bg-transparent px-4 text-center text-[13px] font-medium text-red/80 ' +
+  'transition-colors duration-150 hover:border-red hover:bg-[#FEF2F2] hover:text-red active:scale-[0.98]';
+
 /* Kartu pilihan: tinggi minimum 44px mengikuti aturan target sentuh app lama,
    dan penanda terpilih TIDAK hanya warna — ada cincin + tanda centang, supaya
    tetap terbaca pada layar terang dan bagi yang sulit membedakan warna. */
@@ -508,7 +517,7 @@ export default function OnboardingPage() {
         >
           Ubah pendaftaran
         </button>
-        <button type="button" onClick={keluar} className={KELAS_TOMBOL_GHOST}>
+        <button type="button" onClick={keluar} className={KELAS_TOMBOL_KELUAR}>
           Keluar
         </button>
       </Kartu>
@@ -711,8 +720,8 @@ export default function OnboardingPage() {
 
               {carianAdminKelp === 'hasil' && kandidatAdminKelp.length === 0 && (
                 <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
-                  Tidak ditemukan undangan dengan nama &amp; kelompok ini. Periksa lagi ejaannya, atau
-                  hubungi admin yang mengundang Anda -- atau daftar manual di bawah.
+                  Tidak ditemukan nama &amp; kelompok ini. Periksa lagi ejaannya, atau hubungi admin
+                  aplikasi.
                 </div>
               )}
 
@@ -734,17 +743,6 @@ export default function OnboardingPage() {
                   </button>
                 </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCarianAdminKelp('manual');
-                  setErrorCariAdminKelp(null);
-                }}
-                className={KELAS_TOMBOL_GHOST}
-              >
-                Tidak ketemu / bukan saya — daftar manual
-              </button>
             </div>
           )}
 
@@ -824,7 +822,7 @@ export default function OnboardingPage() {
           <button
             type="button"
             onClick={keluar}
-            className={KELAS_TOMBOL_GHOST}
+            className={KELAS_TOMBOL_KELUAR}
           >
             Keluar
           </button>
