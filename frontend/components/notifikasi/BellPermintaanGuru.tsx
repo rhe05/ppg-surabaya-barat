@@ -31,9 +31,21 @@
    dgn pola "buka = sudah lihat" yang umum di notifikasi semacam ini.
    Perlu Tindakan TIDAK py status "dibaca" -- hilang sendiri begitu
    absennya benar2 terisi (persis PengingatAbsenBanner, tanpa tombol
-   tutup), bukan begitu dropdown dibuka. */
+   tutup), bukan begitu dropdown dibuka.
 
-import { useCallback, useEffect, useState } from 'react';
+   Dropdown digambar lewat createPortal ke document.body dgn
+   position:fixed (dihitung dari getBoundingClientRect() tombol lonceng),
+   BUKAN absolute relatif ke tombolnya (2026-08-24, dilaporkan owner
+   "kepotong masuk ke header") -- lonceng ini dirender DI DALAM header
+   yang py overflow-hidden (rounded-b-3xl, lihat GuruDashboard.tsx/
+   JurnalHeaderChrome.tsx), dan begitu isi dropdown lebih tinggi dari
+   sisa ruang header (skrg py bagian "Perlu Tindakan" tambahan), absolute
+   ke-clip tak kelihatan. Pola & alasannya SAMA PERSIS KebabMenu.tsx --
+   position:fixed lolos dari overflow-hidden leluhur manapun (containing
+   block-nya viewport, bukan box header tsb). */
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Bell, CalendarClock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -89,6 +101,8 @@ export default function BellPermintaanGuru() {
   const [daftar, setDaftar] = useState<Permintaan[]>([]);
   const [absenHilang, setAbsenHilang] = useState<AbsenHilang[]>([]);
   const [terbuka, setTerbuka] = useState(false);
+  const [posisi, setPosisi] = useState<{ top: number; right: number } | null>(null);
+  const tombolRef = useRef<HTMLButtonElement>(null);
 
   const muat = useCallback(async () => {
     if (!guruId) return;
@@ -150,6 +164,10 @@ export default function BellPermintaanGuru() {
 
   async function toggle() {
     const buka = !terbuka;
+    if (buka) {
+      const r = tombolRef.current?.getBoundingClientRect();
+      if (r) setPosisi({ top: r.bottom + 8, right: window.innerWidth - r.right });
+    }
     setTerbuka(buka);
     if (!buka) return;
 
@@ -164,6 +182,7 @@ export default function BellPermintaanGuru() {
   return (
     <div className="relative">
       <button
+        ref={tombolRef}
         type="button"
         aria-label="Permintaan Masuk"
         onClick={toggle}
@@ -177,10 +196,15 @@ export default function BellPermintaanGuru() {
         )}
       </button>
 
-      {terbuka && (
-        <>
-          <div className="fixed inset-0 z-[590]" onClick={() => setTerbuka(false)} />
-          <div className="absolute top-full right-0 z-[591] mt-2 max-h-[70vh] w-[300px] overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+      {terbuka &&
+        posisi &&
+        createPortal(
+          <>
+            <div className="fixed inset-0 z-[590]" onClick={() => setTerbuka(false)} />
+            <div
+              style={{ top: posisi.top, right: posisi.right }}
+              className="fixed z-[591] max-h-[70vh] w-[300px] overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]"
+            >
             {absenHilang.length > 0 && (
               <>
                 <div className="px-2 py-1.5 text-[12px] font-bold tracking-[0.02em] text-brass uppercase">
@@ -245,9 +269,10 @@ export default function BellPermintaanGuru() {
                 </div>
               );
             })}
-          </div>
-        </>
-      )}
+            </div>
+          </>,
+          document.body
+        )}
     </div>
   );
 }
