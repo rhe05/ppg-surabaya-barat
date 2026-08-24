@@ -27,9 +27,12 @@ function tanggalHariIniLokal() {
   return lokal.toISOString().slice(0, 10);
 }
 
-export async function muatRingkasanHariIni(kelompokId: number): Promise<RingkasanHariIni> {
-  const hariIni = tanggalHariIniLokal();
-
+/* Inti bersama -- dipakai muatRingkasanHariIni (rentang 1 hari) DAN
+   muatRingkasanBulan (2026-08-24, diminta owner: kartu "Ringkasan
+   Kehadiran" di Dashboard mobile admin_kelp bisa ditelusuri per bulan,
+   bukan cuma "hari ini") -- algoritmanya sama persis utk rentang tanggal
+   berapa pun, cuma batas awal/akhirnya yang beda. */
+async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: string): Promise<RingkasanHariIni> {
   const { data: kelasData, error: errKelas } = await supabase
     .from('kelas')
     .select('id, nama, guru_id, santri_count, guru:guru_id(nama)')
@@ -90,7 +93,8 @@ export async function muatRingkasanHariIni(kelompokId: number): Promise<Ringkasa
         .from('absensi')
         .select('santri_id, status')
         .in('santri_id', santriIds)
-        .eq('tanggal', hariIni)
+        .gte('tanggal', awal)
+        .lte('tanggal', akhir)
         .is('deleted_at', null)
         .order('id', { ascending: true })
         .range(dari, dari + UKURAN_HALAMAN - 1);
@@ -122,6 +126,29 @@ export async function muatRingkasanHariIni(kelompokId: number): Promise<Ringkasa
     alpa,
     guruBelumIsi,
   };
+}
+
+export async function muatRingkasanHariIni(kelompokId: number): Promise<RingkasanHariIni> {
+  const hariIni = tanggalHariIniLokal();
+  return muatRingkasanRentang(kelompokId, hariIni, hariIni);
+}
+
+/* Kartu "Ringkasan Kehadiran" (2026-08-24) -- ikon kalender di sebelahnya
+   membuka pemilih Bulan/Tahun (pola sama GuruDashboard.tsx), rentangnya
+   satu bulan penuh alih2 selalu "hari ini". `guruBelumIsi` hasil fungsi
+   ini SENGAJA TIDAK dipakai kartu "Guru Belum Isi Absen" -- itu tetap
+   scoped hari ini (lewat muatRingkasanHariIni terpisah), krn urgensinya
+   "follow up SEKARANG", beda kebutuhan dgn ringkasan bulanan ini. */
+export async function muatRingkasanBulan(
+  kelompokId: number,
+  tahun: number,
+  bulan: number,
+): Promise<RingkasanHariIni> {
+  const dua = (n: number) => String(n).padStart(2, '0');
+  const awal = `${tahun}-${dua(bulan)}-01`;
+  const akhirTanggal = new Date(tahun, bulan, 0).getDate();
+  const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
+  return muatRingkasanRentang(kelompokId, awal, akhir);
 }
 
 /* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,

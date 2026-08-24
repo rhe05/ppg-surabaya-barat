@@ -34,19 +34,33 @@
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
    ditempel gaya lain. */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { CalendarOff, CalendarCheck2, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarOff, CalendarCheck2, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
-import { muatRingkasanHariIni, muatGuruSedangIzin, tanggalHariIniLokal, type RingkasanHariIni, type GuruIzinAktif } from '@/lib/ringkasanAdminKelp';
+import {
+  muatRingkasanHariIni,
+  muatRingkasanBulan,
+  muatGuruSedangIzin,
+  tanggalHariIniLokal,
+  type RingkasanHariIni,
+  type GuruIzinAktif,
+} from '@/lib/ringkasanAdminKelp';
 
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
 type TitikTren = { tanggal: string; persen: number | null };
 type StatistikRingkas = { persen: number | null; tren: TitikTren[] };
+
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+const SELECT_BULAN_TAHUN =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
 const GAYA_TOOLTIP = {
   background: 'var(--panel)',
@@ -87,6 +101,20 @@ export default function AdminKelpDashboard() {
   const [error, setError] = useState<string | null>(null);
   const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
 
+  /* Kartu "Ringkasan Kehadiran" (2026-08-24, diminta owner) -- bisa
+     ditelusuri per bulan lewat ikon kalender, pola SAMA PERSIS
+     GuruDashboard.tsx. TERPISAH dari `ringkasan` (hari ini) di atas --
+     "Guru Belum Isi Absen" TETAP scoped hari ini (urgensinya "follow up
+     SEKARANG"), cuma kartu KPI ini yang jadi bulanan. */
+  const sekarangAwal = new Date();
+  const [bulan, setBulan] = useState(sekarangAwal.getMonth() + 1);
+  const [tahun, setTahun] = useState(sekarangAwal.getFullYear());
+  const [kalenderKpiTerbuka, setKalenderKpiTerbuka] = useState(false);
+  const [posisiKalenderKpi, setPosisiKalenderKpi] = useState<{ top: number; right: number } | null>(null);
+  const ikonKalenderKpiRef = useRef<HTMLButtonElement>(null);
+  const [ringkasanBulan, setRingkasanBulan] = useState<RingkasanHariIni | null>(null);
+  const [loadingBulan, setLoadingBulan] = useState(true);
+
   const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
   const [memuatKalender, setMemuatKalender] = useState(true);
   const [sibukKalender, setSibukKalender] = useState(false);
@@ -124,6 +152,28 @@ export default function AdminKelpDashboard() {
   useEffect(() => {
     muat();
   }, [muat]);
+
+  useEffect(() => {
+    if (!kelompokId) {
+      setLoadingBulan(false);
+      return;
+    }
+    let batal = false;
+    setLoadingBulan(true);
+    muatRingkasanBulan(kelompokId, tahun, bulan)
+      .then((hasil) => {
+        if (!batal) setRingkasanBulan(hasil);
+      })
+      .catch((e) => {
+        if (!batal) setError(e instanceof Error ? e.message : 'Gagal memuat ringkasan bulan.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingBulan(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId, tahun, bulan]);
 
   useEffect(() => {
     let batal = false;
@@ -231,10 +281,12 @@ export default function AdminKelpDashboard() {
     };
   }, [kelompokId]);
 
-  const totalStatus = ringkasan ? ringkasan.hadir + ringkasan.izin + ringkasan.sakit + ringkasan.alpa : 0;
+  const totalStatus = ringkasanBulan
+    ? ringkasanBulan.hadir + ringkasanBulan.izin + ringkasanBulan.sakit + ringkasanBulan.alpa
+    : 0;
   const persenKelasSelesai =
-    ringkasan && ringkasan.totalKelas > 0
-      ? Math.round((ringkasan.kelasSudahDiabsen / ringkasan.totalKelas) * 100)
+    ringkasanBulan && ringkasanBulan.totalKelas > 0
+      ? Math.round((ringkasanBulan.kelasSudahDiabsen / ringkasanBulan.totalKelas) * 100)
       : 0;
 
   return (
@@ -291,19 +343,41 @@ export default function AdminKelpDashboard() {
           </div>
         )}
 
-        {loading && <SkeletonKpi />}
+        {loadingBulan && <SkeletonKpi />}
 
-        {!loading && ringkasan && (
+        {!loadingBulan && ringkasanBulan && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 flex items-center justify-between">
-              <div className="text-[13px] font-bold text-text">Kehadiran Hari Ini</div>
-              <div className="text-[11.5px] text-text-dim">
-                {ringkasan.kelasSudahDiabsen} dari {ringkasan.totalKelas} kelas · {persenKelasSelesai}%
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span className="text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
+                  <span className="text-[11.5px] text-text-dim">
+                    {ringkasanBulan.kelasSudahDiabsen} dari {ringkasanBulan.totalKelas} kelas
+                  </span>
+                </div>
+                <div className="mt-0.5 text-[11px] text-text-faint">
+                  {NAMA_BULAN[bulan - 1]} {tahun} · {persenKelasSelesai}% kelas terisi
+                </div>
               </div>
+              <button
+                ref={ikonKalenderKpiRef}
+                type="button"
+                aria-label="Pilih Bulan dan Tahun"
+                onClick={() => {
+                  const rect = ikonKalenderKpiRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    setPosisiKalenderKpi({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
+                  }
+                  setKalenderKpiTerbuka((v) => !v);
+                }}
+                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+              >
+                <Calendar size={17} />
+              </button>
             </div>
             <div className="grid grid-cols-4 gap-2">
               {STATUS.map((st) => {
-                const nilai = ringkasan[st.kunci];
+                const nilai = ringkasanBulan[st.kunci];
                 const persen = totalStatus > 0 ? Math.round((nilai / totalStatus) * 100) : null;
                 return (
                   <div
@@ -329,6 +403,33 @@ export default function AdminKelpDashboard() {
               })}
             </div>
           </div>
+        )}
+
+        {kalenderKpiTerbuka && posisiKalenderKpi && (
+          <>
+            <div className="fixed inset-0 z-[1090]" onClick={() => setKalenderKpiTerbuka(false)} />
+            <div
+              className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+              style={{ top: posisiKalenderKpi.top, right: posisiKalenderKpi.right }}
+            >
+              <div className="flex gap-2">
+                <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_BULAN_TAHUN}>
+                  {NAMA_BULAN.map((nm, idx) => (
+                    <option key={nm} value={idx + 1}>
+                      {nm}
+                    </option>
+                  ))}
+                </select>
+                <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_BULAN_TAHUN}>
+                  {[sekarangAwal.getFullYear() - 1, sekarangAwal.getFullYear()].map((y) => (
+                    <option key={y} value={y}>
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </>
         )}
 
         {!loading && ringkasan && ringkasan.guruBelumIsi.length > 0 && (
