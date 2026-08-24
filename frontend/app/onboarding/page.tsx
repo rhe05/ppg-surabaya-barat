@@ -336,7 +336,13 @@ export default function OnboardingPage() {
         setCarianGuru('idle');
         return;
       }
-      setKandidatGuru((data ?? []) as KandidatGuru[]);
+      const hasil = (data ?? []) as KandidatGuru[];
+      setKandidatGuru(hasil);
+      // Auto-pilih HANYA kalau tepat satu kandidat (diminta owner:
+      // hilangkan checklist/centang supaya terasa natural) -- kalau lebih
+      // dari satu (kasus nyata: nama sama di kelompok berbeda), TETAP
+      // minta pilih manual, tidak aman menebak salah satu begitu saja.
+      if (hasil.length === 1) setGuruTerpilih(hasil[0].guru_id);
       setCarianGuru('hasil');
     } catch {
       setErrorCari('Gagal terhubung ke server — periksa koneksi Anda');
@@ -615,25 +621,28 @@ export default function OnboardingPage() {
 
               {carianGuru === 'hasil' && kandidatGuru.length > 0 && (
                 <div className="mt-3">
-                  <p className="mb-2 text-[12px] font-medium text-text">
-                    {kandidatGuru.length === 1
-                      ? 'Ditemukan satu data yang cocok:'
-                      : `Ditemukan ${kandidatGuru.length} data dengan nama ini — pilih yang mana Anda:`}
-                  </p>
-                  <div className="grid gap-2">
-                    {kandidatGuru.map((k) => (
-                      <KartuPilihan
-                        key={k.guru_id}
-                        terpilih={guruTerpilih === k.guru_id}
-                        judul={k.kelompok_nama}
-                        ringkas={`Desa ${k.desa_nama}${k.kategori ? ` · ${k.kategori}` : ''}`}
-                        onClick={() => {
-                          setGuruTerpilih(k.guru_id);
-                          setErrorKlaim(null);
-                        }}
-                      />
-                    ))}
-                  </div>
+                  {/* Checklist kandidat HANYA muncul kalau nama ini cocok
+                     lebih dari satu data (kasus nyata: nama sama di
+                     kelompok berbeda) -- tidak aman menebak salah satu
+                     begitu saja, tetap perlu dipilih manual. Kalau cuma
+                     satu, sudah otomatis terpilih di cariGuru() -- lompat
+                     langsung ke tombol Lanjutkan, tanpa checklist. */}
+                  {kandidatGuru.length > 1 && (
+                    <div className="mb-2 grid gap-2">
+                      {kandidatGuru.map((k) => (
+                        <KartuPilihan
+                          key={k.guru_id}
+                          terpilih={guruTerpilih === k.guru_id}
+                          judul={k.kelompok_nama}
+                          ringkas={`Desa ${k.desa_nama}${k.kategori ? ` · ${k.kategori}` : ''}`}
+                          onClick={() => {
+                            setGuruTerpilih(k.guru_id);
+                            setErrorKlaim(null);
+                          }}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                   {errorKlaim && (
                     <p className="mt-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
@@ -647,7 +656,7 @@ export default function OnboardingPage() {
                     onClick={() => guruTerpilih !== null && klaimGuru(guruTerpilih)}
                     className="mt-3 w-full cursor-pointer rounded-[var(--radius-button)] border-none bg-brand-green px-4 py-[13px] text-[14px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {mengklaim ? 'Menghubungkan...' : 'Ya, ini saya — Hubungkan akun'}
+                    {mengklaim ? 'Memproses...' : 'Lanjutkan'}
                   </button>
                 </div>
               )}
