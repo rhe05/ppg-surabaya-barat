@@ -43,14 +43,15 @@ import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
 import {
-  muatRingkasanHariIni,
   muatRingkasanBulan,
   muatRingkasanPerKelas,
+  muatAbsensiBelumDiisiBulan,
   muatGuruSedangIzin,
   tanggalHariIniLokal,
   type RingkasanHariIni,
   type GuruIzinAktif,
   type KelasRingkasan,
+  type GuruBelumIsiBulan,
 } from '@/lib/ringkasanAdminKelp';
 
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
@@ -90,6 +91,14 @@ const STATUS_KELAS: { kunci: keyof Omit<KelasRingkasan, 'kelasId' | 'kelasNama' 
   { kunci: 'alpa', label: 'ALPA', warna: '#DC2626', pill: 'rgba(220, 38, 38, 0.12)' },
 ];
 
+/* "Kak Neiza" bukan nama lengkap (2026-08-24, diminta owner) -- ambil
+   kata pertama nama guru saja, prefix "Kak" (sapaan umum di app ini,
+   dipakai jg di teks WhatsApp pengumuman). */
+function namaPanggilanGuru(namaLengkap: string) {
+  const depan = namaLengkap.trim().split(/\s+/)[0];
+  return depan ? `Kak ${depan}` : namaLengkap;
+}
+
 function jamSingkat(nilai: string | null) {
   return nilai ? nilai.slice(0, 5) : null;
 }
@@ -123,16 +132,12 @@ export default function AdminKelpDashboard() {
   const router = useRouter();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
-  const [ringkasan, setRingkasan] = useState<RingkasanHariIni | null>(null);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
 
   /* Kartu "Ringkasan Kehadiran" (2026-08-24, diminta owner) -- bisa
      ditelusuri per bulan lewat ikon kalender, pola SAMA PERSIS
-     GuruDashboard.tsx. TERPISAH dari `ringkasan` (hari ini) di atas --
-     "Guru Belum Isi Absen" TETAP scoped hari ini (urgensinya "follow up
-     SEKARANG"), cuma kartu KPI ini yang jadi bulanan. */
+     GuruDashboard.tsx. */
   const sekarangAwal = new Date();
   const [bulan, setBulan] = useState(sekarangAwal.getMonth() + 1);
   const [tahun, setTahun] = useState(sekarangAwal.getFullYear());
@@ -163,31 +168,41 @@ export default function AdminKelpDashboard() {
   const [modalLiburTerbuka, setModalLiburTerbuka] = useState(false);
   const [alasanLibur, setAlasanLibur] = useState('');
 
+  /* "Absensi Belum di Input" (2026-08-24, diminta owner: rename dari
+     "Guru Belum Isi Absen" + direntang jadi PER GURU per bulan, bukan
+     lagi per-kelas hari ini) -- kartu ini SENDIRI jg diklik utk buka/
+     tutup rinciannya, sama pola dgn "Ringkasan Kehadiran" di atas.
+     Dimuat eager (bukan lazy spt rincian kelas) krn badge jumlah guru
+     di kondisi TERTUTUP tetap perlu datanya. */
+  const [belumIsiBulan, setBelumIsiBulan] = useState<GuruBelumIsiBulan[]>([]);
+  const [loadingBelumIsi, setLoadingBelumIsi] = useState(true);
+  const [detailBelumIsiTerbuka, setDetailBelumIsiTerbuka] = useState(false);
+
   const [guruIzin, setGuruIzin] = useState<GuruIzinAktif[]>([]);
 
   const [statistik, setStatistik] = useState<StatistikRingkas | null>(null);
   const [memuatStatistik, setMemuatStatistik] = useState(true);
 
-  const muat = useCallback(async () => {
+  const muatBelumIsi = useCallback(async () => {
     if (!kelompokId) {
-      setLoading(false);
+      setLoadingBelumIsi(false);
       return;
     }
-    setLoading(true);
+    setLoadingBelumIsi(true);
     setError(null);
     try {
-      const hasil = await muatRingkasanHariIni(kelompokId);
-      setRingkasan(hasil);
+      const hasil = await muatAbsensiBelumDiisiBulan(kelompokId, tahun, bulan);
+      setBelumIsiBulan(hasil);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal memuat ringkasan.');
+      setError(e instanceof Error ? e.message : 'Gagal memuat absensi belum diisi.');
     } finally {
-      setLoading(false);
+      setLoadingBelumIsi(false);
     }
-  }, [kelompokId]);
+  }, [kelompokId, tahun, bulan]);
 
   useEffect(() => {
-    muat();
-  }, [muat]);
+    muatBelumIsi();
+  }, [muatBelumIsi]);
 
   useEffect(() => {
     if (!kelompokId) {
@@ -282,7 +297,7 @@ export default function AdminKelpDashboard() {
       if (err) throw new Error(err.message);
       setModalLiburTerbuka(false);
       setAlasanLibur('');
-      await Promise.all([muatKalenderHariIni(), muat()]);
+      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
     } finally {
@@ -296,7 +311,7 @@ export default function AdminKelpDashboard() {
     try {
       const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', kalenderHariIni.id);
       if (err) throw new Error(err.message);
-      await Promise.all([muatKalenderHariIni(), muat()]);
+      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
     } finally {
@@ -579,24 +594,43 @@ export default function AdminKelpDashboard() {
           </>
         )}
 
-        {!loading && ringkasan && ringkasan.guruBelumIsi.length > 0 && (
-          <div className="mb-4 rounded-card border border-[#FDE68A] bg-[#FFFBEB] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
-            <div className="mb-2 text-[13px] font-bold text-[#92400E]">
-              Guru Belum Isi Absen ({ringkasan.guruBelumIsi.length})
-            </div>
-            <div className="flex flex-col gap-1.5">
-              {ringkasan.guruBelumIsi.map((g) => (
-                <div key={g.kelasId} className="flex items-center justify-between text-[12.5px]">
-                  <span className="font-semibold text-[#92400E]">{g.kelasNama}</span>
-                  <span className="text-[#92400E]/80">{g.guruNama}</span>
-                </div>
-              ))}
-            </div>
+        {loadingBelumIsi && <Skeleton className="mb-4 h-[62px] w-full rounded-card" />}
+
+        {!loadingBelumIsi && belumIsiBulan.length > 0 && (
+          <div className="mb-4 rounded-card border border-[#FDE68A] bg-[#FFFBEB] shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
+            <button
+              type="button"
+              onClick={() => setDetailBelumIsiTerbuka((v) => !v)}
+              className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent p-4 text-left"
+            >
+              <span className="flex items-center gap-2 text-[13px] font-bold text-[#92400E]">
+                Absensi Belum di Input
+                <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-[6px] text-[11px] font-bold text-[#92400E]">
+                  {belumIsiBulan.length}
+                </span>
+              </span>
+              <ChevronDown
+                size={16}
+                className={`shrink-0 text-[#92400E] transition-transform duration-200 ${detailBelumIsiTerbuka ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {detailBelumIsiTerbuka && (
+              <div className="flex flex-col gap-1.5 border-t border-[#FDE68A] px-4 pt-3 pb-4">
+                {belumIsiBulan.map((g) => (
+                  <div key={g.guruId} className="flex items-center justify-between text-[12.5px]">
+                    <span className="font-semibold text-[#92400E]">{namaPanggilanGuru(g.guruNama)}</span>
+                    <span className="text-[#92400E]/80">
+                      {NAMA_BULAN[bulan - 1]} belum isi {g.jumlahHari} hari
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {!loading && ringkasan && ringkasan.guruBelumIsi.length === 0 && ringkasan.totalKelas > 0 && (
-          <p className="mb-4 text-[12.5px] text-sage">Semua kelas sudah diabsen hari ini. Alhamdulillah.</p>
+        {!loadingBelumIsi && belumIsiBulan.length === 0 && (
+          <p className="mb-4 text-[12.5px] text-sage">Absensi bulan ini sudah lengkap diisi. Alhamdulillah.</p>
         )}
 
         {guruIzin.length > 0 && (

@@ -8,6 +8,7 @@
    sengaja tidak dipaksa satu fungsi. */
 
 import { supabase } from './supabase';
+import { muatOverrideKelompok, buatCekNonaktif } from './kalenderKelompok';
 
 export type GuruBelumIsi = { kelasId: number; kelasNama: string; guruNama: string };
 
@@ -276,6 +277,128 @@ export async function muatRingkasanPerKelas(
       alpa: acc?.alpa ?? 0,
     };
   });
+}
+
+/* "Absensi Belum di Input" PER GURU, per bulan (2026-08-24, diminta
+   owner: dulu kartu ini "Guru Belum Isi Absen" HANYA hari ini, sekarang
+   direntang jadi bulan berjalan + dihitung PER GURU "sudah berapa hari
+   belum diisi"). BEDA dari lib/pengingatAbsen.ts (7 hari mundur, per
+   guru login sendiri, dipakai bell/banner guru): ini se-KELOMPOK,
+   rentang SEBULAN PENUH, dipakai admin.
+
+   "Hari yang dihitung" = tanggal2 dalam bulan itu yang lolos
+   buatCekNonaktif (weekend/libur nasional DITUMPANGI pengecualian
+   kalender_kelompok -- SAMA definisi "hari kerja" dgn Input
+   Kehadiran/pengingatAbsen), dibatasi s.d. KEMARIN kalau bulan yang
+   dipilih adalah bulan berjalan (hari ini blm tentu selesai sesinya --
+   sama prinsip dgn pengingatAbsen.ts). "Belum diisi" per kelas = SAMA
+   definisi dgn 'Hari Aktif' (kelas itu NOL baris absensi di tanggal
+   itu). Per guru = union tanggal belum-diisi dari SEMUA kelas
+   miliknya (bukan dijumlah per-kelas -- 1 guru yg 2 kelasnya sama2
+   bolong di tanggal yg sama dihitung 1 hari, bukan 2). */
+export type GuruBelumIsiBulan = { guruId: number; guruNama: string; jumlahHari: number };
+
+function tanggalStrLokal(d: Date) {
+  const dua = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
+}
+
+export async function muatAbsensiBelumDiisiBulan(
+  kelompokId: number,
+  tahun: number,
+  bulan: number,
+): Promise<GuruBelumIsiBulan[]> {
+  const sekarang = new Date();
+  const bulanBerjalan = tahun === sekarang.getFullYear() && bulan === sekarang.getMonth() + 1;
+
+  const akhirBulan = new Date(tahun, bulan, 0).getDate();
+  const batasHari = bulanBerjalan ? sekarang.getDate() - 1 : akhirBulan;
+  if (batasHari < 1) return [];
+
+  const override = await muatOverrideKelompok(kelompokId);
+  const cekNonaktif = buatCekNonaktif(override);
+
+  const kandidat: string[] = [];
+  for (let hari = 1; hari <= batasHari; hari++) {
+    const d = new Date(tahun, bulan - 1, hari);
+    const s = tanggalStrLokal(d);
+    if (!cekNonaktif(s, d)) kandidat.push(s);
+  }
+  if (kandidat.length === 0) return [];
+  const awal = kandidat[0];
+  const akhir = kandidat[kandidat.length - 1];
+
+  const { data: kelasData, error: errKelas } = await supabase
+    .from('kelas')
+    .select('id, guru_id, santri_count, guru:guru_id(nama)')
+    .eq('kelompok_id', kelompokId)
+    .is('deleted_at', null);
+  if (errKelas) throw errKelas;
+
+  type Tersemat = { nama: string } | { nama: string }[] | null;
+  type BarisKelas = { id: number; guru_id: number | null; santri_count: number; guru: Tersemat };
+  const namaDari = (v: Tersemat) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
+
+  const kelasAktif = ((kelasData ?? []) as BarisKelas[]).filter((k) => k.santri_count > 0 && k.guru_id != null);
+  if (kelasAktif.length === 0) return [];
+  const kelasIds = kelasAktif.map((k) => k.id);
+
+  const { data: santriData, error: errSantri } = await supabase
+    .from('santri')
+    .select('id, kelas_id')
+    .in('kelas_id', kelasIds)
+    .is('deleted_at', null);
+  if (errSantri) throw errSantri;
+
+  const kelasDariSantri = new Map<number, number>();
+  (santriData ?? []).forEach((s) => {
+    if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
+  });
+
+  const terisi = new Map<number, Set<string>>();
+  kelasIds.forEach((id) => terisi.set(id, new Set()));
+
+  if (kelasDariSantri.size > 0) {
+    const santriIds = [...kelasDariSantri.keys()];
+    const UKURAN_HALAMAN = 1000;
+    for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+      const { data, error: errAbsensi } = await supabase
+        .from('absensi')
+        .select('santri_id, tanggal')
+        .in('santri_id', santriIds)
+        .gte('tanggal', awal)
+        .lte('tanggal', akhir)
+        .is('deleted_at', null)
+        .order('id', { ascending: true })
+        .range(dari, dari + UKURAN_HALAMAN - 1);
+      if (errAbsensi) throw errAbsensi;
+
+      const batch = data ?? [];
+      batch.forEach((a) => {
+        const kId = kelasDariSantri.get(a.santri_id);
+        if (kId != null) terisi.get(kId)?.add(a.tanggal);
+      });
+      if (batch.length < UKURAN_HALAMAN) break;
+    }
+  }
+
+  const belumPerGuru = new Map<number, { nama: string; tanggal: Set<string> }>();
+  kelasAktif.forEach((k) => {
+    if (k.guru_id == null) return;
+    if (!belumPerGuru.has(k.guru_id)) {
+      belumPerGuru.set(k.guru_id, { nama: namaDari(k.guru) ?? '-', tanggal: new Set() });
+    }
+    const acc = belumPerGuru.get(k.guru_id)!;
+    const set = terisi.get(k.id);
+    for (const tgl of kandidat) {
+      if (!set?.has(tgl)) acc.tanggal.add(tgl);
+    }
+  });
+
+  return [...belumPerGuru.entries()]
+    .map(([guruId, v]) => ({ guruId, guruNama: v.nama, jumlahHari: v.tanggal.size }))
+    .filter((g) => g.jumlahHari > 0)
+    .sort((a, b) => b.jumlahHari - a.jumlahHari);
 }
 
 /* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,
