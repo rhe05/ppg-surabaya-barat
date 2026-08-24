@@ -30,6 +30,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
+import TinggiHalus from '@/components/ui/TinggiHalus';
 
 type Peran = 'guru' | 'admin_kelompok' | 'admin_desa' | 'admin_ppg';
 
@@ -166,6 +167,14 @@ function KartuPilihan({
   );
 }
 
+/* TinggiHalus (2026-08-24, dilaporkan owner: hard refresh /onboarding di
+   desktop "membesar" seketika) -- kartu ini py tinggi yang JAUH beda
+   antar state: "Memuat..." (satu baris pendek) -> form lengkap peran+
+   kelompok+kandidat klaim (banyak field) -> ringkasan langkah 2, semua
+   di dalam Kartu yang SAMA. Lebarnya sudah konstan (max-w-[520px]),
+   tapi tingginya melompat instan tiap kali `memuat`/`langkah`/hasil
+   pencarian berubah -- persis pola bug yang sudah ditambal di
+   PelaksanaanPembelajaranView.tsx pakai komponen yang sama. */
 function Kartu({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-bg p-5">
@@ -174,7 +183,7 @@ function Kartu({ children }: { children: React.ReactNode }) {
           <Image src="/ruang-ngaji-logo.png" alt="Ruang Ngaji" width={44} height={40} priority />
           <div className="text-[26px] font-bold text-brand-green">Ruang Ngaji</div>
         </div>
-        {children}
+        <TinggiHalus>{children}</TinggiHalus>
       </div>
     </main>
   );
