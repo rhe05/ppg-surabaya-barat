@@ -394,7 +394,18 @@ export default function PelaksanaanPembelajaranView() {
               {apakahMingguIni ? 'Materi Hari Ini' : `Materi Minggu ${mingguKe}`}
             </div>
 
-            {loading && (
+            {/* Skeleton HANYA di pemuatan pertama (belum ada baris sama
+                sekali) -- diminta owner 2026-08-24: pindah chip kelas
+                sebelumnya langsung mengganti daftar dgn Skeleton (tinggi
+                tetap 3x52px) lalu berganti lagi ke daftar baru sesaat
+                kemudian, dua kali lompat tinggi yg terasa sbg "loncat ke
+                bawah" pada tombol2 di bawahnya. Kalau kelas sebelumnya
+                SUDAH py baris (baris belum dikosongkan sampai data baru
+                tiba -- lihat muat()), daftar lama tetap ditampilkan
+                (diredupkan lewat opacity, bukan diganti Skeleton) sampai
+                data baru siap lalu crossfade -- satu kali transisi halus,
+                bukan dua kali lompat. */}
+            {loading && baris.length === 0 && (
               <div className="mb-4 flex flex-col gap-2.5">
                 <Skeleton className="h-[52px] w-full" />
                 <Skeleton className="h-[52px] w-full" />
@@ -408,55 +419,61 @@ export default function PelaksanaanPembelajaranView() {
               </p>
             )}
 
-            <div className="mb-4 flex flex-col gap-2.5">
-              {!loading && baris.map((b, idx) => {
-                const dicentang = b.status === 'disampaikan';
-                const diperluas = terbukaId === b.id || (b.id === null && dicentang);
-                return (
-                  <div
-                    key={b.id ?? `baru-${idx}`}
-                    className={`rounded-card border p-3.5 transition-colors duration-150 ${
-                      dicentang ? 'border-[#A7F3D0] bg-[#ECFDF5]' : 'border-border bg-panel'
-                    }`}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleStatus(idx)}
-                      className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent p-0 text-left"
+            {baris.length > 0 && (
+              <div
+                className={`mb-4 flex flex-col gap-2.5 transition-opacity duration-200 ${
+                  loading ? 'pointer-events-none opacity-40' : 'opacity-100'
+                }`}
+              >
+                {baris.map((b, idx) => {
+                  const dicentang = b.status === 'disampaikan';
+                  const diperluas = terbukaId === b.id || (b.id === null && dicentang);
+                  return (
+                    <div
+                      key={b.id ?? `baru-${idx}`}
+                      className={`rounded-card border p-3.5 transition-colors duration-150 ${
+                        dicentang ? 'border-[#A7F3D0] bg-[#ECFDF5]' : 'border-border bg-panel'
+                      }`}
                     >
-                      <span
-                        className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
-                          dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
-                        }`}
+                      <button
+                        type="button"
+                        onClick={() => toggleStatus(idx)}
+                        className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent p-0 text-left"
                       >
-                        {dicentang && <Check size={14} strokeWidth={3} color="#fff" />}
-                      </span>
-                      <span className="min-w-0 flex-1 text-[14px] font-bold text-text">{b.judul}</span>
-                      <span
-                        className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
-                          dicentang ? 'bg-sage text-white' : 'bg-panel-2 text-brass'
-                        }`}
-                      >
-                        {dicentang ? 'Disampaikan' : 'Belum disampaikan'}
-                      </span>
-                    </button>
+                        <span
+                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+                            dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
+                          }`}
+                        >
+                          {dicentang && <Check size={14} strokeWidth={3} color="#fff" />}
+                        </span>
+                        <span className="min-w-0 flex-1 text-[14px] font-bold text-text">{b.judul}</span>
+                        <span
+                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
+                            dicentang ? 'bg-sage text-white' : 'bg-panel-2 text-brass'
+                          }`}
+                        >
+                          {dicentang ? 'Disampaikan' : 'Belum disampaikan'}
+                        </span>
+                      </button>
 
-                    {diperluas && (
-                      <div className="mt-2.5 pl-9">
-                        <label className="mb-1 block text-[11px] font-semibold text-text-dim">Catatan</label>
-                        <textarea
-                          value={b.catatan}
-                          onChange={(e) => ubahCatatan(idx, e.target.value)}
-                          placeholder="Catatan pelaksanaan (opsional)"
-                          rows={2}
-                          className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12.5px] text-text"
-                        />
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
+                      {diperluas && (
+                        <div className="mt-2.5 pl-9">
+                          <label className="mb-1 block text-[11px] font-semibold text-text-dim">Catatan</label>
+                          <textarea
+                            value={b.catatan}
+                            onChange={(e) => ubahCatatan(idx, e.target.value)}
+                            placeholder="Catatan pelaksanaan (opsional)"
+                            rows={2}
+                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12.5px] text-text"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {!tambahanTerbuka ? (
               <button
