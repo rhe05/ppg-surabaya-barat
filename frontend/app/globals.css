@@ -101,6 +101,34 @@ body {
   display: none;
 }
 
+/* Transisi masuk halus setelah RequireAuth selesai loading (2026-08-24,
+   diminta owner): sebelumnya logo kecil di tengah layar (state loading)
+   langsung DIGANTI seketika oleh seluruh layout (header+kartu penuh
+   layar) begitu sesi/peran diketahui -- lompatan dari "hampir kosong" ke
+   "penuh" itu yang terasa sbg "membesar dulu seperti aplikasi murahan".
+   Animasi CSS murni (bukan state React) supaya berjalan pas komponen
+   MOUNT, tanpa flicker tambahan -- diterapkan di RequireAuth.tsx pada
+   pembungkus konten (admin sidebar & kolom mobile guru).
+
+   SENGAJA opacity-only, TANPA transform: kolom mobile guru (RequireAuth.tsx)
+   py komentar eksplisit soal ini -- elemen `position:fixed` di dalamnya
+   (mis. tombol "Simpan Kehadiran" GuruAbsensiView.tsx) berpatokan ke
+   viewport SUNGGUHAN, dan transform pada ANCESTOR mana pun (walau cuma
+   selama animasi berjalan) menjadikan ancestor itu containing block bagi
+   fixed descendant-nya -- tombol akan melenceng selama animasi. Sudah
+   pernah dicoba+dibatalkan utk kasus serupa, lihat komentar itu. */
+@keyframes konten-muncul {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animasi-konten-muncul {
+  animation: konten-muncul 280ms ease-out;
+}
+
 /* Print-to-PDF universal (20 Agt, diminta owner): window.print() + CSS ini
    = render BROWSER ASLI, bukan screenshot/canvas (html2canvas) atau render
    server (Puppeteer dkk) -- hasil 100% sama persis dgn tampilan web, tanpa

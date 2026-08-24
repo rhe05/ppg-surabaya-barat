@@ -95,7 +95,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const tampilkanSidebar = !!profile?.role && profile.role !== 'guru';
   if (tampilkanSidebar) {
     return (
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen animasi-konten-muncul">
         <AdminSidebar />
         <div className="min-w-0 flex-1">{children}</div>
       </div>
@@ -129,7 +129,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   if (profile?.role === 'guru') {
     return (
       <div className="min-h-screen w-full bg-border">
-        <div className="mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
+        <div className="animasi-konten-muncul mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
           {children}
         </div>
       </div>
