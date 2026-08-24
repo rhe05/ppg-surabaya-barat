@@ -27,7 +27,7 @@ const HALAMAN_GURU = [
 ];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { session, profile, loading } = useAuth();
+  const { session, profile, loading, profileError } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -58,7 +58,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     }
   }, [loading, session, profile, pathname, router]);
 
-  if (loading) {
+  const layarMemuat = (
     /* Logo berdenyut (bukan teks "Memuat sesi..." polos) -- diminta owner
        2026-08-23, standar produk SaaS profesional. Ini titik loading yang
        PALING SERING dilihat di seluruh app (muncul di SETIAP pemuatan
@@ -66,22 +66,42 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
        admin, layout beda total) BELUM diketahui di sini -- jadi sengaja
        branding netral, bukan skeleton layout tertentu yang bisa salah
        tebak bentuk halamannya. */
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
-        <Image
-          src="/logo-ruang-ngaji.png"
-          alt="Ruang Ngaji"
-          width={40}
-          height={36}
-          className="animate-pulse"
-        />
-        <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
-      </main>
-    );
+    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
+      <Image
+        src="/logo-ruang-ngaji.png"
+        alt="Ruang Ngaji"
+        width={40}
+        height={36}
+        className="animate-pulse"
+      />
+      <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
+    </main>
+  );
+
+  if (loading) {
+    return layarMemuat;
   }
 
   if (!session) {
     return null;
+  }
+
+  /* `loading` cuma menandai getSession() selesai -- `profile` (penentu
+     guru/admin, sidebar-atau-tidak, kolom 430px-atau-tidak) baru dimuat
+     lewat efek TERPISAH setelah `session` diketahui (auth-context.tsx),
+     jadi ada jendela sesaat: session sudah ada, profile masih null.
+     Tanpa penjagaan ini, jendela itu jatuh ke cabang paling bawah
+     (`return <>{children}</>`) -- konten dirender TANPA sidebar admin
+     MAUPUN kolom 430px, alias lebar penuh "desktop" -- baru sepersekian
+     detik kemudian berpindah ke layout yang benar begitu profile.role
+     tiba. Di HP (viewport sudah sempit) jendela ini nyaris tak terlihat,
+     tapi di KOMPUTER lompatannya jelas kelihatan (dilaporkan owner:
+     "dashboard desktop, jump/flip sekilas, lalu kembali"). Kalau
+     profileError sudah ada (mis. "Profil tidak ditemukan"), profile TETAP
+     null selamanya -- guard ini otomatis lepas supaya tidak nyangkut di
+     loading selamanya, perilaku utk kasus error tidak berubah. */
+  if (session && profile === null && !profileError) {
+    return layarMemuat;
   }
 
   /* Sidebar navigasi desktop — HANYA utk admin_ppg/admin_desa/admin_kelompok
