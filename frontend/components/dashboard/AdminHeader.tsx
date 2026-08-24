@@ -13,27 +13,70 @@
    di luar cakupan permintaan ini. */
 
 import type { ReactNode } from 'react';
+import { useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { LABEL_PERAN } from '@/lib/roles';
 import BellPermintaanAdmin from '@/components/notifikasi/BellPermintaanAdmin';
+import MenuAdmin from '@/components/dashboard/MenuAdmin';
 
 export default function AdminHeader({ judul }: { judul: ReactNode }) {
   const { profile, namaKelompok } = useAuth();
   const labelPeran = profile?.role ? (LABEL_PERAN[profile.role] ?? profile.role) : null;
 
+  /* Hamburger HANYA di layar sempit (md:hidden) -- AdminSidebar sudah
+     menyediakan navigasi yang sama di layar lebar (hidden md:flex),
+     dua-duanya sengaja saling melengkapi persis breakpoint yang sama
+     supaya tidak pernah dobel ATAU tidak ada sama sekali. Sebelum ini
+     admin di HP tidak py jalan pindah halaman selain tombol back
+     browser (dilaporkan lewat kerja bareng 2026-08-24, fitur Dashboard
+     Kehadiran Kelompok). */
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [posisiMenu, setPosisiMenu] = useState<{ top: number; left: number } | null>(null);
+  const tombolMenuRef = useRef<HTMLButtonElement>(null);
+
   return (
     // .dash-header — Style_Main.html:740-752
     <div className="sticky top-0 z-10 flex h-[var(--topbar-height)] shrink-0 items-center justify-between gap-3 border-b border-border bg-panel px-5 shadow-[var(--shadow-subtle)]">
-      <h1 className="m-0 text-[16px] font-semibold text-text">{judul}</h1>
+      <div className="flex min-w-0 items-center gap-2">
+        <button
+          ref={tombolMenuRef}
+          type="button"
+          aria-label="Menu"
+          onClick={() => {
+            const r = tombolMenuRef.current?.getBoundingClientRect();
+            if (r) setPosisiMenu({ top: r.bottom + 8, left: r.left });
+            setMenuTerbuka((v) => !v);
+          }}
+          className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92] md:hidden"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="19"
+            height="19"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <line x1="4" y1="7" x2="20" y2="7" />
+            <line x1="4" y1="12" x2="20" y2="12" />
+            <line x1="4" y1="17" x2="20" y2="17" />
+          </svg>
+        </button>
+        <h1 className="m-0 truncate text-[16px] font-semibold text-text">{judul}</h1>
+      </div>
       <div className="flex shrink-0 items-center gap-3">
         <BellPermintaanAdmin />
         {labelPeran && (
-          <div className="text-right leading-tight">
+          <div className="hidden text-right leading-tight sm:block">
             <div className="text-[12px] font-semibold text-text">{labelPeran}</div>
             {namaKelompok && <div className="text-[11px] text-text-faint">{namaKelompok}</div>}
           </div>
         )}
       </div>
+
+      <MenuAdmin terbuka={menuTerbuka} posisi={posisiMenu} onTutup={() => setMenuTerbuka(false)} />
     </div>
   );
 }

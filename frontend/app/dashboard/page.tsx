@@ -1,12 +1,15 @@
 'use client';
 
+import Image from 'next/image';
 import AbsensiChart from '@/components/AbsensiChart';
 import RequireAuth from '@/components/RequireAuth';
 import GuruDashboard from '@/components/dashboard/GuruDashboard';
+import AdminKelpDashboard from '@/components/dashboard/AdminKelpDashboard';
 import RingkasanKpi from '@/components/dashboard/RingkasanKpi';
 import PohonWilayah from '@/components/dashboard/PohonWilayah';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import { useAuth } from '@/lib/auth-context';
+import { useIsMobile } from '@/lib/useIsMobile';
 
 function AdminDashboard() {
   return (
@@ -43,10 +46,35 @@ function AdminDashboard() {
 /* App lama memilih dashboard berdasarkan role (Script_Main.html:227-245):
    role 'guru' dikunci ke layar mobile-nya sendiri dan tidak pernah melihat
    shell admin. Percabangan di bawah meniru itu -- murni memilih markup,
-   tidak mengubah cara data di-fetch. */
+   tidak mengubah cara data di-fetch.
+
+   admin_kelompok (2026-08-24, Tier 1 fitur mobile admin_kelp) DAPAT DUA
+   markup tergantung device SUNGGUHAN, beda dari guru yang selalu satu
+   markup apa pun device-nya -- di layar lebar tetap AdminDashboard biasa
+   (sidebar desktop, TIDAK disentuh), di layar sempit AdminKelpDashboard
+   (kartu KPI + jalan pintas, gaya GuruDashboard). useIsMobile null
+   selama belum diketahui (window belum ada) -- SENGAJA ditahan di layar
+   netral, BUKAN default ke salah satu markup, supaya tidak sempat
+   kelihatan salah pilih lalu "lompat" begitu device sungguhan diketahui
+   (pola sama dgn `siap` di AdminSidebar.tsx). */
 function DashboardContent() {
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
+
   if (profile?.role === 'guru') return <GuruDashboard />;
+
+  if (profile?.role === 'admin_kelompok') {
+    if (isMobile === null) {
+      return (
+        <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
+          <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={40} height={36} className="animate-pulse" />
+          <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
+        </main>
+      );
+    }
+    if (isMobile) return <AdminKelpDashboard />;
+  }
+
   return <AdminDashboard />;
 }
 
