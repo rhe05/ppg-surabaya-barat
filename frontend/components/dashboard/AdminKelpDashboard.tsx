@@ -90,6 +90,14 @@ export default function AdminKelpDashboard() {
   const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
   const [memuatKalender, setMemuatKalender] = useState(true);
   const [sibukKalender, setSibukKalender] = useState(false);
+  /* "Tandai Libur" WAJIB diisi alasan dulu (diminta owner 2026-08-24) --
+     bukan sekali-tap langsung tersimpan tanpa keterangan, supaya nanti
+     ada jejak KENAPA hari itu diliburkan (tersimpan di kolom `catatan`
+     yang sudah ada di tabel kalender_kelompok, bukan kolom baru). Modal
+     konfirmasi kecil, bukan prompt() browser -- konsisten gaya popup
+     lain di app ini. */
+  const [modalLiburTerbuka, setModalLiburTerbuka] = useState(false);
+  const [alasanLibur, setAlasanLibur] = useState('');
 
   const [guruIzin, setGuruIzin] = useState<GuruIzinAktif[]>([]);
 
@@ -152,16 +160,19 @@ export default function AdminKelpDashboard() {
   }, [muatKalenderHariIni]);
 
   async function tandaiLiburHariIni() {
-    if (!kelompokId) return;
+    if (!kelompokId || !alasanLibur.trim()) return;
     setSibukKalender(true);
     try {
       const { error: err } = await supabase.from('kalender_kelompok').insert({
         kelompok_id: kelompokId,
         tanggal: tanggalHariIniLokal(),
         jenis: 'libur',
+        catatan: alasanLibur.trim(),
         dibuat_oleh: profile?.id ?? null,
       });
       if (err) throw new Error(err.message);
+      setModalLiburTerbuka(false);
+      setAlasanLibur('');
       await Promise.all([muatKalenderHariIni(), muat()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
@@ -271,7 +282,7 @@ export default function AdminKelpDashboard() {
               <button
                 type="button"
                 disabled={sibukKalender}
-                onClick={tandaiLiburHariIni}
+                onClick={() => setModalLiburTerbuka(true)}
                 className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
               >
                 Tandai Libur
@@ -446,6 +457,46 @@ export default function AdminKelpDashboard() {
           </button>
         </div>
       </div>
+
+      {modalLiburTerbuka && (
+        <div className="fixed inset-0 z-[600] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]">
+          <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
+            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur Hari Ini</div>
+            <p className="mb-4 text-[12.5px] text-text-dim">
+              Tulis alasan supaya tersimpan &amp; bisa dilihat lagi nanti.
+            </p>
+            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
+            <textarea
+              autoFocus
+              value={alasanLibur}
+              onChange={(e) => setAlasanLibur(e.target.value)}
+              placeholder="Misal: Hujan deras, jalan tidak bisa dilalui"
+              rows={3}
+              className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+            />
+            <div className="mt-4 flex gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setModalLiburTerbuka(false);
+                  setAlasanLibur('');
+                }}
+                className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!alasanLibur.trim() || sibukKalender}
+                onClick={tandaiLiburHariIni}
+                className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sibukKalender ? 'Menyimpan...' : 'Konfirmasi'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
