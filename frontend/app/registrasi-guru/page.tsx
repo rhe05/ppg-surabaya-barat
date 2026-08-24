@@ -32,11 +32,6 @@ function RegistrasiGuruContent() {
       <AdminHeader judul="Registrasi" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
-        <p className="mb-4 text-[12.5px] text-text-dim">
-          Daftarkan guru kelompok Anda. Setelah terdaftar, guru cukup mengetik nama &amp; kelompoknya
-          sendiri saat Masuk dengan Google -- akun langsung aktif tanpa menunggu persetujuan.
-        </p>
-
         {!bolehDaftarGuru && (
           <p className="text-[13px] text-text-dim">Anda tidak berwenang mendaftarkan guru.</p>
         )}
