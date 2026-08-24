@@ -9,6 +9,7 @@ import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
+import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -435,6 +436,9 @@ export default function GuruDashboard() {
 
       {/* .ia-dashboard-view — :5212-5216 */}
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[100px]">
+        {!loading && !error && (
+          <PengingatAbsenBanner kelas={kelas.filter((k) => k.santri_count > 0).map((k) => ({ id: k.id, nama: k.nama }))} />
+        )}
         {loading && (
           <>
             <SkeletonKartuKelas />

@@ -1,6 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import Image from 'next/image';
+import { useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -47,15 +49,22 @@ function AbsensiContent() {
   /* `user` tidak lagi dipakai: pencatat diisi auth.uid() di dalam
      simpan_absensi_kelas, bukan dikirim dari klien. */
   const { profile } = useAuth();
+  /* Deep-link dari PengingatAbsenBanner.tsx (Dashboard guru) --
+     /absensi?kelasId=5&tanggal=2026-08-19 langsung membuka kelas+tanggal
+     yang belum diisi, tanpa guru harus menavigasi KelasGate+kalender
+     manual dulu ("satu tap menuju penyelesaian", bukan cuma pemberitahuan
+     pasif). Kalau query string kosong (navigasi biasa lewat menu),
+     nilainya sama persis dgn sebelumnya. */
+  const searchParams = useSearchParams();
 
-  const [tanggal, setTanggal] = useState(tanggalHariIni);
+  const [tanggal, setTanggal] = useState(() => searchParams.get('tanggal') || tanggalHariIni());
   const [kelompokId, setKelompokId] = useState<number | null>(null);
   const [opsiKelompok, setOpsiKelompok] = useState<Kelompok[]>([]);
   const [opsiKelas, setOpsiKelas] = useState<
     { id: number; nama: string; jam_mulai: string; ruangan: string }[]
   >([]);
   /* '' = semua kelas. */
-  const [kelasId, setKelasId] = useState<string>('');
+  const [kelasId, setKelasId] = useState<string>(() => searchParams.get('kelasId') || '');
 
   const [santri, setSantri] = useState<Santri[]>([]);
   const [tersimpan, setTersimpan] = useState<Record<number, AbsensiRow>>({});
@@ -682,10 +691,28 @@ function AbsensiContent() {
   );
 }
 
+/* useSearchParams (dipakai AbsensiContent utk deep-link) mewajibkan
+   pemanggilnya dibungkus Suspense saat build produksi -- lihat
+   node_modules/next/dist/docs/.../use-search-params.md ("Missing
+   Suspense boundary with useSearchParams" kalau tidak). Fallback-nya
+   sengaja logo berdenyut yang sama dgn app/absensi/loading.tsx, bukan
+   loading.tsx route-level -- Suspense di sini lain lapisan (bailout
+   client-render subtree searchParams), keduanya bisa aktif bersamaan. */
+function FallbackMemuat() {
+  return (
+    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
+      <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={40} height={36} className="animate-pulse" />
+      <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
+    </main>
+  );
+}
+
 export default function AbsensiPage() {
   return (
     <RequireAuth>
-      <AbsensiContent />
+      <Suspense fallback={<FallbackMemuat />}>
+        <AbsensiContent />
+      </Suspense>
     </RequireAuth>
   );
 }
