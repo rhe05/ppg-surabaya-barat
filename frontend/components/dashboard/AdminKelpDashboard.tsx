@@ -79,15 +79,29 @@ import {
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
 type TitikTren = { tanggal: string; persen: number | null };
 type StatistikRingkas = { persen: number | null; tren: TitikTren[] };
-type RingkasanGuru = { total: number; l: number; p: number; mt: number; ms: number; gb: number };
+type HitungGenderKategori = { total: number; l: number; p: number };
+type RingkasanGuru = {
+  total: number;
+  l: number;
+  p: number;
+  mt: HitungGenderKategori;
+  ms: HitungGenderKategori;
+  gb: HitungGenderKategori;
+};
 
 /* Singkatan kategori guru (2026-08-26, diminta owner) -- KATEGORI penuh
    ada di components/guru/GuruForm.tsx; "Guru Mutu" sudah dihapus dari
-   pilihan form itu jadi tidak disertakan di sini juga. */
-const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; label: string; nama: string }[] = [
-  { kunci: 'mt', label: 'MT', nama: 'Muballigh Tugasan' },
-  { kunci: 'ms', label: 'MS', nama: 'Muballigh Setempat' },
-  { kunci: 'gb', label: 'GB', nama: 'Guru Bantu' },
+   pilihan form itu jadi tidak disertakan di sini juga. Tiap kategori
+   sekarang py breakdown L/P sendiri (diminta owner 2026-08-26, putaran
+   kedua: kartu Data Guru dirombak jadi PERSIS 4 kartu -- Total Guru,
+   MT, MS, GB -- masing2 nomor besar + "L: x · P: y" kecil di bawahnya,
+   warna aksen dipakai bareng components/dashboard/GuruKelpMobile.tsx
+   KATEGORI_WARNA supaya "MT" di sini & badge kategori di kartu Data
+   Guru mobile terasa satu bahasa warna, bukan kebetulan mirip). */
+const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; label: string; nama: string; warna: string }[] = [
+  { kunci: 'mt', label: 'MT', nama: 'Muballigh Tugasan', warna: 'text-indigo' },
+  { kunci: 'ms', label: 'MS', nama: 'Muballigh Setempat', warna: 'text-sage' },
+  { kunci: 'gb', label: 'GB', nama: 'Guru Bantu', warna: 'text-text-dim' },
 ];
 
 type RingkasanSantri = { total: number; l: number; p: number; jenjang: Record<string, number> };
@@ -463,13 +477,19 @@ export default function AdminKelpDashboard() {
       .then(({ data }) => {
         if (batal) return;
         const baris = (data ?? []) as { jenis_kelamin: string | null; kategori: string | null }[];
-        const hasil: RingkasanGuru = { total: baris.length, l: 0, p: 0, mt: 0, ms: 0, gb: 0 };
+        const kosong = (): HitungGenderKategori => ({ total: 0, l: 0, p: 0 });
+        const hasil: RingkasanGuru = { total: baris.length, l: 0, p: 0, mt: kosong(), ms: kosong(), gb: kosong() };
+        const tambah = (k: HitungGenderKategori, gender: string | null) => {
+          k.total += 1;
+          if (gender === 'L') k.l += 1;
+          else if (gender === 'P') k.p += 1;
+        };
         for (const g of baris) {
           if (g.jenis_kelamin === 'L') hasil.l += 1;
           else if (g.jenis_kelamin === 'P') hasil.p += 1;
-          if (g.kategori === 'Muballigh Tugasan') hasil.mt += 1;
-          else if (g.kategori === 'Muballigh Setempat') hasil.ms += 1;
-          else if (g.kategori === 'Guru Bantu') hasil.gb += 1;
+          if (g.kategori === 'Muballigh Tugasan') tambah(hasil.mt, g.jenis_kelamin);
+          else if (g.kategori === 'Muballigh Setempat') tambah(hasil.ms, g.jenis_kelamin);
+          else if (g.kategori === 'Guru Bantu') tambah(hasil.gb, g.jenis_kelamin);
         }
         setRingkasanGuru(hasil);
       });
@@ -825,43 +845,42 @@ export default function AdminKelpDashboard() {
 
         {ringkasanGuru && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 flex items-baseline justify-between">
-              <div className="text-[13px] font-bold text-text">Data Guru</div>
-              <div className="text-[11.5px] text-text-dim">Total {ringkasanGuru.total}</div>
-            </div>
-            <div className="mb-2.5 grid grid-cols-2 gap-2">
-              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
-                <span className="text-[18px] leading-none font-extrabold tabular-nums text-indigo">
-                  {ringkasanGuru.l}
+            <div className="mb-3 text-[13px] font-bold text-text">Data Guru</div>
+            {/* PERSIS 4 kartu (diminta owner 2026-08-26) -- Total Guru, MT,
+                MS, GB, masing2 angka besar + "L: x · P: y" kecil di
+                bawahnya, bukan lagi grid L/P terpisah dari grid kategori. */}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex flex-col items-center gap-1 rounded-[10px] bg-panel-2 px-2 pt-3 pb-2.5">
+                <span className="text-[22px] leading-none font-extrabold tabular-nums text-brass">
+                  {ringkasanGuru.total}
                 </span>
-                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                  Laki-laki
+                <span className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                  Total Guru
                 </span>
-              </div>
-              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
-                <span className="text-[18px] leading-none font-extrabold tabular-nums text-brass">
-                  {ringkasanGuru.p}
-                </span>
-                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                  Perempuan
+                <span className="text-[10.5px] text-text-faint">
+                  L: {ringkasanGuru.l} · P: {ringkasanGuru.p}
                 </span>
               </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {KATEGORI_SINGKAT.map((k) => (
-                <div
-                  key={k.kunci}
-                  title={k.nama}
-                  className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
-                >
-                  <span className="text-[16px] leading-none font-extrabold tabular-nums text-sage">
-                    {ringkasanGuru[k.kunci]}
-                  </span>
-                  <span className="mt-px text-center text-[9.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                    {k.label}
-                  </span>
-                </div>
-              ))}
+              {KATEGORI_SINGKAT.map((k) => {
+                const hitung = ringkasanGuru[k.kunci];
+                return (
+                  <div
+                    key={k.kunci}
+                    title={k.nama}
+                    className="flex flex-col items-center gap-1 rounded-[10px] bg-panel-2 px-2 pt-3 pb-2.5"
+                  >
+                    <span className={`text-[22px] leading-none font-extrabold tabular-nums ${k.warna}`}>
+                      {hitung.total}
+                    </span>
+                    <span className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                      {k.label}
+                    </span>
+                    <span className="text-[10.5px] text-text-faint">
+                      L: {hitung.l} · P: {hitung.p}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
