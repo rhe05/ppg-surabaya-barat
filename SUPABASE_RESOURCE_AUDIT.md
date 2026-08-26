@@ -4,7 +4,8 @@
 **Project**: Ruang Ngaji (tpq-app)
 **Pemicu**: Dashboard Supabase menunjukkan Compute 100%, CPU 100%, Memory 68%, Disk I/O 1%, Database 35.5 MB, WAL 80 MB.
 **Sifat audit**: READ-ONLY. Tidak ada perubahan kode/schema/data yang dilakukan dalam audit ini.
-**Status perbaikan (diperbarui 2026-08-26)**: CRITICAL #1 ✅ diperbaiki (`15eb83d`), HIGH #2 ✅ diperbaiki (`cc73779`), HIGH #3 ⏳ belum disentuh (perubahan arsitektur lebih besar, menunggu konfirmasi masih perlu), MEDIUM #4 ✅ diperbaiki (`0a271c1`), MEDIUM #5 tidak perlu tindakan terpisah.
+**Status perbaikan (diperbarui 2026-08-26)**: CRITICAL #1 ✅ diperbaiki (`15eb83d`), HIGH #2 ✅ diperbaiki (`cc73779`), HIGH #3 ⏳ belum disentuh, MEDIUM #4 ✅ diperbaiki (`0a271c1`), MEDIUM #5 tidak perlu tindakan terpisah.
+**⚠️ TAPI CPU MASIH 100% SETELAH SEMUA DI ATAS DI-DEPLOY.** Investigasi lanjutan (lihat bagian "Update investigasi langsung" di bagian bawah file ini) menunjukkan penyebabnya KEMUNGKINAN BUKAN kode aplikasi sama sekali — kemungkinan besar Supabase Studio Dashboard yang terbuka lama hari ini. Baca bagian update di bawah SEBELUM melanjutkan investigasi apa pun.
 
 ## Cara membaca profil resource ini
 
@@ -100,3 +101,26 @@ Audit statis (baca kode) bisa menunjukkan KANDIDAT kuat, tapi bukti definitif qu
 5. **Reports → API** (kalau ada di plan Anda): cek endpoint PostgREST mana (`/rest/v1/absensi`, dst.) yang paling banyak dipanggil dalam 24 jam terakhir.
 
 Item #1 di `pg_stat_statements` kemungkinan besar akan cocok dengan pola `SELECT id, status FROM absensi WHERE deleted_at IS NULL ORDER BY id ...` (dari CRITICAL #1) — kalau itu yang muncul di posisi teratas, penyebabnya terkonfirmasi tanpa keraguan.
+
+---
+
+## Update investigasi langsung (2026-08-26, setelah CRITICAL/HIGH/MEDIUM di atas di-deploy) — CPU BELUM TURUN, penyebab BUKAN yang diduga di atas
+
+Setelah `15eb83d`/`cc73779`/`0a271c1` di-deploy, owner melapor **CPU masih 100%, tidak turun**. Investigasi lanjutan lewat `pg_stat_statements` & Reports → API menemukan gambaran yang JAUH berbeda dari dugaan statis di atas:
+
+1. **`pg_stat_statements` (stats_reset = 2026-08-04 07:16 UTC, jadi kumulatif ~22 hari)**: query teratas adalah `select set_config('search_path', ...)` — boilerplate setup-sesi PostgREST yang jalan di SETIAP request API — dengan **602.622.352 calls**, rata-rata 0.016ms/call (cepat per-call, tapi VOLUME-nya yang jadi masalah). RPC yang tadinya dicurigai (`statistik_kehadiran`: 113 calls, `simpan_absensi_kelas`: ~85-100an calls) ternyata KECIL, bukan penyebabnya.
+2. **`select count(*) from absensi` → 1039 baris saja.** Tabel `absensi` TERNYATA KECIL (bukan "puluhan ribu" seperti diasumsikan CRITICAL #1 di atas) — jadi walau full-table-scan di `AbsensiChart.tsx`/`AttendanceSummaryReport.tsx` tetap pemborosan nyata dan sudah benar diperbaiki, itu BUKAN skala yang bisa menjelaskan 602 juta call.
+3. **Grafik Compute/CPU (Aug 19 → Aug 26)**: stabil ~55-70% sepanjang minggu, lalu **melonjak tajam ke 100%+ TEPAT DI HARI INI (26 Agustus)** — bukan pola "terus-menerus 22 hari", tapi lonjakan yang terkonsentrasi hari ini. Ini berarti 602 juta call kumulatif kemungkinan besar didominasi oleh apa pun yang terjadi HARI INI, bukan rata-rata rutin harian.
+4. **Reports → API, "Last 24 hours"**: traffic REST API terlihat NORMAL & wajar (query dengan filter yang jelas, jumlah per pola cuma satu-dua digit) — tidak ada tanda bot/serangan pada request `/rest/v1/*` yang tercatat di jendela 24 jam ini.
+5. **`pg_stat_activity` (snapshot sesaat)**: cuma segelintir koneksi aktif, dua di antaranya sedang menjalankan `simpan_absensi_kelas` bersamaan — normal (dua guru menyimpan absen di waktu berdekatan), bukan tanda macet/deadlock.
+
+**Kesimpulan sementara**: kombinasi (a) tabel kecil, (b) traffic 24 jam normal, (c) lonjakan yang terkonsentrasi HARI INI, sangat mencurigakan mengarah ke **aktivitas Supabase Studio Dashboard sendiri** (Table Editor/SQL Editor/schema browser yang di-poll berkala) selama sesi kerja panjang hari ini di dashboard tsb — BUKAN traffic dari aplikasi Next.js/pengguna akhir. Perbaikan kode (CRITICAL #1, HIGH #2, MEDIUM #4) TETAP bermanfaat & tetap di-deploy (mengurangi beban riil jangka panjang), tapi kemungkinan besar BUKAN itu penyebab lonjakan spesifik hari ini.
+
+**Tes yang diminta ke owner, BELUM ada hasilnya saat sesi ini berhenti (owner istirahat)**:
+1. Tutup SEMUA tab/jendela Supabase Dashboard sepenuhnya, jangan dibuka 15-30 menit.
+2. Buka lagi, cek apakah Compute/CPU sudah turun.
+3. Kalau turun → terkonfirmasi Studio dashboard yang jadi biang keroknya, bukan kode aplikasi. Kalau tetap 100% → di luar jangkauan diagnosis dari kode/log yang bisa diakses dari sini, perlu hubungi Supabase Support langsung dengan bukti `pg_stat_statements` di atas.
+
+**Next session harus mulai dari sini**: tanyakan hasil tes tutup-dashboard itu dulu sebelum melanjutkan apa pun terkait resource Supabase — JANGAN mengulang investigasi dari awal, konteks lengkapnya sudah di bagian ini.
+
+Temuan sampingan yang belum ditangani (prioritas jauh di bawah): 1 error `401` di endpoint `/rest/v1/kalender_kelompok` kelihatan di Reports → API — kemungkinan bug akses nyata utk satu user, belum diselidiki.
