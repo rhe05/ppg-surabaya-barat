@@ -219,16 +219,20 @@ function durasiMenitKelas(mulai: string | null, selesai: string | null) {
   return selisih > 0 ? selisih : null;
 }
 
-/* Dropdown "Agustus - 2026" (2026-08-26, diminta owner) -- trigger teks
-   + chevron, dipasang di kanan-atas judul kartu Data Guru/Data Generus,
-   sejajar judulnya. Diklik -> panel melayang 2 <select> (bulan+tahun),
-   pola SAMA PERSIS dgn popup kalender "Ringkasan Kehadiran" di komponen
-   ini (posisi dihitung dari getBoundingClientRect, bukan portal --
-   sudah terbukti tidak ke-clip di halaman ini). Dipakai 2x (kartu Data
-   Guru & Data Generus) dgn state bulan/tahun MASING2 SENDIRI -- sengaja
-   tidak berbagi dgn bulan/tahun "Ringkasan Kehadiran" di atas: dua
-   konteks berbeda (kehadiran per sesi vs populasi guru/santri per
-   bulan), owner tidak pernah minta keduanya harus selalu sama. */
+/* Dropdown "Agustus - 2026" (2026-08-26, diminta owner) -- dipasang di
+   kanan-atas judul kartu Data Guru/Data Generus, sejajar judulnya.
+   Trigger SENGAJA cuma teks warna indigo (2026-08-26, putaran kedua:
+   owner minta panah bawah & bungkus kotak/border dihapus -- "cukup
+   tulisan bulan dan tahun saja") -- BUKAN chip/pill spt tombol lain di
+   dashboard ini, supaya kelihatan seperti link, bukan tombol besar.
+   Diklik -> panel melayang 2 <select> (bulan+tahun), pola SAMA PERSIS
+   dgn popup kalender "Ringkasan Kehadiran" di komponen ini (posisi
+   dihitung dari getBoundingClientRect, bukan portal -- sudah terbukti
+   tidak ke-clip di halaman ini). Dipakai 2x (kartu Data Guru & Data
+   Generus) dgn state bulan/tahun MASING2 SENDIRI -- sengaja tidak
+   berbagi dgn bulan/tahun "Ringkasan Kehadiran" di atas: dua konteks
+   berbeda (kehadiran per sesi vs populasi guru/santri per bulan),
+   owner tidak pernah minta keduanya harus selalu sama. */
 function PemilihBulanTahun({
   bulan,
   tahun,
@@ -253,13 +257,9 @@ function PemilihBulanTahun({
           if (rect) setPosisi({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
           setTerbuka((v) => !v);
         }}
-        className="flex cursor-pointer items-center gap-1 rounded-[var(--radius-button)] border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-bold text-text active:scale-[0.96]"
+        className="cursor-pointer border-none bg-transparent text-[11px] font-bold text-indigo active:opacity-70"
       >
         {NAMA_BULAN[bulan - 1]} - {tahun}
-        <ChevronDown
-          size={12}
-          className={`shrink-0 text-text-faint transition-transform duration-200 ${terbuka ? 'rotate-180' : ''}`}
-        />
       </button>
       {terbuka && posisi && (
         <>
