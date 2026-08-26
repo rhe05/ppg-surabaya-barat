@@ -53,22 +53,35 @@ export default function PohonWilayah() {
   const muat = useCallback(async () => {
     setLoading(true);
     try {
-      const [{ data: dDesa }, { data: dKel }, { data: dSantri }, { data: dGuru }, { data: dPeriode }] =
-        await Promise.all([
-          supabase.from('desa').select('id, nama').order('nama'),
-          supabase.from('kelompok').select('id, nama, desa_id').order('nama'),
-          supabase.from('santri').select('kelompok_id').is('deleted_at', null),
-          supabase.from('guru').select('kelompok_id').is('deleted_at', null),
-          supabase
-            .from('periode_munaqosah')
-            .select('id, semester')
-            .order('id', { ascending: false })
-            .limit(1),
-        ]);
-      setDesa((dDesa ?? []) as unknown as Desa[]);
-      setKelompok((dKel ?? []) as unknown as Kelompok[]);
-      setSantri((dSantri ?? []) as unknown as Hitung[]);
-      setGuru((dGuru ?? []) as unknown as Hitung[]);
+      /* "Sebaran Wilayah" (desa/kelompok/santri/guru di bawah) HANYA
+         dirender utk lintasKelompok (admin_ppg/admin_desa) -- query4
+         itu DILEWATI SAMA SEKALI utk admin_kelompok (2026-08-26, audit
+         resource Supabase, temuan MEDIUM #4: sebelumnya query santri/
+         guru org-wide ini TETAP jalan di setiap load Dashboard admin_
+         kelompok padahal hasilnya tidak pernah dipakai/dirender utk
+         peran itu -- lihat kondisi `lintasKelompok &&` di JSX bawah). */
+      const [{ data: dPeriode }, hasilWilayah] = await Promise.all([
+        supabase
+          .from('periode_munaqosah')
+          .select('id, semester')
+          .order('id', { ascending: false })
+          .limit(1),
+        lintasKelompok
+          ? Promise.all([
+              supabase.from('desa').select('id, nama').order('nama'),
+              supabase.from('kelompok').select('id, nama, desa_id').order('nama'),
+              supabase.from('santri').select('kelompok_id').is('deleted_at', null),
+              supabase.from('guru').select('kelompok_id').is('deleted_at', null),
+            ])
+          : Promise.resolve(null),
+      ]);
+      if (hasilWilayah) {
+        const [{ data: dDesa }, { data: dKel }, { data: dSantri }, { data: dGuru }] = hasilWilayah;
+        setDesa((dDesa ?? []) as unknown as Desa[]);
+        setKelompok((dKel ?? []) as unknown as Kelompok[]);
+        setSantri((dSantri ?? []) as unknown as Hitung[]);
+        setGuru((dGuru ?? []) as unknown as Hitung[]);
+      }
 
       const p = (dPeriode ?? [])[0] as { id: number; semester: string } | undefined;
       if (p) {
@@ -86,7 +99,7 @@ export default function PohonWilayah() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [lintasKelompok]);
 
   useEffect(() => {
     muat();
