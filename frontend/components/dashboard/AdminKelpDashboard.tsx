@@ -39,6 +39,17 @@
    tile per jenjang terisi (grid-cols-3, bukan lagi pil datar), masing2
    angka besar + L/P bertumpuk di samping (bukan bawah).
 
+   Dropdown "Agustus - 2026" (2026-08-26, diminta owner: keduanya --
+   Data Guru & Data Generus -- dapat filter periode SUNGGUHAN, bukan
+   cuma label) -- PemilihBulanTahun di kanan-atas tiap kartu, state
+   bulan/tahun SENDIRI2 per kartu. Query guru/santri TIDAK lagi
+   memfilter deleted_at (RLS-nya scope-only, lihat komentar MentahGuru/
+   MentahSantri) -- baris mentah disimpan sekali, ringkasanGuru/
+   ringkasanSantri (useMemo) menghitung ulang "aktif sampai akhir bulan
+   X" pakai mulai_mengajar/mulai_ngaji + deleted_at (fungsi
+   aktifPadaBulan). Kategori/jenjang tetap pakai nilai TERKINI (tidak
+   dicatat historis) -- lihat komentar lengkap di definisi MentahGuru.
+
    "Hari Aktif" (2026-08-26, mulanya kartu hero sendiri di paling atas,
    lalu diminta owner PINDAH KE DALAM "Ringkasan Kehadiran" -- grid-nya
    jadi 5 kolom, tile ini di depan Hadir/Izin/Sakit/Alpa) -- dari tgl 1
@@ -57,7 +68,7 @@
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
    ditempel gaya lain. */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
@@ -105,6 +116,42 @@ const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; 
   { kunci: 'ms', label: 'MS', nama: 'Muballigh Setempat', warna: 'text-sage' },
   { kunci: 'gb', label: 'GB', nama: 'Guru Bantu', warna: 'text-text-dim' },
 ];
+
+/* Baris MENTAH guru/santri (2026-08-26, diminta owner: kartu Data Guru
+   & Data Generus dapat dropdown "Agustus - 2026" sendiri2, dan angkanya
+   HARUS dihitung ulang sungguhan sesuai bulan yang dipilih -- bukan
+   cuma label). Query TIDAK memfilter deleted_at lagi (RLS guru_select_
+   scoped/santri_select_scoped scope-nya cuma kelompok, TIDAK
+   menyembunyikan baris soft-delete -- dicek migrasi
+   20260815000000_sync_dari_produksi.sql), supaya guru/santri yang
+   SUDAH di-nonaktifkan SEKARANG tapi masih aktif di bulan yang dipilih
+   tetap ikut terhitung. Kategori/jenjang dipakai APA ADANYA (nilai
+   TERKINI) -- perubahan kategori/jenjang tidak dicatat historis, jadi
+   ini best-effort: populasi (siapa yang ikut dihitung) benar2 per bulan,
+   tapi label kategorinya kategori/jenjang TERAKHIR guru/santri itu. */
+type MentahGuru = {
+  jenis_kelamin: string | null;
+  kategori: string | null;
+  mulai_mengajar: string | null;
+  deleted_at: string | null;
+};
+type MentahSantri = {
+  gender: string | null;
+  jenjang_saat_ini: string | null;
+  mulai_ngaji: string | null;
+  deleted_at: string | null;
+};
+
+/* "Aktif pada bulan X" = sudah mulai (mulai_mengajar/mulai_ngaji <=
+   akhir bulan itu, atau belum diisi sama sekali -- dihitung tetap ikut,
+   sama spt app selama ini memperlakukan field opsional) DAN belum
+   di-nonaktifkan SAAT ITU (deleted_at null, atau baru terjadi SETELAH
+   akhir bulan itu). */
+function aktifPadaBulan(mulai: string | null, deletedAt: string | null, akhirBulan: Date): boolean {
+  if (mulai && new Date(mulai) > akhirBulan) return false;
+  if (deletedAt && new Date(deletedAt) <= akhirBulan) return false;
+  return true;
+}
 
 /* Kartu KPI "Data Generus" disamakan gayanya dgn "Data Guru" di atas
    (diminta owner 2026-08-26) -- jenjang jg py breakdown L/P sendiri
@@ -170,6 +217,86 @@ function durasiMenitKelas(mulai: string | null, selesai: string | null) {
   if ([ha, ma, hb, mb].some((n) => Number.isNaN(n))) return null;
   const selisih = hb * 60 + mb - (ha * 60 + ma);
   return selisih > 0 ? selisih : null;
+}
+
+/* Dropdown "Agustus - 2026" (2026-08-26, diminta owner) -- trigger teks
+   + chevron, dipasang di kanan-atas judul kartu Data Guru/Data Generus,
+   sejajar judulnya. Diklik -> panel melayang 2 <select> (bulan+tahun),
+   pola SAMA PERSIS dgn popup kalender "Ringkasan Kehadiran" di komponen
+   ini (posisi dihitung dari getBoundingClientRect, bukan portal --
+   sudah terbukti tidak ke-clip di halaman ini). Dipakai 2x (kartu Data
+   Guru & Data Generus) dgn state bulan/tahun MASING2 SENDIRI -- sengaja
+   tidak berbagi dgn bulan/tahun "Ringkasan Kehadiran" di atas: dua
+   konteks berbeda (kehadiran per sesi vs populasi guru/santri per
+   bulan), owner tidak pernah minta keduanya harus selalu sama. */
+function PemilihBulanTahun({
+  bulan,
+  tahun,
+  onUbah,
+}: {
+  bulan: number;
+  tahun: number;
+  onUbah: (bulan: number, tahun: number) => void;
+}) {
+  const [terbuka, setTerbuka] = useState(false);
+  const [posisi, setPosisi] = useState<{ top: number; right: number } | null>(null);
+  const tombolRef = useRef<HTMLButtonElement>(null);
+  const tahunSekarang = new Date().getFullYear();
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        ref={tombolRef}
+        onClick={() => {
+          const rect = tombolRef.current?.getBoundingClientRect();
+          if (rect) setPosisi({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+          setTerbuka((v) => !v);
+        }}
+        className="flex cursor-pointer items-center gap-1 rounded-[var(--radius-button)] border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-bold text-text active:scale-[0.96]"
+      >
+        {NAMA_BULAN[bulan - 1]} - {tahun}
+        <ChevronDown
+          size={12}
+          className={`shrink-0 text-text-faint transition-transform duration-200 ${terbuka ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {terbuka && posisi && (
+        <>
+          <div className="fixed inset-0 z-[1090]" onClick={() => setTerbuka(false)} />
+          <div
+            className="fixed z-[1100] w-[220px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            style={{ top: posisi.top, right: posisi.right }}
+          >
+            <div className="flex gap-2">
+              <select
+                value={bulan}
+                onChange={(e) => onUbah(Number(e.target.value), tahun)}
+                className={SELECT_BULAN_TAHUN}
+              >
+                {NAMA_BULAN.map((nm, idx) => (
+                  <option key={nm} value={idx + 1}>
+                    {nm}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={tahun}
+                onChange={(e) => onUbah(bulan, Number(e.target.value))}
+                className={SELECT_BULAN_TAHUN}
+              >
+                {[tahunSekarang - 1, tahunSekarang].map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function SkeletonKpi() {
@@ -243,8 +370,17 @@ export default function AdminKelpDashboard() {
   const [statistik, setStatistik] = useState<StatistikRingkas | null>(null);
   const [memuatStatistik, setMemuatStatistik] = useState(true);
 
-  const [ringkasanGuru, setRingkasanGuru] = useState<RingkasanGuru | null>(null);
-  const [ringkasanSantri, setRingkasanSantri] = useState<RingkasanSantri | null>(null);
+  /* Data MENTAH (belum difilter per bulan) -- dimuat SEKALI per kelompok,
+     penghitungan ulang per bulan terjadi di useMemo di bawah (klik ganti
+     bulan tidak query ulang, cuma filter ulang array yg sudah ada). */
+  const [mentahGuru, setMentahGuru] = useState<MentahGuru[]>([]);
+  const [siapMentahGuru, setSiapMentahGuru] = useState(false);
+  const [mentahSantri, setMentahSantri] = useState<MentahSantri[]>([]);
+  const [siapMentahSantri, setSiapMentahSantri] = useState(false);
+  const [bulanGuruKpi, setBulanGuruKpi] = useState(sekarangAwal.getMonth() + 1);
+  const [tahunGuruKpi, setTahunGuruKpi] = useState(sekarangAwal.getFullYear());
+  const [bulanSantriKpi, setBulanSantriKpi] = useState(sekarangAwal.getMonth() + 1);
+  const [tahunSantriKpi, setTahunSantriKpi] = useState(sekarangAwal.getFullYear());
 
   const muatBelumIsi = useCallback(async () => {
     if (!kelompokId) {
@@ -472,70 +608,87 @@ export default function AdminKelpDashboard() {
   /* Kartu KPI "Data Guru" (2026-08-26, diminta owner: taruh di bawah
      grafik Kehadiran 30 Hari) -- hitung dari tabel `guru` langsung, tidak
      ada RPC baru. RLS sudah menyempitkan ke kelompok admin ini sendiri,
-     sama seperti query GuruList.tsx desktop. */
+     sama seperti query GuruList.tsx desktop. Query TIDAK memfilter
+     deleted_at (lihat komentar MentahGuru di atas) -- baris mentah,
+     penghitungan per bulan terjadi di ringkasanGuru (useMemo) di bawah. */
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;
     supabase
       .from('guru')
-      .select('jenis_kelamin, kategori')
-      .is('deleted_at', null)
+      .select('jenis_kelamin, kategori, mulai_mengajar, deleted_at')
       .then(({ data }) => {
         if (batal) return;
-        const baris = (data ?? []) as { jenis_kelamin: string | null; kategori: string | null }[];
-        const kosong = (): HitungGenderKategori => ({ total: 0, l: 0, p: 0 });
-        const hasil: RingkasanGuru = { total: baris.length, l: 0, p: 0, mt: kosong(), ms: kosong(), gb: kosong() };
-        const tambah = (k: HitungGenderKategori, gender: string | null) => {
-          k.total += 1;
-          if (gender === 'L') k.l += 1;
-          else if (gender === 'P') k.p += 1;
-        };
-        for (const g of baris) {
-          if (g.jenis_kelamin === 'L') hasil.l += 1;
-          else if (g.jenis_kelamin === 'P') hasil.p += 1;
-          if (g.kategori === 'Muballigh Tugasan') tambah(hasil.mt, g.jenis_kelamin);
-          else if (g.kategori === 'Muballigh Setempat') tambah(hasil.ms, g.jenis_kelamin);
-          else if (g.kategori === 'Guru Bantu') tambah(hasil.gb, g.jenis_kelamin);
-        }
-        setRingkasanGuru(hasil);
+        setMentahGuru((data ?? []) as MentahGuru[]);
+        setSiapMentahGuru(true);
       });
     return () => {
       batal = true;
     };
   }, [kelompokId]);
 
+  const ringkasanGuru = useMemo<RingkasanGuru | null>(() => {
+    if (!siapMentahGuru) return null;
+    const akhirBulan = new Date(tahunGuruKpi, bulanGuruKpi, 0, 23, 59, 59, 999);
+    const kosong = (): HitungGenderKategori => ({ total: 0, l: 0, p: 0 });
+    const hasil: RingkasanGuru = { total: 0, l: 0, p: 0, mt: kosong(), ms: kosong(), gb: kosong() };
+    const tambah = (k: HitungGenderKategori, gender: string | null) => {
+      k.total += 1;
+      if (gender === 'L') k.l += 1;
+      else if (gender === 'P') k.p += 1;
+    };
+    for (const g of mentahGuru) {
+      if (!aktifPadaBulan(g.mulai_mengajar, g.deleted_at, akhirBulan)) continue;
+      hasil.total += 1;
+      if (g.jenis_kelamin === 'L') hasil.l += 1;
+      else if (g.jenis_kelamin === 'P') hasil.p += 1;
+      if (g.kategori === 'Muballigh Tugasan') tambah(hasil.mt, g.jenis_kelamin);
+      else if (g.kategori === 'Muballigh Setempat') tambah(hasil.ms, g.jenis_kelamin);
+      else if (g.kategori === 'Guru Bantu') tambah(hasil.gb, g.jenis_kelamin);
+    }
+    return hasil;
+  }, [mentahGuru, siapMentahGuru, bulanGuruKpi, tahunGuruKpi]);
+
   /* Kartu KPI "Data Generus" (2026-08-26, diminta owner: taruh di bawah
-     Data Guru) -- sama pola dgn ringkasanGuru di atas: hitung dari tabel
-     `santri` langsung, RLS menyempitkan ke kelompok ini, tanpa RPC baru. */
+     Data Guru) -- sama pola dgn mentahGuru/ringkasanGuru di atas: baris
+     mentah dari tabel `santri`, dihitung ulang per bulan di useMemo. */
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;
     supabase
       .from('santri')
-      .select('gender, jenjang_saat_ini')
-      .is('deleted_at', null)
+      .select('gender, jenjang_saat_ini, mulai_ngaji, deleted_at')
       .then(({ data }) => {
         if (batal) return;
-        const baris = (data ?? []) as { gender: string | null; jenjang_saat_ini: string | null }[];
-        const jenjang: Record<string, HitungGenderKategori> = {};
-        let l = 0;
-        let p = 0;
-        for (const s of baris) {
-          if (s.gender === 'L') l += 1;
-          else if (s.gender === 'P') p += 1;
-          if (s.jenjang_saat_ini) {
-            const k = (jenjang[s.jenjang_saat_ini] ??= { total: 0, l: 0, p: 0 });
-            k.total += 1;
-            if (s.gender === 'L') k.l += 1;
-            else if (s.gender === 'P') k.p += 1;
-          }
-        }
-        setRingkasanSantri({ total: baris.length, l, p, jenjang });
+        setMentahSantri((data ?? []) as MentahSantri[]);
+        setSiapMentahSantri(true);
       });
     return () => {
       batal = true;
     };
   }, [kelompokId]);
+
+  const ringkasanSantri = useMemo<RingkasanSantri | null>(() => {
+    if (!siapMentahSantri) return null;
+    const akhirBulan = new Date(tahunSantriKpi, bulanSantriKpi, 0, 23, 59, 59, 999);
+    const jenjang: Record<string, HitungGenderKategori> = {};
+    let total = 0;
+    let l = 0;
+    let p = 0;
+    for (const s of mentahSantri) {
+      if (!aktifPadaBulan(s.mulai_ngaji, s.deleted_at, akhirBulan)) continue;
+      total += 1;
+      if (s.gender === 'L') l += 1;
+      else if (s.gender === 'P') p += 1;
+      if (s.jenjang_saat_ini) {
+        const k = (jenjang[s.jenjang_saat_ini] ??= { total: 0, l: 0, p: 0 });
+        k.total += 1;
+        if (s.gender === 'L') k.l += 1;
+        else if (s.gender === 'P') k.p += 1;
+      }
+    }
+    return { total, l, p, jenjang };
+  }, [mentahSantri, siapMentahSantri, bulanSantriKpi, tahunSantriKpi]);
 
   const totalStatus = ringkasanBulan
     ? ringkasanBulan.hadir + ringkasanBulan.izin + ringkasanBulan.sakit + ringkasanBulan.alpa
@@ -856,7 +1009,17 @@ export default function AdminKelpDashboard() {
 
         {ringkasanGuru && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 text-[13px] font-bold text-text">Data Guru</div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="text-[13px] font-bold text-text">Data Guru</div>
+              <PemilihBulanTahun
+                bulan={bulanGuruKpi}
+                tahun={tahunGuruKpi}
+                onUbah={(b, t) => {
+                  setBulanGuruKpi(b);
+                  setTahunGuruKpi(t);
+                }}
+              />
+            </div>
             {/* PERSIS 4 kartu sejajar satu baris (diminta owner 2026-08-26).
                 L/P diminta DI SAMPING angka, bukan di bawahnya (putaran
                 keempat) -- jadi per kartu: judul kecil di atas, lalu satu
@@ -903,7 +1066,17 @@ export default function AdminKelpDashboard() {
 
         {ringkasanSantri && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 text-[13px] font-bold text-text">Data Generus</div>
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="text-[13px] font-bold text-text">Data Generus</div>
+              <PemilihBulanTahun
+                bulan={bulanSantriKpi}
+                tahun={tahunSantriKpi}
+                onUbah={(b, t) => {
+                  setBulanSantriKpi(b);
+                  setTahunSantriKpi(t);
+                }}
+              />
+            </div>
             {/* Gaya SAMA PERSIS dgn kartu Data Guru di atas (diminta owner
                 2026-08-26) -- tile "Total" + satu tile per jenjang yang
                 terisi (bukan lagi pil datar tanpa L/P), masing2 judul
