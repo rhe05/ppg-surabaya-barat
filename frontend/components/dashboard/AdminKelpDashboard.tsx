@@ -406,50 +406,56 @@ export default function AdminKelpDashboard() {
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
 
-        {!memuatKalender && (
-          <div
-            className={`mb-4 flex items-center gap-3 rounded-card border p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
-              kalenderHariIni ? 'border-[#FDE68A] bg-[#FFFBEB]' : 'border-border bg-panel'
-            }`}
-          >
-            <span
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
-                kalenderHariIni ? 'bg-[#FEF3C7] text-[#B45309]' : 'bg-panel-2 text-text-dim'
-              }`}
+        {loadingBelumIsi && <Skeleton className="mb-4 h-[62px] w-full rounded-card" />}
+
+        {!loadingBelumIsi && belumIsiBulan.length > 0 && (
+          <div className="mb-4 rounded-card border border-[#FDE68A] bg-[#FFFBEB] shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
+            <button
+              type="button"
+              onClick={() => setDetailBelumIsiTerbuka((v) => !v)}
+              className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent p-4 text-left"
             >
-              {kalenderHariIni?.jenis === 'libur' ? <CalendarOff size={17} /> : <CalendarCheck2 size={17} />}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className={`text-[12.5px] font-bold ${kalenderHariIni ? 'text-[#92400E]' : 'text-text'}`}>
-                {kalenderHariIni
-                  ? kalenderHariIni.jenis === 'libur'
-                    ? 'Hari ini ditandai LIBUR'
-                    : 'Hari ini ditandai TETAP AKTIF'
-                  : 'Kalender hari ini normal'}
+              <span className="flex items-center gap-2 text-[13px] font-bold text-[#92400E]">
+                Absensi Belum di Input
+                <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-[6px] text-[11px] font-bold text-[#92400E]">
+                  {belumIsiBulan.length}
+                </span>
+              </span>
+              <ChevronDown
+                size={16}
+                className={`shrink-0 text-[#92400E] transition-transform duration-200 ${detailBelumIsiTerbuka ? 'rotate-180' : ''}`}
+              />
+            </button>
+            {detailBelumIsiTerbuka && (
+              <div className="flex flex-col gap-2.5 border-t border-[#FDE68A] px-4 pt-3 pb-4">
+                {belumIsiBulan.map((k) => {
+                  const persen = k.totalHari > 0 ? Math.round((k.jumlahHari / k.totalHari) * 100) : 0;
+                  return (
+                    <div key={k.kelasId} className="flex items-center justify-between gap-3 text-[12.5px]">
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold text-[#92400E]">{k.kelasNama}</span>
+                        <span className="block text-[11.5px] text-[#92400E]/80">{namaPanggilanGuru(k.guruNama)}</span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block font-semibold text-[#92400E]">
+                          Belum isi {k.jumlahHari} dari {k.totalHari} hari
+                        </span>
+                        <span className="block text-[11.5px] text-[#92400E]/80">{persen}%</span>
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-              {kalenderHariIni?.catatan && (
-                <div className="text-[11px] text-[#92400E]/80">{kalenderHariIni.catatan}</div>
-              )}
-            </div>
-            {kalenderHariIni ? (
-              <button
-                type="button"
-                disabled={sibukKalender}
-                onClick={batalkanKalenderHariIni}
-                className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-[#B45309] bg-transparent px-3 py-1.5 text-[11.5px] font-bold text-[#B45309] disabled:opacity-50"
-              >
-                Batalkan
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={sibukKalender}
-                onClick={() => setModalLiburTerbuka(true)}
-                className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
-              >
-                Tandai Libur
-              </button>
             )}
+          </div>
+        )}
+
+        {!loadingBelumIsi && belumIsiBulan.length === 0 && (
+          <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D1FAE5] text-sage">
+              <CalendarCheck2 size={17} />
+            </span>
+            <span className="text-[13px] font-bold text-sage">Alhamdulillah, Absensi Sudah di Input</span>
           </div>
         )}
 
@@ -630,59 +636,6 @@ export default function AdminKelpDashboard() {
           </>
         )}
 
-        {loadingBelumIsi && <Skeleton className="mb-4 h-[62px] w-full rounded-card" />}
-
-        {!loadingBelumIsi && belumIsiBulan.length > 0 && (
-          <div className="mb-4 rounded-card border border-[#FDE68A] bg-[#FFFBEB] shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
-            <button
-              type="button"
-              onClick={() => setDetailBelumIsiTerbuka((v) => !v)}
-              className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent p-4 text-left"
-            >
-              <span className="flex items-center gap-2 text-[13px] font-bold text-[#92400E]">
-                Absensi Belum di Input
-                <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-[6px] text-[11px] font-bold text-[#92400E]">
-                  {belumIsiBulan.length}
-                </span>
-              </span>
-              <ChevronDown
-                size={16}
-                className={`shrink-0 text-[#92400E] transition-transform duration-200 ${detailBelumIsiTerbuka ? 'rotate-180' : ''}`}
-              />
-            </button>
-            {detailBelumIsiTerbuka && (
-              <div className="flex flex-col gap-2.5 border-t border-[#FDE68A] px-4 pt-3 pb-4">
-                {belumIsiBulan.map((k) => {
-                  const persen = k.totalHari > 0 ? Math.round((k.jumlahHari / k.totalHari) * 100) : 0;
-                  return (
-                    <div key={k.kelasId} className="flex items-center justify-between gap-3 text-[12.5px]">
-                      <span className="min-w-0">
-                        <span className="block truncate font-bold text-[#92400E]">{k.kelasNama}</span>
-                        <span className="block text-[11.5px] text-[#92400E]/80">{namaPanggilanGuru(k.guruNama)}</span>
-                      </span>
-                      <span className="shrink-0 text-right">
-                        <span className="block font-semibold text-[#92400E]">
-                          Belum isi {k.jumlahHari} dari {k.totalHari} hari
-                        </span>
-                        <span className="block text-[11.5px] text-[#92400E]/80">{persen}%</span>
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {!loadingBelumIsi && belumIsiBulan.length === 0 && (
-          <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.04)]">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#D1FAE5] text-sage">
-              <CalendarCheck2 size={17} />
-            </span>
-            <span className="text-[13px] font-bold text-sage">Alhamdulillah, Absensi Sudah di Input</span>
-          </div>
-        )}
-
         {guruIzin.length > 0 && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             <div className="mb-2 flex items-center gap-2 text-[13px] font-bold text-text">
@@ -741,6 +694,53 @@ export default function AdminKelpDashboard() {
 
         <div className="mb-3 text-[13px] font-bold text-text">Jalan Pintas</div>
         <div className="flex flex-col gap-2.5">
+          {!memuatKalender && (
+            <div
+              className={`flex items-center gap-3 rounded-card border p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
+                kalenderHariIni ? 'border-[#FDE68A] bg-[#FFFBEB]' : 'border-border bg-panel'
+              }`}
+            >
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+                  kalenderHariIni ? 'bg-[#FEF3C7] text-[#B45309]' : 'bg-panel-2 text-text-dim'
+                }`}
+              >
+                {kalenderHariIni?.jenis === 'libur' ? <CalendarOff size={17} /> : <CalendarCheck2 size={17} />}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className={`text-[12.5px] font-bold ${kalenderHariIni ? 'text-[#92400E]' : 'text-text'}`}>
+                  {kalenderHariIni
+                    ? kalenderHariIni.jenis === 'libur'
+                      ? 'Hari ini ditandai LIBUR'
+                      : 'Hari ini ditandai TETAP AKTIF'
+                    : 'Kalender hari ini normal'}
+                </div>
+                {kalenderHariIni?.catatan && (
+                  <div className="text-[11px] text-[#92400E]/80">{kalenderHariIni.catatan}</div>
+                )}
+              </div>
+              {kalenderHariIni ? (
+                <button
+                  type="button"
+                  disabled={sibukKalender}
+                  onClick={batalkanKalenderHariIni}
+                  className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-[#B45309] bg-transparent px-3 py-1.5 text-[11.5px] font-bold text-[#B45309] disabled:opacity-50"
+                >
+                  Batalkan
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={sibukKalender}
+                  onClick={() => setModalLiburTerbuka(true)}
+                  className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
+                >
+                  Tandai Libur
+                </button>
+              )}
+            </div>
+          )}
+
           <button
             type="button"
             onClick={() => router.push('/permintaan-generus')}
