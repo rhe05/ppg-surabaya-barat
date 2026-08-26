@@ -30,9 +30,21 @@ import { supabase } from '@/lib/supabase';
 export type GuruRegistrasi = {
   id: number;
   nama: string;
+  kategori: string | null;
   sudahKlaim: boolean;
   klaimPada: string | null;
 };
+
+/* "Guru" atau "Ketua Muda-i" (2026-08-26, diminta owner) -- pilihan
+   ringan di registrasi cepat, BUKAN dropdown kategori penuh (Muballigh
+   Tugasan/Setempat/Guru Bantu, lihat components/guru/GuruForm.tsx):
+   registrasi di sini cuma perlu tahu "biasa" vs "koordinator Remaja
+   Pra Nikah" -- kategori spesifik lainnya diisi belakangan lewat Data
+   Guru kalau admin memang perlu itu. Pilih "Guru" = kategori NULL
+   (default lama, tidak berubah), pilih "Ketua Muda-i" = kategori diisi
+   persis KATEGORI di GuruForm.tsx supaya konsisten dgn dropdown "Ketua
+   Muda-i" di components/kelas/KelasForm.tsx (kelas Remaja Pra Nikah). */
+const KATEGORI_KETUA_MUDAI = 'Ketua Muda-i';
 
 /* "Senin, 24 Agustus 2026 · 14:32" -- kapan orangnya benar2 mengklaim
    akun, bukan kapan didaftarkan. */
@@ -62,6 +74,7 @@ const KELAS_TOMBOL_SEKUNDER =
 export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | null }) {
   const [daftarGuruReg, setDaftarGuruReg] = useState<GuruRegistrasi[]>([]);
   const [namaGuruBaru, setNamaGuruBaru] = useState('');
+  const [jenisBaru, setJenisBaru] = useState<'guru' | 'ketua_mudai'>('guru');
   const [tampilkanGuruBergabung, setTampilkanGuruBergabung] = useState(false);
   const [sibuk, setSibuk] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
@@ -74,7 +87,7 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
     }
     const { data, error: err } = await supabase
       .from('guru')
-      .select('id, nama')
+      .select('id, nama, kategori')
       .eq('kelompok_id', kelompokId)
       .is('deleted_at', null)
       .order('nama');
@@ -103,6 +116,7 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
       guruList.map((g) => ({
         id: g.id,
         nama: g.nama,
+        kategori: g.kategori,
         sudahKlaim: petaStatus.get(g.id)?.sudah_klaim ?? false,
         klaimPada: petaStatus.get(g.id)?.klaim_pada ?? null,
       })),
@@ -122,9 +136,11 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
       const { error: err } = await supabase.from('guru').insert({
         kelompok_id: kelompokId,
         nama: namaGuruBaru.trim(),
+        kategori: jenisBaru === 'ketua_mudai' ? KATEGORI_KETUA_MUDAI : null,
       });
       if (err) throw new Error(err.message);
       setNamaGuruBaru('');
+      setJenisBaru('guru');
       setPesan('Guru terdaftar.');
       await muatGuruRegistrasi();
     } catch (e) {
@@ -173,6 +189,28 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
             placeholder="Nama sesuai KTP/yang biasa dipakai"
           />
         </div>
+        <div className="w-full">
+          <label className={KELAS_LABEL}>Daftarkan Sebagai</label>
+          <div className="flex gap-2">
+            {(
+              [
+                { nilai: 'guru', label: 'Guru' },
+                { nilai: 'ketua_mudai', label: 'Ketua Muda-i' },
+              ] as const
+            ).map((opsi) => (
+              <button
+                key={opsi.nilai}
+                type="button"
+                onClick={() => setJenisBaru(opsi.nilai)}
+                className={`flex-1 cursor-pointer rounded-[var(--radius)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] ${
+                  jenisBaru === opsi.nilai ? 'border-indigo bg-[#EEF2FF] text-indigo' : 'border-border bg-panel text-text'
+                }`}
+              >
+                {opsi.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <button onClick={daftarkanGuru} disabled={sibuk || !namaGuruBaru.trim()} className={KELAS_TOMBOL_UTAMA}>
           Daftar
         </button>
@@ -189,6 +227,11 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
         >
           <div className="flex items-center gap-3">
             <span className="text-[13px] font-semibold text-text">{g.nama}</span>
+            {g.kategori === KATEGORI_KETUA_MUDAI && (
+              <span className="rounded-full bg-[rgba(79,70,229,0.12)] px-2 py-0.5 text-[11px] font-bold text-indigo">
+                Ketua Muda-i
+              </span>
+            )}
             <span className="rounded-full bg-[rgba(217,119,6,0.12)] px-2 py-0.5 text-[11px] font-bold text-brass">
               Menunggu
             </span>
@@ -216,7 +259,7 @@ export default function RegistrasiGuru({ kelompokId }: { kelompokId: number | nu
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-[13px] font-semibold text-text">{g.nama}</span>
                     <span className="rounded-full bg-[rgba(79,70,229,0.12)] px-2 py-0.5 text-[11px] font-bold text-indigo">
-                      Guru
+                      {g.kategori === KATEGORI_KETUA_MUDAI ? 'Ketua Muda-i' : 'Guru'}
                     </span>
                     <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[11px] font-bold text-sage">
                       Sudah Bergabung
