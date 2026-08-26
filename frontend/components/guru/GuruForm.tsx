@@ -46,10 +46,10 @@ export const KOLOM_GURU =
   'mulai_mengajar, alamat, nomor_wa, pendidikan, rt, rw, kelurahan, kode_pos, ' +
   'kabupaten_kota, provinsi, kecamatan, lama_mengajar';
 
-/* "Guru Mutu" tidak ada di modalGuruKelp tapi ada di modalGuru lama DAN
-   dipakai 1 baris produksi — kalau dihilangkan, baris itu tidak bisa
-   disimpan ulang tanpa diam-diam berganti kategori. */
-const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Mutu', 'Guru Bantu'];
+/* "Guru Mutu" dihapus dari pilihan (2026-08-26, diminta owner). Baris
+   produksi yang masih berkategori itu tidak dipaksa ganti — cuma tidak
+   bisa dipilih ulang lewat dropdown ini sampai penggunanya ganti manual. */
+const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Bantu'];
 const PENDIDIKAN = [
   'SD/Sederajat',
   'SMP/Sederajat',
