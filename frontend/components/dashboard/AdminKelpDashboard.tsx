@@ -52,17 +52,24 @@
 
    "Hari Aktif" (2026-08-26, mulanya kartu hero sendiri di paling atas,
    lalu diminta owner PINDAH KE DALAM "Ringkasan Kehadiran" -- grid-nya
-   jadi 5 kolom, tile ini di depan Hadir/Izin/Sakit/Alpa) -- dari tgl 1
-   bulan berjalan s.d. HARI INI, berapa yang sungguh hari ngaji: akhir
-   pekan + tanggal merah nasional dikurangi, DITUMPANGI override
-   kalender_kelompok (kelp bisa menandai suatu tanggal 'libur' mendadak
-   spt acara pengajian, atau 'aktif' tetap masuk walau tanggal merah) --
-   lib/ringkasanAdminKelp.ts::muatHariAktifBulanIni, definisi "hari
-   kerja" SAMA dgn muatAbsensiBelumDiisiBulan (buatCekNonaktif). Gradient
-   teal DISALIN PERSIS dari tile "Hari Aktif" GuruDashboard.tsx (diminta
-   owner: "samakan spt milik guru") -- 18px, dua baris label "Hari"/
-   "Aktif" uppercase, bukan pill persentase spt 4 tile status di
-   sebelahnya (ini info struktural, bukan status kehadiran).
+   jadi 5 kolom, tile ini di depan Hadir/Izin/Sakit/Alpa).
+
+   Definisi angkanya DIGANTI (2026-08-26, putaran kedua) dari
+   "perhitungan kalender" (hari kerja teoritis, minus akhir pekan/
+   tanggal merah/override kalender_kelompok) jadi ANGKA SUNGGUHAN:
+   owner melaporkan kartu versi kalender bisa menampilkan angka LEBIH
+   RENDAH dari kenyataan (mis. seorang guru sudah input absen 16 hari
+   tapi kartu cuma bilang 15, krn kelasnya tetap jalan di tanggal yang
+   kalender anggap libur). Sekarang dipakai `ringkasanBulan.
+   hariAktifTerbanyak` -- kelas dgn JUMLAH TANGGAL ABSENSI TERBANYAK
+   bulan ini (bukan rata2/kelas tertentu), dihitung bareng data
+   Ringkasan Kehadiran yang sudah di-fetch (lib/ringkasanAdminKelp.ts::
+   muatRingkasanRentang, field `hariAktifTerbanyak`) -- TIDAK ada query
+   absensi tambahan. Gradient teal DISALIN PERSIS dari tile "Hari
+   Aktif" GuruDashboard.tsx (diminta owner: "samakan spt milik guru")
+   -- 18px, dua baris label "Hari"/"Aktif" uppercase, bukan pill
+   persentase spt 4 tile status di sebelahnya (ini info struktural,
+   bukan status kehadiran).
 
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
@@ -81,7 +88,6 @@ import {
   muatRingkasanPerKelas,
   muatAbsensiBelumDiisiBulan,
   muatGuruSedangIzin,
-  muatHariAktifBulanIni,
   tanggalHariIniLokal,
   type RingkasanHariIni,
   type GuruIzinAktif,
@@ -319,8 +325,6 @@ export default function AdminKelpDashboard() {
 
   const [error, setError] = useState<string | null>(null);
   const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
-
-  const [hariAktifBulanIni, setHariAktifBulanIni] = useState<number | null>(null);
 
   /* Kartu "Ringkasan Kehadiran" (2026-08-24, diminta owner) -- bisa
      ditelusuri per bulan lewat ikon kalender, pola SAMA PERSIS
@@ -570,21 +574,6 @@ export default function AdminKelpDashboard() {
   }, [kelompokId]);
 
   useEffect(() => {
-    if (!kelompokId) return;
-    let batal = false;
-    muatHariAktifBulanIni(kelompokId)
-      .then((hasil) => {
-        if (!batal) setHariAktifBulanIni(hasil);
-      })
-      .catch(() => {
-        // Non-kritis -- gagal diam-diam, bagian sekunder dashboard.
-      });
-    return () => {
-      batal = true;
-    };
-  }, [kelompokId]);
-
-  useEffect(() => {
     if (!kelompokId) {
       setMemuatStatistik(false);
       return;
@@ -798,13 +787,13 @@ export default function AdminKelpDashboard() {
               </span>
             </button>
             <div className="grid grid-cols-5 gap-2">
-              {hariAktifBulanIni !== null && (
+              {ringkasanBulan && (
                 <div
                   className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
                   style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)' }}
                 >
                   <span className="text-[18px] leading-none font-extrabold text-white tabular-nums">
-                    {hariAktifBulanIni}
+                    {ringkasanBulan.hariAktifTerbanyak}
                   </span>
                   <span className="mt-px text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
                     Hari

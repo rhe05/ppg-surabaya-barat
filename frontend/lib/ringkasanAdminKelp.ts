@@ -20,6 +20,7 @@ export type RingkasanHariIni = {
   sakit: number;
   alpa: number;
   guruBelumIsi: GuruBelumIsi[];
+  hariAktifTerbanyak: number;
 };
 
 function tanggalHariIniLokal() {
@@ -65,6 +66,7 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
     sakit: 0,
     alpa: 0,
     guruBelumIsi: [],
+    hariAktifTerbanyak: 0,
   };
   if (kelasIds.length === 0) return kosong;
 
@@ -81,6 +83,15 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
   });
 
   const kelasSudah = new Set<number>();
+  /* Tanggal per kelas (2026-08-26, diminta owner) -- "Hari Aktif" kartu
+     Ringkasan Kehadiran DIGANTI dari perhitungan kalender (hari kerja
+     teoritis) jadi ANGKA SUNGGUHAN: kelas dgn absensi TERBANYAK bulan
+     ini yang jadi acuan (bukan rata2/kelas tertentu), krn itu yang
+     paling menggambarkan "sudah sejauh mana bulan ini benar2 berjalan"
+     -- owner menunjukkan kartu sebelumnya (aturan kalender) bisa lebih
+     RENDAH dari kenyataan (mis. kelas tetap ngaji di tanggal yang
+     kalender anggap libur). */
+  const tanggalPerKelas = new Map<number, Set<string>>();
   let hadir = 0;
   let izin = 0;
   let sakit = 0;
@@ -92,7 +103,7 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
     for (let dari = 0; ; dari += UKURAN_HALAMAN) {
       const { data, error: errAbsensi } = await supabase
         .from('absensi')
-        .select('santri_id, status')
+        .select('santri_id, tanggal, status')
         .in('santri_id', santriIds)
         .gte('tanggal', awal)
         .lte('tanggal', akhir)
@@ -104,7 +115,12 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
       const batch = data ?? [];
       batch.forEach((a) => {
         const kId = kelasDariSantri.get(a.santri_id);
-        if (kId != null) kelasSudah.add(kId);
+        if (kId != null) {
+          kelasSudah.add(kId);
+          const set = tanggalPerKelas.get(kId) ?? new Set<string>();
+          set.add(a.tanggal);
+          tanggalPerKelas.set(kId, set);
+        }
         if (a.status === 'hadir') hadir++;
         else if (a.status === 'izin') izin++;
         else if (a.status === 'sakit') sakit++;
@@ -118,6 +134,8 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
     .filter((k) => !kelasSudah.has(k.id))
     .map((k) => ({ kelasId: k.id, kelasNama: k.nama, guruNama: namaGuruDari(k.guru) }));
 
+  const hariAktifTerbanyak = Math.max(0, ...[...tanggalPerKelas.values()].map((s) => s.size));
+
   return {
     totalKelas: kelasList.length,
     kelasSudahDiabsen: kelasSudah.size,
@@ -126,6 +144,7 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
     sakit,
     alpa,
     guruBelumIsi,
+    hariAktifTerbanyak,
   };
 }
 
@@ -403,34 +422,6 @@ export async function muatAbsensiBelumDiisiBulan(
     })
     .filter((k) => k.jumlahHari > 0)
     .sort((a, b) => b.jumlahHari - a.jumlahHari);
-}
-
-/* Kartu KPI "Hari Aktif" (2026-08-26, diminta owner: dari tgl 1 bulan
-   berjalan s.d. HARI INI, berapa yang sungguh hari ngaji -- akhir pekan
-   & tanggal merah nasional dikurangi, DITUMPANGI pengecualian
-   kalender_kelompok kalau kelp ini pernah menandai suatu tanggal
-   'libur' mendadak (mis. ada acara pengajian penerobosan) atau 'aktif'
-   (tetap masuk walau tanggal merah). Definisi "hari kerja" SAMA PERSIS
-   dgn muatAbsensiBelumDiisiBulan di atas (buatCekNonaktif) -- beda cuma
-   batas akhirnya: di sini SAMPAI HARI INI SENDIRI (bukan kemarin), krn
-   tujuannya "sudah berjalan berapa hari", bukan "berapa yg wajib sudah
-   diisi". */
-export async function muatHariAktifBulanIni(kelompokId: number): Promise<number> {
-  const sekarang = new Date();
-  const tahun = sekarang.getFullYear();
-  const bulan = sekarang.getMonth() + 1;
-  const hariIni = sekarang.getDate();
-
-  const override = await muatOverrideKelompok(kelompokId);
-  const cekNonaktif = buatCekNonaktif(override);
-
-  let aktif = 0;
-  for (let hari = 1; hari <= hariIni; hari++) {
-    const d = new Date(tahun, bulan - 1, hari);
-    const s = tanggalStrLokal(d);
-    if (!cekNonaktif(s, d)) aktif++;
-  }
-  return aktif;
 }
 
 /* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,
