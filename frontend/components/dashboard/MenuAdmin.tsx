@@ -52,11 +52,14 @@ function itemMenu(role: string | undefined): { label: string; href: string; svg:
       ),
     },
     {
-      /* Data Guru (2026-08-26, diminta owner) -- /guru sudah punya cabang
-         mobile sendiri (GuruKelpMobile.tsx, gaya kartu spt Data Generus
-         guru), item ini cuma jalan masuknya dari menu utama admin. */
-      href: '/guru',
-      label: 'Data Guru',
+      /* Data Master (2026-08-26, diminta owner: gabung jadi satu pintu) --
+         hub /data-master menaungi Data Guru (/guru) & Data Generus
+         (/santri), keduanya sudah py cabang mobile sendiri (GuruKelpMobile
+         .tsx / AdminSantriMobile.tsx, gaya kartu spt Data Generus guru).
+         Dulu item ini langsung ke /guru saja ("Data Guru") -- diganti
+         begitu Data Generus admin_kelompok jg dapat tampilan mobile. */
+      href: '/data-master',
+      label: 'Data Master',
       svg: (
         <>
           <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />

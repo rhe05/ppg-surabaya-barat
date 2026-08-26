@@ -26,7 +26,9 @@ import { useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import SantriList from '@/components/SantriList';
 import AdminHeader from '@/components/dashboard/AdminHeader';
+import AdminSantriMobile from '@/components/dashboard/AdminSantriMobile';
 import { useAuth } from '@/lib/auth-context';
+import { useIsMobile } from '@/lib/useIsMobile';
 import { supabase } from '@/lib/supabase';
 
 function useCakupanDesa() {
@@ -67,16 +69,34 @@ function JudulHalaman() {
   return <>Data Generus{cakupan ? ` - ${cakupan}` : ''}</>;
 }
 
+/* Cabang mobile admin_kelompok (2026-08-26, diminta owner: "Data Master"
+   -> Data Generus) -- pola SAMA PERSIS app/guru/page.tsx: SantriList
+   desktop adalah tabel penuh yang tidak cocok di layar sempit, jadi
+   admin_kelompok di HP melihat AdminSantriMobile.tsx (kartu, gaya Data
+   Generus guru) -- peran/perangkat lain TIDAK berubah. */
+function SantriContent() {
+  const { profile } = useAuth();
+  const isMobile = useIsMobile();
+
+  if (profile?.role === 'admin_kelompok' && isMobile) {
+    return <AdminSantriMobile />;
+  }
+
+  return (
+    <main className="min-h-screen bg-bg">
+      <AdminHeader judul={<JudulHalaman />} />
+
+      <div className="mx-auto w-full max-w-[1200px] px-5 pt-5 pb-10">
+        <SantriList />
+      </div>
+    </main>
+  );
+}
+
 export default function SantriPage() {
   return (
     <RequireAuth>
-      <main className="min-h-screen bg-bg">
-        <AdminHeader judul={<JudulHalaman />} />
-
-        <div className="mx-auto w-full max-w-[1200px] px-5 pt-5 pb-10">
-          <SantriList />
-        </div>
-      </main>
+      <SantriContent />
     </RequireAuth>
   );
 }
