@@ -21,7 +21,13 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import { useIsMobile } from '@/lib/useIsMobile';
-import KelasForm, { KOLOM_KELAS, type Guru, type KategoriKbm, type KelasRow } from '@/components/kelas/KelasForm';
+import KelasForm, {
+  KATEGORI_REMAJA_PRA_NIKAH,
+  KOLOM_KELAS,
+  type Guru,
+  type KategoriKbm,
+  type KelasRow,
+} from '@/components/kelas/KelasForm';
 import KelasKelpMobile from '@/components/dashboard/KelasKelpMobile';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
@@ -294,7 +300,11 @@ function KelasContent() {
                         {keJam(k.jam_mulai)}–{keJam(k.jam_selesai)}
                       </td>
                       <td className="border-b border-border px-3 py-3 text-text">{k.ruangan}</td>
-                      <td className="border-b border-border px-3 py-3 text-text">{namaGuru(k.guru_id)}</td>
+                      <td className="border-b border-border px-3 py-3 text-text">
+                        {namaKategori(k.kategori_kbm_id) === KATEGORI_REMAJA_PRA_NIKAH
+                          ? (k.hari_ngaji?.join(', ') ?? '-') + ' (gilir)'
+                          : namaGuru(k.guru_id)}
+                      </td>
                       <td className="border-b border-border px-3 py-3 text-text">
                         {jumlahSantriKelas.get(k.id) ?? 0}
                       </td>

@@ -16,7 +16,13 @@ import { CalendarPlus, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
-import KelasForm, { KOLOM_KELAS, type Guru, type KategoriKbm, type KelasRow } from '@/components/kelas/KelasForm';
+import KelasForm, {
+  KATEGORI_REMAJA_PRA_NIKAH,
+  KOLOM_KELAS,
+  type Guru,
+  type KategoriKbm,
+  type KelasRow,
+} from '@/components/kelas/KelasForm';
 
 type SantriRingkas = { id: number; nama: string; nis: string | null; kelas_id: number | null };
 
@@ -214,6 +220,7 @@ export default function KelasKelpMobile() {
         <div className="flex flex-col gap-2.5">
           {kelasTersaring.map((k) => {
             const guru = namaGuru(k.guru_id);
+            const remajaPraNikah = namaKategori(k.kategori_kbm_id) === KATEGORI_REMAJA_PRA_NIKAH;
             return (
               <button
                 key={k.id}
@@ -228,7 +235,12 @@ export default function KelasKelpMobile() {
                     {k.jam_selesai?.slice(0, 5)}
                   </div>
                   <div className="mt-1 text-[11.5px] font-semibold">
-                    {guru ? (
+                    {remajaPraNikah ? (
+                      <span className="text-indigo">
+                        {k.hari_ngaji && k.hari_ngaji.length > 0 ? k.hari_ngaji.join(', ') : 'Hari ngaji belum dipilih'}{' '}
+                        · gilir guru
+                      </span>
+                    ) : guru ? (
                       <span className="text-sage">{guru}</span>
                     ) : (
                       <span className="text-brass">Belum ada guru pengampu</span>

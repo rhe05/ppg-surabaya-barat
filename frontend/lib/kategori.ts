@@ -12,7 +12,13 @@
    (Modul_MaintainJadwalKBM.gs:26). Dibuktikan di produksi: keempat nilai
    ini dipakai 0 baris kurikulum_prota, sedangkan 11 sisanya dipakai 0 baris
    jadwal_kategori_hari. */
-export const KATEGORI_JENJANG = ['Cabe Rawit', 'Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi'];
+/* "Remaja Pra Nikah" ditambahkan 2026-08-26 (diminta owner, baris DB
+   di migrasi 20260826150000_kategori_remaja_pra_nikah.sql) -- jenjang
+   kelas BARU dgn dua sifat yang khusus ditangani KelasForm.tsx: jadwal
+   mingguannya SELALU Selasa/Rabu/Kamis/Jumat (checklist kelas.hari_ngaji,
+   bukan 1 jam tetap spt jenjang lain), dan TIDAK punya satu Guru
+   Pengampu tetap (gurunya gilir beda2 tiap hari ngaji). */
+export const KATEGORI_JENJANG = ['Cabe Rawit', 'Pra Remaja SMP', 'Remaja SMA', 'Muda-Mudi', 'Remaja Pra Nikah'];
 
 /** Urutan hari baku (Senin dulu) — HARI_URUTAN_JKH_ di app lama. */
 export const HARI_URUTAN = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];

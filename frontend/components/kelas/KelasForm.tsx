@@ -25,12 +25,24 @@ export type KelasRow = {
   keterangan: string | null;
   santri_count: number;
   status: string;
+  hari_ngaji: string[] | null;
 };
 
 export const KOLOM_KELAS =
-  'id, kelompok_id, nama, kategori_kbm_id, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status';
+  'id, kelompok_id, nama, kategori_kbm_id, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status, hari_ngaji';
 
 export const STATUS_KELAS = ['aktif', 'tidak_aktif'];
+
+/* Kategori "Remaja Pra Nikah" (2026-08-26, diminta owner, migrasi
+   20260826150000_kategori_remaja_pra_nikah.sql) py 2 sifat khusus yang
+   TIDAK berlaku kategori lain:
+   1. Jadwal mingguannya TETAP Selasa/Rabu/Kamis/Jumat -- checklist di
+      bawah Ruangan (kolom kelas.hari_ngaji), bukan cuma satu jam tetap.
+   2. TIDAK py satu Guru Pengampu tetap (gurunya gilir beda2 tiap hari
+      ngaji) -- field "Guru Pengampu" disembunyikan sepenuhnya utk
+      kategori ini, guru_id selalu dikirim null. */
+export const KATEGORI_REMAJA_PRA_NIKAH = 'Remaja Pra Nikah';
+const HARI_NGAJI_OPSI = ['Selasa', 'Rabu', 'Kamis', 'Jumat'];
 
 const keJam = (v: string | null) => (v ? v.slice(0, 5) : '');
 
@@ -66,13 +78,20 @@ export default function KelasForm({
   const [ruangan, setRuangan] = useState(awal?.ruangan ?? '');
   const [keterangan, setKeterangan] = useState(awal?.keterangan ?? '');
   const [status, setStatus] = useState(awal?.status ?? 'aktif');
+  const [hariNgaji, setHariNgaji] = useState<string[]>(awal?.hari_ngaji ?? []);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /* Dropdown kategori dibatasi 4 kategori JENJANG. Sisi lain dari tabel
+  /* Dropdown kategori dibatasi kategori JENJANG. Sisi lain dari tabel
      kategori_kbm berisi mata pelajaran kurikulum yang tidak berlaku di
      sini — lihat lib/kategori.ts. */
   const kategoriJenjang = kategoriList.filter((k) => KATEGORI_JENJANG.includes(k.nama));
+  const namaKategoriTerpilih = kategoriList.find((k) => String(k.id) === kategoriId)?.nama;
+  const isRemajaPraNikah = namaKategoriTerpilih === KATEGORI_REMAJA_PRA_NIKAH;
+
+  function toggleHari(hari: string) {
+    setHariNgaji((s) => (s.includes(hari) ? s.filter((h) => h !== hari) : [...s, hari]));
+  }
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
@@ -81,18 +100,20 @@ export default function KelasForm({
     if (!kategoriId) return setError('Kategori wajib dipilih.');
     if (!mulai || !selesai) return setError('Jam mulai dan selesai wajib diisi.');
     if (!ruangan.trim()) return setError('Ruangan wajib diisi.');
+    if (isRemajaPraNikah && hariNgaji.length === 0) return setError('Pilih minimal satu hari ngaji.');
 
     setMenyimpan(true);
     try {
       await onSimpan({
         nama: nama.trim(),
         kategori_kbm_id: Number(kategoriId),
-        guru_id: guruId ? Number(guruId) : null,
+        guru_id: isRemajaPraNikah ? null : guruId ? Number(guruId) : null,
         jam_mulai: mulai,
         jam_selesai: selesai,
         ruangan: ruangan.trim(),
         keterangan: keterangan.trim() || null,
         status,
+        hari_ngaji: isRemajaPraNikah ? hariNgaji : null,
       });
     } catch (e2) {
       setError(e2 instanceof Error ? e2.message : 'Gagal menyimpan.');
@@ -132,17 +153,19 @@ export default function KelasForm({
               ))}
             </select>
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Guru Pengampu</label>
-            <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
-              <option value="">-- Belum ditentukan --</option>
-              {guruList.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.nama}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!isRemajaPraNikah && (
+            <div>
+              <label className={KELAS_LABEL}>Guru Pengampu</label>
+              <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
+                <option value="">-- Belum ditentukan --</option>
+                {guruList.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label className={KELAS_LABEL}>Ruangan *</label>
             <input
@@ -152,6 +175,32 @@ export default function KelasForm({
               placeholder="Misal: Masjid Lt 1"
             />
           </div>
+          {isRemajaPraNikah && (
+            <div className="sm:col-span-2">
+              <label className={KELAS_LABEL}>Hari Ngaji *</label>
+              <p className="mb-2 text-[11.5px] text-text-faint">
+                Remaja Pra Nikah tidak punya satu guru pengampu tetap -- gurunya gilir tiap hari, jadi
+                dipilih berdasarkan hari ngajinya, bukan satu guru.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {HARI_NGAJI_OPSI.map((h) => {
+                  const dipilih = hariNgaji.includes(h);
+                  return (
+                    <button
+                      key={h}
+                      type="button"
+                      onClick={() => toggleHari(h)}
+                      className={`cursor-pointer rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.96] ${
+                        dipilih ? 'border-indigo bg-[#EEF2FF] text-indigo' : 'border-border bg-panel text-text'
+                      }`}
+                    >
+                      {h}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <div>
             <label className={KELAS_LABEL}>Jam Mulai *</label>
             <input type="time" className={KELAS_INPUT} value={mulai} onChange={(e) => setMulai(e.target.value)} />
