@@ -30,6 +30,11 @@
       TIDAK ada query/RPC baru -- "Lihat Detail" ke /statistik utk
       analisis penuh (per kelompok, top/bottom santri, demografi).
 
+   Susulan (2026-08-26): kartu KPI "Data Guru" di bawah grafik Kehadiran
+   30 Hari -- Total guru + L/P + kategori (MT/MS/GB, singkatan
+   Muballigh Tugasan/Muballigh Setempat/Guru Bantu -- lihat KATEGORI di
+   components/guru/GuruForm.tsx, "Guru Mutu" sudah dihapus dari sana).
+
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
    ditempel gaya lain. */
@@ -57,6 +62,16 @@ import {
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
 type TitikTren = { tanggal: string; persen: number | null };
 type StatistikRingkas = { persen: number | null; tren: TitikTren[] };
+type RingkasanGuru = { total: number; l: number; p: number; mt: number; ms: number; gb: number };
+
+/* Singkatan kategori guru (2026-08-26, diminta owner) -- KATEGORI penuh
+   ada di components/guru/GuruForm.tsx; "Guru Mutu" sudah dihapus dari
+   pilihan form itu jadi tidak disertakan di sini juga. */
+const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; label: string; nama: string }[] = [
+  { kunci: 'mt', label: 'MT', nama: 'Muballigh Tugasan' },
+  { kunci: 'ms', label: 'MS', nama: 'Muballigh Setempat' },
+  { kunci: 'gb', label: 'GB', nama: 'Guru Bantu' },
+];
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -182,6 +197,8 @@ export default function AdminKelpDashboard() {
 
   const [statistik, setStatistik] = useState<StatistikRingkas | null>(null);
   const [memuatStatistik, setMemuatStatistik] = useState(true);
+
+  const [ringkasanGuru, setRingkasanGuru] = useState<RingkasanGuru | null>(null);
 
   const muatBelumIsi = useCallback(async () => {
     if (!kelompokId) {
@@ -386,6 +403,35 @@ export default function AdminKelpDashboard() {
       setStatistik({ persen: hasil?.ringkas?.persen ?? null, tren: hasil?.tren ?? [] });
       setMemuatStatistik(false);
     })();
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
+  /* Kartu KPI "Data Guru" (2026-08-26, diminta owner: taruh di bawah
+     grafik Kehadiran 30 Hari) -- hitung dari tabel `guru` langsung, tidak
+     ada RPC baru. RLS sudah menyempitkan ke kelompok admin ini sendiri,
+     sama seperti query GuruList.tsx desktop. */
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    supabase
+      .from('guru')
+      .select('jenis_kelamin, kategori')
+      .is('deleted_at', null)
+      .then(({ data }) => {
+        if (batal) return;
+        const baris = (data ?? []) as { jenis_kelamin: string | null; kategori: string | null }[];
+        const hasil: RingkasanGuru = { total: baris.length, l: 0, p: 0, mt: 0, ms: 0, gb: 0 };
+        for (const g of baris) {
+          if (g.jenis_kelamin === 'L') hasil.l += 1;
+          else if (g.jenis_kelamin === 'P') hasil.p += 1;
+          if (g.kategori === 'Muballigh Tugasan') hasil.mt += 1;
+          else if (g.kategori === 'Muballigh Setempat') hasil.ms += 1;
+          else if (g.kategori === 'Guru Bantu') hasil.gb += 1;
+        }
+        setRingkasanGuru(hasil);
+      });
     return () => {
       batal = true;
     };
@@ -688,6 +734,49 @@ export default function AdminKelpDashboard() {
                   <Line type="monotone" dataKey="persen" stroke="var(--brass)" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          </div>
+        )}
+
+        {ringkasanGuru && (
+          <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <div className="mb-3 flex items-baseline justify-between">
+              <div className="text-[13px] font-bold text-text">Data Guru</div>
+              <div className="text-[11.5px] text-text-dim">Total {ringkasanGuru.total}</div>
+            </div>
+            <div className="mb-2.5 grid grid-cols-2 gap-2">
+              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
+                <span className="text-[18px] leading-none font-extrabold tabular-nums text-indigo">
+                  {ringkasanGuru.l}
+                </span>
+                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                  Laki-laki
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
+                <span className="text-[18px] leading-none font-extrabold tabular-nums text-brass">
+                  {ringkasanGuru.p}
+                </span>
+                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                  Perempuan
+                </span>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              {KATEGORI_SINGKAT.map((k) => (
+                <div
+                  key={k.kunci}
+                  title={k.nama}
+                  className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
+                >
+                  <span className="text-[16px] leading-none font-extrabold tabular-nums text-sage">
+                    {ringkasanGuru[k.kunci]}
+                  </span>
+                  <span className="mt-px text-center text-[9.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                    {k.label}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
