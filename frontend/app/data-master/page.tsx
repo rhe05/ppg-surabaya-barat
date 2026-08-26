@@ -1,15 +1,17 @@
 'use client';
 
 /* "Data Master" — hub mobile admin_kelompok (2026-08-26, diminta owner:
-   satu pintu menu utama yang menaungi Data Guru & Data Generus, dua
-   dataset yang tadinya diakses lewat item menu terpisah). Halaman ini
-   sendiri TIDAK menampilkan data apa pun -- cuma dua kartu navigasi ke
-   /guru dan /santri, yang masing-masing SUDAH bercabang ke tampilan
-   kartu mobile miliknya sendiri (GuruKelpMobile.tsx / AdminSantriMobile.tsx,
-   gaya sama persis dgn "Data Generus" milik guru di app/santri-saya). */
+   satu pintu menu utama yang menaungi Data Guru, Data Generus & Data
+   Kelas, dataset yang tadinya diakses lewat item menu terpisah/tidak
+   ada sama sekali di HP). Halaman ini sendiri TIDAK menampilkan data
+   apa pun -- cuma tiga kartu navigasi ke /guru, /santri, dan /kelas,
+   yang masing-masing SUDAH bercabang ke tampilan kartu mobile miliknya
+   sendiri (GuruKelpMobile.tsx / AdminSantriMobile.tsx / KelasKelpMobile
+   .tsx, gaya sama persis dgn "Data Generus" milik guru di
+   app/santri-saya). */
 
 import { useRouter } from 'next/navigation';
-import { GraduationCap, Users } from 'lucide-react';
+import { CalendarDays, GraduationCap, Users } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 
@@ -29,6 +31,14 @@ const KARTU = [
     ikon: Users,
     warna: 'text-indigo',
     bg: 'bg-[rgba(79,70,229,0.12)]',
+  },
+  {
+    href: '/kelas',
+    label: 'Data Kelas',
+    deskripsi: 'Tambah/ubah kelas dan tetapkan guru pengampunya',
+    ikon: CalendarDays,
+    warna: 'text-sage',
+    bg: 'bg-[rgba(5,150,105,0.12)]',
   },
 ];
 
