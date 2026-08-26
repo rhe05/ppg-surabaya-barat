@@ -846,20 +846,25 @@ export default function AdminKelpDashboard() {
         {ringkasanGuru && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             <div className="mb-3 text-[13px] font-bold text-text">Data Guru</div>
-            {/* PERSIS 4 kartu (diminta owner 2026-08-26) -- Total Guru, MT,
-                MS, GB, masing2 angka besar + "L: x · P: y" kecil di
-                bawahnya, bukan lagi grid L/P terpisah dari grid kategori. */}
+            {/* PERSIS 4 kartu (diminta owner 2026-08-26) -- tiap kartu:
+                judul kiri-atas + angka besar di bawahnya (kiri), L/P
+                bertumpuk di kanan (L atas, P bawah), warna L/P HITAM
+                (text-text) -- diminta owner putaran kedua, bukan lagi
+                satu baris "L: x · P: y" di bawah tengah spt sebelumnya. */}
             <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col items-center gap-1 rounded-[10px] bg-panel-2 px-2 pt-3 pb-2.5">
-                <span className="text-[22px] leading-none font-extrabold tabular-nums text-brass">
-                  {ringkasanGuru.total}
-                </span>
-                <span className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                  Total Guru
-                </span>
-                <span className="text-[10.5px] text-text-faint">
-                  L: {ringkasanGuru.l} · P: {ringkasanGuru.p}
-                </span>
+              <div className="flex items-start justify-between gap-2 rounded-[10px] bg-panel-2 p-3">
+                <div className="min-w-0">
+                  <div className="text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                    Total Guru
+                  </div>
+                  <div className="mt-1 text-[22px] leading-none font-extrabold tabular-nums text-brass">
+                    {ringkasanGuru.total}
+                  </div>
+                </div>
+                <div className="shrink-0 text-right">
+                  <div className="text-[11px] font-bold text-text">L: {ringkasanGuru.l}</div>
+                  <div className="mt-1 text-[11px] font-bold text-text">P: {ringkasanGuru.p}</div>
+                </div>
               </div>
               {KATEGORI_SINGKAT.map((k) => {
                 const hitung = ringkasanGuru[k.kunci];
@@ -867,17 +872,20 @@ export default function AdminKelpDashboard() {
                   <div
                     key={k.kunci}
                     title={k.nama}
-                    className="flex flex-col items-center gap-1 rounded-[10px] bg-panel-2 px-2 pt-3 pb-2.5"
+                    className="flex items-start justify-between gap-2 rounded-[10px] bg-panel-2 p-3"
                   >
-                    <span className={`text-[22px] leading-none font-extrabold tabular-nums ${k.warna}`}>
-                      {hitung.total}
-                    </span>
-                    <span className="text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                      {k.label}
-                    </span>
-                    <span className="text-[10.5px] text-text-faint">
-                      L: {hitung.l} · P: {hitung.p}
-                    </span>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                        {k.label}
+                      </div>
+                      <div className={`mt-1 text-[22px] leading-none font-extrabold tabular-nums ${k.warna}`}>
+                        {hitung.total}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[11px] font-bold text-text">L: {hitung.l}</div>
+                      <div className="mt-1 text-[11px] font-bold text-text">P: {hitung.p}</div>
+                    </div>
                   </div>
                 );
               })}
