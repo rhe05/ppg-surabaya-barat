@@ -4,6 +4,7 @@
 **Project**: Ruang Ngaji (tpq-app)
 **Pemicu**: Dashboard Supabase menunjukkan Compute 100%, CPU 100%, Memory 68%, Disk I/O 1%, Database 35.5 MB, WAL 80 MB.
 **Sifat audit**: READ-ONLY. Tidak ada perubahan kode/schema/data yang dilakukan dalam audit ini.
+**Status perbaikan (diperbarui 2026-08-26)**: CRITICAL #1 ✅ diperbaiki (`15eb83d`), HIGH #2 ✅ diperbaiki (`cc73779`), HIGH #3 ⏳ belum disentuh (perubahan arsitektur lebih besar, menunggu konfirmasi masih perlu), MEDIUM #4 ✅ diperbaiki (`0a271c1`), MEDIUM #5 tidak perlu tindakan terpisah.
 
 ## Cara membaca profil resource ini
 
