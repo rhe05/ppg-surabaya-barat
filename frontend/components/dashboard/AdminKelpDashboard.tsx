@@ -846,24 +846,25 @@ export default function AdminKelpDashboard() {
         {ringkasanGuru && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             <div className="mb-3 text-[13px] font-bold text-text">Data Guru</div>
-            {/* PERSIS 4 kartu SEJAJAR SATU BARIS (diminta owner 2026-08-26,
-                putaran ketiga: grid-cols-2 dua baris -> grid-cols-4 satu
-                baris, jadi tiap kartu cuma ±115px lebar di layar 560px --
-                layout L-kanan-atas/P-kanan-bawah putaran sebelumnya tidak
-                lagi muat berdampingan dgn judul+angka di lebar segitu,
-                jadi ditumpuk vertikal: judul kecil, angka besar, baris
-                L/P berdampingan di bawah -- L/P TETAP hitam (text-text). */}
+            {/* PERSIS 4 kartu sejajar satu baris (diminta owner 2026-08-26).
+                L/P diminta DI SAMPING angka, bukan di bawahnya (putaran
+                keempat) -- jadi per kartu: judul kecil di atas, lalu satu
+                baris angka besar + L/P bertumpuk kecil di sampingnya
+                (kanan), bukan lagi baris L/P terpisah di bawah. L/P
+                TETAP hitam (text-text). */}
             <div className="grid grid-cols-4 gap-1.5">
               <div className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
                 <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
                   Total
                 </div>
-                <div className="mt-1 text-[17px] leading-none font-extrabold tabular-nums text-brass">
-                  {ringkasanGuru.total}
-                </div>
-                <div className="mt-1.5 flex items-center justify-between text-[9px] font-bold text-text">
-                  <span>L:{ringkasanGuru.l}</span>
-                  <span>P:{ringkasanGuru.p}</span>
+                <div className="mt-1 flex items-center justify-between gap-1">
+                  <span className="text-[17px] leading-none font-extrabold tabular-nums text-brass">
+                    {ringkasanGuru.total}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                    <span>L{ringkasanGuru.l}</span>
+                    <span>P{ringkasanGuru.p}</span>
+                  </span>
                 </div>
               </div>
               {KATEGORI_SINGKAT.map((k) => {
@@ -873,12 +874,14 @@ export default function AdminKelpDashboard() {
                     <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
                       {k.label}
                     </div>
-                    <div className={`mt-1 text-[17px] leading-none font-extrabold tabular-nums ${k.warna}`}>
-                      {hitung.total}
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between text-[9px] font-bold text-text">
-                      <span>L:{hitung.l}</span>
-                      <span>P:{hitung.p}</span>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <span className={`text-[17px] leading-none font-extrabold tabular-nums ${k.warna}`}>
+                        {hitung.total}
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                        <span>L{hitung.l}</span>
+                        <span>P{hitung.p}</span>
+                      </span>
                     </div>
                   </div>
                 );
