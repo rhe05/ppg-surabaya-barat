@@ -37,6 +37,17 @@
    Kartu KPI "Data Generus" TEPAT DI BAWAHNYA -- Total santri + L/P +
    pil jenjang (PAUD/TK..Remaja, urutan JENJANG_URUTAN), pola sama.
 
+   Kartu hero "Hari Aktif Bulan Ini" (2026-08-26, diminta owner, taruh
+   PALING ATAS) -- dari tgl 1 bulan berjalan s.d. HARI INI, berapa yang
+   sungguh hari ngaji: akhir pekan + tanggal merah nasional dikurangi,
+   DITUMPANGI override kalender_kelompok (kelp bisa menandai suatu
+   tanggal 'libur' mendadak spt acara pengajian, atau 'aktif' tetap
+   masuk walau tanggal merah) -- lib/ringkasanAdminKelp.ts::
+   muatHariAktifBulanIni, definisi "hari kerja" SAMA dgn
+   muatAbsensiBelumDiisiBulan (buatCekNonaktif). Gradient teal SENGAJA
+   sama dgn kotak "Hari Aktif" GuruDashboard.tsx/kartu per-kelas di
+   atas -- angka yang sama artinya, gaya visual jangan beda sendiri.
+
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
    ditempel gaya lain. */
@@ -44,7 +55,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarOff, CalendarCheck2, CalendarDays, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -54,6 +65,7 @@ import {
   muatRingkasanPerKelas,
   muatAbsensiBelumDiisiBulan,
   muatGuruSedangIzin,
+  muatHariAktifBulanIni,
   tanggalHariIniLokal,
   type RingkasanHariIni,
   type GuruIzinAktif,
@@ -157,6 +169,8 @@ export default function AdminKelpDashboard() {
 
   const [error, setError] = useState<string | null>(null);
   const [jumlahPermintaan, setJumlahPermintaan] = useState(0);
+
+  const [hariAktifBulanIni, setHariAktifBulanIni] = useState<number | null>(null);
 
   /* Kartu "Ringkasan Kehadiran" (2026-08-24, diminta owner) -- bisa
      ditelusuri per bulan lewat ikon kalender, pola SAMA PERSIS
@@ -397,6 +411,21 @@ export default function AdminKelpDashboard() {
   }, [kelompokId]);
 
   useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    muatHariAktifBulanIni(kelompokId)
+      .then((hasil) => {
+        if (!batal) setHariAktifBulanIni(hasil);
+      })
+      .catch(() => {
+        // Non-kritis -- gagal diam-diam, bagian sekunder dashboard.
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
+  useEffect(() => {
     if (!kelompokId) {
       setMemuatStatistik(false);
       return;
@@ -488,6 +517,30 @@ export default function AdminKelpDashboard() {
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+        {hariAktifBulanIni !== null && (
+          <div
+            className="mb-4 flex items-center gap-4 overflow-hidden rounded-card p-4 shadow-[0_10px_28px_rgba(13,148,136,0.28),inset_0_1px_0_rgba(255,255,255,0.14)]"
+            style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 55%, #14B8A6 100%)' }}
+          >
+            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15">
+              <CalendarDays size={26} className="text-white" strokeWidth={2} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11.5px] font-bold tracking-[0.02em] text-white/80 uppercase">
+                Hari Aktif Bulan Ini
+              </div>
+              <div className="text-[30px] leading-tight font-extrabold tabular-nums text-white">
+                {hariAktifBulanIni}
+                <span className="ml-1 text-[13px] font-semibold text-white/75">hari</span>
+              </div>
+              <div className="text-[11px] text-white/70">
+                {NAMA_BULAN[sekarangAwal.getMonth()]} {sekarangAwal.getFullYear()} · akhir pekan, tanggal
+                merah &amp; libur kelompok sudah dikurangi
+              </div>
+            </div>
+          </div>
+        )}
 
         {loadingBelumIsi && <Skeleton className="mb-4 h-[62px] w-full rounded-card" />}
 

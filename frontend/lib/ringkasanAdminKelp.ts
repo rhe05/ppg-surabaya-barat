@@ -405,6 +405,34 @@ export async function muatAbsensiBelumDiisiBulan(
     .sort((a, b) => b.jumlahHari - a.jumlahHari);
 }
 
+/* Kartu KPI "Hari Aktif" (2026-08-26, diminta owner: dari tgl 1 bulan
+   berjalan s.d. HARI INI, berapa yang sungguh hari ngaji -- akhir pekan
+   & tanggal merah nasional dikurangi, DITUMPANGI pengecualian
+   kalender_kelompok kalau kelp ini pernah menandai suatu tanggal
+   'libur' mendadak (mis. ada acara pengajian penerobosan) atau 'aktif'
+   (tetap masuk walau tanggal merah). Definisi "hari kerja" SAMA PERSIS
+   dgn muatAbsensiBelumDiisiBulan di atas (buatCekNonaktif) -- beda cuma
+   batas akhirnya: di sini SAMPAI HARI INI SENDIRI (bukan kemarin), krn
+   tujuannya "sudah berjalan berapa hari", bukan "berapa yg wajib sudah
+   diisi". */
+export async function muatHariAktifBulanIni(kelompokId: number): Promise<number> {
+  const sekarang = new Date();
+  const tahun = sekarang.getFullYear();
+  const bulan = sekarang.getMonth() + 1;
+  const hariIni = sekarang.getDate();
+
+  const override = await muatOverrideKelompok(kelompokId);
+  const cekNonaktif = buatCekNonaktif(override);
+
+  let aktif = 0;
+  for (let hari = 1; hari <= hariIni; hari++) {
+    const d = new Date(tahun, bulan - 1, hari);
+    const s = tanggalStrLokal(d);
+    if (!cekNonaktif(s, d)) aktif++;
+  }
+  return aktif;
+}
+
 /* Tier 2 (2026-08-24): guru yang SEDANG izin/cuti hari ini -- read-only,
    guru_izin TIDAK punya alur persetujuan admin (self-declared, tidak
    spt permintaan_generus), jadi ini murni "siapa yg sedang tidak masuk
