@@ -34,6 +34,8 @@
    30 Hari -- Total guru + L/P + kategori (MT/MS/GB, singkatan
    Muballigh Tugasan/Muballigh Setempat/Guru Bantu -- lihat KATEGORI di
    components/guru/GuruForm.tsx, "Guru Mutu" sudah dihapus dari sana).
+   Kartu KPI "Data Generus" TEPAT DI BAWAHNYA -- Total santri + L/P +
+   pil jenjang (PAUD/TK..Remaja, urutan JENJANG_URUTAN), pola sama.
 
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
@@ -72,6 +74,12 @@ const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; 
   { kunci: 'ms', label: 'MS', nama: 'Muballigh Setempat' },
   { kunci: 'gb', label: 'GB', nama: 'Guru Bantu' },
 ];
+
+type RingkasanSantri = { total: number; l: number; p: number; jenjang: Record<string, number> };
+
+/* Urutan jenjang persis enum santri_jenjang (components/santri/SantriForm.tsx
+   JENJANG) -- dipakai utk urutan pil di kartu KPI, bukan sumber nilai. */
+const JENJANG_URUTAN = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -199,6 +207,7 @@ export default function AdminKelpDashboard() {
   const [memuatStatistik, setMemuatStatistik] = useState(true);
 
   const [ringkasanGuru, setRingkasanGuru] = useState<RingkasanGuru | null>(null);
+  const [ringkasanSantri, setRingkasanSantri] = useState<RingkasanSantri | null>(null);
 
   const muatBelumIsi = useCallback(async () => {
     if (!kelompokId) {
@@ -431,6 +440,34 @@ export default function AdminKelpDashboard() {
           else if (g.kategori === 'Guru Bantu') hasil.gb += 1;
         }
         setRingkasanGuru(hasil);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
+  /* Kartu KPI "Data Generus" (2026-08-26, diminta owner: taruh di bawah
+     Data Guru) -- sama pola dgn ringkasanGuru di atas: hitung dari tabel
+     `santri` langsung, RLS menyempitkan ke kelompok ini, tanpa RPC baru. */
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    supabase
+      .from('santri')
+      .select('gender, jenjang_saat_ini')
+      .is('deleted_at', null)
+      .then(({ data }) => {
+        if (batal) return;
+        const baris = (data ?? []) as { gender: string | null; jenjang_saat_ini: string | null }[];
+        const jenjang: Record<string, number> = {};
+        let l = 0;
+        let p = 0;
+        for (const s of baris) {
+          if (s.gender === 'L') l += 1;
+          else if (s.gender === 'P') p += 1;
+          if (s.jenjang_saat_ini) jenjang[s.jenjang_saat_ini] = (jenjang[s.jenjang_saat_ini] ?? 0) + 1;
+        }
+        setRingkasanSantri({ total: baris.length, l, p, jenjang });
       });
     return () => {
       batal = true;
@@ -776,6 +813,43 @@ export default function AdminKelpDashboard() {
                     {k.label}
                   </span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {ringkasanSantri && (
+          <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <div className="mb-3 flex items-baseline justify-between">
+              <div className="text-[13px] font-bold text-text">Data Generus</div>
+              <div className="text-[11.5px] text-text-dim">Total {ringkasanSantri.total}</div>
+            </div>
+            <div className="mb-2.5 grid grid-cols-2 gap-2">
+              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
+                <span className="text-[18px] leading-none font-extrabold tabular-nums text-indigo">
+                  {ringkasanSantri.l}
+                </span>
+                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                  Laki-laki
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
+                <span className="text-[18px] leading-none font-extrabold tabular-nums text-brass">
+                  {ringkasanSantri.p}
+                </span>
+                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                  Perempuan
+                </span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {JENJANG_URUTAN.filter((j) => ringkasanSantri.jenjang[j]).map((j) => (
+                <span
+                  key={j}
+                  className="rounded-full border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] text-text"
+                >
+                  {j} <span className="font-bold text-sage">{ringkasanSantri.jenjang[j]}</span>
+                </span>
               ))}
             </div>
           </div>
