@@ -36,6 +36,15 @@ export default function AttendanceSummaryReport() {
       setLoading(true);
       setError(null);
       try {
+        /* Dibatasi 30 hari terakhir (2026-08-26, audit resource Supabase --
+           SUPABASE_RESOURCE_AUDIT.md temuan CRITICAL #1) -- sebelumnya
+           menyapu SELURUH tabel `absensi` tanpa batas tanggal setiap kali
+           tab Reports dibuka. Sama perbaikan dgn components/AbsensiChart
+           .tsx (lihat komentar di sana). */
+        const sejak = new Date();
+        sejak.setDate(sejak.getDate() - 30);
+        const sejakStr = sejak.toISOString().slice(0, 10);
+
         const UKURAN_HALAMAN = 1000;
         const semua: Absensi[] = [];
         for (let dari = 0; ; dari += UKURAN_HALAMAN) {
@@ -43,6 +52,7 @@ export default function AttendanceSummaryReport() {
             .from('absensi')
             .select('id, kelompok_id, status')
             .is('deleted_at', null)
+            .gte('tanggal', sejakStr)
             .order('id', { ascending: true })
             .range(dari, dari + UKURAN_HALAMAN - 1);
           if (queryError) throw new Error(queryError.message);
@@ -90,7 +100,7 @@ export default function AttendanceSummaryReport() {
       const pageWidth = doc.internal.pageSize.getWidth();
 
       doc.setFontSize(16);
-      doc.text('Laporan Ringkasan Absensi', pageWidth / 2, 18, { align: 'center' });
+      doc.text('Laporan Ringkasan Absensi (30 Hari Terakhir)', pageWidth / 2, 18, { align: 'center' });
       doc.setFontSize(10);
       doc.text(`Tanggal cetak: ${todayStamp()}`, pageWidth / 2, 25, { align: 'center' });
 
@@ -125,7 +135,9 @@ export default function AttendanceSummaryReport() {
 
   return (
     <div className="rounded-lg bg-white p-4 shadow hover:shadow-md transition-shadow">
-      <h2 className="mb-4 text-lg font-semibold text-gray-800">Ringkasan Absensi per Kelompok</h2>
+      <h2 className="mb-4 text-lg font-semibold text-gray-800">
+        Ringkasan Absensi per Kelompok (30 Hari Terakhir)
+      </h2>
 
       {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
       {!loading && error && <p className="text-sm text-red-600">{error}</p>}

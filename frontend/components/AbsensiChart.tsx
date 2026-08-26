@@ -27,6 +27,18 @@ export default function AbsensiChart() {
       setLoading(true);
       setError(null);
       try {
+        /* Dibatasi 30 hari terakhir (2026-08-26, audit resource Supabase --
+           SUPABASE_RESOURCE_AUDIT.md temuan CRITICAL #1) -- sebelumnya
+           menyapu SELURUH tabel `absensi` tanpa batas tanggal, dipanggil
+           tiap kali Dashboard dibuka. Tabel itu tumbuh terus (satu baris
+           per santri per kelas per hari); tanpa batas ini jadi full-table
+           scan berulang yang paling mungkin jadi penyebab CPU Supabase
+           penuh. 30 hari cukup utk grafik ringkasan Hadir/Tidak Hadir ini
+           (bukan laporan historis -- itu ada di /reports & /statistik). */
+        const sejak = new Date();
+        sejak.setDate(sejak.getDate() - 30);
+        const sejakStr = sejak.toISOString().slice(0, 10);
+
         const UKURAN_HALAMAN = 1000;
         const semua: Absensi[] = [];
         for (let dari = 0; ; dari += UKURAN_HALAMAN) {
@@ -34,6 +46,7 @@ export default function AbsensiChart() {
             .from('absensi')
             .select('id, status')
             .is('deleted_at', null)
+            .gte('tanggal', sejakStr)
             .order('id', { ascending: true })
             .range(dari, dari + UKURAN_HALAMAN - 1);
           if (queryError) throw new Error(queryError.message);
@@ -72,7 +85,7 @@ export default function AbsensiChart() {
     /* .kpi-card sebagai panel — Style_Main.html:859-866 */
     <div className="rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
       {/* .dash-section-title — Style_Main.html:845-850 */}
-      <div className="mb-5 text-[20px] font-bold text-text">Absensi</div>
+      <div className="mb-5 text-[20px] font-bold text-text">Absensi (30 Hari Terakhir)</div>
 
       {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
       {!loading && error && <p className="text-[13px] text-red">{error}</p>}
