@@ -34,8 +34,10 @@
    30 Hari -- Total guru + L/P + kategori (MT/MS/GB, singkatan
    Muballigh Tugasan/Muballigh Setempat/Guru Bantu -- lihat KATEGORI di
    components/guru/GuruForm.tsx, "Guru Mutu" sudah dihapus dari sana).
-   Kartu KPI "Data Generus" TEPAT DI BAWAHNYA -- Total santri + L/P +
-   pil jenjang (PAUD/TK..Remaja, urutan JENJANG_URUTAN), pola sama.
+   Kartu KPI "Data Generus" TEPAT DI BAWAHNYA -- gaya DISAMAKAN dgn
+   kartu Data Guru (diminta owner, putaran kelima): tile "Total" + satu
+   tile per jenjang terisi (grid-cols-3, bukan lagi pil datar), masing2
+   angka besar + L/P bertumpuk di samping (bukan bawah).
 
    "Hari Aktif" (2026-08-26, mulanya kartu hero sendiri di paling atas,
    lalu diminta owner PINDAH KE DALAM "Ringkasan Kehadiran" -- grid-nya
@@ -104,10 +106,14 @@ const KATEGORI_SINGKAT: { kunci: keyof Pick<RingkasanGuru, 'mt' | 'ms' | 'gb'>; 
   { kunci: 'gb', label: 'GB', nama: 'Guru Bantu', warna: 'text-text-dim' },
 ];
 
-type RingkasanSantri = { total: number; l: number; p: number; jenjang: Record<string, number> };
+/* Kartu KPI "Data Generus" disamakan gayanya dgn "Data Guru" di atas
+   (diminta owner 2026-08-26) -- jenjang jg py breakdown L/P sendiri
+   (HitungGenderKategori, TIPE SAMA dgn RingkasanGuru.mt/ms/gb), bukan
+   lagi pil datar "PAUD/TK 12" tanpa gender. */
+type RingkasanSantri = { total: number; l: number; p: number; jenjang: Record<string, HitungGenderKategori> };
 
 /* Urutan jenjang persis enum santri_jenjang (components/santri/SantriForm.tsx
-   JENJANG) -- dipakai utk urutan pil di kartu KPI, bukan sumber nilai. */
+   JENJANG) -- dipakai utk urutan tile di kartu KPI, bukan sumber nilai. */
 const JENJANG_URUTAN = ['PAUD/TK', 'Cabe Rawit', 'Pra Remaja', 'Remaja SMA', 'Remaja'];
 
 const NAMA_BULAN = [
@@ -511,13 +517,18 @@ export default function AdminKelpDashboard() {
       .then(({ data }) => {
         if (batal) return;
         const baris = (data ?? []) as { gender: string | null; jenjang_saat_ini: string | null }[];
-        const jenjang: Record<string, number> = {};
+        const jenjang: Record<string, HitungGenderKategori> = {};
         let l = 0;
         let p = 0;
         for (const s of baris) {
           if (s.gender === 'L') l += 1;
           else if (s.gender === 'P') p += 1;
-          if (s.jenjang_saat_ini) jenjang[s.jenjang_saat_ini] = (jenjang[s.jenjang_saat_ini] ?? 0) + 1;
+          if (s.jenjang_saat_ini) {
+            const k = (jenjang[s.jenjang_saat_ini] ??= { total: 0, l: 0, p: 0 });
+            k.total += 1;
+            if (s.gender === 'L') k.l += 1;
+            else if (s.gender === 'P') k.p += 1;
+          }
         }
         setRingkasanSantri({ total: baris.length, l, p, jenjang });
       });
@@ -892,37 +903,48 @@ export default function AdminKelpDashboard() {
 
         {ringkasanSantri && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 flex items-baseline justify-between">
-              <div className="text-[13px] font-bold text-text">Data Generus</div>
-              <div className="text-[11.5px] text-text-dim">Total {ringkasanSantri.total}</div>
-            </div>
-            <div className="mb-2.5 grid grid-cols-2 gap-2">
-              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
-                <span className="text-[18px] leading-none font-extrabold tabular-nums text-indigo">
-                  {ringkasanSantri.l}
-                </span>
-                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                  Laki-laki
-                </span>
+            <div className="mb-3 text-[13px] font-bold text-text">Data Generus</div>
+            {/* Gaya SAMA PERSIS dgn kartu Data Guru di atas (diminta owner
+                2026-08-26) -- tile "Total" + satu tile per jenjang yang
+                terisi (bukan lagi pil datar tanpa L/P), masing2 judul
+                kecil di atas + angka besar & L/P bertumpuk di sampingnya.
+                grid-cols-3 (bukan -4 spt Data Guru) krn jenjang bisa
+                sampai 5 + Total = 6 tile, kolom lebih lebar supaya nama
+                jenjang yang lebih panjang ("Remaja SMA") masih terbaca. */}
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
+                <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                  Total
+                </div>
+                <div className="mt-1 flex items-center justify-between gap-1">
+                  <span className="text-[17px] leading-none font-extrabold tabular-nums text-brass">
+                    {ringkasanSantri.total}
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                    <span>L{ringkasanSantri.l}</span>
+                    <span>P{ringkasanSantri.p}</span>
+                  </span>
+                </div>
               </div>
-              <div className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]">
-                <span className="text-[18px] leading-none font-extrabold tabular-nums text-brass">
-                  {ringkasanSantri.p}
-                </span>
-                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-                  Perempuan
-                </span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {JENJANG_URUTAN.filter((j) => ringkasanSantri.jenjang[j]).map((j) => (
-                <span
-                  key={j}
-                  className="rounded-full border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] text-text"
-                >
-                  {j} <span className="font-bold text-sage">{ringkasanSantri.jenjang[j]}</span>
-                </span>
-              ))}
+              {JENJANG_URUTAN.filter((j) => ringkasanSantri.jenjang[j]).map((j) => {
+                const hitung = ringkasanSantri.jenjang[j];
+                return (
+                  <div key={j} title={j} className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
+                    <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                      {j}
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-1">
+                      <span className="text-[17px] leading-none font-extrabold tabular-nums text-sage">
+                        {hitung.total}
+                      </span>
+                      <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                        <span>L{hitung.l}</span>
+                        <span>P{hitung.p}</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
