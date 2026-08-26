@@ -52,6 +52,21 @@ function itemMenu(role: string | undefined): { label: string; href: string; svg:
       ),
     },
     {
+      /* Data Guru (2026-08-26, diminta owner) -- /guru sudah punya cabang
+         mobile sendiri (GuruKelpMobile.tsx, gaya kartu spt Data Generus
+         guru), item ini cuma jalan masuknya dari menu utama admin. */
+      href: '/guru',
+      label: 'Data Guru',
+      svg: (
+        <>
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+        </>
+      ),
+    },
+    {
       /* admin_kelompok: "Registrasi" langsung ke /registrasi-guru
          (klaim cepat guru sekelompoknya, diminta owner 2026-08-24) --
          admin_desa/admin_ppg tetap ke /pendaftaran (antrean persetujuan
