@@ -48,8 +48,18 @@ export const KOLOM_GURU =
 
 /* "Guru Mutu" dihapus dari pilihan (2026-08-26, diminta owner). Baris
    produksi yang masih berkategori itu tidak dipaksa ganti — cuma tidak
-   bisa dipilih ulang lewat dropdown ini sampai penggunanya ganti manual. */
-const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Bantu'];
+   bisa dipilih ulang lewat dropdown ini sampai penggunanya ganti manual.
+
+   "Ketua Muda-i" ditambahkan (2026-08-26, putaran kedua) -- koordinator
+   Remaja Pra Nikah, diminta owner: TETAP kategori guru biasa (bukan
+   role baru), jadi otomatis numpang seluruh alur guru yang sudah ada
+   (registrasi/klaim akun via registrasi-guru & onboarding, dashboard
+   mobile GuruDashboard.tsx, laporan) -- tidak ada kode baru dibutuhkan
+   utk itu. Satu-satunya tempat lain yang menyebut kategori ini:
+   components/kelas/KelasForm.tsx (dropdown "Ketua Muda-i" pengganti
+   "Guru Pengampu" utk kelas kategori Remaja Pra Nikah, cuma
+   menampilkan guru berkategori ini). */
+const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Bantu', 'Ketua Muda-i'];
 const PENDIDIKAN = [
   'SD/Sederajat',
   'SMP/Sederajat',

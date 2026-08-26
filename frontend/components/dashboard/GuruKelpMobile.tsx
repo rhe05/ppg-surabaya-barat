@@ -28,6 +28,7 @@ const KATEGORI_WARNA: Record<string, string> = {
   'Muballigh Tugasan': 'text-indigo bg-[rgba(79,70,229,0.12)]',
   'Muballigh Setempat': 'text-sage bg-[rgba(5,150,105,0.12)]',
   'Guru Bantu': 'text-text-dim bg-panel-2',
+  'Ketua Muda-i': 'text-brass bg-[rgba(217,119,6,0.12)]',
 };
 
 export default function GuruKelpMobile() {

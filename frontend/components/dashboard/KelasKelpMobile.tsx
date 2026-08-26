@@ -62,7 +62,12 @@ export default function KelasKelpMobile() {
       const [{ data: dKat }, { data: dGuru, error: eGuru }, { data: dKelas, error: eKelas }, { data: dSantri, error: eSantri }] =
         await Promise.all([
           supabase.from('kategori_kbm').select('id, nama'),
-          supabase.from('guru').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null).order('nama'),
+          supabase
+            .from('guru')
+            .select('id, nama, kategori')
+            .eq('kelompok_id', kelompokId)
+            .is('deleted_at', null)
+            .order('nama'),
           supabase
             .from('kelas')
             .select(KOLOM_KELAS)
@@ -237,8 +242,9 @@ export default function KelasKelpMobile() {
                   <div className="mt-1 text-[11.5px] font-semibold">
                     {remajaPraNikah ? (
                       <span className="text-indigo">
-                        {k.hari_ngaji && k.hari_ngaji.length > 0 ? k.hari_ngaji.join(', ') : 'Hari ngaji belum dipilih'}{' '}
-                        · gilir guru
+                        {k.hari_ngaji && k.hari_ngaji.length > 0 ? k.hari_ngaji.join(', ') : 'Hari ngaji belum dipilih'}
+                        {' · Ketua Muda-i: '}
+                        {guru ?? 'belum ditentukan'}
                       </span>
                     ) : guru ? (
                       <span className="text-sage">{guru}</span>

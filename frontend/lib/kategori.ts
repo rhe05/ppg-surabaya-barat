@@ -33,6 +33,21 @@ export const HARI_URUTAN = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'
    RencanaPembelajaranView.tsx bisa pakai label yang SAMA PERSIS saat
    menyusun daftar saran "Materi Ngaji" dari Kurikulum, bukan menduplikasi
    logikanya dan berisiko drift. */
+/* Jadwal khusus bulanan Remaja Pra Nikah (2026-08-26, diminta owner) --
+   DAFTAR TETAP (bukan per-kelas/bisa diubah admin), tanggal sungguhannya
+   beda tiap bulan ("Kamis minggu ke-2" Agustus != September) TAPI
+   owner sengaja minta ini cuma INFO dulu (belum ada penghitungan
+   tanggal otomatis atau isi absensi) -- lihat KelasForm.tsx utk
+   tampilannya. Kalau nanti owner minta dihitung sungguhan, ini sumber
+   datanya, jangan dituliskan ulang di tempat lain. */
+export const JADWAL_KHUSUS_REMAJA_PRA_NIKAH: { hari: string; mingguKe: number; nama: string }[] = [
+  { hari: 'Senin', mingguKe: 2, nama: 'Muda-i Desa' },
+  { hari: 'Selasa', mingguKe: 2, nama: 'Teks Kelp' },
+  { hari: 'Kamis', mingguKe: 2, nama: 'Ngaji Daerahan' },
+  { hari: 'Minggu', mingguKe: 3, nama: 'Muda-i Daerah' },
+  { hari: 'Rabu', mingguKe: 4, nama: 'Desa Kumpul' },
+];
+
 export const KATEGORI_BACAAN_ALQURAN = "Bacaan Al-Qur'an";
 export const KELAS_LABEL_BACA_HURUF = ['PAUD-TK', '1', '2', '3'];
 export function namaMateriTampil(namaAsli: string, kelas: string | null) {

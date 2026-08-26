@@ -103,7 +103,7 @@ function KelasContent() {
             .order('nama'),
           supabase
             .from('guru')
-            .select('id, nama')
+            .select('id, nama, kategori')
             .eq('kelompok_id', kelompokId)
             .is('deleted_at', null)
             .order('nama'),
@@ -302,7 +302,7 @@ function KelasContent() {
                       <td className="border-b border-border px-3 py-3 text-text">{k.ruangan}</td>
                       <td className="border-b border-border px-3 py-3 text-text">
                         {namaKategori(k.kategori_kbm_id) === KATEGORI_REMAJA_PRA_NIKAH
-                          ? (k.hari_ngaji?.join(', ') ?? '-') + ' (gilir)'
+                          ? `${k.hari_ngaji?.join(', ') ?? '-'} · Ketua: ${namaGuru(k.guru_id) === '—' ? 'belum ditentukan' : namaGuru(k.guru_id)}`
                           : namaGuru(k.guru_id)}
                       </td>
                       <td className="border-b border-border px-3 py-3 text-text">

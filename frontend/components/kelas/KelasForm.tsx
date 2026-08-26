@@ -9,10 +9,10 @@
    dipindah + diekspor. */
 
 import { useState } from 'react';
-import { KATEGORI_JENJANG } from '@/lib/kategori';
+import { JADWAL_KHUSUS_REMAJA_PRA_NIKAH, KATEGORI_JENJANG } from '@/lib/kategori';
 
 export type KategoriKbm = { id: number; nama: string };
-export type Guru = { id: number; nama: string };
+export type Guru = { id: number; nama: string; kategori: string | null };
 export type KelasRow = {
   id: number;
   kelompok_id: number;
@@ -34,14 +34,25 @@ export const KOLOM_KELAS =
 export const STATUS_KELAS = ['aktif', 'tidak_aktif'];
 
 /* Kategori "Remaja Pra Nikah" (2026-08-26, diminta owner, migrasi
-   20260826150000_kategori_remaja_pra_nikah.sql) py 2 sifat khusus yang
+   20260826150000_kategori_remaja_pra_nikah.sql) py sifat khusus yang
    TIDAK berlaku kategori lain:
    1. Jadwal mingguannya TETAP Selasa/Rabu/Kamis/Jumat -- checklist di
       bawah Ruangan (kolom kelas.hari_ngaji), bukan cuma satu jam tetap.
-   2. TIDAK py satu Guru Pengampu tetap (gurunya gilir beda2 tiap hari
-      ngaji) -- field "Guru Pengampu" disembunyikan sepenuhnya utk
-      kategori ini, guru_id selalu dikirim null. */
+   2. TIDAK py "Guru Pengampu" harian tetap (gurunya gilir beda2 tiap
+      hari ngaji) -- diganti dropdown "Ketua Muda-i" (2026-08-26,
+      putaran kedua): koordinator kelas ini, BUKAN guru harian. Field
+      ini masih guru_id yang SAMA di tabel `kelas` (cuma labelnya beda +
+      pilihannya disaring ke guru berkategori "Ketua Muda-i" saja --
+      lihat KATEGORI di components/guru/GuruForm.tsx), jadi guru dgn
+      kategori itu otomatis dapat akses GuruDashboard.tsx mobile utk
+      kelas ini begitu ditetapkan, tanpa kode dashboard baru.
+   3. Jadwal khusus bulanan (Ngaji Daerahan dkk, lib/kategori.ts::
+      JADWAL_KHUSUS_REMAJA_PRA_NIKAH) ditampilkan sbg INFO read-only di
+      bawah checklist Hari Ngaji -- daftar TETAP, bukan per-kelas, dan
+      SENGAJA belum dihitung jadi tanggal sungguhan/isi absensi (diminta
+      owner: "info jadwal saja dulu"). */
 export const KATEGORI_REMAJA_PRA_NIKAH = 'Remaja Pra Nikah';
+const KATEGORI_KETUA_MUDAI = 'Ketua Muda-i';
 const HARI_NGAJI_OPSI = ['Selasa', 'Rabu', 'Kamis', 'Jumat'];
 
 const keJam = (v: string | null) => (v ? v.slice(0, 5) : '');
@@ -88,6 +99,15 @@ export default function KelasForm({
   const kategoriJenjang = kategoriList.filter((k) => KATEGORI_JENJANG.includes(k.nama));
   const namaKategoriTerpilih = kategoriList.find((k) => String(k.id) === kategoriId)?.nama;
   const isRemajaPraNikah = namaKategoriTerpilih === KATEGORI_REMAJA_PRA_NIKAH;
+  const guruKetuaMudai = guruList.filter((g) => g.kategori === KATEGORI_KETUA_MUDAI);
+
+  function ubahKategori(idBaru: string) {
+    setKategoriId(idBaru);
+    /* Ganti kategori = daftar guru yang relevan berubah (Guru Pengampu
+       biasa <-> Ketua Muda-i) -- guru_id lama dikosongkan supaya tidak
+       diam-diam ikut tersimpan sbg kategori yang salah. */
+    setGuruId('');
+  }
 
   function toggleHari(hari: string) {
     setHariNgaji((s) => (s.includes(hari) ? s.filter((h) => h !== hari) : [...s, hari]));
@@ -107,7 +127,7 @@ export default function KelasForm({
       await onSimpan({
         nama: nama.trim(),
         kategori_kbm_id: Number(kategoriId),
-        guru_id: isRemajaPraNikah ? null : guruId ? Number(guruId) : null,
+        guru_id: guruId ? Number(guruId) : null,
         jam_mulai: mulai,
         jam_selesai: selesai,
         ruangan: ruangan.trim(),
@@ -143,7 +163,7 @@ export default function KelasForm({
             <select
               className={KELAS_INPUT}
               value={kategoriId}
-              onChange={(e) => setKategoriId(e.target.value)}
+              onChange={(e) => ubahKategori(e.target.value)}
             >
               <option value="">-- Pilih Kategori --</option>
               {kategoriJenjang.map((k) => (
@@ -153,7 +173,25 @@ export default function KelasForm({
               ))}
             </select>
           </div>
-          {!isRemajaPraNikah && (
+          {isRemajaPraNikah ? (
+            <div>
+              <label className={KELAS_LABEL}>Ketua Muda-i</label>
+              <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
+                <option value="">-- Belum ditentukan --</option>
+                {guruKetuaMudai.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.nama}
+                  </option>
+                ))}
+              </select>
+              {guruKetuaMudai.length === 0 && (
+                <p className="mt-1.5 text-[11.5px] text-text-faint">
+                  Belum ada guru berkategori "Ketua Muda-i" di kelompok ini. Tambahkan lewat Data Guru
+                  dulu.
+                </p>
+              )}
+            </div>
+          ) : (
             <div>
               <label className={KELAS_LABEL}>Guru Pengampu</label>
               <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
@@ -179,7 +217,7 @@ export default function KelasForm({
             <div className="sm:col-span-2">
               <label className={KELAS_LABEL}>Hari Ngaji *</label>
               <p className="mb-2 text-[11.5px] text-text-faint">
-                Remaja Pra Nikah tidak punya satu guru pengampu tetap -- gurunya gilir tiap hari, jadi
+                Remaja Pra Nikah tidak punya satu guru harian tetap -- gurunya gilir tiap hari, jadi
                 dipilih berdasarkan hari ngajinya, bukan satu guru.
               </p>
               <div className="flex flex-wrap gap-2">
@@ -198,6 +236,26 @@ export default function KelasForm({
                     </button>
                   );
                 })}
+              </div>
+
+              <div className="mt-4 rounded-card border border-border bg-panel-2 p-3.5">
+                <div className="mb-2 text-[12px] font-bold text-text-dim uppercase">
+                  Jadwal Khusus Bulanan
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  {JADWAL_KHUSUS_REMAJA_PRA_NIKAH.map((j) => (
+                    <div key={j.nama} className="flex items-center justify-between gap-3 text-[12.5px]">
+                      <span className="font-semibold text-text">{j.nama}</span>
+                      <span className="text-text-dim">
+                        {j.hari} minggu ke-{j.mingguKe}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-2 text-[11px] text-text-faint">
+                  Info jadwal saja -- tanggal sungguhannya beda tiap bulan, belum bisa diisi absensi
+                  dari sini.
+                </p>
               </div>
             </div>
           )}
