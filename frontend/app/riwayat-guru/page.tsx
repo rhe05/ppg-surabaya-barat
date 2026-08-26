@@ -8,7 +8,17 @@
    (admin_ppg semua, admin_desa kelompok2 di desanya, admin_kelompok
    kelompoknya sendiri), jadi query di sini TIDAK perlu filter
    kelompok_id manual utk keamanan, tapi tetap ditambahkan (konsisten
-   dgn pola query lain di app ini + query lebih ringan). */
+   dgn pola query lain di app ini + query lebih ringan).
+
+   Tiap kartu (2026-08-26, putaran kedua, diminta owner) py 3-4 baris
+   info di bawah nama: "Mulai Ngajar" (guru.mulai_mengajar, snapshot
+   TERKINI dari baris guru -- masih bisa dibaca krn soft-delete BUKAN
+   hapus permanen), "Purna Ngajar"/"Pindah Ngajar" (label ikut r.jenis
+   + tanggal peristiwa dari riwayat_guru itu sendiri), "Lama Ngajar"
+   (guru.lama_mengajar, teks SNAPSHOT hasil hitung saat baris guru
+   terakhir disimpan -- BUKAN dihitung ulang di sini, sengaja
+   dipertahankan spt GuruForm.tsx::hitungDurasi, lihat komentar di
+   sana), dan "Keterangan" kalau diisi saat Hapus Guru. */
 
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
@@ -16,12 +26,23 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 
+type GuruTersemat = { mulai_mengajar: string | null; lama_mengajar: string | null } | null;
+type BarisRiwayat = {
+  id: number;
+  nama: string;
+  jenis: 'Purna' | 'Pindah';
+  tanggal: string;
+  keterangan: string | null;
+  guru: GuruTersemat | GuruTersemat[];
+};
 type RiwayatGuru = {
   id: number;
   nama: string;
   jenis: 'Purna' | 'Pindah';
   tanggal: string;
   keterangan: string | null;
+  mulaiMengajar: string | null;
+  lamaMengajar: string | null;
 };
 
 const JENIS_WARNA: Record<string, string> = {
@@ -51,14 +72,37 @@ function RiwayatGuruContent() {
   const muat = useCallback(async () => {
     setLoading(true);
     setError(null);
+    /* Join ke `guru` (2026-08-26, diminta owner: tampilkan Mulai Ngajar +
+       Lama Ngajar di bawah nama) -- baris guru MASIH ADA walau sudah
+       ditandai Purna/Pindah (soft-delete via deleted_at, bukan hapus
+       permanen), dan RLS guru_select_scoped tidak menyembunyikan baris
+       deleted_at (lihat [[ppg-guru-santri-rls-tidak-soft-delete-aware]]),
+       jadi join ini aman tanpa perlu .is('deleted_at', null). */
     let query = supabase
       .from('riwayat_guru')
-      .select('id, nama, jenis, tanggal, keterangan')
+      .select('id, nama, jenis, tanggal, keterangan, guru:guru_id(mulai_mengajar, lama_mengajar)')
       .order('tanggal', { ascending: false });
     if (kelompokId) query = query.eq('kelompok_id', kelompokId);
     const { data, error: err } = await query;
-    if (err) setError(err.message);
-    else setDaftar((data ?? []) as unknown as RiwayatGuru[]);
+    if (err) {
+      setError(err.message);
+    } else {
+      const baris = (data ?? []) as unknown as BarisRiwayat[];
+      setDaftar(
+        baris.map((r) => {
+          const g = Array.isArray(r.guru) ? r.guru[0] : r.guru;
+          return {
+            id: r.id,
+            nama: r.nama,
+            jenis: r.jenis,
+            tanggal: r.tanggal,
+            keterangan: r.keterangan,
+            mulaiMengajar: g?.mulai_mengajar ?? null,
+            lamaMengajar: g?.lama_mengajar ?? null,
+          };
+        }),
+      );
+    }
     setLoading(false);
   }, [kelompokId]);
 
@@ -106,9 +150,25 @@ function RiwayatGuruContent() {
                   {r.jenis}
                 </span>
               </div>
-              <div className="mt-1 text-[11.5px] text-text-faint">
-                Sejak {formatTanggal(r.tanggal)}
-                {r.keterangan ? ` · ${r.keterangan}` : ''}
+              <div className="mt-2 flex flex-col gap-0.5 text-[11.5px] text-text-dim">
+                <span>
+                  <span className="text-text-faint">Mulai Ngajar : </span>
+                  {r.mulaiMengajar ? formatTanggal(r.mulaiMengajar) : '-'}
+                </span>
+                <span>
+                  <span className="text-text-faint">{r.jenis} Ngajar : </span>
+                  {formatTanggal(r.tanggal)}
+                </span>
+                <span>
+                  <span className="text-text-faint">Lama Ngajar : </span>
+                  {r.lamaMengajar ?? '-'}
+                </span>
+                {r.keterangan && (
+                  <span>
+                    <span className="text-text-faint">Keterangan : </span>
+                    {r.keterangan}
+                  </span>
+                )}
               </div>
             </div>
           ))}
