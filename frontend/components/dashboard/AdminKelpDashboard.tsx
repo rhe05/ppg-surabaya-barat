@@ -599,13 +599,20 @@ export default function AdminKelpDashboard() {
      ada RPC baru. RLS sudah menyempitkan ke kelompok admin ini sendiri,
      sama seperti query GuruList.tsx desktop. Query TIDAK memfilter
      deleted_at (lihat komentar MentahGuru di atas) -- baris mentah,
-     penghitungan per bulan terjadi di ringkasanGuru (useMemo) di bawah. */
+     penghitungan per bulan terjadi di ringkasanGuru (useMemo) di bawah.
+     .eq('kelompok_id', ...) DITAMBAHKAN (2026-08-26, audit resource
+     Supabase -- SUPABASE_RESOURCE_AUDIT.md temuan HIGH #2): sebelumnya
+     query ini SATU-SATUNYA di seluruh codebase yang murni mengandalkan
+     RLS tanpa filter eksplisit sama sekali. Hasilnya TIDAK berubah (RLS
+     admin_kelompok sudah membatasi ke kelompok sendiri), ini murni
+     membantu Postgres mempersempit baris lebih awal. */
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;
     supabase
       .from('guru')
       .select('jenis_kelamin, kategori, mulai_mengajar, deleted_at')
+      .eq('kelompok_id', kelompokId)
       .then(({ data }) => {
         if (batal) return;
         setMentahGuru((data ?? []) as MentahGuru[]);
@@ -640,13 +647,16 @@ export default function AdminKelpDashboard() {
 
   /* Kartu KPI "Data Generus" (2026-08-26, diminta owner: taruh di bawah
      Data Guru) -- sama pola dgn mentahGuru/ringkasanGuru di atas: baris
-     mentah dari tabel `santri`, dihitung ulang per bulan di useMemo. */
+     mentah dari tabel `santri`, dihitung ulang per bulan di useMemo.
+     .eq('kelompok_id', ...) DITAMBAHKAN (audit resource Supabase, temuan
+     HIGH #2 -- lihat komentar sama di query guru di atas). */
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;
     supabase
       .from('santri')
       .select('gender, jenjang_saat_ini, mulai_ngaji, deleted_at')
+      .eq('kelompok_id', kelompokId)
       .then(({ data }) => {
         if (batal) return;
         setMentahSantri((data ?? []) as MentahSantri[]);
