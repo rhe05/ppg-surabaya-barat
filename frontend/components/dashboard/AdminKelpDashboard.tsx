@@ -37,16 +37,19 @@
    Kartu KPI "Data Generus" TEPAT DI BAWAHNYA -- Total santri + L/P +
    pil jenjang (PAUD/TK..Remaja, urutan JENJANG_URUTAN), pola sama.
 
-   Kartu hero "Hari Aktif Bulan Ini" (2026-08-26, diminta owner, taruh
-   PALING ATAS) -- dari tgl 1 bulan berjalan s.d. HARI INI, berapa yang
-   sungguh hari ngaji: akhir pekan + tanggal merah nasional dikurangi,
-   DITUMPANGI override kalender_kelompok (kelp bisa menandai suatu
-   tanggal 'libur' mendadak spt acara pengajian, atau 'aktif' tetap
-   masuk walau tanggal merah) -- lib/ringkasanAdminKelp.ts::
-   muatHariAktifBulanIni, definisi "hari kerja" SAMA dgn
-   muatAbsensiBelumDiisiBulan (buatCekNonaktif). Gradient teal SENGAJA
-   sama dgn kotak "Hari Aktif" GuruDashboard.tsx/kartu per-kelas di
-   atas -- angka yang sama artinya, gaya visual jangan beda sendiri.
+   "Hari Aktif" (2026-08-26, mulanya kartu hero sendiri di paling atas,
+   lalu diminta owner PINDAH KE DALAM "Ringkasan Kehadiran" -- grid-nya
+   jadi 5 kolom, tile ini di depan Hadir/Izin/Sakit/Alpa) -- dari tgl 1
+   bulan berjalan s.d. HARI INI, berapa yang sungguh hari ngaji: akhir
+   pekan + tanggal merah nasional dikurangi, DITUMPANGI override
+   kalender_kelompok (kelp bisa menandai suatu tanggal 'libur' mendadak
+   spt acara pengajian, atau 'aktif' tetap masuk walau tanggal merah) --
+   lib/ringkasanAdminKelp.ts::muatHariAktifBulanIni, definisi "hari
+   kerja" SAMA dgn muatAbsensiBelumDiisiBulan (buatCekNonaktif). Gradient
+   teal DISALIN PERSIS dari tile "Hari Aktif" GuruDashboard.tsx (diminta
+   owner: "samakan spt milik guru") -- 18px, dua baris label "Hari"/
+   "Aktif" uppercase, bukan pill persentase spt 4 tile status di
+   sebelahnya (ini info struktural, bukan status kehadiran).
 
    Gaya visual meniru GuruDashboard.tsx (kartu kelas, kotak status warna)
    supaya "app kedua" ini terasa satu keluarga dgn app guru, bukan
@@ -55,7 +58,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarOff, CalendarCheck2, CalendarDays, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -153,8 +156,8 @@ function SkeletonKpi() {
   return (
     <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
       <Skeleton className="h-[15px] w-2/5" />
-      <div className="mt-3 grid grid-cols-4 gap-2">
-        {Array.from({ length: 4 }, (_, i) => (
+      <div className="mt-3 grid grid-cols-5 gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-[58px] w-full" />
         ))}
       </div>
@@ -518,30 +521,6 @@ export default function AdminKelpDashboard() {
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
 
-        {hariAktifBulanIni !== null && (
-          <div
-            className="mb-4 flex items-center gap-4 overflow-hidden rounded-card p-4 shadow-[0_10px_28px_rgba(13,148,136,0.28),inset_0_1px_0_rgba(255,255,255,0.14)]"
-            style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 55%, #14B8A6 100%)' }}
-          >
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white/15">
-              <CalendarDays size={26} className="text-white" strokeWidth={2} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="text-[11.5px] font-bold tracking-[0.02em] text-white/80 uppercase">
-                Hari Aktif Bulan Ini
-              </div>
-              <div className="text-[30px] leading-tight font-extrabold tabular-nums text-white">
-                {hariAktifBulanIni}
-                <span className="ml-1 text-[13px] font-semibold text-white/75">hari</span>
-              </div>
-              <div className="text-[11px] text-white/70">
-                {NAMA_BULAN[sekarangAwal.getMonth()]} {sekarangAwal.getFullYear()} · akhir pekan, tanggal
-                merah &amp; libur kelompok sudah dikurangi
-              </div>
-            </div>
-          </div>
-        )}
-
         {loadingBelumIsi && <Skeleton className="mb-4 h-[62px] w-full rounded-card" />}
 
         {!loadingBelumIsi && belumIsiBulan.length > 0 && (
@@ -634,7 +613,23 @@ export default function AdminKelpDashboard() {
                 <Calendar size={17} />
               </span>
             </button>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-5 gap-2">
+              {hariAktifBulanIni !== null && (
+                <div
+                  className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
+                  style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)' }}
+                >
+                  <span className="text-[18px] leading-none font-extrabold text-white tabular-nums">
+                    {hariAktifBulanIni}
+                  </span>
+                  <span className="mt-px text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                    Hari
+                  </span>
+                  <span className="text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                    Aktif
+                  </span>
+                </div>
+              )}
               {STATUS.map((st) => {
                 const nilai = ringkasanBulan[st.kunci];
                 const persen = totalStatus > 0 ? Math.round((nilai / totalStatus) * 100) : null;
