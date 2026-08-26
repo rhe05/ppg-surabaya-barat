@@ -5,19 +5,25 @@
    "Daftar Kelas" desktop (app/kelas/page.tsx): tambah/ubah kelas TERMASUK
    menetapkan Guru Pengampu-nya (dropdown "Guru Pengampu" di
    components/kelas/KelasForm.tsx, form yang SAMA dipakai desktop, bukan
-   diduplikasi).
-
-   Sengaja TIDAK menyertakan "Penempatan Santri" massal (grid centang
-   santri desktop) -- owner minta "Data Kelas" fungsinya khusus taruh
-   guru ke kelas, bukan tempatkan santri; itu tetap lewat /kelas desktop
-   kalau dibutuhkan. */
+   diduplikasi), DITAMBAH "Penempatan Santri" massal (2026-08-26, putaran
+   kedua: owner minta ditambahkan lagi, semula sengaja dilewatkan) --
+   kartu collapsible di bawah daftar kelas, pola centang+terapkan SAMA
+   PERSIS logikanya dgn app/kelas/page.tsx (query & RPC identik, cuma
+   kartu vertikal bukan grid checkbox desktop). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarPlus } from 'lucide-react';
+import { CalendarPlus, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import KelasForm, { KOLOM_KELAS, type Guru, type KategoriKbm, type KelasRow } from '@/components/kelas/KelasForm';
+
+type SantriRingkas = { id: number; nama: string; nis: string | null; kelas_id: number | null };
+
+const KELAS_INPUT =
+  'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
+  'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
+const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
 
 export default function KelasKelpMobile() {
   const { profile } = useAuth();
@@ -26,6 +32,7 @@ export default function KelasKelpMobile() {
   const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [kelasList, setKelasList] = useState<KelasRow[]>([]);
+  const [santriList, setSantriList] = useState<SantriRingkas[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
@@ -34,12 +41,19 @@ export default function KelasKelpMobile() {
   const [kelasDiubah, setKelasDiubah] = useState<KelasRow | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
 
+  /* Penempatan Santri massal */
+  const [penempatanTerbuka, setPenempatanTerbuka] = useState(false);
+  const [terpilih, setTerpilih] = useState<Set<number>>(new Set());
+  const [kelasTujuan, setKelasTujuan] = useState('');
+  const [saringPenempatan, setSaringPenempatan] = useState<'belum' | 'semua'>('belum');
+  const [sibukPenempatan, setSibukPenempatan] = useState(false);
+
   const muat = useCallback(async () => {
     if (!kelompokId) return;
     setLoading(true);
     setError(null);
     try {
-      const [{ data: dKat }, { data: dGuru, error: eGuru }, { data: dKelas, error: eKelas }] =
+      const [{ data: dKat }, { data: dGuru, error: eGuru }, { data: dKelas, error: eKelas }, { data: dSantri, error: eSantri }] =
         await Promise.all([
           supabase.from('kategori_kbm').select('id, nama'),
           supabase.from('guru').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null).order('nama'),
@@ -49,12 +63,21 @@ export default function KelasKelpMobile() {
             .eq('kelompok_id', kelompokId)
             .is('deleted_at', null)
             .order('nama'),
+          supabase
+            .from('santri')
+            .select('id, nama, nis, kelas_id')
+            .eq('kelompok_id', kelompokId)
+            .is('deleted_at', null)
+            .order('nama'),
         ]);
       if (eGuru) throw new Error(eGuru.message);
       if (eKelas) throw new Error(eKelas.message);
+      if (eSantri) throw new Error(eSantri.message);
       setKategoriList((dKat ?? []) as unknown as KategoriKbm[]);
       setGuruList((dGuru ?? []) as unknown as Guru[]);
       setKelasList((dKelas ?? []) as unknown as KelasRow[]);
+      setSantriList((dSantri ?? []) as unknown as SantriRingkas[]);
+      setTerpilih(new Set());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat data kelas.');
     } finally {
@@ -83,6 +106,44 @@ export default function KelasKelpMobile() {
       (k) => k.nama.toLowerCase().includes(term) || (namaGuru(k.guru_id) ?? '').toLowerCase().includes(term),
     );
   }, [kelasList, cari, namaGuru]);
+
+  const belumDitempatkan = useMemo(() => santriList.filter((s) => s.kelas_id == null).length, [santriList]);
+  const santriTampilPenempatan = useMemo(
+    () => (saringPenempatan === 'belum' ? santriList.filter((s) => s.kelas_id == null) : santriList),
+    [santriList, saringPenempatan],
+  );
+
+  function toggleTerpilih(id: number) {
+    setTerpilih((s) => {
+      const baru = new Set(s);
+      if (baru.has(id)) baru.delete(id);
+      else baru.add(id);
+      return baru;
+    });
+  }
+
+  async function tempatkan() {
+    if (terpilih.size === 0) return;
+    setSibukPenempatan(true);
+    setError(null);
+    try {
+      const tujuan = kelasTujuan ? Number(kelasTujuan) : null;
+      const { error: err } = await supabase.from('santri').update({ kelas_id: tujuan }).in('id', [...terpilih]);
+      if (err) throw new Error(err.message);
+      const jumlah = terpilih.size;
+      await muat();
+      setPesan(
+        tujuan
+          ? `${jumlah} santri ditempatkan ke ${kelasList.find((k) => k.id === tujuan)?.nama ?? '-'}.`
+          : `${jumlah} santri dikeluarkan dari kelasnya.`,
+      );
+      setTimeout(() => setPesan(null), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menempatkan santri.');
+    } finally {
+      setSibukPenempatan(false);
+    }
+  }
 
   function bukaTambah() {
     setKelasDiubah(null);
@@ -183,6 +244,114 @@ export default function KelasKelpMobile() {
             );
           })}
         </div>
+
+        {!loading && kelasList.length > 0 && (
+          <div className="mt-4 rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+            <button
+              type="button"
+              onClick={() => setPenempatanTerbuka((v) => !v)}
+              className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent p-4 text-left"
+            >
+              <span className="min-w-0">
+                <span className="flex items-center gap-2 text-[13px] font-bold text-text">
+                  Penempatan Santri
+                  {belumDitempatkan > 0 && (
+                    <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-[6px] text-[11px] font-bold text-[#92400E]">
+                      {belumDitempatkan}
+                    </span>
+                  )}
+                </span>
+                <span className="mt-0.5 block text-[11px] text-text-faint">
+                  {belumDitempatkan} dari {santriList.length} santri belum punya kelas
+                </span>
+              </span>
+              <ChevronDown
+                size={16}
+                className={`shrink-0 text-text-faint transition-transform duration-200 ${penempatanTerbuka ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {penempatanTerbuka && (
+              <div className="border-t border-border p-4 pt-3.5">
+                <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className={KELAS_LABEL}>Tampilkan</label>
+                    <select
+                      className={KELAS_INPUT}
+                      value={saringPenempatan}
+                      onChange={(e) => setSaringPenempatan(e.target.value as 'belum' | 'semua')}
+                    >
+                      <option value="belum">Belum punya kelas</option>
+                      <option value="semua">Semua santri</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className={KELAS_LABEL}>Tempatkan ke</label>
+                    <select className={KELAS_INPUT} value={kelasTujuan} onChange={(e) => setKelasTujuan(e.target.value)}>
+                      <option value="">-- Keluarkan dari kelas --</option>
+                      {kelasList.map((k) => (
+                        <option key={k.id} value={k.id}>
+                          {k.nama}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {santriTampilPenempatan.length === 0 ? (
+                  <p className="text-[12.5px] text-sage">Semua santri sudah punya kelas.</p>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setTerpilih((s) =>
+                          s.size === santriTampilPenempatan.length
+                            ? new Set()
+                            : new Set(santriTampilPenempatan.map((x) => x.id)),
+                        )
+                      }
+                      className="mb-2.5 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-1.5 text-[12px] font-semibold text-text active:scale-[0.97]"
+                    >
+                      {terpilih.size === santriTampilPenempatan.length ? 'Batalkan semua' : 'Pilih semua yang tampil'}
+                    </button>
+                    <div className="mb-3 max-h-[300px] overflow-y-auto rounded-[var(--radius)] border border-border">
+                      {santriTampilPenempatan.map((s) => (
+                        <label
+                          key={s.id}
+                          className="flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2.5 text-[13px] text-text last:border-b-0 active:bg-panel-2"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={terpilih.has(s.id)}
+                            onChange={() => toggleTerpilih(s.id)}
+                            className="shrink-0"
+                          />
+                          <span className="min-w-0 flex-1 truncate">
+                            {s.nama}
+                            {s.nis ? <span className="ml-2 text-[11px] text-text-faint">{s.nis}</span> : null}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-text-dim">
+                            {s.kelas_id != null ? (kelasList.find((k) => k.id === s.kelas_id)?.nama ?? '-') : 'belum ada kelas'}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  </>
+                )}
+
+                <button
+                  type="button"
+                  onClick={tempatkan}
+                  disabled={terpilih.size === 0 || sibukPenempatan}
+                  className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+                >
+                  {sibukPenempatan ? 'Menerapkan...' : `Terapkan ke ${terpilih.size} santri`}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {formTerbuka && (
