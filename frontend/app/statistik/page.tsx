@@ -36,6 +36,7 @@ import {
   YAxis,
 } from 'recharts';
 import RequireAuth from '@/components/RequireAuth';
+import AdminHeader from '@/components/dashboard/AdminHeader';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
@@ -171,44 +172,52 @@ function StatistikContent() {
   }, [muat]);
 
   const adaData = !!hasil && hasil.ringkas.total_catatan > 0;
+  /* Pemilih Kelompok cuma berguna utk admin_ppg/admin_desa (bisa lihat
+     kelompok lain) -- utk admin_kelompok/guru selectnya SUDAH disabled
+     dari dulu (scope terkunci ke kelompok sendiri), jadi menampilkannya
+     cuma keramaian tanpa fungsi (diminta owner 2026-08-26: hilangkan). */
+  const bolehPilihKelompok = profile?.role === 'admin_ppg' || profile?.role === 'admin_desa';
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-2 text-[24px] font-bold text-text">Statistik</h1>
-      <p className="mb-6 text-[13px] text-text-dim">
-        Tren kehadiran, perbandingan antar kelompok, peringkat santri, dan demografi.
-      </p>
+    <main className="min-h-screen bg-bg">
+      {/* Top bar (2026-08-26, diminta owner) -- halaman ini dulu TIDAK
+          py header sama sekali, jadi admin_kelompok di HP terjebak tanpa
+          jalan pindah halaman selain tombol back browser, sama gejala
+          yg sudah ditambal di /guru & /santri. */}
+      <AdminHeader judul="Statistik" />
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div>
-          <label className={KELAS_LABEL}>Kelompok</label>
-          <select
-            className={KELAS_INPUT}
-            value={kelompokId ?? ''}
-            disabled={profile?.role === 'admin_kelompok' || profile?.role === 'guru'}
-            onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Semua kelompok (sesuai hak akses)</option>
-            {kelompokList.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.nama}
-              </option>
-            ))}
-          </select>
+      <div className="mx-auto max-w-5xl p-6">
+        <div className={`mb-6 grid grid-cols-1 gap-4 ${bolehPilihKelompok ? 'sm:grid-cols-2' : ''}`}>
+          {bolehPilihKelompok && (
+            <div>
+              <label className={KELAS_LABEL}>Kelompok</label>
+              <select
+                className={KELAS_INPUT}
+                value={kelompokId ?? ''}
+                onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
+              >
+                <option value="">Semua kelompok (sesuai hak akses)</option>
+                {kelompokList.map((k) => (
+                  <option key={k.id} value={k.id}>
+                    {k.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div>
+            <label className={KELAS_LABEL}>Rentang</label>
+            <select className={KELAS_INPUT} value={hari} onChange={(e) => setHari(Number(e.target.value))}>
+              {RENTANG.map((r) => (
+                <option key={r.nilai} value={r.nilai}>
+                  {r.label} terakhir
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-        <div>
-          <label className={KELAS_LABEL}>Rentang</label>
-          <select className={KELAS_INPUT} value={hari} onChange={(e) => setHari(Number(e.target.value))}>
-            {RENTANG.map((r) => (
-              <option key={r.nilai} value={r.nilai}>
-                {r.label} terakhir
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
 
-      {loading && <p className="text-[13px] text-text-dim">Menghitung...</p>}
+        {loading && <p className="text-[13px] text-text-dim">Menghitung...</p>}
       {error && <p className="text-[13px] text-red">{error}</p>}
       {!loading && !error && !adaData && (
         <p className="text-[13px] text-text-dim">
@@ -351,7 +360,8 @@ function StatistikContent() {
           </div>
         </>
       )}
-    </div>
+      </div>
+    </main>
   );
 }
 
