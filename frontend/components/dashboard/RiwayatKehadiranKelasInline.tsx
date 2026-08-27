@@ -171,11 +171,16 @@ export default function RiwayatKehadiranKelasInline({
                 {r.nama}
               </td>
               {tanggalList.map((tgl) => {
-                const st = r.sel[tgl];
+                /* Tanggal libur -> selalu kosong. Baris absensinya sudah
+                   di-soft-delete oleh bersihkanAbsensiTanggalLibur saat
+                   Ringkasan Kehadiran dimuat; guard ini menjaga kalau
+                   pemuatannya balapan. */
+                const libur = override.get(tgl)?.jenis === 'libur';
+                const st = libur ? undefined : r.sel[tgl];
                 return (
                   <td key={tgl} className="border-r border-border px-1.5 py-1.5 text-center">
                     <span
-                      title={st ? BADGE[st].label : 'Belum diisi'}
+                      title={libur ? 'Libur' : st ? BADGE[st].label : 'Belum diisi'}
                       className="inline-flex h-[20px] w-5 items-center justify-center rounded-[5px] text-[10.5px] font-extrabold"
                       style={
                         st

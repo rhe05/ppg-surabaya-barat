@@ -8,7 +8,12 @@
    sengaja tidak dipaksa satu fungsi. */
 
 import { supabase } from './supabase';
-import { muatOverrideKelompok, buatCekNonaktif, tanggalLiburKelompok } from './kalenderKelompok';
+import {
+  muatOverrideKelompok,
+  buatCekNonaktif,
+  tanggalLiburKelompok,
+  bersihkanAbsensiTanggalLibur,
+} from './kalenderKelompok';
 
 export type GuruBelumIsi = { kelasId: number; kelasNama: string; guruNama: string };
 
@@ -70,10 +75,12 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
   };
   if (kelasIds.length === 0) return kosong;
 
-  /* Tanggal yang admin tandai libur mendadak -- dikeluarkan dari "Hari
-     Aktif" walau baris absensinya terlanjur ada (diminta owner
-     2026-08-27). */
+  /* Tanggal yang admin tandai libur mendadak -- baris absensinya
+     dikosongkan (self-heal, lihat bersihkanAbsensiTanggalLibur) LALU
+     dikeluarkan dari "Hari Aktif" (guard tambahan utk jendela singkat
+     sebelum wipe kelar). Diminta owner 2026-08-27. */
   const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, liburKelp);
 
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')
@@ -241,6 +248,7 @@ export async function muatRingkasanPerKelas(
   if (kelasIds.length === 0) return [];
 
   const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, liburKelp);
 
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')

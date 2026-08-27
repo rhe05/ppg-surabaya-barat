@@ -48,6 +48,35 @@ export function tanggalLiburKelompok(override: Map<string, OverrideKelompok>): S
   return set;
 }
 
+/* SELF-HEAL: soft-delete (isi `deleted_at`) semua baris `absensi` kelompok
+   pada tanggal2 yang ditandai libur dalam rentang [awal, akhir].
+   Dibutuhkan karena penandaan libur (AdminKelpDashboard) hanya
+   mengosongkan absensi yang SUDAH ADA SAAT ITU -- kalau tanggalnya
+   diliburkan lalu (atau kalau penandaan pertama gagal mengosongkan),
+   pemanggilan ini membereskannya begitu admin membuka Ringkasan
+   Kehadiran. Idempoten: panggilan berikutnya tidak kena baris apa pun
+   (filter `deleted_at IS NULL`). Diminta owner 2026-08-27.
+
+   RLS: `absensi_update_guru_admin` mengizinkan admin_kelompok mengisi
+   `deleted_at` scoped kelompoknya (hard delete `absensi_delete_ppg_only`
+   = admin_ppg saja, jadi WAJIB soft delete). */
+export async function bersihkanAbsensiTanggalLibur(
+  kelompokId: number,
+  awal: string,
+  akhir: string,
+  liburSet?: Set<string>,
+): Promise<void> {
+  const libur = liburSet ?? tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+  const dalamRentang = [...libur].filter((t) => t >= awal && t <= akhir);
+  if (dalamRentang.length === 0) return;
+  await supabase
+    .from('absensi')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('kelompok_id', kelompokId)
+    .in('tanggal', dalamRentang)
+    .is('deleted_at', null);
+}
+
 /* Gabungkan kalender libur nasional (statis) dgn pengecualian per
    kelompok -- hasilnya cocok langsung dgn prop `tanggalNonaktif`
    TanggalPicker.tsx & dipakai jg sbg filter kandidat "hari kerja" di
