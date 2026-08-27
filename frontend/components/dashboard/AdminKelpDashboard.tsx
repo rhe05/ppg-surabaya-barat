@@ -362,6 +362,10 @@ export default function AdminKelpDashboard() {
      tanggal lampau maupun yang akan datang, bukan cuma hari ini. Default
      hari ini saat modal dibuka. */
   const [tanggalLibur, setTanggalLibur] = useState(tanggalHariIniLokal());
+  /* Entri kalender_kelompok yang SUDAH ada utk `tanggalLibur` (dicek tiap
+     tanggal di modal berganti) -- kalau ada & jenisnya libur, modal
+     menampilkan tombol "Batalkan Libur" alih-alih "Konfirmasi". */
+  const [liburTanggalItu, setLiburTanggalItu] = useState<StatusKalenderHariIni>(null);
 
   /* "Absensi Belum di Input" (2026-08-24, diminta owner: rename dari
      "Guru Belum Isi Absen" + direntang jadi PER GURU per bulan, bukan
@@ -555,6 +559,46 @@ export default function AdminKelpDashboard() {
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
+    } finally {
+      setSibukKalender(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!modalLiburTerbuka || !kelompokId || !tanggalLibur) {
+      setLiburTanggalItu(null);
+      return;
+    }
+    let batal = false;
+    supabase
+      .from('kalender_kelompok')
+      .select('id, jenis, catatan')
+      .eq('kelompok_id', kelompokId)
+      .eq('tanggal', tanggalLibur)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!batal) setLiburTanggalItu((data as StatusKalenderHariIni) ?? null);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [modalLiburTerbuka, kelompokId, tanggalLibur]);
+
+  async function batalkanLiburTanggalItu() {
+    if (!liburTanggalItu) return;
+    setSibukKalender(true);
+    try {
+      const { error: err } = await supabase
+        .from('kalender_kelompok')
+        .delete()
+        .eq('id', liburTanggalItu.id);
+      if (err) throw new Error(err.message);
+      setModalLiburTerbuka(false);
+      setAlasanLibur('');
+      setTanggalLibur(tanggalHariIniLokal());
+      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal membatalkan libur.');
     } finally {
       setSibukKalender(false);
     }
@@ -1229,8 +1273,8 @@ export default function AdminKelpDashboard() {
           <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
             <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur</div>
             <p className="mb-4 text-[12.5px] text-text-dim">
-              Pilih tanggal (boleh lampau atau yang akan datang) &amp; tulis alasan
-              supaya tersimpan.
+              Pilih tanggal (boleh lampau atau yang akan datang) &amp; tulis alasan.
+              Tanggal yang sudah ditandai bisa dibatalkan dari sini juga.
             </p>
             <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Tanggal</label>
             <input
@@ -1239,15 +1283,27 @@ export default function AdminKelpDashboard() {
               onChange={(e) => setTanggalLibur(e.target.value)}
               className="mb-3 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
             />
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
-            <textarea
-              autoFocus
-              value={alasanLibur}
-              onChange={(e) => setAlasanLibur(e.target.value)}
-              placeholder="Misal: Hujan deras, jalan tidak bisa dilalui"
-              rows={3}
-              className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
-            />
+            {liburTanggalItu ? (
+              <div className="rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-3.5 py-3 text-[12.5px] text-[#92400E]">
+                Tanggal ini sudah ditandai{' '}
+                <span className="font-bold">
+                  {liburTanggalItu.jenis === 'libur' ? 'LIBUR' : 'TETAP AKTIF'}
+                </span>
+                {liburTanggalItu.catatan ? ` — ${liburTanggalItu.catatan}` : ''}.
+              </div>
+            ) : (
+              <>
+                <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
+                <textarea
+                  autoFocus
+                  value={alasanLibur}
+                  onChange={(e) => setAlasanLibur(e.target.value)}
+                  placeholder="Misal: Hujan deras, jalan tidak bisa dilalui"
+                  rows={3}
+                  className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+                />
+              </>
+            )}
             <div className="mt-4 flex gap-2.5">
               <button
                 type="button"
@@ -1260,14 +1316,29 @@ export default function AdminKelpDashboard() {
               >
                 Batal
               </button>
-              <button
-                type="button"
-                disabled={!alasanLibur.trim() || !tanggalLibur || sibukKalender}
-                onClick={tandaiLiburHariIni}
-                className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {sibukKalender ? 'Menyimpan...' : 'Konfirmasi'}
-              </button>
+              {liburTanggalItu ? (
+                <button
+                  type="button"
+                  disabled={sibukKalender}
+                  onClick={batalkanLiburTanggalItu}
+                  className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sibukKalender
+                    ? 'Membatalkan...'
+                    : liburTanggalItu.jenis === 'libur'
+                      ? 'Batalkan Libur'
+                      : 'Batalkan Penandaan'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  disabled={!alasanLibur.trim() || !tanggalLibur || sibukKalender}
+                  onClick={tandaiLiburHariIni}
+                  className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {sibukKalender ? 'Menyimpan...' : 'Konfirmasi'}
+                </button>
+              )}
             </div>
           </div>
         </div>
