@@ -78,7 +78,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, MoreVertical, UserCheck, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -1094,10 +1094,11 @@ export default function AdminKelpDashboard() {
                 />
                 <button
                   type="button"
+                  aria-label="Buka Statistik"
                   onClick={() => router.push('/statistik')}
-                  className="cursor-pointer border-none bg-transparent text-[11.5px] font-bold text-brass"
+                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim active:scale-[0.92]"
                 >
-                  Lihat Detail
+                  <MoreVertical size={15} />
                 </button>
               </div>
             </div>
