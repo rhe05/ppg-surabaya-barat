@@ -27,7 +27,7 @@ import { useRouter } from 'next/navigation';
 import { History, MoreVertical, UserPlus, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
-import GuruForm, { KOLOM_GURU, type GuruRow } from '@/components/guru/GuruForm';
+import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/guru/GuruForm';
 
 const KATEGORI_WARNA: Record<string, string> = {
   'Muballigh Tugasan': 'text-indigo bg-[rgba(79,70,229,0.12)]',
@@ -337,14 +337,31 @@ export default function GuruKelpMobile() {
               onClick={() => bukaUbah(g)}
               className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
             >
-              <div className="min-w-0">
-                <div className="truncate text-[14px] font-bold text-text">{g.nama}</div>
-                <div className="mt-0.5 text-[11.5px] text-text-faint">
-                  {g.jenis_kelamin === 'L' ? 'Laki-laki' : g.jenis_kelamin === 'P' ? 'Perempuan' : '-'}
-                  {g.nomor_wa ? ` · ${g.nomor_wa}` : ''}
-                  {g.lama_mengajar ? ` · ${g.lama_mengajar}` : ''}
-                </div>
-              </div>
+              {(() => {
+                /* Lama mengajar dihitung LANGSUNG dari mulai_mengajar tiap
+                   render (kolom lama_mengajar cuma cache teks saat simpan --
+                   guru lama sering NULL / basi). Fallback ke kolom kalau
+                   mulai_mengajar kosong. */
+                const durasi = g.mulai_mengajar
+                  ? hitungDurasi(g.mulai_mengajar)
+                  : g.lama_mengajar;
+                return (
+                  <div className="min-w-0">
+                    <div className="truncate text-[14px] font-bold text-text">{g.nama}</div>
+                    <div className="mt-0.5 text-[11.5px] text-text">
+                      {g.jenis_kelamin === 'L'
+                        ? 'Laki-laki'
+                        : g.jenis_kelamin === 'P'
+                          ? 'Perempuan'
+                          : '-'}
+                      {g.nomor_wa ? ` · ${g.nomor_wa}` : ''}
+                    </div>
+                    {durasi && (
+                      <div className="mt-0.5 text-[11.5px] text-text">Mengajar {durasi}</div>
+                    )}
+                  </div>
+                );
+              })()}
               {g.kategori && (
                 <span
                   className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold whitespace-nowrap ${
