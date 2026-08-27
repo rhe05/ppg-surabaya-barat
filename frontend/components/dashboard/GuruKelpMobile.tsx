@@ -357,9 +357,11 @@ export default function GuruKelpMobile() {
                       {g.nomor_wa ? ` · ${g.nomor_wa}` : ''}
                     </div>
                     {durasi && (
-                      <span className="mt-1.5 inline-flex items-center rounded-md bg-[rgba(13,148,136,0.1)] px-1.5 py-0.5 text-[10.5px] font-bold text-teal">
-                        {durasi}
-                      </span>
+                      <div className="mt-1.5">
+                        <span className="inline-flex items-center rounded-md bg-[rgba(13,148,136,0.1)] px-1.5 py-0.5 text-[10.5px] font-bold text-teal">
+                          {durasi}
+                        </span>
+                      </div>
                     )}
                   </div>
                 );
