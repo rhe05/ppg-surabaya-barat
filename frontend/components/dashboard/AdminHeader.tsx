@@ -22,18 +22,8 @@ import MenuAdmin from '@/components/dashboard/MenuAdmin';
 
 export default function AdminHeader({
   judul,
-  tampilkanLogo,
 }: {
   judul: ReactNode;
-  /* Dashboard mobile admin_kelp (2026-08-24, diminta owner): di layar
-     sempit sebelah hamburger tampilkan logo+nama aplikasi ("Ruang
-     Ngaji"), BUKAN judul halaman "Dashboard" -- persis pola topbar
-     GuruDashboard.tsx/JurnalHeaderChrome.tsx. Cuma di Dashboard, bukan
-     semua halaman admin -- halaman lain (Registrasi, dst) tetap butuh
-     judulnya sendiri sbg konteks navigasi. Cuma md:hidden -- di layar
-     lebar AdminSidebar sudah py logo yang sama, menampilkannya lagi di
-     sini cuma dobel; desktop tetap lihat teks "Dashboard" spt semula. */
-  tampilkanLogo?: boolean;
 }) {
   const { profile, namaKelompok } = useAuth();
   const labelPeran = profile?.role ? (LABEL_PERAN[profile.role] ?? profile.role) : null;
@@ -79,17 +69,17 @@ export default function AdminHeader({
             <line x1="4" y1="17" x2="20" y2="17" />
           </svg>
         </button>
-        {tampilkanLogo && (
-          <div className="flex min-w-0 items-center gap-[7px] md:hidden">
-            <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
-            <span className="truncate text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
-              Ruang Ngaji
-            </span>
-          </div>
-        )}
-        <h1
-          className={`m-0 truncate text-[16px] font-semibold text-text ${tampilkanLogo ? 'hidden md:block' : ''}`}
-        >
+        {/* Mobile: SELALU tampilkan logo + nama aplikasi (diminta owner
+            2026-08-27: "terapkan pada semuanya utk top bar nama aplikasi").
+            Judul halaman tetap jadi konteks di layar lebar (hidden
+            md:block) -- di sana AdminSidebar sudah py logo yang sama. */}
+        <div className="flex min-w-0 items-center gap-[7px] md:hidden">
+          <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
+          <span className="truncate text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+            Ruang Ngaji
+          </span>
+        </div>
+        <h1 className="m-0 hidden truncate text-[16px] font-semibold text-text md:block">
           {judul}
         </h1>
       </div>

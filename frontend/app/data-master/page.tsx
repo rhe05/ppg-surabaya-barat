@@ -63,7 +63,7 @@ function DataMasterContent() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader judul="Data Master" tampilkanLogo />
+      <AdminHeader judul="Data Master" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         <div className="mb-4 text-[17px] font-extrabold text-text">Data Master</div>
