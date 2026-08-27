@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   description:
     "Platform manajemen ngaji PPG Surabaya Barat — absensi, kelas, dan laporan.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icon-192.png", sizes: "192x192" }],
+  },
   /* iOS: "Add to Home Screen" -> buka layar penuh tanpa Safari chrome. */
   appleWebApp: {
     capable: true,
