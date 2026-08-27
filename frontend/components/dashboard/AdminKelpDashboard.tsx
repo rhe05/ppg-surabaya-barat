@@ -350,6 +350,10 @@ export default function AdminKelpDashboard() {
   /* Kartu kelas mana yang riwayat kehadirannya sedang dibuka inline
      (2026-08-27) -- klik kartu = buka, klik lagi = tutup. */
   const [riwayatKelasId, setRiwayatKelasId] = useState<number | null>(null);
+  /* Dinaikkan tiap kali kalender kelompok berubah (tandai/batal libur) --
+     memaksa Ringkasan Kehadiran + rinciannya dimuat ulang karena baris
+     absensi ikut dikosongkan saat sebuah tanggal ditandai libur. */
+  const [kalenderNonce, setKalenderNonce] = useState(0);
 
   const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
   const [memuatKalender, setMemuatKalender] = useState(true);
@@ -439,12 +443,12 @@ export default function AdminKelpDashboard() {
     return () => {
       batal = true;
     };
-  }, [kelompokId, tahun, bulan]);
+  }, [kelompokId, tahun, bulan, kalenderNonce]);
 
   useEffect(() => {
     setKelasRingkasan(null);
     setRiwayatKelasId(null);
-  }, [kelompokId, tahun, bulan]);
+  }, [kelompokId, tahun, bulan, kalenderNonce]);
 
   useEffect(() => {
     if (!detailKelasTerbuka || !kelompokId || kelasRingkasan !== null) return;
@@ -521,6 +525,24 @@ export default function AdminKelpDashboard() {
         throw new Error(err.message);
       }
 
+      /* Kosongkan absensi yang terlanjur diinput guru utk tanggal ini
+         (2026-08-27, diminta owner) -- kalau tanggalnya libur berarti
+         TIDAK ADA KBM, jadi semua catatan kehadiran di tanggal itu tidak
+         valid. Soft-delete (isi `deleted_at`) mengikuti pola alat koreksi
+         admin (app/kelola-absensi/page.tsx) -- policy UPDATE absensi
+         ber-scope sudah mengizinkan admin_kelompok mengosongkan kelompok
+         sendiri tanpa hak hapus penuh (absensi_delete_ppg_only = admin_ppg
+         saja). Datanya tidak benar2 hilang dari DB, bisa dipulihkan lewat
+         SQL kalau ternyata keliru -- TAPI membatalkan libur TIDAK otomatis
+         memunculkannya lagi. */
+      const { error: errWipe } = await supabase
+        .from('absensi')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('kelompok_id', kelompokId)
+        .eq('tanggal', tanggalLibur)
+        .is('deleted_at', null);
+      if (errWipe) throw new Error(errWipe.message);
+
       /* Pengumuman OTOMATIS (2026-08-24, diminta owner) -- begitu admin
          menandai libur, guru kelompoknya harus lihat kabar ini lewat
          lonceng (BellPermintaanGuru.tsx), bukan cuma diam2 di kalender
@@ -547,6 +569,7 @@ export default function AdminKelpDashboard() {
       setModalLiburTerbuka(false);
       setAlasanLibur('');
       setTanggalLibur(tanggalHariIniLokal());
+      setKalenderNonce((n) => n + 1);
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
@@ -561,6 +584,7 @@ export default function AdminKelpDashboard() {
     try {
       const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', kalenderHariIni.id);
       if (err) throw new Error(err.message);
+      setKalenderNonce((n) => n + 1);
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
@@ -601,6 +625,7 @@ export default function AdminKelpDashboard() {
       setModalLiburTerbuka(false);
       setAlasanLibur('');
       setTanggalLibur(tanggalHariIniLokal());
+      setKalenderNonce((n) => n + 1);
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal membatalkan libur.');
@@ -1329,6 +1354,10 @@ export default function AdminKelpDashboard() {
                   rows={3}
                   className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
                 />
+                <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
+                  Absensi yang sudah diinput guru untuk tanggal ini akan
+                  dikosongkan otomatis (bisa dipulihkan admin PPG kalau keliru).
+                </p>
               </>
             )}
             <div className="mt-4 flex gap-2.5">
