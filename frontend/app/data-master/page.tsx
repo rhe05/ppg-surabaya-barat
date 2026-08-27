@@ -63,9 +63,10 @@ function DataMasterContent() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader judul="Data Master" />
+      <AdminHeader judul="Data Master" tampilkanLogo />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
+        <div className="mb-4 text-[17px] font-extrabold text-text">Data Master</div>
         <div className="flex flex-col gap-2.5">
           {KARTU.map((k) => {
             const Ikon = k.ikon;
