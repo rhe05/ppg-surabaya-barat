@@ -1079,10 +1079,7 @@ export default function AdminKelpDashboard() {
                 Lihat Detail
               </button>
             </div>
-            {statistik.persen !== null && (
-              <div className="mb-1 text-[22px] font-extrabold text-text">{statistik.persen}%</div>
-            )}
-            <div className="h-[90px] w-full">
+            <div className="mt-2 h-[90px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={statistik.tren} margin={{ top: 4, right: 4, bottom: 0, left: -30 }}>
                   <XAxis
