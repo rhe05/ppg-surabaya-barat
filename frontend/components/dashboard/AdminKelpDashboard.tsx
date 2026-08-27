@@ -358,6 +358,10 @@ export default function AdminKelpDashboard() {
      lain di app ini. */
   const [modalLiburTerbuka, setModalLiburTerbuka] = useState(false);
   const [alasanLibur, setAlasanLibur] = useState('');
+  /* Tanggal yang mau diliburkan (2026-08-27, diminta owner) -- boleh
+     tanggal lampau maupun yang akan datang, bukan cuma hari ini. Default
+     hari ini saat modal dibuka. */
+  const [tanggalLibur, setTanggalLibur] = useState(tanggalHariIniLokal());
 
   /* "Absensi Belum di Input" (2026-08-24, diminta owner: rename dari
      "Guru Belum Isi Absen" + direntang jadi PER GURU per bulan, bukan
@@ -487,22 +491,19 @@ export default function AdminKelpDashboard() {
   }, [muatKalenderHariIni]);
 
   async function tandaiLiburHariIni() {
-    /* Kalau kalenderHariIni sudah terisi, tombol "Tandai Libur" di JSX
-       bawah SUDAH tidak dirender lagi (diganti "Batalkan") -- baris ini
-       murni jaring pengaman kedua (mis. dua tab admin sama2 terbuka),
-       biar tidak dobel-insert lalu gagal dgn pesan Postgres mentah. */
-    if (!kelompokId || !alasanLibur.trim() || kalenderHariIni) return;
+    if (!kelompokId || !alasanLibur.trim() || !tanggalLibur) return;
     setSibukKalender(true);
     try {
       const { error: err } = await supabase.from('kalender_kelompok').insert({
         kelompok_id: kelompokId,
-        tanggal: tanggalHariIniLokal(),
+        tanggal: tanggalLibur,
         jenis: 'libur',
         catatan: alasanLibur.trim(),
         dibuat_oleh: profile?.id ?? null,
       });
       if (err) {
         if (err.code === '23505') {
+          setError('Tanggal itu sudah ditandai di kalender kelompok.');
           setModalLiburTerbuka(false);
           setAlasanLibur('');
           await muatKalenderHariIni();
@@ -520,12 +521,12 @@ export default function AdminKelpDashboard() {
          20260818140000), TIDAK ada tabel/kolom baru. Kegagalan di sini
          SENGAJA tidak membatalkan penandaan kalender di atas (aksi utama
          sudah berhasil) -- diam2 saja kalau pengumumannya gagal dibuat. */
-      const hariIniStr = tanggalHariIniLokal();
+      const hariIniStr = tanggalLibur;
       const [thnP, blnP, tglP] = hariIniStr.split('-').map(Number);
       try {
         await supabase.from('pengumuman').insert({
           kelompok_id: kelompokId,
-          judul: `Libur KBM Hari Ini (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
+          judul: `Libur KBM (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
           isi: alasanLibur.trim(),
           tanggal: hariIniStr,
           dibuat_oleh: profile?.id ?? null,
@@ -536,6 +537,7 @@ export default function AdminKelpDashboard() {
 
       setModalLiburTerbuka(false);
       setAlasanLibur('');
+      setTanggalLibur(tanggalHariIniLokal());
       await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
@@ -1142,7 +1144,7 @@ export default function AdminKelpDashboard() {
                     ? kalenderHariIni.jenis === 'libur'
                       ? 'Hari ini ditandai LIBUR'
                       : 'Hari ini ditandai TETAP AKTIF'
-                    : 'Kalender hari ini normal'}
+                    : 'Kalender Hari Aktif'}
                 </div>
                 {kalenderHariIni?.catatan && (
                   <div className="text-[11px] text-[#92400E]/80">{kalenderHariIni.catatan}</div>
@@ -1161,7 +1163,10 @@ export default function AdminKelpDashboard() {
                 <button
                   type="button"
                   disabled={sibukKalender}
-                  onClick={() => setModalLiburTerbuka(true)}
+                  onClick={() => {
+                    setTanggalLibur(tanggalHariIniLokal());
+                    setModalLiburTerbuka(true);
+                  }}
                   className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
                 >
                   Tandai Libur
@@ -1222,10 +1227,18 @@ export default function AdminKelpDashboard() {
       {modalLiburTerbuka && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]">
           <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
-            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur Hari Ini</div>
+            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur</div>
             <p className="mb-4 text-[12.5px] text-text-dim">
-              Tulis alasan supaya tersimpan &amp; bisa dilihat lagi nanti.
+              Pilih tanggal (boleh lampau atau yang akan datang) &amp; tulis alasan
+              supaya tersimpan.
             </p>
+            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Tanggal</label>
+            <input
+              type="date"
+              value={tanggalLibur}
+              onChange={(e) => setTanggalLibur(e.target.value)}
+              className="mb-3 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+            />
             <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
             <textarea
               autoFocus
@@ -1241,6 +1254,7 @@ export default function AdminKelpDashboard() {
                 onClick={() => {
                   setModalLiburTerbuka(false);
                   setAlasanLibur('');
+                  setTanggalLibur(tanggalHariIniLokal());
                 }}
                 className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
               >
@@ -1248,7 +1262,7 @@ export default function AdminKelpDashboard() {
               </button>
               <button
                 type="button"
-                disabled={!alasanLibur.trim() || sibukKalender}
+                disabled={!alasanLibur.trim() || !tanggalLibur || sibukKalender}
                 onClick={tandaiLiburHariIni}
                 className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
