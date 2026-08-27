@@ -30,6 +30,7 @@ import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/g
 import { labelKategoriGuru } from '@/lib/kategoriGuru';
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import EmptyState from '@/components/ui/EmptyState';
 
 const KATEGORI_WARNA: Record<string, string> = {
   'Muballigh Tugasan': 'text-indigo bg-[rgba(79,70,229,0.12)]',
@@ -313,9 +314,16 @@ export default function GuruKelpMobile() {
         {belumPernahMuat && loading ? (
           <SkeletonKartuList />
         ) : guruTersaring.length === 0 ? (
-          <p className="text-[13px] text-text-dim">
-            {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada guru terdaftar.'}
-          </p>
+          cari.trim() ? (
+            <p className="text-[13px] text-text-dim">Tidak ada yang cocok dengan "{cari.trim()}".</p>
+          ) : (
+            <EmptyState
+              ikon={<UserPlus size={22} />}
+              judul="Belum ada guru"
+              deskripsi="Daftarkan guru kelompok Anda untuk mulai mengatur kelas dan absensi."
+              aksi={{ label: 'Tambah Guru', onClick: bukaTambah }}
+            />
+          )
         ) : (
         <div className="flex flex-col gap-2.5">
           {guruTersaring.map((g) => (

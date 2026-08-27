@@ -25,6 +25,7 @@ import KelasForm, {
 } from '@/components/kelas/KelasForm';
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import EmptyState from '@/components/ui/EmptyState';
 
 type SantriRingkas = { id: number; nama: string; nis: string | null; kelas_id: number | null };
 
@@ -193,15 +194,37 @@ export default function KelasKelpMobile() {
     setError(null);
     try {
       const tujuan = kelasTujuan ? Number(kelasTujuan) : null;
-      const { error: err } = await supabase.from('santri').update({ kelas_id: tujuan }).in('id', [...terpilih]);
+      const ids = [...terpilih];
+      /* Simpan kelas_id LAMA tiap santri utk tombol "Urungkan" di toast. */
+      const sebelum = new Map(
+        ids.map((id) => [id, santriList.find((s) => s.id === id)?.kelas_id ?? null]),
+      );
+      const { error: err } = await supabase.from('santri').update({ kelas_id: tujuan }).in('id', ids);
       if (err) throw new Error(err.message);
-      const jumlah = terpilih.size;
+      const jumlah = ids.length;
       setPenempatanTerbuka(false);
       await muat();
       sukses(
         tujuan
           ? `${jumlah} santri ditempatkan ke ${kelasList.find((k) => k.id === tujuan)?.nama ?? '-'}.`
           : `${jumlah} santri dikeluarkan dari kelasnya.`,
+        {
+          label: 'Urungkan',
+          jalankan: async () => {
+            /* Kembalikan per kelompok kelas_id lama (bisa beda-beda). */
+            const perKelas = new Map<number | null, number[]>();
+            sebelum.forEach((kid, sid) => {
+              const arr = perKelas.get(kid) ?? [];
+              arr.push(sid);
+              perKelas.set(kid, arr);
+            });
+            for (const [kid, sids] of perKelas) {
+              await supabase.from('santri').update({ kelas_id: kid }).in('id', sids);
+            }
+            await muat();
+            sukses('Penempatan diurungkan.');
+          },
+        },
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menempatkan santri.');
@@ -277,9 +300,16 @@ export default function KelasKelpMobile() {
         {belumPernahMuat && loading ? (
           <SkeletonKartuList />
         ) : kelasTersaring.length === 0 ? (
-          <p className="text-[13px] text-text-dim">
-            {cari.trim() ? 'Tidak ada yang cocok.' : 'Kelompok ini belum punya kelas.'}
-          </p>
+          cari.trim() ? (
+            <p className="text-[13px] text-text-dim">Tidak ada yang cocok dengan "{cari.trim()}".</p>
+          ) : (
+            <EmptyState
+              ikon={<CalendarPlus size={22} />}
+              judul="Belum ada kelas"
+              deskripsi="Buat kelas dan tetapkan guru pengampunya untuk mulai menjadwalkan KBM."
+              aksi={{ label: 'Tambah Kelas', onClick: bukaTambah }}
+            />
+          )
         ) : (
         <div className="flex flex-col gap-2.5">
           {kelasTersaring.map((k) => {

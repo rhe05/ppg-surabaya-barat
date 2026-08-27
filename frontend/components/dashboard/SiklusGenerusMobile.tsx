@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import EmptyState from '@/components/ui/EmptyState';
 
 /* Harus cocok persis dgn enum siklus_generus_jenis. */
 const JENIS = ['Kerja', 'Kuliah', 'Pindah', 'Mondok', 'Tugas', 'Tidak Aktif'] as const;
@@ -175,9 +176,16 @@ export default function SiklusGenerusMobile() {
         {belumPernahMuat && loading ? (
           <SkeletonKartuList />
         ) : tersaring.length === 0 ? (
-          <p className="text-[13px] text-text-dim">
-            {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada catatan siklus.'}
-          </p>
+          cari.trim() ? (
+            <p className="text-[13px] text-text-dim">Tidak ada yang cocok dengan "{cari.trim()}".</p>
+          ) : (
+            <EmptyState
+              ikon={<Repeat2 size={22} />}
+              judul="Belum ada catatan siklus"
+              deskripsi="Catat saat generus kerja, kuliah, pindah, mondok, tugas, atau tidak aktif."
+              aksi={{ label: 'Catat Siklus Baru', onClick: bukaTambah }}
+            />
+          )
         ) : (
         <div className="flex flex-col gap-2.5">
           {tersaring.map((s) => {

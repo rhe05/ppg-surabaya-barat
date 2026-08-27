@@ -16,6 +16,8 @@ import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import PilihBulanTahun from '@/components/ui/PilihBulanTahun';
 import { useToast } from '@/components/ui/useToast';
+import EmptyState from '@/components/ui/EmptyState';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import {
   muatPeringkatGenerus,
   muatPeringkatGuru,
@@ -127,15 +129,14 @@ export default function PeringkatKelpMobile() {
         </div>
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Menghitung...</p>}
+        {loading && <SkeletonKartuList jumlah={6} />}
 
         {!loading && !error && baris.length === 0 && (
-          <div className="rounded-card border border-border bg-panel p-6 text-center shadow-[var(--shadow-card)]">
-            <Award size={24} className="mx-auto mb-2 text-text-faint" />
-            <p className="text-[13px] text-text-dim">
-              Belum ada data kehadiran {tab === 'generus' ? 'generus' : 'guru'} pada bulan ini.
-            </p>
-          </div>
+          <EmptyState
+            ikon={<Award size={22} />}
+            judul="Belum ada data"
+            deskripsi={`Belum ada catatan kehadiran ${tab === 'generus' ? 'generus' : 'guru'} pada bulan yang dipilih.`}
+          />
         )}
 
         {!loading && baris.length > 0 && (

@@ -23,6 +23,7 @@ import AdminHeader from '@/components/dashboard/AdminHeader';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import EmptyState from '@/components/ui/EmptyState';
 
 const JENJANG_SINGKAT: Record<string, string> = {
   'PAUD/TK': 'PAUD/TK',
@@ -117,9 +118,16 @@ export default function AdminSantriMobile() {
         {belumPernahMuat && loading ? (
           <SkeletonKartuList />
         ) : santriTersaring.length === 0 ? (
-          <p className="text-[13px] text-text-dim">
-            {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada generus terdaftar.'}
-          </p>
+          cari.trim() ? (
+            <p className="text-[13px] text-text-dim">Tidak ada yang cocok dengan "{cari.trim()}".</p>
+          ) : (
+            <EmptyState
+              ikon={<UserPlus size={22} />}
+              judul="Belum ada generus"
+              deskripsi="Tambahkan data generus kelompok Anda untuk mulai mencatat kehadiran."
+              aksi={{ label: 'Tambah Generus', onClick: bukaTambah }}
+            />
+          )
         ) : (
         <div className="flex flex-col gap-2.5">
           {santriTersaring.map((s) => (

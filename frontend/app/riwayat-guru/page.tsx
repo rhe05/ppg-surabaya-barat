@@ -21,10 +21,13 @@
    "Keterangan" kalau diisi saat Hapus Guru. */
 
 import { useCallback, useEffect, useState } from 'react';
+import { History } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
+import EmptyState from '@/components/ui/EmptyState';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { hitungDurasi } from '@/components/guru/GuruForm';
 
 type GuruTersemat = { mulai_mengajar: string | null; lama_mengajar: string | null } | null;
@@ -136,14 +139,20 @@ function RiwayatGuruContent() {
         />
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
-        {!loading && daftarTersaring.length === 0 && (
-          <p className="text-[13px] text-text-dim">
-            {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada riwayat Purna/Pindah.'}
-          </p>
-        )}
-
+        {loading ? (
+          <SkeletonKartuList />
+        ) : daftarTersaring.length === 0 ? (
+          cari.trim() ? (
+            <p className="text-[13px] text-text-dim">Tidak ada yang cocok dengan "{cari.trim()}".</p>
+          ) : (
+            <EmptyState
+              ikon={<History size={22} />}
+              judul="Belum ada riwayat"
+              deskripsi="Guru yang ditandai Purna atau Pindah lewat menu Hapus Guru akan tercatat di sini."
+            />
+          )
+        ) : (
         <div className="flex flex-col gap-2.5">
           {daftarTersaring.map((r) => (
             <div key={r.id} className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
@@ -180,6 +189,7 @@ function RiwayatGuruContent() {
             </div>
           ))}
         </div>
+        )}
       </div>
     </main>
   );
