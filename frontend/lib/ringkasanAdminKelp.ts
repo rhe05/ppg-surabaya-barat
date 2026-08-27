@@ -8,7 +8,7 @@
    sengaja tidak dipaksa satu fungsi. */
 
 import { supabase } from './supabase';
-import { muatOverrideKelompok, buatCekNonaktif } from './kalenderKelompok';
+import { muatOverrideKelompok, buatCekNonaktif, tanggalLiburKelompok } from './kalenderKelompok';
 
 export type GuruBelumIsi = { kelasId: number; kelasNama: string; guruNama: string };
 
@@ -70,6 +70,11 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
   };
   if (kelasIds.length === 0) return kosong;
 
+  /* Tanggal yang admin tandai libur mendadak -- dikeluarkan dari "Hari
+     Aktif" walau baris absensinya terlanjur ada (diminta owner
+     2026-08-27). */
+  const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')
     .select('id, kelas_id')
@@ -117,9 +122,11 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
         const kId = kelasDariSantri.get(a.santri_id);
         if (kId != null) {
           kelasSudah.add(kId);
-          const set = tanggalPerKelas.get(kId) ?? new Set<string>();
-          set.add(a.tanggal);
-          tanggalPerKelas.set(kId, set);
+          if (!liburKelp.has(a.tanggal)) {
+            const set = tanggalPerKelas.get(kId) ?? new Set<string>();
+            set.add(a.tanggal);
+            tanggalPerKelas.set(kId, set);
+          }
         }
         if (a.status === 'hadir') hadir++;
         else if (a.status === 'izin') izin++;
@@ -233,6 +240,8 @@ export async function muatRingkasanPerKelas(
   const kelasIds = kelasAktif.map((k) => k.id);
   if (kelasIds.length === 0) return [];
 
+  const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')
     .select('id, kelas_id')
@@ -268,7 +277,7 @@ export async function muatRingkasanPerKelas(
         const kId = kelasDariSantri.get(a.santri_id);
         const acc = kId != null ? akumulasi.get(kId) : undefined;
         if (!acc) return;
-        acc.tanggal.add(a.tanggal);
+        if (!liburKelp.has(a.tanggal)) acc.tanggal.add(a.tanggal);
         if (a.status === 'hadir') acc.hadir++;
         else if (a.status === 'izin') acc.izin++;
         else if (a.status === 'sakit') acc.sakit++;

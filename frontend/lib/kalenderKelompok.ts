@@ -32,6 +32,22 @@ export async function muatOverrideKelompok(
   return peta;
 }
 
+/* Kumpulan tanggal (string YYYY-MM-DD) yang admin_kelompok tandai LIBUR
+   mendadak. Dipakai utk MENGELUARKAN tanggal itu dari hitungan "Hari
+   Aktif" di mana pun (Riwayat Kehadiran guru, kartu Ringkasan Kehadiran
+   admin_kelp) -- diminta owner 2026-08-27: begitu admin meliburkan
+   tanggal lampau yang terlanjur diisi guru, hari itu tidak lagi dihitung
+   sbg hari aktif, konsisten dgn kolomnya yang jadi merah di Riwayat.
+   'aktif' TIDAK relevan di sini (itu cuma membuka kunci tanggal merah
+   nasional, bukan menambah/mengurangi hari aktif). */
+export function tanggalLiburKelompok(override: Map<string, OverrideKelompok>): Set<string> {
+  const set = new Set<string>();
+  override.forEach((v, tgl) => {
+    if (v.jenis === 'libur') set.add(tgl);
+  });
+  return set;
+}
+
 /* Gabungkan kalender libur nasional (statis) dgn pengecualian per
    kelompok -- hasilnya cocok langsung dgn prop `tanggalNonaktif`
    TanggalPicker.tsx & dipakai jg sbg filter kandidat "hari kerja" di

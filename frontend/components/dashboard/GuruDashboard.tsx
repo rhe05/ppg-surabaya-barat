@@ -10,6 +10,7 @@ import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
+import { muatOverrideKelompok, tanggalLiburKelompok } from '@/lib/kalenderKelompok';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -137,6 +138,7 @@ export default function GuruDashboard() {
   const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
   const guruId = profile?.guru_id ?? null;
+  const kelompokId = profile?.scope_kelompok_id ?? null;
 
   /* Statistik 5 kotak, mengikuti definisi app lama:
      - HARI AKTIF = jumlah TANGGAL BERBEDA yang sudah diisi guru untuk kelas
@@ -213,12 +215,18 @@ export default function GuruDashboard() {
         }
       }
 
+      /* Tanggal yang admin_kelompok tandai libur mendadak dikeluarkan dari
+         "Hari Aktif" (diminta owner 2026-08-27) -- konsisten dgn Riwayat
+         Kehadiran & kartu Ringkasan Kehadiran admin_kelp. */
+      const liburKelp = kelompokId
+        ? tanggalLiburKelompok(await muatOverrideKelompok(kelompokId))
+        : new Set<string>();
       kelasIds.forEach((id) => {
-        hasil[id].hariAktif = tanggalPerKelas[id].size;
+        hasil[id].hariAktif = [...tanggalPerKelas[id]].filter((t) => !liburKelp.has(t)).length;
       });
       setStatistik(hasil);
     },
-    [],
+    [kelompokId],
   );
 
   const load = useCallback(async () => {

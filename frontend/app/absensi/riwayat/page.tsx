@@ -213,7 +213,12 @@ function RiwayatKehadiranContent() {
       batal = true;
     };
   }, [profile?.scope_kelompok_id]);
-  const [hariAktif, setHariAktif] = useState(0);
+  /* Tanggal (YYYY-MM-DD) yang punya absensi APAPUN statusnya. "Hari Aktif"
+     diturunkan dari sini SETELAH mengecualikan tanggal yang admin_kelompok
+     tandai libur (overrideKelompok) -- diminta owner 2026-08-27: hari yang
+     diliburkan admin (kolomnya sudah merah di atas) tidak dihitung sbg
+     hari aktif walau barisnya terlanjur diisi. */
+  const [tanggalDiisi, setTanggalDiisi] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -291,7 +296,7 @@ function RiwayatKehadiranContent() {
       const santriIds = santriList.map((s) => s.id);
 
       const selMap: Record<number, Record<string, SelAbsensi>> = {};
-      const tanggalDiisi = new Set<string>();
+      const tanggalTerisi = new Set<string>();
 
       if (santriIds.length > 0) {
         const UKURAN_HALAMAN = 1000;
@@ -315,14 +320,14 @@ function RiwayatKehadiranContent() {
               status: b.status as Status,
               updatedAt: b.updated_at,
             };
-            tanggalDiisi.add(b.tanggal);
+            tanggalTerisi.add(b.tanggal);
           });
           if (batch.length < UKURAN_HALAMAN) break;
         }
       }
 
       setBaris(santriList.map((s) => ({ santri: s, selByDate: selMap[s.id] ?? {} })));
-      setHariAktif(tanggalDiisi.size);
+      setTanggalDiisi([...tanggalTerisi]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat riwayat');
     } finally {
@@ -377,6 +382,10 @@ function RiwayatKehadiranContent() {
       setMenyimpanEdit(false);
     }
   }
+
+  const hariAktif = tanggalDiisi.filter(
+    (t) => overrideKelompok.get(t)?.jenis !== 'libur',
+  ).length;
 
   const semuaTanggal = tanggalKerjaBulan(tahun, bulan);
   const tanggalList =
