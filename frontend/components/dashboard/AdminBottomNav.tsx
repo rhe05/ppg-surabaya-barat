@@ -21,6 +21,7 @@ import {
   UserCheck,
   BarChart3,
   ClipboardCheck,
+  PiggyBank,
   LogOut,
   X,
 } from 'lucide-react';
@@ -50,6 +51,7 @@ export default function AdminBottomNav() {
   const hrefRegistrasi = profile?.role === 'admin_kelompok' ? '/registrasi-guru' : '/pendaftaran';
 
   const lainnya = [
+    { label: 'Tabungan', href: '/tabungan', ikon: PiggyBank },
     { label: 'Permintaan Generus', href: '/permintaan-generus', ikon: UserCheck },
     { label: 'Statistik', href: '/statistik', ikon: BarChart3 },
     { label: 'Registrasi', href: hrefRegistrasi, ikon: ClipboardCheck },
