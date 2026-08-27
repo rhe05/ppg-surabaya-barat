@@ -31,7 +31,6 @@ import SelectKustom from '@/components/ui/SelectKustom';
 import TinggiHalus from '@/components/ui/TinggiHalus';
 import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
-import ToastStack from '@/components/ui/ToastStack';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 
 const NAMA_BULAN = [
@@ -56,7 +55,7 @@ function todayStr() {
 export default function PelaksanaanPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
-  const { toasts, push, dismiss } = useToast();
+  const { push } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -251,7 +250,6 @@ export default function PelaksanaanPembelajaranView() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <ToastStack toasts={toasts} onDismiss={dismiss} />
       {/* Hero hijau (nama/peran/kelompok) DIHAPUS (diminta owner 2026-08-23,
           susulan dari keputusan yg sama di RencanaPembelajaranView.tsx) --
           murni pengulangan info yang sudah dilihat guru di Dashboard, tidak

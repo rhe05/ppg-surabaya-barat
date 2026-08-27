@@ -28,6 +28,8 @@ import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/guru/GuruForm';
 import { labelKategoriGuru } from '@/lib/kategoriGuru';
+import { useToast } from '@/components/ui/useToast';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 
 const KATEGORI_WARNA: Record<string, string> = {
   'Muballigh Tugasan': 'text-indigo bg-[rgba(79,70,229,0.12)]',
@@ -215,14 +217,15 @@ function HapusGuruModal({
 }
 
 export default function GuruKelpMobile() {
+  const { sukses } = useToast();
   const [guru, setGuru] = useState<GuruRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [belumPernahMuat, setBelumPernahMuat] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [guruDiubah, setGuruDiubah] = useState<GuruRow | null>(null);
-  const [pesan, setPesan] = useState<string | null>(null);
 
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [hapusTerbuka, setHapusTerbuka] = useState(false);
@@ -238,6 +241,7 @@ export default function GuruKelpMobile() {
     if (err) setError(err.message);
     else setGuru((data ?? []) as unknown as GuruRow[]);
     setLoading(false);
+    setBelumPernahMuat(false);
   }, []);
 
   useEffect(() => {
@@ -269,8 +273,7 @@ export default function GuruKelpMobile() {
     setFormTerbuka(false);
     setGuruDiubah(null);
     muat();
-    setPesan(baru ? 'Guru baru tersimpan.' : 'Perubahan tersimpan.');
-    setTimeout(() => setPesan(null), 4000);
+    sukses(baru ? 'Guru baru tersimpan.' : 'Perubahan tersimpan.');
   }
 
   return (
@@ -278,12 +281,6 @@ export default function GuruKelpMobile() {
       <AdminHeader judul="Data Guru" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
-        {pesan && (
-          <div className="mb-4 rounded-[var(--radius-lg)] border border-indigo bg-[#EEF2FF] px-4 py-3 text-[13px] font-semibold text-indigo">
-            {pesan}
-          </div>
-        )}
-
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="text-[17px] font-extrabold text-text">Data Guru ({guru.length})</div>
           <div className="relative shrink-0">
@@ -312,14 +309,14 @@ export default function GuruKelpMobile() {
         />
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
-        {!loading && guruTersaring.length === 0 && (
+        {belumPernahMuat && loading ? (
+          <SkeletonKartuList />
+        ) : guruTersaring.length === 0 ? (
           <p className="text-[13px] text-text-dim">
             {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada guru terdaftar.'}
           </p>
-        )}
-
+        ) : (
         <div className="flex flex-col gap-2.5">
           {guruTersaring.map((g) => (
             <button
@@ -369,6 +366,7 @@ export default function GuruKelpMobile() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {formTerbuka && (
@@ -386,8 +384,7 @@ export default function GuruKelpMobile() {
           onSelesai={(nama, jenis) => {
             setHapusTerbuka(false);
             muat();
-            setPesan(`${nama} ditandai ${jenis}.`);
-            setTimeout(() => setPesan(null), 4000);
+            sukses(`${nama} ditandai ${jenis}.`);
           }}
         />
       )}

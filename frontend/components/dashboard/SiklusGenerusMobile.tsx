@@ -19,6 +19,8 @@ import { Repeat2, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
+import { useToast } from '@/components/ui/useToast';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 
 /* Harus cocok persis dgn enum siklus_generus_jenis. */
 const JENIS = ['Kerja', 'Kuliah', 'Pindah', 'Mondok', 'Tugas', 'Tidak Aktif'] as const;
@@ -63,13 +65,14 @@ function formatTanggal(iso: string): string {
 
 export default function SiklusGenerusMobile() {
   const { profile } = useAuth();
+  const { sukses } = useToast();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
   const [daftar, setDaftar] = useState<Siklus[]>([]);
   const [santriList, setSantriList] = useState<Santri[]>([]);
   const [loading, setLoading] = useState(true);
+  const [belumPernahMuat, setBelumPernahMuat] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pesan, setPesan] = useState<string | null>(null);
   const [cari, setCari] = useState('');
 
   const [formTerbuka, setFormTerbuka] = useState(false);
@@ -78,6 +81,7 @@ export default function SiklusGenerusMobile() {
   const muat = useCallback(async () => {
     if (!kelompokId) {
       setLoading(false);
+      setBelumPernahMuat(false);
       return;
     }
     setLoading(true);
@@ -104,6 +108,7 @@ export default function SiklusGenerusMobile() {
       setError(e instanceof Error ? e.message : 'Gagal memuat data siklus.');
     } finally {
       setLoading(false);
+      setBelumPernahMuat(false);
     }
   }, [kelompokId]);
 
@@ -135,8 +140,7 @@ export default function SiklusGenerusMobile() {
     setFormTerbuka(false);
     setSedangDiubah(null);
     muat();
-    setPesan(baru ? 'Catatan siklus tersimpan.' : 'Perubahan tersimpan.');
-    setTimeout(() => setPesan(null), 4000);
+    sukses(baru ? 'Catatan siklus tersimpan.' : 'Perubahan tersimpan.');
   }
 
   return (
@@ -144,12 +148,6 @@ export default function SiklusGenerusMobile() {
       <AdminHeader judul="Siklus Generus" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
-        {pesan && (
-          <div className="mb-4 rounded-[var(--radius-lg)] border border-indigo bg-[#EEF2FF] px-4 py-3 text-[13px] font-semibold text-indigo">
-            {pesan}
-          </div>
-        )}
-
         <div className="mb-1 flex items-center justify-between gap-3">
           <div className="text-[17px] font-extrabold text-text">Siklus Generus ({daftar.length})</div>
           <button
@@ -173,14 +171,14 @@ export default function SiklusGenerusMobile() {
         />
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
-        {!loading && tersaring.length === 0 && (
+        {belumPernahMuat && loading ? (
+          <SkeletonKartuList />
+        ) : tersaring.length === 0 ? (
           <p className="text-[13px] text-text-dim">
             {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada catatan siklus.'}
           </p>
-        )}
-
+        ) : (
         <div className="flex flex-col gap-2.5">
           {tersaring.map((s) => {
             const w = WARNA_JENIS[s.jenis_siklus as Jenis] ?? {
@@ -212,6 +210,7 @@ export default function SiklusGenerusMobile() {
             );
           })}
         </div>
+        )}
       </div>
 
       {formTerbuka && kelompokId && (

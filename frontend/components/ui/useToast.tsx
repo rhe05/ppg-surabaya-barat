@@ -1,33 +1,93 @@
 'use client';
 
-/* Sistem toast ringan — diminta owner (standar produk SaaS profesional),
-   menggantikan teks pesan/error inline yang dulu dipakai layar Jurnal
-   Mengajar. Sengaja LOKAL per-halaman (bukan context/provider global di
-   layout.tsx) -- toast di sini murni notifikasi hasil aksi 1 layar
-   (simpan/hapus/gagal), tidak perlu bertahan lintas navigasi, jadi tidak
-   perlu provider app-wide yang menambah risiko ke seluruh app. */
+/* Sistem toast APP-WIDE (2026-08-27, titik 3 polish SaaS) — dulu
+   `useToast` lokal per-halaman (cuma dipakai layar Jurnal). Sekarang satu
+   ToastProvider di layout.tsx: layar mana pun cukap `useToast().sukses(...)`
+   / `.error(...)`, render-nya di SATU tempat konsisten (bawah topbar,
+   tengah atas), animasi & durasi seragam, dukung tombol "Urungkan".
 
-import { useCallback, useRef, useState } from 'react';
+   Kompatibilitas: `push(pesan, varian)` + `dismiss(id)` + `toasts` masih
+   diekspor supaya 3 komponen jurnal lama tidak perlu ditulis ulang. */
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import ToastStack from './ToastStack';
 
 export type ToastVarian = 'sukses' | 'error' | 'info';
-export type ToastItem = { id: number; pesan: string; varian: ToastVarian };
+export type ToastAksi = { label: string; jalankan: () => void };
+export type ToastItem = {
+  id: number;
+  pesan: string;
+  varian: ToastVarian;
+  aksi?: ToastAksi;
+};
 
-export function useToast() {
+type ToastCtx = {
+  toasts: ToastItem[];
+  tampil: (pesan: string, opts?: { varian?: ToastVarian; aksi?: ToastAksi; durasiMs?: number }) => void;
+  sukses: (pesan: string, aksi?: ToastAksi) => void;
+  error: (pesan: string) => void;
+  info: (pesan: string) => void;
+  tutup: (id: number) => void;
+  /* alias kompat lama */
+  push: (pesan: string, varian?: ToastVarian) => void;
+  dismiss: (id: number) => void;
+};
+
+const Ctx = createContext<ToastCtx | null>(null);
+
+export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const idRef = useRef(0);
+  const timers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
-  const dismiss = useCallback((id: number) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id));
+  const tutup = useCallback((id: number) => {
+    setToasts((p) => p.filter((t) => t.id !== id));
+    const tm = timers.current.get(id);
+    if (tm) {
+      clearTimeout(tm);
+      timers.current.delete(id);
+    }
   }, []);
 
-  const push = useCallback(
-    (pesan: string, varian: ToastVarian = 'info') => {
+  const tampil = useCallback<ToastCtx['tampil']>(
+    (pesan, opts = {}) => {
       const id = ++idRef.current;
-      setToasts((prev) => [...prev, { id, pesan, varian }]);
-      setTimeout(() => dismiss(id), 3200);
+      const { varian = 'info', aksi, durasiMs } = opts;
+      /* Maks 3 toast sekaligus (buang yg tertua). */
+      setToasts((p) => [...p.slice(-2), { id, pesan, varian, aksi }]);
+      const ms = durasiMs ?? (aksi ? 6000 : varian === 'error' ? 5000 : 3200);
+      timers.current.set(
+        id,
+        setTimeout(() => tutup(id), ms),
+      );
     },
-    [dismiss],
+    [tutup],
   );
 
-  return { toasts, push, dismiss };
+  const sukses = useCallback<ToastCtx['sukses']>((p, aksi) => tampil(p, { varian: 'sukses', aksi }), [tampil]);
+  const error = useCallback<ToastCtx['error']>((p) => tampil(p, { varian: 'error' }), [tampil]);
+  const info = useCallback<ToastCtx['info']>((p) => tampil(p, { varian: 'info' }), [tampil]);
+  const push = useCallback<ToastCtx['push']>((p, varian = 'info') => tampil(p, { varian }), [tampil]);
+
+  return (
+    <Ctx.Provider
+      value={{ toasts, tampil, sukses, error, info, tutup, push, dismiss: tutup }}
+    >
+      {children}
+      <ToastStack toasts={toasts} onDismiss={tutup} />
+    </Ctx.Provider>
+  );
+}
+
+export function useToast(): ToastCtx {
+  const c = useContext(Ctx);
+  if (!c) throw new Error('useToast harus dipakai di dalam <ToastProvider>');
+  return c;
 }

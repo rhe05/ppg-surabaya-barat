@@ -23,6 +23,8 @@ import KelasForm, {
   type KategoriKbm,
   type KelasRow,
 } from '@/components/kelas/KelasForm';
+import { useToast } from '@/components/ui/useToast';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 
 type SantriRingkas = { id: number; nama: string; nis: string | null; kelas_id: number | null };
 
@@ -79,6 +81,7 @@ function MenuAksiKelas({
 
 export default function KelasKelpMobile() {
   const { profile } = useAuth();
+  const { sukses } = useToast();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
   const [kategoriList, setKategoriList] = useState<KategoriKbm[]>([]);
@@ -86,12 +89,12 @@ export default function KelasKelpMobile() {
   const [kelasList, setKelasList] = useState<KelasRow[]>([]);
   const [santriList, setSantriList] = useState<SantriRingkas[]>([]);
   const [loading, setLoading] = useState(true);
+  const [belumPernahMuat, setBelumPernahMuat] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [kelasDiubah, setKelasDiubah] = useState<KelasRow | null>(null);
-  const [pesan, setPesan] = useState<string | null>(null);
 
   /* Penempatan Santri massal */
   const [penempatanTerbuka, setPenempatanTerbuka] = useState(false);
@@ -102,7 +105,10 @@ export default function KelasKelpMobile() {
   const [sibukPenempatan, setSibukPenempatan] = useState(false);
 
   const muat = useCallback(async () => {
-    if (!kelompokId) return;
+    if (!kelompokId) {
+      setBelumPernahMuat(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -140,6 +146,7 @@ export default function KelasKelpMobile() {
       setError(e instanceof Error ? e.message : 'Gagal memuat data kelas.');
     } finally {
       setLoading(false);
+      setBelumPernahMuat(false);
     }
   }, [kelompokId]);
 
@@ -191,12 +198,11 @@ export default function KelasKelpMobile() {
       const jumlah = terpilih.size;
       setPenempatanTerbuka(false);
       await muat();
-      setPesan(
+      sukses(
         tujuan
           ? `${jumlah} santri ditempatkan ke ${kelasList.find((k) => k.id === tujuan)?.nama ?? '-'}.`
           : `${jumlah} santri dikeluarkan dari kelasnya.`,
       );
-      setTimeout(() => setPesan(null), 4000);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menempatkan santri.');
     } finally {
@@ -231,8 +237,7 @@ export default function KelasKelpMobile() {
     setFormTerbuka(false);
     setKelasDiubah(null);
     await muat();
-    setPesan(baru ? 'Kelas baru tersimpan.' : 'Perubahan tersimpan.');
-    setTimeout(() => setPesan(null), 4000);
+    sukses(baru ? 'Kelas baru tersimpan.' : 'Perubahan tersimpan.');
   }
 
   return (
@@ -240,12 +245,6 @@ export default function KelasKelpMobile() {
       <AdminHeader judul="Data Kelas" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
-        {pesan && (
-          <div className="mb-4 rounded-[var(--radius-lg)] border border-indigo bg-[#EEF2FF] px-4 py-3 text-[13px] font-semibold text-indigo">
-            {pesan}
-          </div>
-        )}
-
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="text-[17px] font-extrabold text-text">Data Kelas ({kelasList.length})</div>
           <div className="relative shrink-0">
@@ -274,14 +273,14 @@ export default function KelasKelpMobile() {
         />
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
-        {!loading && kelasTersaring.length === 0 && (
+        {belumPernahMuat && loading ? (
+          <SkeletonKartuList />
+        ) : kelasTersaring.length === 0 ? (
           <p className="text-[13px] text-text-dim">
             {cari.trim() ? 'Tidak ada yang cocok.' : 'Kelompok ini belum punya kelas.'}
           </p>
-        )}
-
+        ) : (
         <div className="flex flex-col gap-2.5">
           {kelasTersaring.map((k) => {
             const guru = namaGuru(k.guru_id);
@@ -328,7 +327,7 @@ export default function KelasKelpMobile() {
             );
           })}
         </div>
-
+        )}
       </div>
 
       {formTerbuka && (

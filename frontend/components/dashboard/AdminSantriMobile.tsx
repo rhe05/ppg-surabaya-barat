@@ -21,6 +21,8 @@ import { UserPlus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
+import { useToast } from '@/components/ui/useToast';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 
 const JENJANG_SINGKAT: Record<string, string> = {
   'PAUD/TK': 'PAUD/TK',
@@ -31,14 +33,15 @@ const JENJANG_SINGKAT: Record<string, string> = {
 };
 
 export default function AdminSantriMobile() {
+  const { sukses } = useToast();
   const [santri, setSantri] = useState<SantriRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [belumPernahMuat, setBelumPernahMuat] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
-  const [pesan, setPesan] = useState<string | null>(null);
 
   const muat = useCallback(async () => {
     setLoading(true);
@@ -51,6 +54,7 @@ export default function AdminSantriMobile() {
     if (err) setError(err.message);
     else setSantri((data ?? []) as unknown as SantriRow[]);
     setLoading(false);
+    setBelumPernahMuat(false);
   }, []);
 
   useEffect(() => {
@@ -81,8 +85,7 @@ export default function AdminSantriMobile() {
     setFormTerbuka(false);
     setSantriDiubah(null);
     muat();
-    setPesan(baru ? 'Generus baru tersimpan.' : 'Perubahan tersimpan.');
-    setTimeout(() => setPesan(null), 4000);
+    sukses(baru ? 'Generus baru tersimpan.' : 'Perubahan tersimpan.');
   }
 
   return (
@@ -90,12 +93,6 @@ export default function AdminSantriMobile() {
       <AdminHeader judul="Data Generus" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
-        {pesan && (
-          <div className="mb-4 rounded-[var(--radius-lg)] border border-indigo bg-[#EEF2FF] px-4 py-3 text-[13px] font-semibold text-indigo">
-            {pesan}
-          </div>
-        )}
-
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="text-[17px] font-extrabold text-text">Data Generus ({santri.length})</div>
           <button
@@ -116,14 +113,14 @@ export default function AdminSantriMobile() {
         />
 
         {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-        {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
-        {!loading && santriTersaring.length === 0 && (
+        {belumPernahMuat && loading ? (
+          <SkeletonKartuList />
+        ) : santriTersaring.length === 0 ? (
           <p className="text-[13px] text-text-dim">
             {cari.trim() ? 'Tidak ada yang cocok.' : 'Belum ada generus terdaftar.'}
           </p>
-        )}
-
+        ) : (
         <div className="flex flex-col gap-2.5">
           {santriTersaring.map((s) => (
             <button
@@ -148,6 +145,7 @@ export default function AdminSantriMobile() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
       {formTerbuka && (

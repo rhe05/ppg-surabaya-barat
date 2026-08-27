@@ -15,6 +15,7 @@ import { Award, Settings2, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import PilihBulanTahun from '@/components/ui/PilihBulanTahun';
+import { useToast } from '@/components/ui/useToast';
 import {
   muatPeringkatGenerus,
   muatPeringkatGuru,
@@ -31,6 +32,7 @@ const MEDALI = ['#D97706', '#94A3B8', '#B45309']; // emas / perak / perunggu
 
 export default function PeringkatKelpMobile() {
   const { profile } = useAuth();
+  const { sukses } = useToast();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
   const now = new Date();
@@ -197,6 +199,7 @@ export default function PeringkatKelpMobile() {
           onSelesai={(k) => {
             setKonfig(k);
             setPengaturanTerbuka(false);
+            sukses('Pengaturan poin disimpan.');
           }}
           onBatal={() => setPengaturanTerbuka(false)}
         />

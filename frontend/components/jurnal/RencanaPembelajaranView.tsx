@@ -56,7 +56,6 @@ import KebabMenu from '@/components/ui/KebabMenu';
 import SelectKustom, { type OpsiSelect } from '@/components/ui/SelectKustom';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
-import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
 import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
@@ -332,7 +331,7 @@ function InputIkon({
 export default function RencanaPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
-  const { toasts, push, dismiss } = useToast();
+  const { push } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -789,7 +788,6 @@ export default function RencanaPembelajaranView() {
        kelas apa pun jumlah materinya, judul/chip/tombol tidak bergerak
        sedikit pun. */
     <main className="relative flex h-screen flex-col overflow-hidden bg-bg">
-      <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="tanpa-scrollbar flex-1 overflow-y-auto px-[18px] pt-4 pb-[110px]">

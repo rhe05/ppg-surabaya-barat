@@ -23,7 +23,6 @@ import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
 import { useToast } from '@/components/ui/useToast';
-import ToastStack from '@/components/ui/ToastStack';
 import { rentangMinggu } from '@/lib/mingguBulan';
 
 type Kelas = { id: number; nama: string };
@@ -51,7 +50,7 @@ function formatTanggal(iso: string) {
 export default function RiwayatPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
-  const { toasts, push, dismiss } = useToast();
+  const { push } = useToast();
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
@@ -146,7 +145,6 @@ export default function RiwayatPembelajaranView() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <ToastStack toasts={toasts} onDismiss={dismiss} />
       <JurnalHeaderChrome />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">

@@ -18,16 +18,31 @@ export default function ToastStack({
 }) {
   if (toasts.length === 0) return null;
   return (
-    <div className="fixed inset-x-0 top-3 z-[2000] flex flex-col items-center gap-2 px-4">
+    <div
+      className="pointer-events-none fixed inset-x-0 z-[2000] flex flex-col items-center gap-2 px-4"
+      style={{ top: 'calc(var(--topbar-height) + 8px)' }}
+    >
       {toasts.map((t) => {
         const { kelas, Ikon } = GAYA[t.varian];
         return (
           <div
             key={t.id}
-            className={`flex w-full max-w-[380px] items-start gap-2.5 rounded-[var(--radius)] border px-4 py-3 text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.14)] ${kelas}`}
+            className={`animasi-toast-masuk pointer-events-auto flex w-full max-w-[380px] items-start gap-2.5 rounded-[var(--radius)] border px-4 py-3 text-[13px] font-semibold shadow-[0_8px_24px_rgba(0,0,0,0.14)] ${kelas}`}
           >
             <Ikon size={18} className="mt-px shrink-0" />
             <span className="min-w-0 flex-1">{t.pesan}</span>
+            {t.aksi && (
+              <button
+                type="button"
+                onClick={() => {
+                  t.aksi!.jalankan();
+                  onDismiss(t.id);
+                }}
+                className="shrink-0 cursor-pointer border-none bg-transparent p-0 text-[13px] font-extrabold underline decoration-2 underline-offset-2"
+              >
+                {t.aksi.label}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => onDismiss(t.id)}
