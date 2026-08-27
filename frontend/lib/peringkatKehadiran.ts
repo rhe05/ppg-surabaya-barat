@@ -28,8 +28,60 @@ export type BarisPeringkat = {
   poin: number;
   hadir: number;
   izin: number;
+  sakit: number;
   alpa: number;
 };
+
+/* Nilai poin per status — bisa diatur tiap kelompok (tabel
+   peringkat_konfig_poin, migrasi 20260827100000). Kalau baris kelompok
+   belum ada / tabel belum dibuat -> DEFAULT ini. */
+export type KonfigPoin = {
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+};
+
+export const KONFIG_POIN_DEFAULT: KonfigPoin = { hadir: 3, izin: 1, sakit: 1, alpa: 0 };
+
+export async function muatKonfigPoin(kelompokId: number): Promise<KonfigPoin> {
+  try {
+    const { data } = await supabase
+      .from('peringkat_konfig_poin')
+      .select('poin_hadir, poin_izin, poin_sakit, poin_alpa')
+      .eq('kelompok_id', kelompokId)
+      .maybeSingle();
+    if (!data) return { ...KONFIG_POIN_DEFAULT };
+    return {
+      hadir: data.poin_hadir,
+      izin: data.poin_izin,
+      sakit: data.poin_sakit,
+      alpa: data.poin_alpa,
+    };
+  } catch {
+    return { ...KONFIG_POIN_DEFAULT };
+  }
+}
+
+export async function simpanKonfigPoin(
+  kelompokId: number,
+  konfig: KonfigPoin,
+  olehId: string | null,
+): Promise<void> {
+  const { error } = await supabase.from('peringkat_konfig_poin').upsert(
+    {
+      kelompok_id: kelompokId,
+      poin_hadir: konfig.hadir,
+      poin_izin: konfig.izin,
+      poin_sakit: konfig.sakit,
+      poin_alpa: konfig.alpa,
+      diperbarui_oleh: olehId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'kelompok_id' },
+  );
+  if (error) throw new Error(error.message);
+}
 
 function rentangBulan(tahun: number, bulan: number) {
   const dua = (n: number) => String(n).padStart(2, '0');
@@ -62,6 +114,7 @@ export async function muatPeringkatGenerus(
   kelompokId: number,
   tahun: number,
   bulan: number,
+  konfig: KonfigPoin = KONFIG_POIN_DEFAULT,
 ): Promise<BarisPeringkat[]> {
   const { awal, akhir } = rentangBulan(tahun, bulan);
   const hariKerja = await hariKerjaPredikat(kelompokId);
@@ -76,7 +129,7 @@ export async function muatPeringkatGenerus(
   const ids = [...namaById.keys()];
   if (ids.length === 0) return [];
 
-  const acc = new Map<number, { hadir: number; izin: number; alpa: number }>();
+  const acc = new Map<number, { hadir: number; izin: number; sakit: number; alpa: number }>();
   const UK = 1000;
   for (let dari = 0; ; dari += UK) {
     const { data, error } = await supabase
@@ -92,9 +145,10 @@ export async function muatPeringkatGenerus(
     const batch = data ?? [];
     batch.forEach((a) => {
       if (!hariKerja(a.tanggal)) return;
-      const cur = acc.get(a.santri_id) ?? { hadir: 0, izin: 0, alpa: 0 };
+      const cur = acc.get(a.santri_id) ?? { hadir: 0, izin: 0, sakit: 0, alpa: 0 };
       if (a.status === 'hadir') cur.hadir++;
-      else if (a.status === 'izin' || a.status === 'sakit') cur.izin++;
+      else if (a.status === 'izin') cur.izin++;
+      else if (a.status === 'sakit') cur.sakit++;
       else if (a.status === 'alpa') cur.alpa++;
       acc.set(a.santri_id, cur);
     });
@@ -106,9 +160,11 @@ export async function muatPeringkatGenerus(
     rows.push({
       id,
       nama: namaById.get(id) ?? '-',
-      poin: v.hadir * 3 + v.izin * 1,
+      poin:
+        v.hadir * konfig.hadir + v.izin * konfig.izin + v.sakit * konfig.sakit + v.alpa * konfig.alpa,
       hadir: v.hadir,
       izin: v.izin,
+      sakit: v.sakit,
       alpa: v.alpa,
     });
   });
@@ -119,6 +175,7 @@ export async function muatPeringkatGuru(
   kelompokId: number,
   tahun: number,
   bulan: number,
+  konfig: KonfigPoin = KONFIG_POIN_DEFAULT,
 ): Promise<BarisPeringkat[]> {
   const { awal, akhir } = rentangBulan(tahun, bulan);
   const hariKerja = await hariKerjaPredikat(kelompokId);
@@ -178,19 +235,23 @@ export async function muatPeringkatGuru(
     }
   }
 
-  /* IZIN: tanggal hari-kerja yg tercakup rentang guru_izin, dikurangi
-     tanggal yg sudah dihitung hadir. */
+  /* IZIN: tanggal hari-kerja yg tercakup rentang guru_izin. Dipisah
+     "sakit" (alasan_kategori = sakit) vs "izin lain" supaya bisa dikenai
+     poin_sakit / poin_izin yang berbeda. Tanggal yg sudah hadir tidak
+     dihitung; kalau satu tanggal masuk dua kategori, sakit menang. */
   const { data: izinRows, error: eIzin } = await supabase
     .from('guru_izin')
-    .select('guru_id, tanggal_mulai, tanggal_selesai')
+    .select('guru_id, tanggal_mulai, tanggal_selesai, alasan_kategori')
     .eq('kelompok_id', kelompokId)
     .lte('tanggal_mulai', akhir)
     .gte('tanggal_selesai', awal);
   if (eIzin) throw new Error(eIzin.message);
 
-  const izinDays = new Map<number, Set<string>>();
+  const sakitDays = new Map<number, Set<string>>();
+  const izinLainDays = new Map<number, Set<string>>();
   (izinRows ?? []).forEach((r) => {
-    const set = ambilSet(izinDays, r.guru_id);
+    const set = (r.alasan_kategori === 'sakit' ? sakitDays : izinLainDays);
+    const s = ambilSet(set, r.guru_id);
     const mulai = r.tanggal_mulai < awal ? awal : r.tanggal_mulai;
     const selesai = r.tanggal_selesai > akhir ? akhir : r.tanggal_selesai;
     for (
@@ -198,22 +259,35 @@ export async function muatPeringkatGuru(
       d <= new Date(selesai + 'T00:00:00');
       d.setDate(d.getDate() + 1)
     ) {
-      const s = tglStr(d);
-      if (hariKerja(s)) set.add(s);
+      const t = tglStr(d);
+      if (hariKerja(t)) s.add(t);
     }
   });
 
   const rows: BarisPeringkat[] = [];
   namaById.forEach((nama, gId) => {
     const h = hadirDays.get(gId) ?? new Set<string>();
-    let izin = 0;
-    (izinDays.get(gId) ?? new Set<string>()).forEach((d) => {
-      if (!h.has(d)) izin++;
+    const sk = sakitDays.get(gId) ?? new Set<string>();
+    let sakit = 0;
+    sk.forEach((d) => {
+      if (!h.has(d)) sakit++;
     });
-    rows.push({ id: gId, nama, poin: h.size * 3 + izin * 1, hadir: h.size, izin, alpa: 0 });
+    let izin = 0;
+    (izinLainDays.get(gId) ?? new Set<string>()).forEach((d) => {
+      if (!h.has(d) && !sk.has(d)) izin++;
+    });
+    rows.push({
+      id: gId,
+      nama,
+      poin: h.size * konfig.hadir + sakit * konfig.sakit + izin * konfig.izin,
+      hadir: h.size,
+      izin,
+      sakit,
+      alpa: 0,
+    });
   });
   return rows
-    .filter((r) => r.hadir > 0 || r.izin > 0)
+    .filter((r) => r.hadir > 0 || r.izin > 0 || r.sakit > 0)
     .sort((a, b) => b.poin - a.poin || a.nama.localeCompare(b.nama, 'id'))
     .slice(0, 10);
 }
