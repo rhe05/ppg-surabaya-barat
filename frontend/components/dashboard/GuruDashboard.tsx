@@ -10,7 +10,7 @@ import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
-import { muatOverrideKelompok, tanggalLiburKelompok } from '@/lib/kalenderKelompok';
+import { muatOverrideKelompok, tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -215,14 +215,16 @@ export default function GuruDashboard() {
         }
       }
 
-      /* Tanggal yang admin_kelompok tandai libur mendadak dikeluarkan dari
-         "Hari Aktif" (diminta owner 2026-08-27) -- konsisten dgn Riwayat
+      /* "Hari Aktif" tidak menghitung tanggal libur kelompok maupun
+         Sabtu/Minggu (diminta owner 2026-08-27) -- konsisten dgn Riwayat
          Kehadiran & kartu Ringkasan Kehadiran admin_kelp. */
       const liburKelp = kelompokId
         ? tanggalLiburKelompok(await muatOverrideKelompok(kelompokId))
         : new Set<string>();
       kelasIds.forEach((id) => {
-        hasil[id].hariAktif = [...tanggalPerKelas[id]].filter((t) => !liburKelp.has(t)).length;
+        hasil[id].hariAktif = [...tanggalPerKelas[id]].filter(
+          (t) => !liburKelp.has(t) && !adalahAkhirPekan(t),
+        ).length;
       });
       setStatistik(hasil);
     },

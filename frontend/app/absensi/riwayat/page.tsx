@@ -73,7 +73,7 @@ import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
-import { muatOverrideKelompok, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatOverrideKelompok, adalahAkhirPekan, type OverrideKelompok } from '@/lib/kalenderKelompok';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 // Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
@@ -384,7 +384,7 @@ function RiwayatKehadiranContent() {
   }
 
   const hariAktif = tanggalDiisi.filter(
-    (t) => overrideKelompok.get(t)?.jenis !== 'libur',
+    (t) => overrideKelompok.get(t)?.jenis !== 'libur' && !adalahAkhirPekan(t),
   ).length;
 
   const semuaTanggal = tanggalKerjaBulan(tahun, bulan);

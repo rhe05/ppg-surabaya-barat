@@ -40,6 +40,17 @@ export async function muatOverrideKelompok(
    sbg hari aktif, konsisten dgn kolomnya yang jadi merah di Riwayat.
    'aktif' TIDAK relevan di sini (itu cuma membuka kunci tanggal merah
    nasional, bukan menambah/mengurangi hari aktif). */
+/* True kalau tglStr (YYYY-MM-DD) jatuh di Sabtu/Minggu. Dipakai utk
+   MENGELUARKAN akhir pekan dari hitungan "Hari Aktif" -- diminta owner
+   2026-08-27: "Hari Aktif jangan hitung Sabtu/Minggu" (sesi yang
+   terlanjur diinput guru di akhir pekan tidak boleh menaikkan angka).
+   Kolom matrix Riwayat memang sudah cuma Senin-Jumat, ini menyelaraskan
+   angkanya. */
+export function adalahAkhirPekan(tglStr: string): boolean {
+  const hari = new Date(tglStr + 'T00:00:00').getDay();
+  return hari === 0 || hari === 6;
+}
+
 export function tanggalLiburKelompok(override: Map<string, OverrideKelompok>): Set<string> {
   const set = new Set<string>();
   override.forEach((v, tgl) => {

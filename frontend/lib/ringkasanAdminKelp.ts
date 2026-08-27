@@ -13,7 +13,19 @@ import {
   buatCekNonaktif,
   tanggalLiburKelompok,
   bersihkanAbsensiTanggalLibur,
+  adalahAkhirPekan,
 } from './kalenderKelompok';
+
+/* "Hari Aktif" = jumlah TANGGAL berbeda yang punya absensi, TAPI tidak
+   menghitung Sabtu/Minggu maupun tanggal yang ditandai libur kelompok
+   (diminta owner 2026-08-27). */
+function hitungHariAktif(tanggalSet: Set<string>, libur: Set<string>): number {
+  let n = 0;
+  tanggalSet.forEach((t) => {
+    if (!libur.has(t) && !adalahAkhirPekan(t)) n++;
+  });
+  return n;
+}
 
 export type GuruBelumIsi = { kelasId: number; kelasNama: string; guruNama: string };
 
@@ -129,11 +141,9 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
         const kId = kelasDariSantri.get(a.santri_id);
         if (kId != null) {
           kelasSudah.add(kId);
-          if (!liburKelp.has(a.tanggal)) {
-            const set = tanggalPerKelas.get(kId) ?? new Set<string>();
-            set.add(a.tanggal);
-            tanggalPerKelas.set(kId, set);
-          }
+          const set = tanggalPerKelas.get(kId) ?? new Set<string>();
+          set.add(a.tanggal);
+          tanggalPerKelas.set(kId, set);
         }
         if (a.status === 'hadir') hadir++;
         else if (a.status === 'izin') izin++;
@@ -148,7 +158,10 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
     .filter((k) => !kelasSudah.has(k.id))
     .map((k) => ({ kelasId: k.id, kelasNama: k.nama, guruNama: namaGuruDari(k.guru) }));
 
-  const hariAktifTerbanyak = Math.max(0, ...[...tanggalPerKelas.values()].map((s) => s.size));
+  const hariAktifTerbanyak = Math.max(
+    0,
+    ...[...tanggalPerKelas.values()].map((s) => hitungHariAktif(s, liburKelp)),
+  );
 
   return {
     totalKelas: kelasList.length,
@@ -285,7 +298,7 @@ export async function muatRingkasanPerKelas(
         const kId = kelasDariSantri.get(a.santri_id);
         const acc = kId != null ? akumulasi.get(kId) : undefined;
         if (!acc) return;
-        if (!liburKelp.has(a.tanggal)) acc.tanggal.add(a.tanggal);
+        acc.tanggal.add(a.tanggal);
         if (a.status === 'hadir') acc.hadir++;
         else if (a.status === 'izin') acc.izin++;
         else if (a.status === 'sakit') acc.sakit++;
@@ -306,7 +319,7 @@ export async function muatRingkasanPerKelas(
       jamMulai: k.jam_mulai,
       jamSelesai: k.jam_selesai,
       santriCount: k.santri_count,
-      hariAktif: acc?.tanggal.size ?? 0,
+      hariAktif: acc ? hitungHariAktif(acc.tanggal, liburKelp) : 0,
       hadir: acc?.hadir ?? 0,
       izin: acc?.izin ?? 0,
       sakit: acc?.sakit ?? 0,
