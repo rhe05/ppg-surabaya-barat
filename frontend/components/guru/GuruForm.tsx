@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { KATEGORI_GURU, labelKategoriGuru } from '@/lib/kategoriGuru';
 
 export type GuruRow = {
   id: number;
@@ -59,7 +60,7 @@ export const KOLOM_GURU =
    components/kelas/KelasForm.tsx (dropdown "Ketua Muda-i" pengganti
    "Guru Pengampu" utk kelas kategori Remaja Pra Nikah, cuma
    menampilkan guru berkategori ini). */
-const KATEGORI = ['Muballigh Tugasan', 'Muballigh Setempat', 'Guru Bantu', 'Ketua Muda-i'];
+const KATEGORI = KATEGORI_GURU;
 const PENDIDIKAN = [
   'SD/Sederajat',
   'SMP/Sederajat',
@@ -299,7 +300,7 @@ export default function GuruForm({
               <option value="">-- Pilih Kategori --</option>
               {KATEGORI.map((k) => (
                 <option key={k} value={k}>
-                  {k}
+                  {labelKategoriGuru(k, isian.jenis_kelamin)}
                 </option>
               ))}
             </select>

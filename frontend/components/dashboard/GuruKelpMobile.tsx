@@ -28,17 +28,7 @@ import { History, MoreVertical, UserPlus, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/guru/GuruForm';
-
-/* Kategori disimpan netral-gender di DB ("Muballigh ..."); tampilannya
-   mengikuti jenis kelamin: perempuan -> "Muballighot ..." (diminta owner
-   2026-08-27). Hanya MT & MS yang berbentuk gender; Guru Bantu/Mutu dst
-   tidak berubah. Warna badge tetap dilihat dari nilai DB mentah. */
-function labelKategori(kategori: string, jenisKelamin: string | null): string {
-  if (jenisKelamin !== 'P') return kategori;
-  if (kategori === 'Muballigh Tugasan') return 'Muballighot Tugasan';
-  if (kategori === 'Muballigh Setempat') return 'Muballighot Setempat';
-  return kategori;
-}
+import { labelKategoriGuru } from '@/lib/kategoriGuru';
 
 const KATEGORI_WARNA: Record<string, string> = {
   'Muballigh Tugasan': 'text-indigo bg-[rgba(79,70,229,0.12)]',
@@ -276,7 +266,7 @@ export default function GuruKelpMobile() {
         g.nama.toLowerCase().includes(term) ||
         (g.kategori ?? '').toLowerCase().includes(term) ||
         (g.kategori
-          ? labelKategori(g.kategori, g.jenis_kelamin).toLowerCase().includes(term)
+          ? labelKategoriGuru(g.kategori, g.jenis_kelamin).toLowerCase().includes(term)
           : false),
     );
   }, [guru, cari]);
@@ -388,7 +378,7 @@ export default function GuruKelpMobile() {
                     KATEGORI_WARNA[g.kategori] ?? 'text-text-dim bg-panel-2'
                   }`}
                 >
-                  {labelKategori(g.kategori, g.jenis_kelamin)}
+                  {labelKategoriGuru(g.kategori, g.jenis_kelamin)}
                 </span>
               )}
             </button>

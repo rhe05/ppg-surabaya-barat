@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import GuruForm, { KOLOM_GURU, type GuruRow } from '@/components/guru/GuruForm';
 import { unduhXlsx } from '@/lib/xlsx';
+import { labelKategoriGuru } from '@/lib/kategoriGuru';
 
 /* Kolom yang ikut diekspor. App lama punya pemilih kolom; di sini daftarnya
    tetap — kolom yang benar-benar dipakai saat mencetak data guru. Yang
@@ -12,7 +13,7 @@ import { unduhXlsx } from '@/lib/xlsx';
    tabel, supaya apa yang diunduh sama dengan apa yang dilihat. */
 const KOLOM_EKSPOR_GURU: { judul: string; ambil: (g: GuruRow) => unknown }[] = [
   { judul: 'Nama', ambil: (g) => g.nama },
-  { judul: 'Kategori', ambil: (g) => g.kategori },
+  { judul: 'Kategori', ambil: (g) => labelKategoriGuru(g.kategori, g.jenis_kelamin) },
   { judul: 'Jenis Kelamin', ambil: (g) => g.jenis_kelamin },
   { judul: 'Tempat Lahir', ambil: (g) => g.tempat_lahir },
   { judul: 'Tanggal Lahir', ambil: (g) => g.tanggal_lahir },
@@ -112,7 +113,9 @@ export default function GuruList() {
     const rows = term
       ? guru.filter(
           (g) =>
-            g.nama?.toLowerCase().includes(term) || (g.kategori ?? '').toLowerCase().includes(term)
+            g.nama?.toLowerCase().includes(term) ||
+            (g.kategori ?? '').toLowerCase().includes(term) ||
+            labelKategoriGuru(g.kategori, g.jenis_kelamin).toLowerCase().includes(term)
         )
       : guru;
     return [...rows].sort((a, b) => (a.kelompok_id ?? 0) - (b.kelompok_id ?? 0));
@@ -220,7 +223,7 @@ export default function GuruList() {
                   <tr key={g.id} className="hover:bg-panel-2">
                     <td className="border-b border-border px-4 py-3.5 text-text">{g.nama}</td>
                     <td className="border-b border-border px-4 py-3.5 text-text">
-                      {g.kategori ?? '-'}
+                      {labelKategoriGuru(g.kategori, g.jenis_kelamin) || '-'}
                     </td>
                     <td className="border-b border-border px-4 py-3.5 text-text">
                       {g.lama_mengajar ?? '-'}
