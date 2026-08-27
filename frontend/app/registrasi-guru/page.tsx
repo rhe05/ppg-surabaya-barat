@@ -32,6 +32,7 @@ function RegistrasiGuruContent() {
       <AdminHeader judul="Registrasi" />
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
+        <div className="mb-4 text-[17px] font-extrabold text-text">Registrasi</div>
         {!bolehDaftarGuru && (
           <p className="text-[13px] text-text-dim">Anda tidak berwenang mendaftarkan guru.</p>
         )}
