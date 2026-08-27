@@ -125,14 +125,16 @@ function kosongJadiNull(v: string): string | null {
 }
 
 /* Salinan window.calcDurasiDetail_ (Script_Main.html:5968-5989). Kolom
-   lama_mengajar memang disimpan sebagai teks hasil hitung saat simpan,
-   bukan dihitung ulang saat baca — perilaku app lama dipertahankan supaya
-   data lama & baru sebentuk. */
-export function hitungDurasi(tanggalMulai: string): string | null {
+   lama_mengajar disimpan sbg teks hasil hitung saat baris guru disimpan;
+   `tanggalAkhir` opsional (default hari ini) dipakai utk menghitung durasi
+   sampai TANGGAL PERISTIWA di Riwayat Guru (guru sudah purna/pindah, tidak
+   masuk akal terus bertambah sampai hari ini). */
+export function hitungDurasi(tanggalMulai: string, tanggalAkhir?: string): string | null {
   if (!tanggalMulai) return null;
   const mulai = new Date(tanggalMulai);
   if (Number.isNaN(mulai.getTime())) return null;
-  const kini = new Date();
+  const kini = tanggalAkhir ? new Date(tanggalAkhir) : new Date();
+  if (Number.isNaN(kini.getTime())) return null;
   if (mulai > kini) return '0 hari';
 
   let t = kini.getFullYear() - mulai.getFullYear();

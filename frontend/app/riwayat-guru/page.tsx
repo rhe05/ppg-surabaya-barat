@@ -15,16 +15,17 @@
    TERKINI dari baris guru -- masih bisa dibaca krn soft-delete BUKAN
    hapus permanen), "Purna Ngajar"/"Pindah Ngajar" (label ikut r.jenis
    + tanggal peristiwa dari riwayat_guru itu sendiri), "Lama Ngajar"
-   (guru.lama_mengajar, teks SNAPSHOT hasil hitung saat baris guru
-   terakhir disimpan -- BUKAN dihitung ulang di sini, sengaja
-   dipertahankan spt GuruForm.tsx::hitungDurasi, lihat komentar di
-   sana), dan "Keterangan" kalau diisi saat Hapus Guru. */
+   (2026-08-27: dihitung `hitungDurasi(mulai_mengajar, tanggal_peristiwa)`
+   -- dari mulai ngajar SAMPAI tanggal purna/pindah, bukan sampai hari
+   ini; kolom guru.lama_mengajar cuma fallback krn sering NULL/basi), dan
+   "Keterangan" kalau diisi saat Hapus Guru. */
 
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
+import { hitungDurasi } from '@/components/guru/GuruForm';
 
 type GuruTersemat = { mulai_mengajar: string | null; lama_mengajar: string | null } | null;
 type BarisRiwayat = {
@@ -91,6 +92,12 @@ function RiwayatGuruContent() {
       setDaftar(
         baris.map((r) => {
           const g = Array.isArray(r.guru) ? r.guru[0] : r.guru;
+          /* Lama Ngajar dihitung dari mulai_mengajar SAMPAI tanggal
+             peristiwa purna/pindah (kolom lama_mengajar cache teks yg
+             sering NULL/basi -> cuma fallback). */
+          const lama = g?.mulai_mengajar
+            ? hitungDurasi(g.mulai_mengajar, r.tanggal)
+            : (g?.lama_mengajar ?? null);
           return {
             id: r.id,
             nama: r.nama,
@@ -98,7 +105,7 @@ function RiwayatGuruContent() {
             tanggal: r.tanggal,
             keterangan: r.keterangan,
             mulaiMengajar: g?.mulai_mengajar ?? null,
-            lamaMengajar: g?.lama_mengajar ?? null,
+            lamaMengajar: lama,
           };
         }),
       );
@@ -150,22 +157,22 @@ function RiwayatGuruContent() {
                   {r.jenis}
                 </span>
               </div>
-              <div className="mt-2 flex flex-col gap-0.5 text-[11.5px] text-text-dim">
+              <div className="mt-2 flex flex-col gap-0.5 text-[11.5px] text-text">
                 <span>
-                  <span className="text-text-faint">Mulai Ngajar : </span>
+                  <span className="text-text-dim">Mulai Ngajar : </span>
                   {r.mulaiMengajar ? formatTanggal(r.mulaiMengajar) : '-'}
                 </span>
                 <span>
-                  <span className="text-text-faint">{r.jenis} Ngajar : </span>
+                  <span className="text-text-dim">{r.jenis} Ngajar : </span>
                   {formatTanggal(r.tanggal)}
                 </span>
                 <span>
-                  <span className="text-text-faint">Lama Ngajar : </span>
+                  <span className="text-text-dim">Lama Ngajar : </span>
                   {r.lamaMengajar ?? '-'}
                 </span>
                 {r.keterangan && (
                   <span>
-                    <span className="text-text-faint">Keterangan : </span>
+                    <span className="text-text-dim">Keterangan : </span>
                     {r.keterangan}
                   </span>
                 )}
