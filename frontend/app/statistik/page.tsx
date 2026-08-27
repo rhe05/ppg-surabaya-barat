@@ -39,6 +39,8 @@ import RequireAuth from '@/components/RequireAuth';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { useIsMobile } from '@/lib/useIsMobile';
+import StatistikKelpMobile from '@/components/dashboard/StatistikKelpMobile';
 
 type TitikTren = { tanggal: string; total: number; hadir: number; persen: number | null };
 type BarisKelompok = { kelompok: string; total: number; hadir: number; persen: number | null };
@@ -133,7 +135,18 @@ function TabelSantri({ judul, baris }: { judul: string; baris: BarisSantri[] }) 
   );
 }
 
+/* Cabang mobile admin_kelompok (2026-08-27) -- di HP layar Statistik =
+   Peringkat Kehadiran berbasis poin (StatistikKelpMobile.tsx), bukan
+   halaman grafik desktop di bawah. Wrapper tipis: cuma useAuth+useIsMobile
+   sebelum bercabang (StatistikDesktop py banyak hook sendiri). */
 function StatistikContent() {
+  const { profile } = useAuth();
+  const isMobile = useIsMobile();
+  if (profile?.role === 'admin_kelompok' && isMobile) return <StatistikKelpMobile />;
+  return <StatistikDesktop />;
+}
+
+function StatistikDesktop() {
   const { profile } = useAuth();
 
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);

@@ -94,6 +94,18 @@ function itemMenu(role: string | undefined): { label: string; href: string; svg:
         </>
       ),
     },
+    {
+      /* Statistik (2026-08-27) -- di HP admin_kelp, halaman ini =
+         Peringkat Kehadiran berbasis poin (StatistikKelpMobile.tsx). */
+      href: '/statistik',
+      label: 'Statistik',
+      svg: (
+        <>
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+        </>
+      ),
+    },
   ];
 }
 
