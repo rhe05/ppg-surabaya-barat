@@ -1070,7 +1070,7 @@ export default function AdminKelpDashboard() {
         {!memuatStatistik && statistik && statistik.tren.length > 0 && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             <div className="mb-1 flex items-center justify-between">
-              <div className="text-[13px] font-bold text-text">Kehadiran 30 Hari</div>
+              <div className="text-[13px] font-bold text-text">Performa</div>
               <button
                 type="button"
                 onClick={() => router.push('/statistik')}
@@ -1089,8 +1089,8 @@ export default function AdminKelpDashboard() {
                     dataKey="tanggal"
                     tick={{ fill: 'var(--text-dim)', fontSize: 10 }}
                     stroke="var(--border)"
-                    tickFormatter={(t: string) => t.slice(5)}
-                    minTickGap={30}
+                    tickFormatter={(t: string) => t.slice(8)}
+                    minTickGap={22}
                   />
                   <YAxis domain={[0, 100]} hide />
                   <Tooltip
