@@ -83,6 +83,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
+import RiwayatKehadiranKelasInline from '@/components/dashboard/RiwayatKehadiranKelasInline';
 import {
   muatRingkasanBulan,
   muatRingkasanPerKelas,
@@ -346,6 +347,9 @@ export default function AdminKelpDashboard() {
   const [detailKelasTerbuka, setDetailKelasTerbuka] = useState(false);
   const [kelasRingkasan, setKelasRingkasan] = useState<KelasRingkasan[] | null>(null);
   const [loadingKelas, setLoadingKelas] = useState(false);
+  /* Kartu kelas mana yang riwayat kehadirannya sedang dibuka inline
+     (2026-08-27) -- klik kartu = buka, klik lagi = tutup. */
+  const [riwayatKelasId, setRiwayatKelasId] = useState<number | null>(null);
 
   const [kalenderHariIni, setKalenderHariIni] = useState<StatusKalenderHariIni>(null);
   const [memuatKalender, setMemuatKalender] = useState(true);
@@ -439,6 +443,7 @@ export default function AdminKelpDashboard() {
 
   useEffect(() => {
     setKelasRingkasan(null);
+    setRiwayatKelasId(null);
   }, [kelompokId, tahun, bulan]);
 
   useEffect(() => {
@@ -911,16 +916,29 @@ export default function AdminKelpDashboard() {
                     }
                     return (
                       <div key={k.kelasId} className="rounded-[var(--radius-lg)] border border-border bg-panel-2 p-3.5">
-                        <div className="mb-1 flex items-baseline justify-between">
-                          <span className="text-[14px] font-bold text-text">
-                            {k.kelasNama}
-                            {k.kategori === 'Cabe Rawit' && (
-                              <span className="text-[11.5px] font-semibold text-sage"> · Cabe Rawit</span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="mb-1 text-[12px] font-semibold text-text-dim">{info.join(' · ')}</div>
-                        <div className="mt-3 grid grid-cols-5 gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setRiwayatKelasId((c) => (c === k.kelasId ? null : k.kelasId))
+                          }
+                          className="w-full cursor-pointer border-none bg-transparent p-0 text-left"
+                        >
+                          <div className="mb-1 flex items-baseline justify-between gap-2">
+                            <span className="text-[14px] font-bold text-text">
+                              {k.kelasNama}
+                              {k.kategori === 'Cabe Rawit' && (
+                                <span className="text-[11.5px] font-semibold text-sage"> · Cabe Rawit</span>
+                              )}
+                            </span>
+                            <ChevronDown
+                              size={15}
+                              className={`shrink-0 text-text-faint transition-transform duration-200 ${
+                                riwayatKelasId === k.kelasId ? 'rotate-180' : ''
+                              }`}
+                            />
+                          </div>
+                          <div className="mb-1 text-[12px] font-semibold text-text-dim">{info.join(' · ')}</div>
+                          <div className="mt-3 grid grid-cols-5 gap-1.5">
                           <div
                             className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
                             style={{ background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)' }}
@@ -960,7 +978,16 @@ export default function AdminKelpDashboard() {
                               </div>
                             );
                           })}
-                        </div>
+                          </div>
+                        </button>
+                        {riwayatKelasId === k.kelasId && kelompokId && (
+                          <RiwayatKehadiranKelasInline
+                            kelasId={k.kelasId}
+                            kelompokId={kelompokId}
+                            tahun={tahun}
+                            bulan={bulan}
+                          />
+                        )}
                       </div>
                     );
                   })}
