@@ -23,8 +23,7 @@
    Guru" -> /riwayat-guru, daftar riwayat_guru kelompok ini. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { History, MoreVertical, UserPlus, UserX } from 'lucide-react';
+import { MoreVertical, UserPlus, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/guru/GuruForm';
@@ -48,21 +47,20 @@ function hariIni() {
   return lokal.toISOString().slice(0, 10);
 }
 
-/* Popup 3 pilihan di bawah ikon menu, pola SAMA PERSIS TambahMenu di
+/* Popup pilihan di bawah ikon menu, pola SAMA PERSIS TambahMenu di
    app/santri-saya/page.tsx (overlay transparan + panel absolute nempel
-   tombol pemicu, wrapper `relative`). */
+   tombol pemicu, wrapper `relative`). "Riwayat Guru" DIPINDAH ke hub
+   Data Master (2026-08-27), tidak lagi di sini. */
 function MenuAksiGuru({
   terbuka,
   onTutup,
   onTambah,
   onHapus,
-  onRiwayat,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   onTambah: () => void;
   onHapus: () => void;
-  onRiwayat: () => void;
 }) {
   if (!terbuka) return null;
   return (
@@ -90,17 +88,6 @@ function MenuAksiGuru({
         >
           <UserX size={18} strokeWidth={2} className="shrink-0 text-red" />
           <span>Hapus Guru</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            onTutup();
-            onRiwayat();
-          }}
-          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
-        >
-          <History size={18} strokeWidth={2} className="shrink-0 text-indigo" />
-          <span>Riwayat Guru</span>
         </button>
       </div>
     </>
@@ -228,7 +215,6 @@ function HapusGuruModal({
 }
 
 export default function GuruKelpMobile() {
-  const router = useRouter();
   const [guru, setGuru] = useState<GuruRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -314,7 +300,6 @@ export default function GuruKelpMobile() {
               onTutup={() => setMenuTerbuka(false)}
               onTambah={bukaTambah}
               onHapus={() => setHapusTerbuka(true)}
-              onRiwayat={() => router.push('/riwayat-guru')}
             />
           </div>
         </div>

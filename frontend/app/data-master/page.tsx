@@ -11,7 +11,7 @@
    app/santri-saya). */
 
 import { useRouter } from 'next/navigation';
-import { CalendarDays, GraduationCap, Repeat2, Users } from 'lucide-react';
+import { CalendarDays, GraduationCap, History, Repeat2, Users } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 
@@ -23,6 +23,14 @@ const KARTU = [
     ikon: GraduationCap,
     warna: 'text-brass',
     bg: 'bg-[rgba(217,119,6,0.12)]',
+  },
+  {
+    href: '/riwayat-guru',
+    label: 'Riwayat Guru',
+    deskripsi: 'Guru yang purna atau pindah dari kelompok Anda',
+    ikon: History,
+    warna: 'text-text-dim',
+    bg: 'bg-panel-2',
   },
   {
     href: '/santri',
