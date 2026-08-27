@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   title: "Ruang Ngaji — Platform Manajemen Ngaji",
   description:
     "Platform manajemen ngaji PPG Surabaya Barat — absensi, kelas, dan laporan.",
+  manifest: "/manifest.webmanifest",
+  /* iOS: "Add to Home Screen" -> buka layar penuh tanpa Safari chrome. */
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Ruang Ngaji",
+  },
 };
 
 /* WAJIB eksplisit (2026-08-24) -- Next.js 16.3 di proyek ini TERNYATA
@@ -26,6 +33,9 @@ export const viewport: Viewport = {
      dipakai AdminBottomNav.tsx supaya bar bawah tidak ketutup gesture
      bar / home indicator. */
   viewportFit: "cover",
+  /* Warna strip status bar saat mode standalone (PWA). Putih = menyatu
+     dgn topbar aplikasi. */
+  themeColor: "#FFFFFF",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
