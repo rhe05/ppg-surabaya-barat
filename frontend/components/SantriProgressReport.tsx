@@ -60,6 +60,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import {
+  muatOverrideKelompok,
+  saringAbsensiHariKerja,
+  type OverrideKelompok,
+} from '@/lib/kalenderKelompok';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
@@ -67,7 +72,7 @@ import LaporanPerkembanganCetak, {
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
 type Santri = { id: number; nama: string; kelas_id: number | null };
-type Absensi = { santri_id: number; tanggal: string; status: string };
+type Absensi = { santri_id: number; tanggal: string; status: string; kelompok_id: number | null };
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -199,7 +204,7 @@ export default function SantriProgressReport() {
         for (let dari = 0; ; dari += UKURAN_HALAMAN) {
           const { data, error: eAbsensi } = await supabase
             .from('absensi')
-            .select('santri_id, tanggal, status')
+            .select('santri_id, tanggal, status, kelompok_id')
             .in('santri_id', santriIds)
             .gte('tanggal', awal)
             .lte('tanggal', akhir)
@@ -213,10 +218,18 @@ export default function SantriProgressReport() {
         }
       }
 
-      const tanggalAktif = new Set(absensi.map((a) => a.tanggal));
+      /* Buang sesi Sabtu/Minggu & tanggal libur kelompok -- "Hari Aktif"
+         & persentase kehadiran ikut definisi baru (2026-08-27). */
+      const kelompokId = absensi.find((a) => a.kelompok_id != null)?.kelompok_id ?? null;
+      const override = kelompokId
+        ? await muatOverrideKelompok(kelompokId)
+        : new Map<string, OverrideKelompok>();
+      const absensiHariKerja = saringAbsensiHariKerja(absensi, override);
+
+      const tanggalAktif = new Set(absensiHariKerja.map((a) => a.tanggal));
 
       const baris = santri.map((s) => {
-        const milik = absensi.filter((a) => a.santri_id === s.id);
+        const milik = absensiHariKerja.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
         const izin = milik.filter((a) => a.status === 'izin').length;
         const sakit = milik.filter((a) => a.status === 'sakit').length;

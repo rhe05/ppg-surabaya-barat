@@ -59,6 +59,21 @@ export function tanggalLiburKelompok(override: Map<string, OverrideKelompok>): S
   return set;
 }
 
+/* Saring baris absensi -> buang sesi Sabtu/Minggu & tanggal yang ditandai
+   libur kelompok. Dipakai Laporan Perkembangan (GuruLaporanView /
+   SantriProgressReport) supaya "Hari Aktif" DAN persentase kehadirannya
+   konsisten dgn definisi "Hari Aktif" baru (2026-08-27, diminta owner):
+   sesi akhir pekan / hari libur tidak ikut dihitung sama sekali. `rows`
+   cukup punya field `tanggal` (YYYY-MM-DD). */
+export function saringAbsensiHariKerja<T extends { tanggal: string }>(
+  rows: T[],
+  override: Map<string, OverrideKelompok>,
+): T[] {
+  return rows.filter(
+    (r) => !adalahAkhirPekan(r.tanggal) && override.get(r.tanggal)?.jenis !== 'libur',
+  );
+}
+
 /* SELF-HEAL: soft-delete (isi `deleted_at`) semua baris `absensi` kelompok
    pada tanggal2 yang ditandai libur dalam rentang [awal, akhir].
    Dibutuhkan karena penandaan libur (AdminKelpDashboard) hanya

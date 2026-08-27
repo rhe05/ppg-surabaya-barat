@@ -78,6 +78,11 @@ import { useAuth } from '@/lib/auth-context';
 import MenuGuru from '@/components/dashboard/MenuGuru';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import {
+  muatOverrideKelompok,
+  saringAbsensiHariKerja,
+  type OverrideKelompok,
+} from '@/lib/kalenderKelompok';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
@@ -240,8 +245,13 @@ export default function GuruLaporanView() {
       }
     }
 
-    return { santri, absensi };
-  }, [kelasId, kelasList, bulan, tahun]);
+    /* Buang sesi Sabtu/Minggu & tanggal libur kelompok -- "Hari Aktif" &
+       persentase kehadiran ikut definisi baru (2026-08-27). */
+    const override = profile?.scope_kelompok_id
+      ? await muatOverrideKelompok(profile.scope_kelompok_id)
+      : new Map<string, OverrideKelompok>();
+    return { santri, absensi: saringAbsensiHariKerja(absensi, override) };
+  }, [kelasId, kelasList, bulan, tahun, profile?.scope_kelompok_id]);
 
   async function siapkanLaporan() {
     if (!eligible) return;
