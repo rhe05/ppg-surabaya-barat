@@ -175,6 +175,68 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
   };
 }
 
+/* Tren kehadiran harian SATU BULAN kalender (kartu "Performa" di
+   AdminKelpDashboard) -- diminta owner 2026-08-27: dulu jendela bergulir
+   30 hari via RPC statistik_kehadiran, sekarang per bulan yang dipilih.
+   Satu titik per TANGGAL hari-kerja yang punya absensi; persen =
+   hadir / (hadir+izin+sakit+alpa) hari itu. Client-side (1 kelompok /
+   1 bulan = data kecil), konsisten dgn fungsi lain di berkas ini. */
+export type TitikTrenBulan = { tanggal: string; persen: number | null };
+
+export async function muatTrenKehadiranBulan(
+  kelompokId: number,
+  tahun: number,
+  bulan: number,
+): Promise<TitikTrenBulan[]> {
+  const dua = (n: number) => String(n).padStart(2, '0');
+  const awal = `${tahun}-${dua(bulan)}-01`;
+  const akhirTgl = new Date(tahun, bulan, 0).getDate();
+  const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTgl)}`;
+
+  const libur = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
+  const hariKerja = (t: string) => !adalahAkhirPekan(t) && !libur.has(t);
+
+  const { data: santriData, error: eSantri } = await supabase
+    .from('santri')
+    .select('id')
+    .eq('kelompok_id', kelompokId)
+    .is('deleted_at', null);
+  if (eSantri) throw eSantri;
+  const santriIds = (santriData ?? []).map((s) => s.id);
+  if (santriIds.length === 0) return [];
+
+  const perHari = new Map<string, { hadir: number; total: number }>();
+  const UKURAN_HALAMAN = 1000;
+  for (let dari = 0; ; dari += UKURAN_HALAMAN) {
+    const { data, error } = await supabase
+      .from('absensi')
+      .select('tanggal, status')
+      .in('santri_id', santriIds)
+      .gte('tanggal', awal)
+      .lte('tanggal', akhir)
+      .is('deleted_at', null)
+      .order('id', { ascending: true })
+      .range(dari, dari + UKURAN_HALAMAN - 1);
+    if (error) throw error;
+    const batch = data ?? [];
+    batch.forEach((a) => {
+      if (!hariKerja(a.tanggal)) return;
+      const cur = perHari.get(a.tanggal) ?? { hadir: 0, total: 0 };
+      cur.total++;
+      if (a.status === 'hadir') cur.hadir++;
+      perHari.set(a.tanggal, cur);
+    });
+    if (batch.length < UKURAN_HALAMAN) break;
+  }
+
+  return [...perHari.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([tanggal, v]) => ({
+      tanggal,
+      persen: v.total > 0 ? Math.round((v.hadir / v.total) * 100) : null,
+    }));
+}
+
 export async function muatRingkasanHariIni(kelompokId: number): Promise<RingkasanHariIni> {
   const hariIni = tanggalHariIniLokal();
   return muatRingkasanRentang(kelompokId, hariIni, hariIni);

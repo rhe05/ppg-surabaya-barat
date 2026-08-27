@@ -89,6 +89,7 @@ import {
   muatRingkasanPerKelas,
   muatAbsensiBelumDiisiBulan,
   muatGuruSedangIzin,
+  muatTrenKehadiranBulan,
   tanggalHariIniLokal,
   type RingkasanHariIni,
   type GuruIzinAktif,
@@ -389,6 +390,10 @@ export default function AdminKelpDashboard() {
 
   const [statistik, setStatistik] = useState<StatistikRingkas | null>(null);
   const [memuatStatistik, setMemuatStatistik] = useState(true);
+  /* Kartu "Performa" (2026-08-27, diminta owner): tren dihitung PER BULAN
+     kalender yang dipilih, bukan lagi jendela bergulir 30 hari. */
+  const [bulanPerforma, setBulanPerforma] = useState(sekarangAwal.getMonth() + 1);
+  const [tahunPerforma, setTahunPerforma] = useState(sekarangAwal.getFullYear());
 
   /* Data MENTAH (belum difilter per bulan) -- dimuat SEKALI per kelompok,
      penghitungan ulang per bulan terjadi di useMemo di bawah (klik ganti
@@ -656,19 +661,26 @@ export default function AdminKelpDashboard() {
     }
     let batal = false;
     setMemuatStatistik(true);
-    (async () => {
-      const { data } = await supabase.rpc('statistik_kehadiran', {
-        p: { kelompok_id: kelompokId, hari: 30 },
+    muatTrenKehadiranBulan(kelompokId, tahunPerforma, bulanPerforma)
+      .then((tren) => {
+        if (batal) return;
+        const berdata = tren.filter((t) => t.persen !== null);
+        const persen =
+          berdata.length > 0
+            ? Math.round(berdata.reduce((s, t) => s + (t.persen ?? 0), 0) / berdata.length)
+            : null;
+        setStatistik({ persen, tren });
+      })
+      .catch(() => {
+        if (!batal) setStatistik({ persen: null, tren: [] });
+      })
+      .finally(() => {
+        if (!batal) setMemuatStatistik(false);
       });
-      if (batal) return;
-      const hasil = data as { ringkas?: { persen: number | null }; tren?: TitikTren[] } | null;
-      setStatistik({ persen: hasil?.ringkas?.persen ?? null, tren: hasil?.tren ?? [] });
-      setMemuatStatistik(false);
-    })();
     return () => {
       batal = true;
     };
-  }, [kelompokId]);
+  }, [kelompokId, bulanPerforma, tahunPerforma]);
 
   /* Kartu KPI "Data Guru" (2026-08-26, diminta owner: taruh di bawah
      grafik Kehadiran 30 Hari) -- hitung dari tabel `guru` langsung, tidak
@@ -1067,18 +1079,33 @@ export default function AdminKelpDashboard() {
           </div>
         )}
 
-        {!memuatStatistik && statistik && statistik.tren.length > 0 && (
+        {!memuatStatistik && statistik && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-1 flex items-center justify-between">
+            <div className="mb-1 flex items-center justify-between gap-2">
               <div className="text-[13px] font-bold text-text">Performa</div>
-              <button
-                type="button"
-                onClick={() => router.push('/statistik')}
-                className="cursor-pointer border-none bg-transparent text-[11.5px] font-bold text-brass"
-              >
-                Lihat Detail
-              </button>
+              <div className="flex shrink-0 items-center gap-3">
+                <PemilihBulanTahun
+                  bulan={bulanPerforma}
+                  tahun={tahunPerforma}
+                  onUbah={(b, t) => {
+                    setBulanPerforma(b);
+                    setTahunPerforma(t);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => router.push('/statistik')}
+                  className="cursor-pointer border-none bg-transparent text-[11.5px] font-bold text-brass"
+                >
+                  Lihat Detail
+                </button>
+              </div>
             </div>
+            {statistik.tren.length === 0 ? (
+              <p className="mt-3 mb-1 text-[12px] text-text-dim">
+                Belum ada catatan kehadiran pada {NAMA_BULAN[bulanPerforma - 1]} {tahunPerforma}.
+              </p>
+            ) : (
             <div className="mt-2 h-[90px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={statistik.tren} margin={{ top: 4, right: 4, bottom: 0, left: -30 }}>
@@ -1098,6 +1125,7 @@ export default function AdminKelpDashboard() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
+            )}
           </div>
         )}
 
