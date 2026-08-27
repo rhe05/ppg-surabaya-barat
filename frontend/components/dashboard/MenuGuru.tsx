@@ -105,7 +105,7 @@ const ITEM_MENU: {
     ),
   },
   {
-    href: '/guru-saya',
+    href: '/guru-saya?v=akses',
     label: 'Minta Akses',
     svg: (
       <>

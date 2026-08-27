@@ -17,10 +17,12 @@
      berbarengan bisa lolos berdua.
    - Permintaan akses hanya bisa diputus PEMILIK kelas, bukan pemohon. */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 const JENIS_IZIN = [
   { nilai: 'izin', label: 'Izin Harian' },
@@ -76,6 +78,13 @@ function GuruSayaContent() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
   const kelompokId = profile?.scope_kelompok_id ?? null;
+
+  /* ?v=akses -> tampilkan HANYA fitur "Minta Akses Kelas"; selain itu
+     (v=izin / tanpa param) -> HANYA fitur "Guru Izin". Dua item menu
+     (MenuGuru.tsx) menunjuk ke halaman yang sama dgn param beda -- owner
+     2026-08-28: "Minta Akses bocor di layar Guru Izin". */
+  const view = useSearchParams().get('v') === 'akses' ? 'akses' : 'izin';
+  const judul = view === 'akses' ? 'Minta Akses Kelas' : 'Guru Izin';
 
   const [izinList, setIzinList] = useState<Izin[]>([]);
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
@@ -269,28 +278,36 @@ function GuruSayaContent() {
 
   if (!guruId) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
-        <h1 className="mb-2 text-[24px] font-bold text-text">Guru Saya</h1>
-        <p className="text-[13px] text-text-dim">
-          Halaman ini untuk akun yang tertaut ke data guru. Akun Anda belum punya tautan itu
-          (<code>profiles.guru_id</code> masih kosong), jadi pengajuan izin dan permintaan akses
-          kelas belum bisa dipakai.
-        </p>
-      </div>
+      <main className="relative flex min-h-screen flex-col bg-bg">
+        <JurnalHeaderChrome tampilkanHero={false} />
+        <div className="mx-auto w-full max-w-3xl p-6">
+          <h1 className="mb-2 text-[24px] font-bold text-text">{judul}</h1>
+          <p className="text-[13px] text-text-dim">
+            Halaman ini untuk akun yang tertaut ke data guru. Akun Anda belum punya tautan itu
+            (<code>profiles.guru_id</code> masih kosong).
+          </p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
-      <h1 className="mb-2 text-[24px] font-bold text-text">Guru Saya</h1>
+    <main className="relative flex min-h-screen flex-col bg-bg">
+      <JurnalHeaderChrome tampilkanHero={false} />
+      <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-10">
+      <h1 className="mb-2 text-[20px] font-extrabold text-text">{judul}</h1>
       <p className="mb-6 text-[13px] text-text-dim">
-        Pengajuan izin/cuti dan permintaan akses kelas guru lain.
+        {view === 'akses'
+          ? 'Minta akses mengisi absensi kelas guru lain, dan putuskan permintaan yang masuk untuk kelas Anda.'
+          : 'Ajukan izin harian atau cuti, dan lihat riwayat pengajuan Anda.'}
       </p>
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
       {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
 
+      {view === 'izin' && (
+        <>
       {/* ── Ajukan izin ── */}
       <div className="mb-6 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
         <div className="mb-1 text-[15px] font-bold text-text">Ajukan Izin / Cuti</div>
@@ -390,7 +407,11 @@ function GuruSayaContent() {
           </div>
         ))}
       </div>
+        </>
+      )}
 
+      {view === 'akses' && (
+        <>
       {/* ── Minta akses kelas ── */}
       <div className="mb-6 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
         <div className="mb-4 text-[15px] font-bold text-text">Minta Akses Kelas Guru Lain</div>
@@ -484,14 +505,19 @@ function GuruSayaContent() {
           </div>
         ))}
       </div>
-    </div>
+        </>
+      )}
+      </div>
+    </main>
   );
 }
 
 export default function GuruSayaPage() {
   return (
     <RequireAuth>
-      <GuruSayaContent />
+      <Suspense fallback={null}>
+        <GuruSayaContent />
+      </Suspense>
     </RequireAuth>
   );
 }
