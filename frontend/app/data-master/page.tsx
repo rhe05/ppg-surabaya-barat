@@ -11,7 +11,7 @@
    app/santri-saya). */
 
 import { useRouter } from 'next/navigation';
-import { CalendarDays, GraduationCap, Users } from 'lucide-react';
+import { CalendarDays, GraduationCap, Repeat2, Users } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 
@@ -31,6 +31,14 @@ const KARTU = [
     ikon: Users,
     warna: 'text-indigo',
     bg: 'bg-[rgba(79,70,229,0.12)]',
+  },
+  {
+    href: '/siklus-generus',
+    label: 'Siklus Generus',
+    deskripsi: 'Catat perpindahan generus: kerja, kuliah, pindah, mondok, tugas',
+    ikon: Repeat2,
+    warna: 'text-teal',
+    bg: 'bg-[rgba(13,148,136,0.12)]',
   },
   {
     href: '/kelas',

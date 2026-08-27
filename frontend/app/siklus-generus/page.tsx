@@ -15,6 +15,8 @@ import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { useIsMobile } from '@/lib/useIsMobile';
+import SiklusGenerusMobile from '@/components/dashboard/SiklusGenerusMobile';
 
 /* Harus cocok persis dgn enum siklus_generus_jenis. */
 const JENIS = ['Kerja', 'Kuliah', 'Pindah', 'Mondok', 'Tugas', 'Tidak Aktif'];
@@ -47,7 +49,20 @@ const KELAS_TOMBOL_SEKUNDER =
 
 const hariIni = () => new Date().toISOString().slice(0, 10);
 
+/* Cabang mobile admin_kelompok (2026-08-27) -- pola SAMA app/santri/
+   page.tsx: tabel desktop di bawah tidak cocok di layar sempit, jadi
+   admin_kelompok di HP melihat SiklusGenerusMobile.tsx (kartu, gaya Data
+   Master). Peran/perangkat lain TIDAK berubah. Wrapper tipis ini WAJIB
+   cuma memanggil useAuth+useIsMobile sebelum bercabang -- SiklusDesktop
+   di bawah punya banyak hook sendiri (Rules of Hooks). */
 function SiklusContent() {
+  const { profile } = useAuth();
+  const isMobile = useIsMobile();
+  if (profile?.role === 'admin_kelompok' && isMobile) return <SiklusGenerusMobile />;
+  return <SiklusDesktop />;
+}
+
+function SiklusDesktop() {
   const { profile } = useAuth();
   const bolehTulis = PERAN_TULIS.includes(profile?.role ?? '');
 
