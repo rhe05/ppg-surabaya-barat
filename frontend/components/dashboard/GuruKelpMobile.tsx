@@ -23,7 +23,7 @@
    Guru" -> /riwayat-guru, daftar riwayat_guru kelompok ini. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { MoreVertical, UserPlus, UserX } from 'lucide-react';
+import { UserPlus, UserX } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import GuruForm, { KOLOM_GURU, hitungDurasi, type GuruRow } from '@/components/guru/GuruForm';
@@ -289,11 +289,11 @@ export default function GuruKelpMobile() {
           <div className="relative shrink-0">
             <button
               type="button"
-              aria-label="Menu Aksi Guru"
+              aria-label="Aksi Guru"
               onClick={() => setMenuTerbuka((v) => !v)}
               className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-brass text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.92]"
             >
-              <MoreVertical size={19} strokeWidth={2} />
+              <UserPlus size={19} strokeWidth={2} />
             </button>
             <MenuAksiGuru
               terbuka={menuTerbuka}
