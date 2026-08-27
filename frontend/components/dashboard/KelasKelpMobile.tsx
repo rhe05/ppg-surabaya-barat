@@ -11,8 +11,8 @@
    PERSIS logikanya dgn app/kelas/page.tsx (query & RPC identik, cuma
    kartu vertikal bukan grid checkbox desktop). */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CalendarPlus, ChevronDown, MoreVertical, Users } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { CalendarPlus, MoreVertical, Users, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -96,7 +96,6 @@ export default function KelasKelpMobile() {
   /* Penempatan Santri massal */
   const [penempatanTerbuka, setPenempatanTerbuka] = useState(false);
   const [menuTerbuka, setMenuTerbuka] = useState(false);
-  const penempatanRef = useRef<HTMLDivElement>(null);
   const [terpilih, setTerpilih] = useState<Set<number>>(new Set());
   const [kelasTujuan, setKelasTujuan] = useState('');
   const [saringPenempatan, setSaringPenempatan] = useState<'belum' | 'semua'>('belum');
@@ -190,6 +189,7 @@ export default function KelasKelpMobile() {
       const { error: err } = await supabase.from('santri').update({ kelas_id: tujuan }).in('id', [...terpilih]);
       if (err) throw new Error(err.message);
       const jumlah = terpilih.size;
+      setPenempatanTerbuka(false);
       await muat();
       setPesan(
         tujuan
@@ -209,11 +209,8 @@ export default function KelasKelpMobile() {
     setFormTerbuka(true);
   }
   function bukaPenempatan() {
+    setTerpilih(new Set());
     setPenempatanTerbuka(true);
-    setTimeout(
-      () => penempatanRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-      60,
-    );
   }
   function bukaUbah(k: KelasRow) {
     setKelasDiubah(k);
@@ -326,116 +323,6 @@ export default function KelasKelpMobile() {
           })}
         </div>
 
-        {!loading && kelasList.length > 0 && (
-          <div
-            ref={penempatanRef}
-            className="mt-4 scroll-mt-4 rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-          >
-            <button
-              type="button"
-              onClick={() => setPenempatanTerbuka((v) => !v)}
-              className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent p-4 text-left"
-            >
-              <span className="min-w-0">
-                <span className="flex items-center gap-2 text-[13px] font-bold text-text">
-                  Penempatan Santri
-                  {belumDitempatkan > 0 && (
-                    <span className="flex h-[20px] min-w-[20px] items-center justify-center rounded-full bg-[#FEF3C7] px-[6px] text-[11px] font-bold text-[#92400E]">
-                      {belumDitempatkan}
-                    </span>
-                  )}
-                </span>
-                <span className="mt-0.5 block text-[11px] text-text-faint">
-                  {belumDitempatkan} dari {santriList.length} santri belum punya kelas
-                </span>
-              </span>
-              <ChevronDown
-                size={16}
-                className={`shrink-0 text-text-faint transition-transform duration-200 ${penempatanTerbuka ? 'rotate-180' : ''}`}
-              />
-            </button>
-
-            {penempatanTerbuka && (
-              <div className="border-t border-border p-4 pt-3.5">
-                <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div>
-                    <label className={KELAS_LABEL}>Tampilkan</label>
-                    <select
-                      className={KELAS_INPUT}
-                      value={saringPenempatan}
-                      onChange={(e) => setSaringPenempatan(e.target.value as 'belum' | 'semua')}
-                    >
-                      <option value="belum">Belum punya kelas</option>
-                      <option value="semua">Semua santri</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className={KELAS_LABEL}>Tempatkan ke</label>
-                    <select className={KELAS_INPUT} value={kelasTujuan} onChange={(e) => setKelasTujuan(e.target.value)}>
-                      <option value="">-- Keluarkan dari kelas --</option>
-                      {kelasList.map((k) => (
-                        <option key={k.id} value={k.id}>
-                          {k.nama}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {santriTampilPenempatan.length === 0 ? (
-                  <p className="text-[12.5px] text-sage">Semua santri sudah punya kelas.</p>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setTerpilih((s) =>
-                          s.size === santriTampilPenempatan.length
-                            ? new Set()
-                            : new Set(santriTampilPenempatan.map((x) => x.id)),
-                        )
-                      }
-                      className="mb-2.5 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-1.5 text-[12px] font-semibold text-text active:scale-[0.97]"
-                    >
-                      {terpilih.size === santriTampilPenempatan.length ? 'Batalkan semua' : 'Pilih semua yang tampil'}
-                    </button>
-                    <div className="mb-3 max-h-[300px] overflow-y-auto rounded-[var(--radius)] border border-border">
-                      {santriTampilPenempatan.map((s) => (
-                        <label
-                          key={s.id}
-                          className="flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2.5 text-[13px] text-text last:border-b-0 active:bg-panel-2"
-                        >
-                          <input
-                            type="checkbox"
-                            checked={terpilih.has(s.id)}
-                            onChange={() => toggleTerpilih(s.id)}
-                            className="shrink-0"
-                          />
-                          <span className="min-w-0 flex-1 truncate">
-                            {s.nama}
-                            {s.nis ? <span className="ml-2 text-[11px] text-text-faint">{s.nis}</span> : null}
-                          </span>
-                          <span className="shrink-0 text-[11px] text-text-dim">
-                            {s.kelas_id != null ? (kelasList.find((k) => k.id === s.kelas_id)?.nama ?? '-') : 'belum ada kelas'}
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                <button
-                  type="button"
-                  onClick={tempatkan}
-                  disabled={terpilih.size === 0 || sibukPenempatan}
-                  className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
-                >
-                  {sibukPenempatan ? 'Menerapkan...' : `Terapkan ke ${terpilih.size} santri`}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {formTerbuka && (
@@ -446,6 +333,119 @@ export default function KelasKelpMobile() {
           onBatal={() => setFormTerbuka(false)}
           onSimpan={simpanKelas}
         />
+      )}
+
+      {penempatanTerbuka && (
+        <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+          <div className="flex max-h-[90vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
+            <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+              <div className="min-w-0">
+                <h2 className="text-[17px] font-extrabold text-text">Penempatan Santri</h2>
+                <p className="mt-0.5 text-[11.5px] text-text-dim">
+                  {belumDitempatkan} dari {santriList.length} santri belum punya kelas
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPenempatanTerbuka(false)}
+                aria-label="Tutup"
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className={KELAS_LABEL}>Tampilkan</label>
+                  <select
+                    className={KELAS_INPUT}
+                    value={saringPenempatan}
+                    onChange={(e) => setSaringPenempatan(e.target.value as 'belum' | 'semua')}
+                  >
+                    <option value="belum">Belum punya kelas</option>
+                    <option value="semua">Semua santri</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={KELAS_LABEL}>Tempatkan ke</label>
+                  <select
+                    className={KELAS_INPUT}
+                    value={kelasTujuan}
+                    onChange={(e) => setKelasTujuan(e.target.value)}
+                  >
+                    <option value="">-- Keluarkan dari kelas --</option>
+                    {kelasList.map((k) => (
+                      <option key={k.id} value={k.id}>
+                        {k.nama}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {santriTampilPenempatan.length === 0 ? (
+                <p className="text-[12.5px] text-sage">Semua santri sudah punya kelas.</p>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setTerpilih((s) =>
+                        s.size === santriTampilPenempatan.length
+                          ? new Set()
+                          : new Set(santriTampilPenempatan.map((x) => x.id)),
+                      )
+                    }
+                    className="mb-2.5 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-1.5 text-[12px] font-semibold text-text active:scale-[0.97]"
+                  >
+                    {terpilih.size === santriTampilPenempatan.length
+                      ? 'Batalkan semua'
+                      : 'Pilih semua yang tampil'}
+                  </button>
+                  <div className="rounded-[var(--radius)] border border-border">
+                    {santriTampilPenempatan.map((s) => (
+                      <label
+                        key={s.id}
+                        className="flex cursor-pointer items-center gap-3 border-b border-border px-3 py-2.5 text-[13px] text-text last:border-b-0 active:bg-panel-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={terpilih.has(s.id)}
+                          onChange={() => toggleTerpilih(s.id)}
+                          className="shrink-0"
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {s.nama}
+                          {s.nis ? (
+                            <span className="ml-2 text-[11px] text-text-faint">{s.nis}</span>
+                          ) : null}
+                        </span>
+                        <span className="shrink-0 text-[11px] text-text-dim">
+                          {s.kelas_id != null
+                            ? (kelasList.find((k) => k.id === s.kelas_id)?.nama ?? '-')
+                            : 'belum ada kelas'}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-border px-5 py-4">
+              <button
+                type="button"
+                onClick={tempatkan}
+                disabled={terpilih.size === 0 || sibukPenempatan}
+                className="w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
+              >
+                {sibukPenempatan ? 'Menerapkan...' : `Terapkan ke ${terpilih.size} santri`}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );
