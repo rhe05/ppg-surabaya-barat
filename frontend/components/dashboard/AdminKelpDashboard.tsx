@@ -1096,9 +1096,9 @@ export default function AdminKelpDashboard() {
                   type="button"
                   aria-label="Buka Statistik"
                   onClick={() => router.push('/statistik')}
-                  className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim active:scale-[0.92]"
+                  className="-mr-1 shrink-0 cursor-pointer border-none bg-transparent p-1 text-text-dim active:opacity-60"
                 >
-                  <MoreVertical size={15} />
+                  <MoreVertical size={17} />
                 </button>
               </div>
             </div>
