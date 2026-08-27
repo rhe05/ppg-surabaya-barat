@@ -21,6 +21,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  /* viewport-fit=cover -> env(safe-area-inset-*) terisi di HP berponi,
+     dipakai AdminBottomNav.tsx supaya bar bawah tidak ketutup gesture
+     bar / home indicator. */
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
