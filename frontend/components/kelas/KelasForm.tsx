@@ -19,6 +19,8 @@ export type KelasRow = {
   nama: string;
   kategori_kbm_id: number;
   guru_id: number | null;
+  guru_id_2: number | null;
+  pola_gilir_guru: string | null;
   jam_mulai: string;
   jam_selesai: string;
   ruangan: string;
@@ -29,7 +31,7 @@ export type KelasRow = {
 };
 
 export const KOLOM_KELAS =
-  'id, kelompok_id, nama, kategori_kbm_id, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status, hari_ngaji';
+  'id, kelompok_id, nama, kategori_kbm_id, guru_id, guru_id_2, pola_gilir_guru, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status, hari_ngaji';
 
 export const STATUS_KELAS = ['aktif', 'tidak_aktif'];
 
@@ -84,6 +86,8 @@ export default function KelasForm({
   const [nama, setNama] = useState(awal?.nama ?? '');
   const [kategoriId, setKategoriId] = useState(awal ? String(awal.kategori_kbm_id) : '');
   const [guruId, setGuruId] = useState(awal?.guru_id != null ? String(awal.guru_id) : '');
+  const [guruId2, setGuruId2] = useState(awal?.guru_id_2 != null ? String(awal.guru_id_2) : '');
+  const [polaGilir, setPolaGilir] = useState(awal?.pola_gilir_guru ?? '');
   const [mulai, setMulai] = useState(keJam(awal?.jam_mulai ?? null) || '15:45');
   const [selesai, setSelesai] = useState(keJam(awal?.jam_selesai ?? null) || '16:30');
   const [ruangan, setRuangan] = useState(awal?.ruangan ?? '');
@@ -107,6 +111,8 @@ export default function KelasForm({
        biasa <-> Ketua Muda-i) -- guru_id lama dikosongkan supaya tidak
        diam-diam ikut tersimpan sbg kategori yang salah. */
     setGuruId('');
+    setGuruId2('');
+    setPolaGilir('');
   }
 
   function toggleHari(hari: string) {
@@ -121,6 +127,8 @@ export default function KelasForm({
     if (!mulai || !selesai) return setError('Jam mulai dan selesai wajib diisi.');
     if (!ruangan.trim()) return setError('Ruangan wajib diisi.');
     if (isRemajaPraNikah && hariNgaji.length === 0) return setError('Pilih minimal satu hari ngaji.');
+    if (!isRemajaPraNikah && guruId2 && guruId2 === guruId)
+      return setError('Guru Pengampu 2 tidak boleh sama dengan Guru Pengampu.');
 
     setMenyimpan(true);
     try {
@@ -128,6 +136,8 @@ export default function KelasForm({
         nama: nama.trim(),
         kategori_kbm_id: Number(kategoriId),
         guru_id: guruId ? Number(guruId) : null,
+        guru_id_2: !isRemajaPraNikah && guruId2 ? Number(guruId2) : null,
+        pola_gilir_guru: !isRemajaPraNikah && guruId2 ? polaGilir.trim() || null : null,
         jam_mulai: mulai,
         jam_selesai: selesai,
         ruangan: ruangan.trim(),
@@ -192,17 +202,50 @@ export default function KelasForm({
               )}
             </div>
           ) : (
-            <div>
-              <label className={KELAS_LABEL}>Guru Pengampu</label>
-              <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
-                <option value="">-- Belum ditentukan --</option>
-                {guruList.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.nama}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div>
+                <label className={KELAS_LABEL}>Guru Pengampu</label>
+                <select className={KELAS_INPUT} value={guruId} onChange={(e) => setGuruId(e.target.value)}>
+                  <option value="">-- Belum ditentukan --</option>
+                  {guruList.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.nama}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className={KELAS_LABEL}>Guru Pengampu 2 (gilir)</label>
+                <select
+                  className={KELAS_INPUT}
+                  value={guruId2}
+                  onChange={(e) => setGuruId2(e.target.value)}
+                >
+                  <option value="">-- Tidak ada (satu guru saja) --</option>
+                  {guruList
+                    .filter((g) => String(g.id) !== guruId)
+                    .map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.nama}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              {guruId2 && (
+                <div className="sm:col-span-2">
+                  <label className={KELAS_LABEL}>Pola Gilir</label>
+                  <input
+                    className={KELAS_INPUT}
+                    value={polaGilir}
+                    onChange={(e) => setPolaGilir(e.target.value)}
+                    placeholder="Misal: Gilir tiap 2 minggu"
+                  />
+                  <p className="mt-1 text-[11px] text-text-faint">
+                    Sekadar catatan -- sistem tidak menghitung otomatis siapa yang giliran minggu ini.
+                  </p>
+                </div>
+              )}
+            </>
           )}
           <div>
             <label className={KELAS_LABEL}>Ruangan *</label>

@@ -303,7 +303,9 @@ function KelasContent() {
                       <td className="border-b border-border px-3 py-3 text-text">
                         {namaKategori(k.kategori_kbm_id) === KATEGORI_REMAJA_PRA_NIKAH
                           ? `${k.hari_ngaji?.join(', ') ?? '-'} · Ketua: ${namaGuru(k.guru_id) === '—' ? 'belum ditentukan' : namaGuru(k.guru_id)}`
-                          : namaGuru(k.guru_id)}
+                          : k.guru_id_2 != null
+                            ? `${namaGuru(k.guru_id)} & ${namaGuru(k.guru_id_2)}${k.pola_gilir_guru ? ` (${k.pola_gilir_guru})` : ''}`
+                            : namaGuru(k.guru_id)}
                       </td>
                       <td className="border-b border-border px-3 py-3 text-text">
                         {jumlahSantriKelas.get(k.id) ?? 0}

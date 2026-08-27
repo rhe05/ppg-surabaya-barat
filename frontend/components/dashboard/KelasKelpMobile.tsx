@@ -285,6 +285,7 @@ export default function KelasKelpMobile() {
         <div className="flex flex-col gap-2.5">
           {kelasTersaring.map((k) => {
             const guru = namaGuru(k.guru_id);
+            const guru2 = namaGuru(k.guru_id_2);
             const remajaPraNikah = namaKategori(k.kategori_kbm_id) === KATEGORI_REMAJA_PRA_NIKAH;
             return (
               <button
@@ -306,12 +307,17 @@ export default function KelasKelpMobile() {
                         {' · Ketua Muda-i: '}
                         {guru ?? 'belum ditentukan'}
                       </span>
-                    ) : guru ? (
-                      <span className="text-sage">{guru}</span>
+                    ) : guru || guru2 ? (
+                      <span className="text-sage">
+                        {[guru, guru2].filter(Boolean).join(' & ')}
+                      </span>
                     ) : (
                       <span className="text-brass">Belum ada guru pengampu</span>
                     )}
                   </div>
+                  {!remajaPraNikah && guru2 && k.pola_gilir_guru && (
+                    <div className="mt-0.5 text-[11px] text-text-dim">Gilir: {k.pola_gilir_guru}</div>
+                  )}
                 </div>
                 {k.status !== 'aktif' && (
                   <span className="shrink-0 rounded-full bg-panel-2 px-2.5 py-1 text-[10.5px] font-bold text-text-dim">
