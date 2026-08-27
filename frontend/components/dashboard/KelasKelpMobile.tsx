@@ -11,8 +11,8 @@
    PERSIS logikanya dgn app/kelas/page.tsx (query & RPC identik, cuma
    kartu vertikal bukan grid checkbox desktop). */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, ChevronDown } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { CalendarPlus, ChevronDown, MoreVertical, Users } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -30,6 +30,52 @@ const KELAS_INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+/* Popup aksi di bawah tombol kanan-atas (pola SAMA MenuAksiGuru di
+   GuruKelpMobile.tsx) -- 2026-08-27, owner minta "Penempatan Santri" jg
+   bisa dibuka dari sini, tidak cuma Tambah Kelas. */
+function MenuAksiKelas({
+  terbuka,
+  onTutup,
+  onTambah,
+  onPenempatan,
+}: {
+  terbuka: boolean;
+  onTutup: () => void;
+  onTambah: () => void;
+  onPenempatan: () => void;
+}) {
+  if (!terbuka) return null;
+  return (
+    <>
+      <div className="fixed inset-0 z-[90]" onClick={onTutup} />
+      <div className="absolute top-full right-0 z-[91] mt-2 flex w-[210px] flex-col gap-0.5 rounded-[var(--radius-lg)] border border-border bg-panel p-2 shadow-[0_12px_32px_rgba(0,0,0,0.18)]">
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onTambah();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <CalendarPlus size={18} strokeWidth={2} className="shrink-0 text-brass" />
+          <span>Tambah Kelas</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onPenempatan();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <Users size={18} strokeWidth={2} className="shrink-0 text-indigo" />
+          <span>Penempatan Santri</span>
+        </button>
+      </div>
+    </>
+  );
+}
 
 export default function KelasKelpMobile() {
   const { profile } = useAuth();
@@ -49,6 +95,8 @@ export default function KelasKelpMobile() {
 
   /* Penempatan Santri massal */
   const [penempatanTerbuka, setPenempatanTerbuka] = useState(false);
+  const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const penempatanRef = useRef<HTMLDivElement>(null);
   const [terpilih, setTerpilih] = useState<Set<number>>(new Set());
   const [kelasTujuan, setKelasTujuan] = useState('');
   const [saringPenempatan, setSaringPenempatan] = useState<'belum' | 'semua'>('belum');
@@ -160,6 +208,13 @@ export default function KelasKelpMobile() {
     setKelasDiubah(null);
     setFormTerbuka(true);
   }
+  function bukaPenempatan() {
+    setPenempatanTerbuka(true);
+    setTimeout(
+      () => penempatanRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      60,
+    );
+  }
   function bukaUbah(k: KelasRow) {
     setKelasDiubah(k);
     setFormTerbuka(true);
@@ -196,14 +251,22 @@ export default function KelasKelpMobile() {
 
         <div className="mb-4 flex items-center justify-between gap-3">
           <div className="text-[17px] font-extrabold text-text">Data Kelas ({kelasList.length})</div>
-          <button
-            type="button"
-            aria-label="Tambah Kelas"
-            onClick={bukaTambah}
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-brass text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.92]"
-          >
-            <CalendarPlus size={19} strokeWidth={2} />
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              aria-label="Aksi Kelas"
+              onClick={() => setMenuTerbuka((v) => !v)}
+              className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-brass text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.92]"
+            >
+              <MoreVertical size={19} strokeWidth={2} />
+            </button>
+            <MenuAksiKelas
+              terbuka={menuTerbuka}
+              onTutup={() => setMenuTerbuka(false)}
+              onTambah={bukaTambah}
+              onPenempatan={bukaPenempatan}
+            />
+          </div>
         </div>
 
         <input
@@ -264,7 +327,10 @@ export default function KelasKelpMobile() {
         </div>
 
         {!loading && kelasList.length > 0 && (
-          <div className="mt-4 rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          <div
+            ref={penempatanRef}
+            className="mt-4 scroll-mt-4 rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+          >
             <button
               type="button"
               onClick={() => setPenempatanTerbuka((v) => !v)}
