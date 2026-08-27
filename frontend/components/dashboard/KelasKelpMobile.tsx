@@ -296,7 +296,7 @@ export default function KelasKelpMobile() {
               >
                 <div className="min-w-0">
                   <div className="truncate text-[14px] font-bold text-text">{k.nama}</div>
-                  <div className="mt-0.5 text-[11.5px] text-text-faint">
+                  <div className="mt-0.5 text-[11.5px] text-text-dim">
                     {namaKategori(k.kategori_kbm_id)} · {k.ruangan} · {k.jam_mulai?.slice(0, 5)}–
                     {k.jam_selesai?.slice(0, 5)}
                   </div>

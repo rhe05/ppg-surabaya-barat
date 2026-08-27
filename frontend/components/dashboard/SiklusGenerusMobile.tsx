@@ -197,7 +197,7 @@ export default function SiklusGenerusMobile() {
               >
                 <div className="min-w-0">
                   <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
-                  <div className="mt-0.5 text-[11.5px] text-text-faint">
+                  <div className="mt-0.5 text-[11.5px] text-text-dim">
                     {formatTanggal(s.tanggal)}
                     {sub ? ` · ${sub}` : ''}
                   </div>

@@ -21,6 +21,32 @@
   --radius: 8px;
   --radius-lg: 14px;
   --radius-button: 999px;
+
+  /* ── SKALA TIPOGRAFI (2026-08-27, titik 2 polish SaaS) ──────────────
+     Sebelumnya tiap layar pakai text-[11px]/[11.5px]/[12.5px]/[13.5px]
+     campur aduk. Patokan baru: 6 ukuran saja. Body MINIMAL 13px (di
+     bawah itu tidak terbaca nyaman di HP). Pakai lewat nilai arbitrer
+     Tailwind yang cocok dgn angka di bawah, JANGAN bikin angka lain.
+       --fs-label  : 11px  -> label UPPERCASE mini / meta (hemat pemakaian)
+       --fs-cap    : 12px  -> caption, teks pembantu
+       --fs-body   : 13px  -> teks tubuh standar (MINIMUM)
+       --fs-body-lg: 15px  -> teks tubuh penting / nama di kartu
+       --fs-title  : 17px  -> judul seksi / heading kartu besar
+       --fs-metric : 24px  -> angka besar (KPI hero)
+     SPACING: kelipatan 4. Jarak antar-kartu = gap-3 (12px). Padding
+     kartu = p-4 (16px). Padding kontainer halaman = px-[18px].
+     WARNA: --brass = aksi/aksen utama. --sage/--brand-green = positif.
+     --red = bahaya/negatif. --volt = peringatan. --indigo/--teal =
+     IDENTITAS kategori saja (jangan dipakai sbg status). Netral
+     (--text/--text-dim/--text-faint) utk selain itu. --text-faint
+     HANYA utk hint paling lemah ("—", placeholder) -- subteks kartu
+     pakai --text-dim biar terbaca. */
+  --fs-label: 11px;
+  --fs-cap: 12px;
+  --fs-body: 13px;
+  --fs-body-lg: 15px;
+  --fs-title: 17px;
+  --fs-metric: 24px;
   --shadow-card: 0 2px 12px rgba(15, 23, 42, 0.08);
   --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.06);
   --topbar-height: 56px;

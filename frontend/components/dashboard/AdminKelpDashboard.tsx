@@ -865,7 +865,7 @@ export default function AdminKelpDashboard() {
                     className={`shrink-0 text-text-faint transition-transform duration-200 ${detailKelasTerbuka ? 'rotate-180' : ''}`}
                   />
                 </div>
-                <div className="mt-0.5 text-[11px] text-text-faint">
+                <div className="mt-0.5 text-[11px] text-text-dim">
                   {NAMA_BULAN[bulan - 1]} {tahun} · {persenKelasSelesai}% kelas terisi
                 </div>
               </div>
@@ -983,10 +983,10 @@ export default function AdminKelpDashboard() {
                             <span className="text-[16px] leading-none font-extrabold text-white tabular-nums">
                               {k.hariAktif}
                             </span>
-                            <span className="mt-px text-[9.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                            <span className="mt-px text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
                               Hari
                             </span>
-                            <span className="text-[9.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                            <span className="text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
                               Aktif
                             </span>
                           </div>
@@ -1003,13 +1003,13 @@ export default function AdminKelpDashboard() {
                                 </span>
                                 {persen !== null && (
                                   <span
-                                    className="rounded-full px-[6px] py-0.5 text-[9.5px] leading-none font-bold tabular-nums"
+                                    className="rounded-full px-[6px] py-0.5 text-[10.5px] leading-none font-bold tabular-nums"
                                     style={{ background: st.pill, color: st.warna }}
                                   >
                                     {persen}%
                                   </span>
                                 )}
-                                <span className="mt-px text-center text-[9.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                                <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
                                   {st.label}
                                 </span>
                               </div>
@@ -1151,14 +1151,14 @@ export default function AdminKelpDashboard() {
                 TETAP hitam (text-text). */}
             <div className="grid grid-cols-4 gap-1.5">
               <div className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
-                <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                <div className="truncate text-[10.5px] font-bold tracking-[0.01em] text-text-dim uppercase">
                   Total
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-1">
                   <span className="text-[17px] leading-none font-extrabold tabular-nums text-brass">
                     {ringkasanGuru.total}
                   </span>
-                  <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                  <span className="flex shrink-0 flex-col items-end text-[10.5px] leading-tight font-bold text-text">
                     <span>L{ringkasanGuru.l}</span>
                     <span>P{ringkasanGuru.p}</span>
                   </span>
@@ -1168,14 +1168,14 @@ export default function AdminKelpDashboard() {
                 const hitung = ringkasanGuru[k.kunci];
                 return (
                   <div key={k.kunci} title={k.nama} className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
-                    <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                    <div className="truncate text-[10.5px] font-bold tracking-[0.01em] text-text-dim uppercase">
                       {k.label}
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-1">
                       <span className={`text-[17px] leading-none font-extrabold tabular-nums ${k.warna}`}>
                         {hitung.total}
                       </span>
-                      <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                      <span className="flex shrink-0 flex-col items-end text-[10.5px] leading-tight font-bold text-text">
                         <span>L{hitung.l}</span>
                         <span>P{hitung.p}</span>
                       </span>
@@ -1209,14 +1209,14 @@ export default function AdminKelpDashboard() {
                 jenjang yang lebih panjang ("Remaja SMA") masih terbaca. */}
             <div className="grid grid-cols-3 gap-1.5">
               <div className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
-                <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                <div className="truncate text-[10.5px] font-bold tracking-[0.01em] text-text-dim uppercase">
                   Total
                 </div>
                 <div className="mt-1 flex items-center justify-between gap-1">
                   <span className="text-[17px] leading-none font-extrabold tabular-nums text-brass">
                     {ringkasanSantri.total}
                   </span>
-                  <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                  <span className="flex shrink-0 flex-col items-end text-[10.5px] leading-tight font-bold text-text">
                     <span>L{ringkasanSantri.l}</span>
                     <span>P{ringkasanSantri.p}</span>
                   </span>
@@ -1226,14 +1226,14 @@ export default function AdminKelpDashboard() {
                 const hitung = ringkasanSantri.jenjang[j];
                 return (
                   <div key={j} title={j} className="rounded-[10px] bg-panel-2 px-2 pt-2.5 pb-2">
-                    <div className="truncate text-[8px] font-bold tracking-[0.01em] text-text-dim uppercase">
+                    <div className="truncate text-[10.5px] font-bold tracking-[0.01em] text-text-dim uppercase">
                       {j}
                     </div>
                     <div className="mt-1 flex items-center justify-between gap-1">
                       <span className="text-[17px] leading-none font-extrabold tabular-nums text-sage">
                         {hitung.total}
                       </span>
-                      <span className="flex shrink-0 flex-col items-end text-[8px] leading-tight font-bold text-text">
+                      <span className="flex shrink-0 flex-col items-end text-[10.5px] leading-tight font-bold text-text">
                         <span>L{hitung.l}</span>
                         <span>P{hitung.p}</span>
                       </span>

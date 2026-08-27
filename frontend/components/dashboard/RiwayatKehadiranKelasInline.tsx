@@ -155,7 +155,7 @@ export default function RiwayatKehadiranKelasInline({
                 >
                   {d.getDate()}
                   <span
-                    className={`mt-0.5 block text-[8.5px] font-semibold ${merah ? 'text-red' : 'text-text-dim'}`}
+                    className={`mt-0.5 block text-[10.5px] font-semibold ${merah ? 'text-red' : 'text-text-dim'}`}
                   >
                     {liburKelompok ? 'Libur' : HARI_PENDEK[d.getDay()]}
                   </span>

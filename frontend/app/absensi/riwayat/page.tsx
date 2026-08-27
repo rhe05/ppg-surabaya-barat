@@ -724,7 +724,7 @@ function RiwayatKehadiranContent() {
                       >
                         {d.getDate()}
                         <span
-                          className={`mt-0.5 block text-[9px] font-semibold ${tandaiMerah ? 'text-red' : 'text-text'}`}
+                          className={`mt-0.5 block text-[10.5px] font-semibold ${tandaiMerah ? 'text-red' : 'text-text'}`}
                         >
                           {liburKelompok ? 'Libur' : HARI_PENDEK[d.getDay()]}
                         </span>

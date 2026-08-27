@@ -168,7 +168,7 @@ export default function PeringkatKelpMobile() {
                   <div className="text-[16px] leading-none font-extrabold tabular-nums text-teal">
                     {b.poin}
                   </div>
-                  <div className="text-[9.5px] font-bold tracking-[0.04em] text-text-faint uppercase">
+                  <div className="text-[10.5px] font-bold tracking-[0.04em] text-text-dim uppercase">
                     Poin
                   </div>
                 </div>
