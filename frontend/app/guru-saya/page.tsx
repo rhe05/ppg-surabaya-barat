@@ -18,7 +18,7 @@
    - Permintaan akses hanya bisa diputus PEMILIK kelas, bukan pemohon. */
 
 import PesanGalat from '@/components/ui/PesanGalat';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
@@ -28,6 +28,7 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
 import { useToast } from '@/components/ui/useToast';
 import EmptyState from '@/components/ui/EmptyState';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { CalendarDays } from 'lucide-react';
 
 const JENIS_IZIN = [
@@ -80,6 +81,14 @@ const KELAS_TOMBOL_SEKUNDER =
 
 const hariIni = () => new Date().toISOString().slice(0, 10);
 
+/* 'YYYY-MM-DD' -> "28 Agu 2026", utk tombol pemicu TanggalPicker. */
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function fmtTgl(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${BULAN_SINGKAT[m - 1] ?? m} ${y}`;
+}
+
 function GuruSayaContent() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
@@ -112,6 +121,27 @@ function GuruSayaContent() {
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const { konfirmasi, dialog } = useKonfirmasi();
+
+  /* Kalender kustom (TanggalPicker) menggantikan <input type="date">
+     bawaan browser -- diminta owner 2026-08-28, samakan dgn fitur lain
+     (Input Kehadiran, form Santri, Tabungan). SATU instance dipakai
+     bergantian utk 3 field; `tglAktif` menandai field mana yang sedang
+     dibuka. Aman krn view 'izin' dan 'akses' tidak pernah tampil
+     bersamaan (dipisah ?v=akses). */
+  const [tglAktif, setTglAktif] = useState<'mulai' | 'selesai' | 'minta' | null>(null);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refMulai = useRef<HTMLButtonElement>(null);
+  const refSelesai = useRef<HTMLButtonElement>(null);
+  const refMinta = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl(
+    field: 'mulai' | 'selesai' | 'minta',
+    ref: React.RefObject<HTMLButtonElement | null>,
+  ) {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglAktif(field);
+  }
   const { sukses } = useToast();
   /* Pesan sukses tampil sebagai toast melayang, bukan teks hijau kecil di
      tengah halaman yang mudah terlewat (2026-08-28). Dijembatani dari state
@@ -318,6 +348,25 @@ function GuruSayaContent() {
   return (
     <main className="relative flex min-h-screen flex-col bg-bg">
       {dialog}
+      <TanggalPicker
+        terbuka={tglAktif !== null}
+        posisi={posTgl}
+        nilai={tglAktif === 'mulai' ? mulai : tglAktif === 'selesai' ? selesai : tanggalMinta}
+        onPilih={(v) => {
+          if (tglAktif === 'mulai') {
+            setMulai(v);
+            /* Aturan lama dipertahankan: memundurkan tanggal mulai melewati
+               tanggal selesai ikut menggeser selesainya, supaya rentangnya
+               tidak pernah terbalik (ditolak serverSubmitGuruIzin). */
+            if (selesai < v) setSelesai(v);
+          } else if (tglAktif === 'selesai') {
+            setSelesai(v);
+          } else {
+            setTanggalMinta(v);
+          }
+        }}
+        onTutup={() => setTglAktif(null)}
+      />
       <JurnalHeaderChrome tampilkanHero={false} />
       <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-10">
       <h1 className="mb-2 text-[20px] font-extrabold text-text">{judul}</h1>
@@ -361,24 +410,27 @@ function GuruSayaContent() {
           </div>
           <div>
             <label className={KELAS_LABEL}>Tanggal Mulai</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={mulai}
-              onChange={(e) => {
-                setMulai(e.target.value);
-                if (selesai < e.target.value) setSelesai(e.target.value);
-              }}
-            />
+            <button
+              type="button"
+              ref={refMulai}
+              onClick={() => bukaTgl('mulai', refMulai)}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left`}
+            >
+              {fmtTgl(mulai)}
+              <CalendarDays size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           <div>
             <label className={KELAS_LABEL}>Tanggal Selesai</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={selesai}
-              onChange={(e) => setSelesai(e.target.value)}
-            />
+            <button
+              type="button"
+              ref={refSelesai}
+              onClick={() => bukaTgl('selesai', refSelesai)}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left`}
+            >
+              {fmtTgl(selesai)}
+              <CalendarDays size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           {alasan === 'lainnya' && (
             <div className="sm:col-span-2">
@@ -455,12 +507,15 @@ function GuruSayaContent() {
           </div>
           <div>
             <label className={KELAS_LABEL}>Tanggal</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={tanggalMinta}
-              onChange={(e) => setTanggalMinta(e.target.value)}
-            />
+            <button
+              type="button"
+              ref={refMinta}
+              onClick={() => bukaTgl('minta', refMinta)}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left`}
+            >
+              {fmtTgl(tanggalMinta)}
+              <CalendarDays size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           <div className="sm:col-span-2">
             <label className={KELAS_LABEL}>Keterangan</label>
