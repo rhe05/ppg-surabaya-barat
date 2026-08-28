@@ -514,11 +514,10 @@ function RiwayatKehadiranContent() {
           (nama, peran, kelompok) + padding/ukuran ikon yang sama —
           cuma kalender pemicunya tetap punya Minggu (Riwayat) sedangkan
           Dashboard tidak. */}
-      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
-        {/* .ia-topbar — :4867-4901 */}
-        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          {/* Hamburger dihapus 2026-08-28 — navigasi guru pindah ke
-              GuruBottomNav (RequireAuth.tsx). */}
+      {/* .ia-topbar DIKUNCI sticky & dipisah dari hero hijau (2026-08-28,
+          diminta owner) -- alasan lengkap di JurnalHeaderChrome.tsx.
+          Hamburger dihapus 2026-08-28: navigasi pindah ke GuruBottomNav. */}
+      <div className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-border bg-panel px-[18px] pt-3.5 pb-3 shadow-[var(--shadow-subtle)]">
           {/* .ia-app-brand — :4875-4895 */}
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image
@@ -555,8 +554,9 @@ function RiwayatKehadiranContent() {
               </svg>
             </button>
           </div>
-        </div>
+      </div>
 
+      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-header-hero — :4903-4910 */}
         <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
           {/* .ia-greeting — :5026-5044 */}

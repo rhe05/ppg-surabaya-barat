@@ -279,33 +279,35 @@ export default function GuruDashboard() {
        TarikUntukSegarkan.tsx. */
     <TarikUntukSegarkan onSegarkan={load}>
     <main className="relative flex min-h-screen flex-col bg-bg">
-      {/* .ia-header — Style_Main.html:4859-4865 */}
-      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
-        {/* .ia-topbar — :4867-4901. Hamburger DIHAPUS 2026-08-28: navigasi
-            guru pindah ke bottom tab bar (GuruBottomNav, dirender di
-            RequireAuth) -- dua sistem navigasi sekaligus justru bikin
-            bingung, pola yang sama sudah ditempuh admin 27 Agt. */}
-        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          {/* .ia-app-brand — :4875-4895 */}
-          <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
-            <Image
-              src="/logo-ruang-ngaji.png"
-              alt="Ruang Ngaji"
-              width={20}
-              height={18}
-              className="block shrink-0"
-            />
-            <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
-              Ruang Ngaji
-            </span>
-          </div>
-
-          {/* .ia-icon-btn — :5046-5064 */}
-          <div className="flex shrink-0 gap-2">
-            <BellPermintaanGuru />
-          </div>
+      {/* .ia-topbar — :4867-4901. Hamburger DIHAPUS 2026-08-28 (navigasi
+          pindah ke GuruBottomNav). DIKUNCI sticky & DIPISAH dari hero
+          hijau (2026-08-28) -- alasan lengkap di JurnalHeaderChrome.tsx:
+          mengunci hero sekalian akan memakan sepertiga layar, dan sticky
+          tidak pernah menempel dari dalam pembungkus ber-overflow-hidden
+          yang dipakai hero utk sudut membulatnya. */}
+      <div className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-border bg-panel px-[18px] pt-3.5 pb-3 shadow-[var(--shadow-subtle)]">
+        {/* .ia-app-brand — :4875-4895 */}
+        <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
+          <Image
+            src="/logo-ruang-ngaji.png"
+            alt="Ruang Ngaji"
+            width={20}
+            height={18}
+            className="block shrink-0"
+          />
+          <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+            Ruang Ngaji
+          </span>
         </div>
 
+        {/* .ia-icon-btn — :5046-5064 */}
+        <div className="flex shrink-0 gap-2">
+          <BellPermintaanGuru />
+        </div>
+      </div>
+
+      {/* .ia-header — Style_Main.html:4859-4865 */}
+      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-header-hero — :4903-4910 */}
         <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
           {/* .ia-greeting — :5026-5044 */}

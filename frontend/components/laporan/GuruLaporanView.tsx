@@ -358,8 +358,9 @@ export default function GuruLaporanView() {
       {/* .ia-header — pola sama persis dgn GuruDashboard.tsx, termasuk
           greeting 3-baris (nama, peran, kelompok). Hamburger dihapus
           2026-08-28 (navigasi pindah ke GuruBottomNav). */}
-      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
-        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
+      {/* Top bar DIKUNCI sticky & dipisah dari hero (2026-08-28, diminta
+          owner) -- alasan lengkap di JurnalHeaderChrome.tsx. */}
+      <div className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-border bg-panel px-[18px] pt-3.5 pb-3 shadow-[var(--shadow-subtle)] print:hidden">
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
             <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
@@ -378,8 +379,9 @@ export default function GuruLaporanView() {
               </svg>
             </button>
           </div>
-        </div>
+      </div>
 
+      <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-header-hero-right — ikon kalender FUNGSIONAL + caption Bulan
             Tahun di bawahnya, persis GuruDashboard.tsx/riwayat/page.tsx
             (diminta owner). Pil tanggal-hari-ini terpisah yang dulu ada di

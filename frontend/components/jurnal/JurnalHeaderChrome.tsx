@@ -41,20 +41,33 @@ export default function JurnalHeaderChrome({ tampilkanHero = true }: { tampilkan
 
   return (
     <>
-      <div className={`shrink-0 bg-panel ${tampilkanHero ? 'overflow-hidden rounded-b-3xl shadow-[0_6px_20px_rgba(5,150,105,0.22)]' : 'border-b border-border shadow-[var(--shadow-subtle)]'}`}>
-        <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
-            <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
-            <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
-              Ruang Ngaji
-            </span>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <BellPermintaanGuru />
-          </div>
-        </div>
+      {/* Top bar DIKUNCI (sticky) -- diminta owner 2026-08-28: menggulir
+          ke bawah tidak lagi membawanya hilang.
 
-        {tampilkanHero && (
+          Ia sengaja DIPISAH dari hero hijau, bukan dibuat sticky
+          bersama-sama: hero memuat nama+peran+kelompok setinggi ~90px,
+          dan mengunci keduanya akan memakan sepertiga layar HP terus
+          menerus. Yang perlu selalu terjangkau cuma identitas app +
+          lonceng notifikasi.
+
+          Pemisahan ini juga yang membuat sticky-nya bekerja: sebelumnya
+          top bar berada di dalam pembungkus ber-`overflow-hidden` (demi
+          sudut membulat hero), dan `position: sticky` tidak pernah
+          menempel di dalam ancestor semacam itu. */}
+      <div className="sticky top-0 z-30 flex items-center gap-2.5 border-b border-border bg-panel px-[18px] pt-3.5 pb-3 shadow-[var(--shadow-subtle)]">
+        <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
+          <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
+          <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+            Ruang Ngaji
+          </span>
+        </div>
+        <div className="flex shrink-0 gap-2">
+          <BellPermintaanGuru />
+        </div>
+      </div>
+
+      {tampilkanHero && (
+        <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
           <div className="bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
             <div className="text-[20px] leading-[1.2] font-bold text-white">
               {profile?.display_name ?? '-'}
@@ -70,8 +83,8 @@ export default function JurnalHeaderChrome({ tampilkanHero = true }: { tampilkan
               </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </>
   );
 }
