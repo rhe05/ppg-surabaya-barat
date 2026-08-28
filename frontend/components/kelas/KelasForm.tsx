@@ -21,6 +21,8 @@ export type KelasRow = {
   guru_id: number | null;
   guru_id_2: number | null;
   pola_gilir_guru: string | null;
+  gilir_mulai: string | null;
+  gilir_minggu: number | null;
   jam_mulai: string;
   jam_selesai: string;
   ruangan: string;
@@ -31,7 +33,7 @@ export type KelasRow = {
 };
 
 export const KOLOM_KELAS =
-  'id, kelompok_id, nama, kategori_kbm_id, guru_id, guru_id_2, pola_gilir_guru, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status, hari_ngaji';
+  'id, kelompok_id, nama, kategori_kbm_id, guru_id, guru_id_2, pola_gilir_guru, gilir_mulai, gilir_minggu, jam_mulai, jam_selesai, ruangan, keterangan, santri_count, status, hari_ngaji';
 
 export const STATUS_KELAS = ['aktif', 'tidak_aktif'];
 
@@ -88,6 +90,8 @@ export default function KelasForm({
   const [guruId, setGuruId] = useState(awal?.guru_id != null ? String(awal.guru_id) : '');
   const [guruId2, setGuruId2] = useState(awal?.guru_id_2 != null ? String(awal.guru_id_2) : '');
   const [polaGilir, setPolaGilir] = useState(awal?.pola_gilir_guru ?? '');
+  const [gilirMulai, setGilirMulai] = useState(awal?.gilir_mulai ?? '');
+  const [gilirMinggu, setGilirMinggu] = useState(String(awal?.gilir_minggu ?? 2));
   const [mulai, setMulai] = useState(keJam(awal?.jam_mulai ?? null) || '15:45');
   const [selesai, setSelesai] = useState(keJam(awal?.jam_selesai ?? null) || '16:30');
   const [ruangan, setRuangan] = useState(awal?.ruangan ?? '');
@@ -138,6 +142,8 @@ export default function KelasForm({
         guru_id: guruId ? Number(guruId) : null,
         guru_id_2: !isRemajaPraNikah && guruId2 ? Number(guruId2) : null,
         pola_gilir_guru: !isRemajaPraNikah && guruId2 ? polaGilir.trim() || null : null,
+        gilir_mulai: !isRemajaPraNikah && guruId2 && gilirMulai ? gilirMulai : null,
+        gilir_minggu: !isRemajaPraNikah && guruId2 && gilirMulai ? Number(gilirMinggu) : null,
         jam_mulai: mulai,
         jam_selesai: selesai,
         ruangan: ruangan.trim(),
@@ -232,18 +238,49 @@ export default function KelasForm({
                 </select>
               </div>
               {guruId2 && (
-                <div className="sm:col-span-2">
-                  <label className={KELAS_LABEL}>Pola Gilir</label>
-                  <input
-                    className={KELAS_INPUT}
-                    value={polaGilir}
-                    onChange={(e) => setPolaGilir(e.target.value)}
-                    placeholder="Misal: Gilir tiap 2 minggu"
-                  />
-                  <p className="mt-1 text-[11px] text-text-faint">
-                    Sekadar catatan -- sistem tidak menghitung otomatis siapa yang giliran minggu ini.
-                  </p>
-                </div>
+                <>
+                  <div>
+                    <label className={KELAS_LABEL}>Giliran Berganti Tiap</label>
+                    <select
+                      className={KELAS_INPUT}
+                      value={gilirMinggu}
+                      onChange={(e) => setGilirMinggu(e.target.value)}
+                    >
+                      {[1, 2, 3, 4].map((n) => (
+                        <option key={n} value={n}>
+                          {n} minggu
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={KELAS_LABEL}>Mulai Giliran Guru Pertama *</label>
+                    <input
+                      type="date"
+                      className={KELAS_INPUT}
+                      value={gilirMulai}
+                      onChange={(e) => setGilirMulai(e.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    {/* Tanpa tanggal acuan, mustahil tahu "minggu siapa" --
+                        karena itu perhitungan otomatisnya baru menyala kalau
+                        tanggal ini diisi (diminta owner 2026-08-28, mengganti
+                        pendekatan "info saja" 27 Agt). */}
+                    <p className="mb-3 rounded-[var(--radius)] bg-[rgba(5,150,105,0.08)] px-3 py-2 text-[11.5px] leading-snug text-sage">
+                      {gilirMulai
+                        ? 'Pengumuman Jadwal KBM akan otomatis menampilkan guru yang benar-benar giliran pada tanggal tersebut.'
+                        : 'Isi tanggal mulai giliran supaya sistem bisa menghitung sendiri siapa yang mengajar. Dikosongkan = tetap memakai guru pertama.'}
+                    </p>
+                    <label className={KELAS_LABEL}>Catatan Pola Gilir</label>
+                    <input
+                      className={KELAS_INPUT}
+                      value={polaGilir}
+                      onChange={(e) => setPolaGilir(e.target.value)}
+                      placeholder="Misal: kalau tanggal merah digeser minggu berikutnya"
+                    />
+                  </div>
+                </>
               )}
             </>
           )}

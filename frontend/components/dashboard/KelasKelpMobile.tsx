@@ -12,7 +12,7 @@
    kartu vertikal bukan grid checkbox desktop). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CalendarPlus, MoreVertical, Users, X } from 'lucide-react';
+import { CalendarPlus, Merge, MoreVertical, Users, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -26,6 +26,7 @@ import KelasForm, {
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
+import GabungKelasModal from '@/components/kelas/GabungKelasModal';
 
 type SantriRingkas = { id: number; nama: string; nis: string | null; kelas_id: number | null };
 
@@ -42,11 +43,13 @@ function MenuAksiKelas({
   onTutup,
   onTambah,
   onPenempatan,
+  onGabung,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   onTambah: () => void;
   onPenempatan: () => void;
+  onGabung: () => void;
 }) {
   if (!terbuka) return null;
   return (
@@ -75,6 +78,17 @@ function MenuAksiKelas({
           <Users size={18} strokeWidth={2} className="shrink-0 text-indigo" />
           <span>Penempatan Santri</span>
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onGabung();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <Merge size={18} strokeWidth={2} className="shrink-0 text-sage" />
+          <span>Gabung Kelas</span>
+        </button>
       </div>
     </>
   );
@@ -100,6 +114,7 @@ export default function KelasKelpMobile() {
   /* Penempatan Santri massal */
   const [penempatanTerbuka, setPenempatanTerbuka] = useState(false);
   const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [gabungTerbuka, setGabungTerbuka] = useState(false);
   const [terpilih, setTerpilih] = useState<Set<number>>(new Set());
   const [kelasTujuan, setKelasTujuan] = useState('');
   const [saringPenempatan, setSaringPenempatan] = useState<'belum' | 'semua'>('belum');
@@ -284,6 +299,7 @@ export default function KelasKelpMobile() {
               onTutup={() => setMenuTerbuka(false)}
               onTambah={bukaTambah}
               onPenempatan={bukaPenempatan}
+              onGabung={() => setGabungTerbuka(true)}
             />
           </div>
         </div>
@@ -481,6 +497,21 @@ export default function KelasKelpMobile() {
             </div>
           </div>
         </div>
+      )}
+
+      {gabungTerbuka && kelompokId && (
+        <GabungKelasModal
+          kelompokId={kelompokId}
+          kelasList={kelasList.map((k) => ({
+            id: k.id,
+            nama: k.nama,
+            jam_mulai: k.jam_mulai,
+            jam_selesai: k.jam_selesai,
+            ruangan: k.ruangan,
+          }))}
+          olehId={profile?.id ?? null}
+          onTutup={() => setGabungTerbuka(false)}
+        />
       )}
     </main>
   );

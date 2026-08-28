@@ -26,6 +26,13 @@ import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import {
+  muatKelasRingkas,
+  muatGabungAktif,
+  guruGiliran,
+  type KelasRingkas,
+  type GabungKelas,
+} from '@/lib/kelasGabungGilir';
+import {
   muatOverrideKelompok,
   buatCekNonaktif,
   type OverrideKelompok,
@@ -177,11 +184,16 @@ export default function PengumumanKbmComposer({
     try {
       const namaHari = NAMA_HARI[new Date(tanggal + 'T00:00:00').getDay()];
 
-      const [{ data: dJadwal, error: e1 }, { data: dHari, error: e2 }, hasilIzin] =
-        await Promise.all([
+      const [
+        { data: dJadwal, error: e1 },
+        { data: dHari, error: e2 },
+        hasilIzin,
+        daftarKelas,
+        gabungAktif,
+      ] = await Promise.all([
           supabase
             .from('jadwal_kbm')
-            .select('id, kategori, kelas, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, tanggal')
+            .select('id, kategori, kelas, kelas_id, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, tanggal')
             .eq('kelompok_id', kelompokId)
             .order('jam_mulai'),
           supabase
@@ -201,6 +213,13 @@ export default function PengumumanKbmComposer({
             p_kelompok_id: kelompokId,
             p_tanggal: tanggal,
           }),
+          /* Data Kelas + penggabungan aktif. Sejak migrasi 20260828200000
+             `kelas` adalah SUMBER KEBENARAN utk "siapa yang mengajar" --
+             jadwal_kbm.guru_id cuma cadangan utk baris lama yang belum
+             tertaut. Di-catch supaya layar tetap hidup kalau migrasinya
+             belum dijalankan. */
+          muatKelasRingkas(kelompokId).catch(() => [] as KelasRingkas[]),
+          muatGabungAktif(kelompokId, tanggal).catch(() => new Map<number, GabungKelas>()),
         ]);
       if (e1) throw new Error(e1.message);
       if (e2) throw new Error(e2.message);
@@ -224,12 +243,61 @@ export default function PengumumanKbmComposer({
       }
       const adaAturanHari = barisHari.length > 0;
 
-      const semua = (dJadwal ?? []) as (Jadwal & { tanggal: string | null })[];
+      const semua = (dJadwal ?? []) as (Jadwal & { tanggal: string | null; kelas_id: number | null })[];
       const terpilih = semua.filter(
         (j) => j.tanggal === tanggal || !adaAturanHari || aktifHariIni.has(j.kategori),
       );
 
-      const daftar = terpilih.map(({ tanggal: _abaikan, ...sisa }) => sisa) as Jadwal[];
+      const petaKelas = new Map<number, KelasRingkas>(daftarKelas.map((k) => [k.id, k]));
+
+      /* Terapkan Data Kelas ke tiap baris jadwal (diminta owner
+         2026-08-28: "edit Data Kelas otomatis terintegrasi ke pengumuman"):
+
+         1. GILIR GURU -- kalau kelasnya punya guru kedua + titik acuan,
+            nama yang tampil adalah yang benar-benar giliran pada tanggal
+            itu, bukan selalu guru utama.
+         2. GABUNG KELAS -- kelas yang sedang ikut ke kelas induk TIDAK
+            lagi muncul sebagai sesi tersendiri; namanya ditempelkan ke
+            sesi induknya ("Kls 4 & Pra Remaja SMP"), dan jam/ruangan
+            memakai yang ditentukan admin saat menggabung.
+
+         Format teks WA-nya sendiri TIDAK berubah sama sekali (diminta
+         owner) -- yang berubah cuma ISI baris kelas/pengajar/jam. */
+      const namaKelasGabung = new Map<number, string[]>();
+      for (const j of terpilih) {
+        if (j.kelas_id == null) continue;
+        const g = gabungAktif.get(j.kelas_id);
+        if (!g) continue;
+        const arr = namaKelasGabung.get(g.kelas_induk_id) ?? [];
+        arr.push(petaKelas.get(j.kelas_id)?.nama ?? j.kelas);
+        namaKelasGabung.set(g.kelas_induk_id, arr);
+      }
+
+      const daftar: Jadwal[] = [];
+      for (const j of terpilih) {
+        /* Kelas yang sedang bergabung: dilewati, sudah menempel ke induk. */
+        if (j.kelas_id != null && gabungAktif.has(j.kelas_id)) continue;
+
+        const kelasData = j.kelas_id != null ? petaKelas.get(j.kelas_id) : undefined;
+        const ikut = j.kelas_id != null ? namaKelasGabung.get(j.kelas_id) : undefined;
+        /* Jam & ruangan gabungan ditentukan admin -- diambil dari baris
+           kelas_gabung mana pun yang menunjuk ke induk ini. */
+        const aturan =
+          j.kelas_id != null
+            ? [...gabungAktif.values()].find((g) => g.kelas_induk_id === j.kelas_id)
+            : undefined;
+
+        daftar.push({
+          id: j.id,
+          kategori: j.kategori,
+          kelas: ikut && ikut.length > 0 ? `${j.kelas} & ${ikut.join(' & ')}` : j.kelas,
+          guru_id: kelasData ? guruGiliran(kelasData, tanggal) : j.guru_id,
+          jam_mulai: (ikut && aturan?.jam_mulai) || j.jam_mulai,
+          jam_selesai: (ikut && aturan?.jam_selesai) || j.jam_selesai,
+          ruangan: (ikut && aturan?.ruangan) || j.ruangan,
+          keterangan: j.keterangan,
+        });
+      }
       setJadwalList(daftar);
 
       /* Sesi milik guru yang sedang izin langsung disetel "Diganti" --
