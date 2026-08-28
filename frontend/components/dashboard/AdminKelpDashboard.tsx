@@ -78,7 +78,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarOff, CalendarCheck2, ChevronDown, ClipboardCheck, Megaphone, MoreVertical, UserCheck, UserX } from 'lucide-react';
+import { Calendar, CalendarDays, CalendarOff, CalendarCheck2, ChevronDown, ChevronRight, ClipboardCheck, Megaphone, MoreVertical, UserCheck, UserX } from 'lucide-react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
@@ -175,6 +176,14 @@ const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
+/* 'YYYY-MM-DD' -> "28 Agustus 2026", utk tombol pemicu TanggalPicker di
+   modal Tandai Libur/Aktif. */
+function fmtTglPanjang(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${NAMA_BULAN[m - 1] ?? m} ${y}`;
+}
+
 const SELECT_BULAN_TAHUN =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
 
@@ -375,6 +384,19 @@ export default function AdminKelpDashboard() {
      tanggal di modal berganti) -- kalau ada & jenisnya libur, modal
      menampilkan tombol "Batalkan Libur" alih-alih "Konfirmasi". */
   const [liburTanggalItu, setLiburTanggalItu] = useState<StatusKalenderHariIni>(null);
+  /* Admin kelp kini bisa menandai LIBUR maupun TETAP AKTIF dari modal yang
+     sama (diminta owner 2026-08-28). "Tetap aktif" dipakai utk membuka
+     kunci tanggal yang sebetulnya akhir pekan / tanggal merah nasional
+     tapi kelompoknya tetap masuk -- dua-duanya baris kalender_kelompok,
+     bedanya cuma kolom `jenis`. */
+  const [jenisPenandaan, setJenisPenandaan] = useState<'libur' | 'aktif'>('libur');
+  /* Kalender kustom di modal, samakan dgn fitur lain (2026-08-28).
+     SENGAJA tanpa `tanggalNonaktif`: admin justru perlu bisa memilih
+     Sabtu/Minggu & tanggal merah -- itu tepatnya tanggal yang mau
+     ditandai "tetap aktif". */
+  const [pickerLiburBuka, setPickerLiburBuka] = useState(false);
+  const [posPickerLibur, setPosPickerLibur] = useState<PosisiPicker | null>(null);
+  const refPickerLibur = useRef<HTMLButtonElement>(null);
 
   /* "Absensi Belum di Input" (2026-08-24, diminta owner: rename dari
      "Guru Belum Isi Absen" + direntang jadi PER GURU per bulan, bukan
@@ -515,7 +537,7 @@ export default function AdminKelpDashboard() {
       const { error: err } = await supabase.from('kalender_kelompok').insert({
         kelompok_id: kelompokId,
         tanggal: tanggalLibur,
-        jenis: 'libur',
+        jenis: jenisPenandaan,
         catatan: alasanLibur.trim(),
         dibuat_oleh: profile?.id ?? null,
       });
@@ -540,13 +562,18 @@ export default function AdminKelpDashboard() {
          saja). Datanya tidak benar2 hilang dari DB, bisa dipulihkan lewat
          SQL kalau ternyata keliru -- TAPI membatalkan libur TIDAK otomatis
          memunculkannya lagi. */
-      const { error: errWipe } = await supabase
-        .from('absensi')
-        .update({ deleted_at: new Date().toISOString() })
-        .eq('kelompok_id', kelompokId)
-        .eq('tanggal', tanggalLibur)
-        .is('deleted_at', null);
-      if (errWipe) throw new Error(errWipe.message);
+      /* HANYA utk jenis 'libur'. Menandai "tetap aktif" justru menyatakan
+         KBM tetap berjalan, jadi absensi yang sudah diisi harus dibiarkan
+         apa adanya (2026-08-28, saat opsi 'aktif' ditambahkan). */
+      if (jenisPenandaan === 'libur') {
+        const { error: errWipe } = await supabase
+          .from('absensi')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('kelompok_id', kelompokId)
+          .eq('tanggal', tanggalLibur)
+          .is('deleted_at', null);
+        if (errWipe) throw new Error(errWipe.message);
+      }
 
       /* Pengumuman OTOMATIS (2026-08-24, diminta owner) -- begitu admin
          menandai libur, guru kelompoknya harus lihat kabar ini lewat
@@ -562,7 +589,10 @@ export default function AdminKelpDashboard() {
       try {
         await supabase.from('pengumuman').insert({
           kelompok_id: kelompokId,
-          judul: `Libur KBM (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
+          judul:
+            jenisPenandaan === 'libur'
+              ? `Libur KBM (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`
+              : `KBM Tetap Masuk (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
           isi: alasanLibur.trim(),
           tanggal: hariIniStr,
           dibuat_oleh: profile?.id ?? null,
@@ -583,20 +613,10 @@ export default function AdminKelpDashboard() {
     }
   }
 
-  async function batalkanKalenderHariIni() {
-    if (!kalenderHariIni) return;
-    setSibukKalender(true);
-    try {
-      const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', kalenderHariIni.id);
-      if (err) throw new Error(err.message);
-      setKalenderNonce((n) => n + 1);
-      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
-    } finally {
-      setSibukKalender(false);
-    }
-  }
+  /* batalkanKalenderHariIni() DIHAPUS 2026-08-28: tombol "Batalkan" di
+     kartu sudah tidak ada -- pembatalan kini lewat modal yang sama
+     (batalkanLiburTanggalItu), yang bisa membatalkan tanggal APA PUN,
+     bukan cuma hari ini. */
 
   useEffect(() => {
     if (!modalLiburTerbuka || !kelompokId || !tanggalLibur) {
@@ -1247,9 +1267,20 @@ export default function AdminKelpDashboard() {
 
         <div className="mb-3 text-[13px] font-bold text-text">Jalan Pintas</div>
         <div className="flex flex-col gap-2.5">
+          {/* KARTU-nya sendiri yang diklik (2026-08-28, diminta owner) --
+              tombol "Tandai Libur" terpisah dihapus. Satu sasaran sentuh
+              selebar kartu lebih mudah dikenai di HP daripada tombol kecil
+              di pojok, dan modalnya kini melayani dua arah sekaligus
+              (tandai LIBUR atau TETAP AKTIF, termasuk membatalkan). */}
           {!memuatKalender && (
-            <div
-              className={`flex items-center gap-3 rounded-card border p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.04)] ${
+            <button
+              type="button"
+              onClick={() => {
+                setTanggalLibur(tanggalHariIniLokal());
+                setJenisPenandaan('libur');
+                setModalLiburTerbuka(true);
+              }}
+              className={`flex w-full items-center gap-3 rounded-card border p-3.5 text-left shadow-[0_2px_10px_rgba(0,0,0,0.04)] active:scale-[0.98] ${
                 kalenderHariIni ? 'border-[#FDE68A] bg-[#FFFBEB]' : 'border-border bg-panel'
               }`}
             >
@@ -1268,33 +1299,15 @@ export default function AdminKelpDashboard() {
                       : 'Hari ini ditandai TETAP AKTIF'
                     : 'Kalender Hari Aktif'}
                 </div>
-                {kalenderHariIni?.catatan && (
-                  <div className="text-[11px] text-[#92400E]/80">{kalenderHariIni.catatan}</div>
-                )}
+                <div className={`text-[11px] ${kalenderHariIni ? 'text-[#92400E]/80' : 'text-text-dim'}`}>
+                  {kalenderHariIni?.catatan ?? 'Ketuk untuk tandai libur atau tetap aktif'}
+                </div>
               </div>
-              {kalenderHariIni ? (
-                <button
-                  type="button"
-                  disabled={sibukKalender}
-                  onClick={batalkanKalenderHariIni}
-                  className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-[#B45309] bg-transparent px-3 py-1.5 text-[11.5px] font-bold text-[#B45309] disabled:opacity-50"
-                >
-                  Batalkan
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={sibukKalender}
-                  onClick={() => {
-                    setTanggalLibur(tanggalHariIniLokal());
-                    setModalLiburTerbuka(true);
-                  }}
-                  className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 px-3 py-1.5 text-[11.5px] font-bold text-text disabled:opacity-50"
-                >
-                  Tandai Libur
-                </button>
-              )}
-            </div>
+              <ChevronRight
+                size={16}
+                className={`shrink-0 ${kalenderHariIni ? 'text-[#B45309]' : 'text-text-faint'}`}
+              />
+            </button>
           )}
 
           <button
@@ -1348,19 +1361,36 @@ export default function AdminKelpDashboard() {
 
       {modalLiburTerbuka && (
         <div className="fixed inset-0 z-[600] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-6 backdrop-blur-[3px]">
+          {/* SENGAJA tanpa `tanggalNonaktif`: admin justru perlu memilih
+              Sabtu/Minggu & tanggal merah -- itu persis tanggal yang mau
+              ditandai "Tetap Aktif". */}
+          <TanggalPicker
+            terbuka={pickerLiburBuka}
+            posisi={posPickerLibur}
+            nilai={tanggalLibur}
+            onPilih={setTanggalLibur}
+            onTutup={() => setPickerLiburBuka(false)}
+          />
           <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
-            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur</div>
+            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur atau Aktif</div>
             <p className="mb-4 text-[12.5px] text-text-dim">
               Pilih tanggal (boleh lampau atau yang akan datang) &amp; tulis alasan.
               Tanggal yang sudah ditandai bisa dibatalkan dari sini juga.
             </p>
             <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Tanggal</label>
-            <input
-              type="date"
-              value={tanggalLibur}
-              onChange={(e) => setTanggalLibur(e.target.value)}
-              className="mb-3 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
-            />
+            <button
+              type="button"
+              ref={refPickerLibur}
+              onClick={() => {
+                const r = refPickerLibur.current?.getBoundingClientRect();
+                if (r) setPosPickerLibur({ top: r.bottom + 6, right: window.innerWidth - r.right });
+                setPickerLiburBuka(true);
+              }}
+              className="mb-3 flex w-full items-center justify-between rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-left text-[13px] text-text"
+            >
+              {fmtTglPanjang(tanggalLibur)}
+              <CalendarDays size={15} className="shrink-0 text-text-faint" />
+            </button>
             {liburTanggalItu ? (
               <div className="rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-3.5 py-3 text-[12.5px] text-[#92400E]">
                 Tanggal ini sudah ditandai{' '}
@@ -1371,19 +1401,51 @@ export default function AdminKelpDashboard() {
               </div>
             ) : (
               <>
+                <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+                  Tandai sebagai
+                </label>
+                <div className="mb-3 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
+                  {(
+                    [
+                      { nilai: 'libur', label: 'Libur', bg: 'bg-[#B45309]' },
+                      { nilai: 'aktif', label: 'Tetap Aktif', bg: 'bg-sage' },
+                    ] as const
+                  ).map((o) => (
+                    <button
+                      key={o.nilai}
+                      type="button"
+                      onClick={() => setJenisPenandaan(o.nilai)}
+                      className={`min-w-0 flex-1 cursor-pointer truncate rounded-[calc(var(--radius)-3px)] border-none px-1 py-1.5 text-[12px] font-bold ${
+                        jenisPenandaan === o.nilai ? `${o.bg} text-white` : 'bg-transparent text-text-dim'
+                      }`}
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
                 <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
                 <textarea
-                  autoFocus
                   value={alasanLibur}
                   onChange={(e) => setAlasanLibur(e.target.value)}
-                  placeholder="Misal: Hujan deras, jalan tidak bisa dilalui"
+                  placeholder={
+                    jenisPenandaan === 'libur'
+                      ? 'Misal: Hujan deras, jalan tidak bisa dilalui'
+                      : 'Misal: Ada kegiatan khusus, tetap masuk walau tanggal merah'
+                  }
                   rows={3}
                   className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
                 />
-                <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
-                  Absensi yang sudah diinput guru untuk tanggal ini akan
-                  dikosongkan otomatis (bisa dipulihkan admin PPG kalau keliru).
-                </p>
+                {jenisPenandaan === 'libur' ? (
+                  <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
+                    Absensi yang sudah diinput guru untuk tanggal ini akan
+                    dikosongkan otomatis (bisa dipulihkan admin PPG kalau keliru).
+                  </p>
+                ) : (
+                  <p className="mt-2 rounded-[var(--radius)] bg-[rgba(5,150,105,0.08)] px-3 py-2 text-[11.5px] leading-snug text-sage">
+                    Tanggal ini akan terbuka untuk guru walau jatuh di akhir pekan
+                    atau tanggal merah. Absensi yang sudah ada TIDAK dihapus.
+                  </p>
+                )}
               </>
             )}
             <div className="mt-4 flex gap-2.5">
