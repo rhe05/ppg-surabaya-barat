@@ -37,6 +37,12 @@ type Tab = 'generus' | 'guru';
 
 const MEDALI = ['#D97706', '#94A3B8', '#B45309']; // emas / perak / perunggu
 
+/* Tampilan utama dibatasi 10 teratas (diminta owner); sisanya dibuka
+   lewat tombol "Tampilkan Semua". Pembatasan dilakukan DI SINI, bukan di
+   lib/peringkatKehadiran.ts -- lib mengembalikan seluruh peringkat
+   terurut supaya tombolnya tidak perlu memuat ulang data. */
+const BATAS_UTAMA = 10;
+
 export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat?: boolean }) {
   const { profile } = useAuth();
   const { sukses } = useToast();
@@ -52,6 +58,11 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pengaturanTerbuka, setPengaturanTerbuka] = useState(false);
+  /* Tampilan utama tetap 10 tertinggi (diminta owner) -- "Tampilkan semua"
+     cuma membuka batas di layar, datanya memang sudah termuat seluruhnya
+     dari lib (batas .slice(0,10) di sana sudah dilepas). Direset tiap
+     ganti bulan/tahun/tab supaya tidak diam-diam ikut terbawa. */
+  const [tampilSemua, setTampilSemua] = useState(false);
 
   useEffect(() => {
     if (!kelompokId) return;
@@ -77,6 +88,7 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
           ? await muatPeringkatGenerus(kelompokId, tahun, bulan, konfig)
           : await muatPeringkatGuru(kelompokId, tahun, bulan, konfig);
       setBaris(hasil);
+      setTampilSemua(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat peringkat.');
     } finally {
@@ -88,6 +100,8 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
     muat();
   }, [muat]);
 
+  const barisTampil = tampilSemua ? baris : baris.slice(0, BATAS_UTAMA);
+
   return (
     <main className="min-h-screen bg-bg">
       {hanyaLihat ? <JurnalHeaderChrome tampilkanHero={false} /> : <AdminHeader judul="Peringkat" />}
@@ -95,8 +109,16 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         <div className="mb-3 flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="text-[17px] font-extrabold text-text">Peringkat Kehadiran</div>
-            <div className="mt-0.5 text-[11.5px] text-text-dim">10 poin tertinggi &middot; hari kerja</div>
+            {/* Judul "Peringkat" saja, bukan "Peringkat Kehadiran"
+                (diminta owner 2026-08-28): kehadiran memang dasar
+                perhitungan SAAT INI, tapi ketentuan lain akan menyusul --
+                judulnya jangan mengunci diri ke satu dasar. */}
+            <div className="text-[17px] font-extrabold text-text">Peringkat</div>
+            <div className="mt-0.5 text-[11.5px] text-text-dim">
+              {tampilSemua
+                ? `Semua Peringkat - Hari Aktif Ngaji`
+                : `10 Peringkat Tertinggi - Hari Aktif Ngaji`}
+            </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <PilihBulanTahun
@@ -148,7 +170,7 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
 
         {!loading && baris.length > 0 && (
           <ol className="flex flex-col gap-2">
-            {baris.map((b, i) => (
+            {barisTampil.map((b, i) => (
               <li
                 key={b.id}
                 className="flex items-center gap-3 rounded-card border border-border bg-panel p-3.5 shadow-[var(--shadow-card)]"
@@ -185,6 +207,21 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
               </li>
             ))}
           </ol>
+        )}
+
+        {/* Tombol muncul HANYA kalau memang ada yang tersembunyi -- kalau
+            pesertanya <= 10, tombol "Tampilkan Semua" cuma membingungkan
+            karena semuanya sudah terlihat. */}
+        {!loading && baris.length > BATAS_UTAMA && (
+          <button
+            type="button"
+            onClick={() => setTampilSemua((v) => !v)}
+            className="mt-3 w-full cursor-pointer rounded-[var(--radius)] border border-border bg-panel px-4 py-2.5 text-[12.5px] font-bold text-text active:scale-[0.99]"
+          >
+            {tampilSemua
+              ? `Tampilkan 10 Tertinggi Saja`
+              : `Tampilkan Semua (${baris.length})`}
+          </button>
         )}
 
         <div className="mt-5 rounded-[var(--radius)] bg-panel-2 px-3.5 py-3 text-[11px] leading-relaxed text-text-dim">

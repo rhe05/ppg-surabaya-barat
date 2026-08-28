@@ -168,7 +168,7 @@ export async function muatPeringkatGenerus(
       alpa: v.alpa,
     });
   });
-  return rows.sort((a, b) => b.poin - a.poin || a.nama.localeCompare(b.nama, 'id')).slice(0, 10);
+  return rows.sort((a, b) => b.poin - a.poin || a.nama.localeCompare(b.nama, 'id'));
 }
 
 export async function muatPeringkatGuru(
@@ -288,6 +288,5 @@ export async function muatPeringkatGuru(
   });
   return rows
     .filter((r) => r.hadir > 0 || r.izin > 0 || r.sakit > 0)
-    .sort((a, b) => b.poin - a.poin || a.nama.localeCompare(b.nama, 'id'))
-    .slice(0, 10);
+    .sort((a, b) => b.poin - a.poin || a.nama.localeCompare(b.nama, 'id'));
 }
