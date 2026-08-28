@@ -894,9 +894,18 @@ function DataGenerusContent() {
 
           {/* Bilah aksi bawah, muncul HANYA dlm mode aksi massal -- fixed
               ke viewport sungguhan spt catatan di komponen lain (bungkus
-              RequireAuth mobile sengaja bukan containing block). */}
+              RequireAuth mobile sengaja bukan containing block).
+
+              Diperbaiki 2026-08-28 (laporan owner "tombol bawahnya
+              tertutup bottom bar"): dulu `bottom-6 z-40` -- 24px dari
+              dasar layar, artinya DI DALAM pita 60px milik GuruBottomNav,
+              dan z-index-nya SAMA PERSIS dgn nav itu. Saat z sama, urutan
+              DOM yang menentukan, dan nav dirender belakangan (di
+              RequireAuth, sesudah children) sehingga selalu menang.
+              Sekarang diangkat 84px (24 + tinggi nav 60) + safe-area, dan
+              z-50 supaya urutan DOM tidak pernah jadi penentu lagi. */}
           {modeMassal && (
-            <div className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-6">
+            <div className="fixed inset-x-0 bottom-[calc(84px+env(safe-area-inset-bottom))] z-50 flex justify-center px-6">
               <div className="flex w-full max-w-[430px] items-center justify-between gap-3 rounded-full border border-border bg-panel px-5 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.18)]">
                 <span className="text-[13px] font-semibold text-text">
                   {terpilihMassal.size} dipilih
