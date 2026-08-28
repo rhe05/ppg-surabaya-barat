@@ -24,6 +24,11 @@ import { Calendar, Copy, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import {
+  muatOverrideKelompok,
+  buatCekNonaktif,
+  type OverrideKelompok,
+} from '@/lib/kalenderKelompok';
 
 type Jadwal = {
   id: number;
@@ -119,6 +124,25 @@ export default function PengumumanKbmComposer({
       .order('nama')
       .then(({ data }) => setGuruList(data ?? []));
   }, [kelompokId]);
+
+  /* Kalender dikunci sama persis dgn Input Kehadiran (diminta owner
+     2026-08-28): Sabtu/Minggu & tanggal merah nasional tidak bisa dipilih,
+     DITUMPANGI pengecualian per kelompok (kalender_kelompok) -- tanggal
+     yang ditandai "aktif" tetap boleh, yang ditandai "libur" ikut terkunci
+     merah. Memakai helper bersama buatCekNonaktif, BUKAN aturan sendiri,
+     supaya tidak pernah menyimpang dari layar absensi. */
+  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    muatOverrideKelompok(kelompokId).then((peta) => {
+      if (!batal) setOverrideKelompok(peta);
+    });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+  const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
 
   /* Jadwal dicocokkan lewat HARI AKTIF kategorinya, BUKAN `tanggal` persis
      (diperbaiki 2026-08-28, laporan owner "masih belum muncul").
@@ -360,6 +384,7 @@ export default function PengumumanKbmComposer({
           nilai={tanggal}
           onPilih={setTanggal}
           onTutup={() => setPickerTerbuka(false)}
+          tanggalNonaktif={cekNonaktif}
         />
       </div>
 
