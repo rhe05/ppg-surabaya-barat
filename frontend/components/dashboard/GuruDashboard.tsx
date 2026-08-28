@@ -8,6 +8,8 @@ import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
 import AksiCepatGuru from '@/components/dashboard/AksiCepatGuru';
+import PesanGalat from '@/components/ui/PesanGalat';
+import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { muatOverrideKelompok, tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
@@ -249,8 +251,11 @@ export default function GuruDashboard() {
         bulan,
         tahun,
       );
-    } catch {
-      setError('Error loading data');
+    } catch (e) {
+      /* Pesan aslinya DITERUSKAN (dulu ditelan jadi 'Error loading data'
+         berbahasa Inggris yang tidak memberi petunjuk apa pun) --
+         PesanGalat yang menerjemahkannya kalau ternyata galat koneksi. */
+      setError(e instanceof Error ? e.message : 'Gagal memuat data kelas.');
     } finally {
       setLoading(false);
     }
@@ -270,6 +275,10 @@ export default function GuruDashboard() {
   const barisRole = singkatan ? `Guru Generus - ${singkatan}` : null;
 
   return (
+    /* Tarik-untuk-segarkan: layar ini dipasang di mode standalone (PWA)
+       yang TIDAK punya tarik-bawaan peramban -- lihat komentar lengkap di
+       TarikUntukSegarkan.tsx. */
+    <TarikUntukSegarkan onSegarkan={load}>
     <main className="relative flex min-h-screen flex-col bg-bg">
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
@@ -416,7 +425,9 @@ export default function GuruDashboard() {
             <SkeletonKartuKelas />
           </>
         )}
-        {!loading && error && <p className="text-[13px] text-red">{error}</p>}
+        {!loading && error && (
+          <PesanGalat pesan={error} onCobaLagi={load} sedangMemuat={loading} className="mb-2.5" />
+        )}
 
         {!loading && !error && guruId == null && (
           <div className="rounded-card border border-border bg-panel p-4 text-[12.5px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
@@ -528,5 +539,6 @@ export default function GuruDashboard() {
           })}
       </div>
     </main>
+    </TarikUntukSegarkan>
   );
 }

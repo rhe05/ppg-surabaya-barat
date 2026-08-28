@@ -26,6 +26,7 @@
      jadi turunannya ikut terhapus sendiri. App lama harus membersihkan
      probul lalu promes satu per satu karena Sheets tidak punya FK. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
@@ -661,7 +662,7 @@ function KurikulumContent() {
       </div>
 
       {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
-      {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+      {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
       {loading && (
         <>
           <SkeletonKartu />

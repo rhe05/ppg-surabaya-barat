@@ -138,7 +138,7 @@ function AbsensiContent() {
         .order('nama');
       if (cancelled) return;
       if (queryError) {
-        setError('Error loading data');
+        setError(queryError.message);
         setLoading(false);
         return;
       }
@@ -294,8 +294,8 @@ function AbsensiContent() {
       setSantri(daftarSantri);
       setTersimpan(petaTersimpan);
       setPilihan(awal);
-    } catch {
-      setError('Error loading data');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memuat data santri.');
     } finally {
       setLoading(false);
     }
@@ -392,6 +392,27 @@ function AbsensiContent() {
 
     const kelasAktif = kelasDetail.find((k) => k.id === Number(kelasId));
     const hariIni = tanggalHariIni();
+
+    /* Penjaga OFFLINE (2026-08-28). Tanpa ini, menekan Simpan tanpa sinyal
+       -- kondisi yang wajar terjadi di TPQ -- cuma memunculkan pesan mentah
+       "Failed to fetch" setelah menunggu, dan guru tidak tahu apakah
+       datanya masuk atau tidak. Dicek DI SINI (sebelum RPC dipanggil)
+       supaya isian di layar TIDAK hilang: guru tinggal menunggu sinyal
+       lalu menekan Simpan lagi, semua pilihan status masih utuh.
+
+       Ini SENGAJA belum antrean-simpan-otomatis: menulis absensi punya
+       penjaga versi (absensi_sesi) utk mencegah lost-update antar guru,
+       dan mengirim ulang diam-diam dari antrean bisa menimpa perubahan
+       orang lain. Menahan di depan itu jujur dan aman. */
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      setStatusModal({
+        tone: 'warning',
+        judul: 'Tidak Ada Koneksi',
+        pesan:
+          'HP Anda sedang tidak terhubung ke internet, jadi absensi belum bisa disimpan. Pilihan kehadiran yang sudah Anda isi TIDAK hilang — tunggu sinyal kembali, lalu tekan Simpan Kehadiran lagi.',
+      });
+      return;
+    }
 
     /* Terkunci: kelas+tanggal ini SUDAH pernah tersimpan lengkap (semua
        santri sudah punya baris absensi). Diminta owner secara eksplisit
@@ -496,18 +517,18 @@ function AbsensiContent() {
 
   if (!profile) {
     return (
-      <main className="min-h-screen bg-gray-50 p-6">
-        <p className="text-sm text-gray-500">Memuat profil...</p>
+      <main className="min-h-screen bg-bg p-6">
+        <p className="text-[13px] text-text-dim">Memuat profil...</p>
       </main>
     );
   }
 
   if (!berwenang) {
     return (
-      <main className="min-h-screen bg-gray-50 p-6">
-        <div className="rounded-lg bg-white p-4 shadow">
-          <h1 className="mb-2 text-lg font-semibold text-gray-800">Input Absensi</h1>
-          <p className="text-sm text-red-600">
+      <main className="min-h-screen bg-bg p-6">
+        <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
+          <h1 className="mb-2 text-[16px] font-bold text-text">Input Absensi</h1>
+          <p className="text-[13px] text-red">
             Anda tidak berwenang mencatat absensi. Role saat ini: {profile.role ?? '-'}.
           </p>
         </div>
@@ -567,12 +588,12 @@ function AbsensiContent() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 p-6">
-      <h1 className="mb-6 text-2xl font-bold text-gray-900">Input Absensi</h1>
+    <main className="min-h-screen bg-bg p-6">
+      <h1 className="mb-6 text-[22px] font-extrabold text-text">Input Absensi</h1>
 
-      <div className="mb-6 rounded-lg bg-white p-4 shadow">
+      <div className="mb-6 rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
         <div className="flex flex-wrap items-end gap-4">
-          <label className="text-sm text-gray-700">
+          <label className="text-[13px] text-text">
             <span className="mb-1 block font-medium">Tanggal</span>
             <input
               type="date"
@@ -587,7 +608,7 @@ function AbsensiContent() {
           </label>
 
           {perluPilihKelompok && (
-            <label className="text-sm text-gray-700">
+            <label className="text-[13px] text-text">
               <span className="mb-1 block font-medium">Kelompok</span>
               <select
                 value={kelompokId ?? ''}
@@ -608,7 +629,7 @@ function AbsensiContent() {
           )}
 
           {opsiKelas.length > 0 && (
-            <label className="text-sm text-gray-700">
+            <label className="text-[13px] text-text">
               <span className="mb-1 block font-medium">Kelas</span>
               <select
                 value={kelasId}
@@ -630,16 +651,16 @@ function AbsensiContent() {
           )}
 
           {!perluPilihKelompok && (
-            <p className="text-sm text-gray-600">
+            <p className="text-[13px] text-text-dim">
               <span className="font-medium">Kelompok:</span> {kelompokId ?? '-'}
             </p>
           )}
         </div>
       </div>
 
-      <div className="rounded-lg bg-white p-4 shadow">
+      <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-lg font-semibold text-gray-800">Daftar Santri</h2>
+          <h2 className="text-[16px] font-bold text-text">Daftar Santri</h2>
           <button
             onClick={handleSimpan}
             disabled={saving || loading || santri.length === 0}
@@ -649,31 +670,31 @@ function AbsensiContent() {
           </button>
         </div>
 
-        {sukses && <p className="mb-3 text-sm text-green-700">{sukses}</p>}
-        {saveError && <p className="mb-3 text-sm text-red-600">{saveError}</p>}
+        {sukses && <p className="mb-3 text-[13px] text-sage">{sukses}</p>}
+        {saveError && <p className="mb-3 text-[13px] text-red">{saveError}</p>}
 
-        {loading && <p className="text-sm text-gray-500">Memuat data...</p>}
-        {!loading && error && <p className="text-sm text-red-600">{error}</p>}
+        {loading && <p className="text-[13px] text-text-dim">Memuat data...</p>}
+        {!loading && error && <p className="text-[13px] text-red">{error}</p>}
         {!loading && !error && santri.length === 0 && (
-          <p className="text-sm text-gray-500">No data available</p>
+          <p className="text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
         )}
 
         {!loading && !error && santri.length > 0 && (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-gray-200 text-gray-500">
+                <tr className="border-b border-border text-text-dim">
                   <th className="py-2 pr-4">Nama</th>
                   <th className="py-2 pr-4">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {santri.map((s) => (
-                  <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={s.id} className="border-b border-border hover:bg-panel-2">
                     <td className="py-2 pr-4">
                       {s.nama}
                       {tersimpan[s.id] && (
-                        <span className="ml-2 text-xs text-gray-400">tersimpan</span>
+                        <span className="ml-2 text-[11px] text-text-faint">tersimpan</span>
                       )}
                     </td>
                     <td className="py-2 pr-4">
@@ -684,7 +705,7 @@ function AbsensiContent() {
                             className={`cursor-pointer rounded border px-2 py-1 text-xs ${
                               pilihan[s.id] === opsi
                                 ? 'border-blue-600 bg-blue-600 text-white'
-                                : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
+                                : 'border-border bg-panel text-text hover:bg-panel-2'
                             }`}
                           >
                             <input

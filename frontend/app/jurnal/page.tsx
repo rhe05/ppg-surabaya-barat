@@ -24,6 +24,7 @@
    Karena itu simpan dilakukan dua langkah: cari baris hidup dulu, lalu
    UPDATE kalau ada / INSERT kalau belum. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
@@ -329,7 +330,7 @@ function JurnalContent() {
               />
             </div>
 
-            {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
+            {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-3" />}
 
             <button onClick={simpan} disabled={menyimpan || loading} className={KELAS_TOMBOL_UTAMA}>
               {menyimpan ? 'Menyimpan...' : entriAda ? 'Perbarui Jurnal' : 'Simpan Jurnal'}

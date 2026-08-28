@@ -17,6 +17,7 @@
      Tabelnya tidak punya `deleted_at`, dan pengumuman memang catatan
      berumur pendek yang dicabut sendiri oleh pembuatnya. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
@@ -328,7 +329,7 @@ function PengumumanContent() {
         )}
       </div>
 
-      {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+      {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
       {loading && <SkeletonKartuList jumlah={3} />}
       {!loading && !kelompokId && <p className="text-[13px] text-text-dim">Pilih kelompok dulu.</p>}
       {!loading && kelompokId && daftar.length === 0 && (

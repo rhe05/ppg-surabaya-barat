@@ -18,6 +18,7 @@
      banyak catatan dalam rentang, dan "belum" jadi tidak bermakna.
      Angkanya di sana adalah jumlah SELURUH catatan. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { supabase } from '@/lib/supabase';
@@ -177,7 +178,7 @@ export default function RingkasanKelas({
       </div>
 
       {loading && <SkeletonKartuList jumlah={4} />}
-      {error && <p className="text-[13px] text-red">{error}</p>}
+      {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} />}
 
       {!loading && !error && (
         <div className="overflow-x-auto">

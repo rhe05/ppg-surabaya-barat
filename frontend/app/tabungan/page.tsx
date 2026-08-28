@@ -11,6 +11,7 @@
 
    Data: lib/tabungan.ts (migrasi 20260828100000 + 20260828140000). */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Banknote, Search, Settings2, Plus, X, Wallet, ArrowUpRight, Clock, Check, Ban, UserCog } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
@@ -238,7 +239,7 @@ function TabunganContent() {
           : 'Terima setoran generus, setor ke penghimpun, ajukan penarikan.'}
       </p>
 
-      {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+      {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
 
       {/* Guru: kas di tangan + setor */}
       {!loading && !isAdmin && jenis.length > 0 && (

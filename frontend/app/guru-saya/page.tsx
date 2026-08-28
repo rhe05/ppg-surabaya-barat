@@ -17,6 +17,7 @@
      berbarengan bisa lolos berdua.
    - Permintaan akses hanya bisa diputus PEMILIK kelas, bukan pemohon. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import RequireAuth from '@/components/RequireAuth';
@@ -326,7 +327,7 @@ function GuruSayaContent() {
           : 'Ajukan izin harian atau cuti, dan lihat riwayat pengajuan Anda.'}
       </p>
 
-      {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+      {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
       {loading && <SkeletonKartuList jumlah={3} />}
 
       {view === 'izin' && (

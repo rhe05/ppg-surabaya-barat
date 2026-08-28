@@ -23,6 +23,7 @@
    migrasi 20260821140000 & perubahan query terkait) tetap menunjukkan data
    lamanya walau sekarang santrinya sudah tidak aktif. */
 
+import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useState } from 'react';
 import {
   User,
@@ -805,7 +806,7 @@ function DataGenerusContent() {
             />
           </div>
 
-          {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+          {error && <PesanGalat pesan={error} onCobaLagi={muatSantri} sedangMemuat={loading} className="mb-4" />}
           {loading && <SkeletonKartuList jumlah={5} />}
 
           {!loading && santriTersaring.length === 0 && (

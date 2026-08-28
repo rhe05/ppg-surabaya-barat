@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import AdminSidebar from '@/components/dashboard/AdminSidebar';
 import GuruBottomNav from '@/components/dashboard/GuruBottomNav';
+import BannerOffline from '@/components/ui/BannerOffline';
 
 /* Halaman yang boleh dibuka peran `guru`, menyalin menu mobile guru app lama
    (Markup_Screens.html:229-257): Dashboard, Pilih Kelas, Jurnal, Kurikulum,
@@ -121,6 +122,9 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       <div className="flex min-h-screen animasi-konten-muncul">
         <AdminSidebar />
         <div className="min-w-0 flex-1">{children}</div>
+        {/* Admin di HP juga punya bottom nav (AdminBottomNav lewat
+            AdminHeader), jadi banner diangkat sama tingginya. */}
+        <BannerOffline adaBottomNav />
       </div>
     );
   }
@@ -167,9 +171,15 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
           {children}
         </div>
         <GuruBottomNav />
+        <BannerOffline adaBottomNav />
       </div>
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <BannerOffline />
+    </>
+  );
 }
