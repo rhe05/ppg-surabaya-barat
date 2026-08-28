@@ -29,7 +29,7 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
 import { useToast } from '@/components/ui/useToast';
 import EmptyState from '@/components/ui/EmptyState';
-import { CalendarDays, Megaphone } from 'lucide-react';
+import { CalendarDays, Megaphone, Pencil, Trash2 } from 'lucide-react';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
@@ -362,7 +362,7 @@ function PengumumanContent() {
             </div>
           )}
           <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-[15px] font-extrabold text-text">Pengumuman Tersimpan</h2>
+            <h2 className="text-[15px] font-extrabold text-text">Riwayat Pengumuman</h2>
             {bolehTulis && kelompokId && (
               <button
                 onClick={() => {
@@ -443,19 +443,30 @@ function PengumumanContent() {
                 <div className="mt-1 text-[12px] text-text-dim">{tanggalPanjang(p.tanggal)}</div>
                 <div className="mt-3 whitespace-pre-line text-[13px] text-text">{p.isi}</div>
               </div>
+              {/* Ikon telanjang, TANPA bungkus lingkaran/kotak (diminta
+                  owner 2026-08-28) -- teks "Ubah"/"Hapus" diganti pensil &
+                  tempat sampah. aria-label tetap ada supaya maknanya tidak
+                  hilang bagi pembaca layar. */}
               {bolehTulis && (
-                <div className="flex gap-2">
+                <div className="flex shrink-0 gap-3">
                   <button
+                    type="button"
+                    aria-label="Ubah pengumuman"
                     onClick={() => {
                       setSedangDiubah(p);
                       setFormTerbuka(true);
                     }}
-                    className={KELAS_TOMBOL_SEKUNDER}
+                    className="cursor-pointer border-none bg-transparent p-0 text-text-dim active:opacity-60"
                   >
-                    Ubah
+                    <Pencil size={16} />
                   </button>
-                  <button onClick={() => hapus(p)} className={KELAS_TOMBOL_SEKUNDER + ' text-red'}>
-                    Hapus
+                  <button
+                    type="button"
+                    aria-label="Hapus pengumuman"
+                    onClick={() => hapus(p)}
+                    className="cursor-pointer border-none bg-transparent p-0 text-red active:opacity-60"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </div>
               )}
