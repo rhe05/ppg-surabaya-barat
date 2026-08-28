@@ -361,20 +361,11 @@ function PengumumanContent() {
               />
             </div>
           )}
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <h2 className="text-[15px] font-extrabold text-text">Riwayat Pengumuman</h2>
-            {bolehTulis && kelompokId && (
-              <button
-                onClick={() => {
-                  setSedangDiubah(null);
-                  setFormTerbuka(true);
-                }}
-                className="shrink-0 cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-3 py-1.5 text-[12px] font-bold text-white active:scale-[0.98]"
-              >
-                + Buat
-              </button>
-            )}
-          </div>
+          {/* Tombol "+ Buat" DIHAPUS (diminta owner 2026-08-28). Bagian ini
+              kini murni RIWAYAT: pengumuman dibuat lewat komposer Jadwal
+              KBM di atasnya. Mengubah/menghapus entri lama tetap bisa
+              lewat ikon pensil & tempat sampah di tiap kartu. */}
+          <h2 className="mb-3 text-[15px] font-extrabold text-text">Riwayat Pengumuman</h2>
         </>
       ) : (
         <>
