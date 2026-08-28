@@ -107,6 +107,10 @@ export default function PengumumanKbmComposer({
   const [jadwalList, setJadwalList] = useState<Jadwal[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
   const [overrides, setOverrides] = useState<Record<number, Override>>({});
+  /* guru_id yang sedang izin pada tanggal terpilih -- dipakai utk lencana
+     "Sedang izin" di kartu sesi, supaya penyusun tahu KENAPA statusnya
+     sudah otomatis "Diganti". */
+  const [guruIzinSet, setGuruIzinSet] = useState<Set<number>>(new Set());
   const [catatan, setCatatan] = useState(CATATAN_DEFAULT);
 
   const [loading, setLoading] = useState(false);
@@ -166,19 +170,38 @@ export default function PengumumanKbmComposer({
     try {
       const namaHari = NAMA_HARI[new Date(tanggal + 'T00:00:00').getDay()];
 
-      const [{ data: dJadwal, error: e1 }, { data: dHari, error: e2 }] = await Promise.all([
-        supabase
-          .from('jadwal_kbm')
-          .select('id, kategori, kelas, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, tanggal')
-          .eq('kelompok_id', kelompokId)
-          .order('jam_mulai'),
-        supabase
-          .from('jadwal_kategori_hari')
-          .select('hari_aktif, kategori_kbm(nama)')
-          .eq('kelompok_id', kelompokId),
-      ]);
+      const [{ data: dJadwal, error: e1 }, { data: dHari, error: e2 }, hasilIzin] =
+        await Promise.all([
+          supabase
+            .from('jadwal_kbm')
+            .select('id, kategori, kelas, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, tanggal')
+            .eq('kelompok_id', kelompokId)
+            .order('jam_mulai'),
+          supabase
+            .from('jadwal_kategori_hari')
+            .select('hari_aktif, kategori_kbm(nama)')
+            .eq('kelompok_id', kelompokId),
+          /* Guru yang sedang izin pada tanggal itu. Lewat RPC, BUKAN
+             SELECT langsung: policy guru_izin membatasi guru ke barisnya
+             sendiri, sedangkan penyusun pengumuman justru perlu tahu izin
+             REKANNYA. RPC-nya sengaja cuma mengembalikan guru_id --
+             alasan izin tetap tertutup (migrasi 20260828180000).
+             Galatnya SENGAJA tidak dilempar (supabase-js mengembalikan
+             {data,error}, tidak melempar): kalau migrasinya belum jalan,
+             sisa layar ini tetap berfungsi penuh -- cuma penandaan
+             otomatisnya yang absen. */
+          supabase.rpc('guru_izin_pada_tanggal', {
+            p_kelompok_id: kelompokId,
+            p_tanggal: tanggal,
+          }),
+        ]);
       if (e1) throw new Error(e1.message);
       if (e2) throw new Error(e2.message);
+
+      const guruIzin = new Set<number>(
+        ((hasilIzin?.data ?? []) as { guru_id: number }[]).map((r) => r.guru_id),
+      );
+      setGuruIzinSet(guruIzin);
 
       /* Kategori yang berjalan pada hari itu. Kalau tabel hari-aktifnya
          belum diisi sama sekali, JANGAN diam-diam mengosongkan jadwal --
@@ -199,8 +222,18 @@ export default function PengumumanKbmComposer({
         (j) => j.tanggal === tanggal || !adaAturanHari || aktifHariIni.has(j.kategori),
       );
 
-      setJadwalList(terpilih.map(({ tanggal: _abaikan, ...sisa }) => sisa) as Jadwal[]);
-      setOverrides({});
+      const daftar = terpilih.map(({ tanggal: _abaikan, ...sisa }) => sisa) as Jadwal[];
+      setJadwalList(daftar);
+
+      /* Sesi milik guru yang sedang izin langsung disetel "Diganti" --
+         penyusun pengumuman tinggal memilih penggantinya, tidak perlu
+         ingat sendiri siapa yang izin hari itu. Tetap bisa diubah manual
+         (mis. gurunya batal izin) karena ini cuma nilai AWAL override. */
+      const awal: Record<number, Override> = {};
+      for (const j of daftar) {
+        if (j.guru_id != null && guruIzin.has(j.guru_id)) awal[j.id] = { status: 'diganti' };
+      }
+      setOverrides(awal);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat jadwal.');
     } finally {
@@ -238,19 +271,34 @@ export default function PengumumanKbmComposer({
     [jadwalList]
   );
 
+  const jumlahBelumAdaPengganti = useMemo(
+    () =>
+      jadwalUrut.filter((j) => {
+        const ov = overrides[j.id];
+        return ov?.status === 'diganti' && !ov.penggantiId;
+      }).length,
+    [jadwalUrut, overrides],
+  );
+
   const tanggalObj = tanggal ? new Date(tanggal + 'T00:00:00') : null;
   const tanggalLabel = tanggalObj
     ? `${NAMA_HARI[tanggalObj.getDay()]}, ${tanggalObj.getDate()} ${NAMA_BULAN[tanggalObj.getMonth()]} ${tanggalObj.getFullYear()}`
     : '(pilih tanggal)';
 
   const teks = useMemo(() => {
-    type Efektif = Jadwal & { penggantiDari?: string };
+    type Efektif = Jadwal & { penggantiDari?: string; menungguPengganti?: boolean };
     const efektif: Efektif[] = [];
     for (const j of jadwalUrut) {
       const ov = overrides[j.id];
       if (ov?.status === 'libur') continue;
       if (ov?.status === 'diganti' && ov.penggantiId) {
         efektif.push({ ...j, guru_id: ov.penggantiId, penggantiDari: namaGuru(j.guru_id) });
+      } else if (ov?.status === 'diganti') {
+        /* Ditandai diganti tapi penggantinya BELUM dipilih. Jangan diam-
+           diam mencetak nama guru yang justru sedang izin -- wali murid
+           akan menunggu orang yang tidak datang. Ditandai terang-terangan
+           supaya penyusun sadar pengumumannya belum siap dikirim. */
+        efektif.push({ ...j, menungguPengganti: true });
       } else {
         efektif.push(j);
       }
@@ -284,7 +332,7 @@ export default function PengumumanKbmComposer({
          satu kesatuan di WhatsApp, jarak cuma antar-pengajar. */
       g.sesi.forEach((j, i) => {
         baris.push(
-          `📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
+          `📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : j.menungguPengganti ? ` _(pengajar izin -- pengganti belum ditentukan)_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
@@ -299,7 +347,9 @@ export default function PengumumanKbmComposer({
         baris.push('');
         baris.push(`${angkaEmoji(nomor)} *Kelas ${kat}*`);
         baris.push(
-          `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
+          j.menungguPengganti
+            ? `📍 *Pengajar : _(izin -- pengganti belum ditentukan)_*`
+            : `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
@@ -413,7 +463,14 @@ export default function PengumumanKbmComposer({
                   <div className="truncate text-[13px] font-bold text-text">
                     {j.kategori === 'Cabe Rawit' ? `Kelas ${j.kelas}` : `Kelas ${j.kategori}`}
                   </div>
-                  <div className="truncate text-[12px] text-text-dim">{namaGuru(j.guru_id)}</div>
+                  <div className="flex items-center gap-1.5 text-[12px] text-text-dim">
+                    <span className="truncate">{namaGuru(j.guru_id)}</span>
+                    {j.guru_id != null && guruIzinSet.has(j.guru_id) && (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[rgba(217,119,6,0.12)] px-1.5 py-px text-[9.5px] font-bold text-brass">
+                        SEDANG IZIN
+                      </span>
+                    )}
+                  </div>
                   <div className="truncate text-[11.5px] text-text-faint">
                     {formatJam(j.jam_mulai)}-{formatJam(j.jam_selesai)} &middot; {j.ruangan ?? '-'}
                   </div>
@@ -471,6 +528,20 @@ export default function PengumumanKbmComposer({
           onChange={(e) => setCatatan(e.target.value)}
         />
       </div>
+
+      {/* Penjaga terakhir sebelum pengumuman disalin: ada sesi yang
+          gurunya izin tapi penggantinya belum dipilih. Tanpa peringatan
+          ini, teksnya tetap tersalin dan wali murid membaca "pengganti
+          belum ditentukan" tanpa ada yang sadar. */}
+      {jumlahBelumAdaPengganti > 0 && (
+        <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
+          <span className="shrink-0">⚠️</span>
+          <span>
+            {jumlahBelumAdaPengganti} sesi gurunya sedang izin dan penggantinya belum dipilih.
+            Tentukan pengganti dulu sebelum pengumuman dikirim.
+          </span>
+        </div>
+      )}
 
       <div>
         <label className={KELAS_LABEL}>Pratinjau</label>
