@@ -18,7 +18,7 @@
      berumur pendek yang dicabut sendiri oleh pembuatnya. */
 
 import PesanGalat from '@/components/ui/PesanGalat';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -28,7 +28,8 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
 import { useToast } from '@/components/ui/useToast';
 import EmptyState from '@/components/ui/EmptyState';
-import { Megaphone } from 'lucide-react';
+import { CalendarDays, Megaphone } from 'lucide-react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 const NAMA_BULAN = [
@@ -73,6 +74,14 @@ const KELAS_TOMBOL_SEKUNDER =
 
 const hariIni = () => new Date().toISOString().slice(0, 10);
 
+/* 'YYYY-MM-DD' -> "28 Agu 2026", utk tombol pemicu TanggalPicker. */
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function fmtTglSingkat(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${BULAN_SINGKAT[m - 1] ?? m} ${y}`;
+}
+
 function FormPengumuman({
   awal,
   kategoriList,
@@ -92,6 +101,16 @@ function FormPengumuman({
   );
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* Kalender kustom, samakan dgn layar guru lain (2026-08-28). */
+  const [tglBuka, setTglBuka] = useState(false);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refTgl = useRef<HTMLButtonElement>(null);
+  function bukaTgl() {
+    const r = refTgl.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglBuka(true);
+  }
 
   async function simpan(e: React.FormEvent) {
     e.preventDefault();
@@ -117,6 +136,17 @@ function FormPengumuman({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+      {/* Dirender di dalam modal, sama persis pola SantriForm.tsx yang
+          sudah jalan di produksi -- TanggalPicker `position: fixed` tidak
+          terpotong oleh overflow-y-auto pembungkusnya (yang memotong cuma
+          ancestor yang jadi containing block, mis. punya transform). */}
+      <TanggalPicker
+        terbuka={tglBuka}
+        posisi={posTgl}
+        nilai={tanggal}
+        onPilih={setTanggal}
+        onTutup={() => setTglBuka(false)}
+      />
       <form
         onSubmit={simpan}
         className="my-8 w-full max-w-2xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]"
@@ -128,12 +158,15 @@ function FormPengumuman({
         <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className={KELAS_LABEL}>Tanggal *</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={tanggal}
-              onChange={(e) => setTanggal(e.target.value)}
-            />
+            <button
+              type="button"
+              ref={refTgl}
+              onClick={bukaTgl}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left`}
+            >
+              {fmtTglSingkat(tanggal)}
+              <CalendarDays size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           <div>
             <label className={KELAS_LABEL}>Kategori</label>

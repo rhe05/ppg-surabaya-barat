@@ -24,7 +24,7 @@
    lamanya walau sekarang santrinya sudah tidak aktif. */
 
 import PesanGalat from '@/components/ui/PesanGalat';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   User,
   UserPlus,
@@ -33,6 +33,7 @@ import {
   House,
   UserRoundX,
   Check,
+  CalendarDays,
 } from 'lucide-react';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
@@ -41,6 +42,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 type Kelas = { id: number; nama: string; santri_count: number };
@@ -101,6 +103,14 @@ function hariIni() {
   return lokal.toISOString().slice(0, 10);
 }
 
+/* 'YYYY-MM-DD' -> "28 Agu 2026", utk tombol pemicu TanggalPicker. */
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function fmtTglSingkat(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${BULAN_SINGKAT[m - 1] ?? m} ${y}`;
+}
+
 /* Konfirmasi "Pindah Domisili" / "Non Aktif" -- aksi massal (mode centang,
    sama pola dgn Pindah Kelas & Naik Kelas), pengganti tombol "Hapus" yang
    dulu ada DI DALAM form Ubah (satu santri). `jenis` sudah tetap ditentukan
@@ -128,6 +138,16 @@ function NonaktifkanMassalModal({
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* Kalender kustom, samakan dgn layar guru lain (2026-08-28). */
+  const [tglBuka, setTglBuka] = useState(false);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refTgl = useRef<HTMLButtonElement>(null);
+  function bukaTgl() {
+    const r = refTgl.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglBuka(true);
+  }
+
   async function simpan() {
     setMenyimpan(true);
     setError(null);
@@ -142,6 +162,13 @@ function NonaktifkanMassalModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <TanggalPicker
+        terbuka={tglBuka}
+        posisi={posTgl}
+        nilai={tanggal}
+        onPilih={setTanggal}
+        onTutup={() => setTglBuka(false)}
+      />
       <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
         <h2 className="mb-1 text-[17px] font-bold text-text">{judul}</h2>
         <p className="mb-4 text-[12.5px] text-text-dim">
@@ -150,12 +177,15 @@ function NonaktifkanMassalModal({
         </p>
 
         <label className="mb-1.5 block text-[12px] font-semibold text-text">Sejak Tanggal</label>
-        <input
-          type="date"
-          value={tanggal}
-          onChange={(e) => setTanggal(e.target.value)}
-          className="mb-4 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
-        />
+        <button
+          type="button"
+          ref={refTgl}
+          onClick={bukaTgl}
+          className="mb-4 flex w-full items-center justify-between rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-left text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+        >
+          {fmtTglSingkat(tanggal)}
+          <CalendarDays size={14} className="shrink-0 text-text-faint" />
+        </button>
 
         <label className="mb-1.5 block text-[12px] font-semibold text-text">
           Keterangan (opsional)

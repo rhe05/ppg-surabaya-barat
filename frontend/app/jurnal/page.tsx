@@ -25,7 +25,9 @@
    UPDATE kalau ada / INSERT kalau belum. */
 
 import PesanGalat from '@/components/ui/PesanGalat';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import { BookOpen, CalendarDays } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -34,7 +36,6 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
 import { useToast } from '@/components/ui/useToast';
 import EmptyState from '@/components/ui/EmptyState';
-import { BookOpen } from 'lucide-react';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -65,6 +66,14 @@ const KELAS_TOMBOL_SEKUNDER =
 
 const hariIni = () => new Date().toISOString().slice(0, 10);
 
+/* 'YYYY-MM-DD' -> "28 Agu 2026", utk tombol pemicu TanggalPicker. */
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function fmtTgl(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${BULAN_SINGKAT[m - 1] ?? m} ${y}`;
+}
+
 function JurnalContent() {
   const { profile } = useAuth();
   const adalahGuru = profile?.role === 'guru';
@@ -85,6 +94,16 @@ function JurnalContent() {
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
   const { konfirmasi, dialog } = useKonfirmasi();
+
+  /* Kalender kustom, samakan dgn layar guru lain (2026-08-28). */
+  const [tglBuka, setTglBuka] = useState(false);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refTgl = useRef<HTMLButtonElement>(null);
+  function bukaTgl() {
+    const r = refTgl.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglBuka(true);
+  }
   const { sukses } = useToast();
   /* Pesan sukses tampil sebagai toast melayang, bukan teks hijau kecil di
      tengah halaman yang mudah terlewat (2026-08-28). Dijembatani dari state
@@ -237,6 +256,13 @@ function JurnalContent() {
   return (
     <div className="mx-auto max-w-4xl p-6">
       {dialog}
+      <TanggalPicker
+        terbuka={tglBuka}
+        posisi={posTgl}
+        nilai={tanggal}
+        onPilih={setTanggal}
+        onTutup={() => setTglBuka(false)}
+      />
       <h1 className="mb-2 text-[24px] font-bold text-text">Jurnal KBM</h1>
       <p className="mb-6 text-[13px] text-text-dim">
         Catatan materi dan hal penting tiap sesi, satu entri per kelas per tanggal.
@@ -276,12 +302,15 @@ function JurnalContent() {
         </div>
         <div>
           <label className={KELAS_LABEL}>Tanggal</label>
-          <input
-            type="date"
-            className={KELAS_INPUT}
-            value={tanggal}
-            onChange={(e) => setTanggal(e.target.value)}
-          />
+          <button
+            type="button"
+            ref={refTgl}
+            onClick={bukaTgl}
+            className={`${KELAS_INPUT} flex items-center justify-between text-left`}
+          >
+            {fmtTgl(tanggal)}
+            <CalendarDays size={14} className="shrink-0 text-text-faint" />
+          </button>
         </div>
       </div>
 

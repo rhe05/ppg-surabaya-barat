@@ -19,7 +19,9 @@
      Angkanya di sana adalah jumlah SELURUH catatan. */
 
 import PesanGalat from '@/components/ui/PesanGalat';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import { CalendarDays } from 'lucide-react';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { supabase } from '@/lib/supabase';
 
@@ -55,6 +57,14 @@ async function ambilAbsensi(kelompokId: number, dari: string, sampai: string): P
   return semua;
 }
 
+/* 'YYYY-MM-DD' -> "28 Agu 2026", utk tombol pemicu TanggalPicker. */
+const BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+function fmtTglSingkat(v: string) {
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${d} ${BULAN_SINGKAT[m - 1] ?? m} ${y}`;
+}
+
 export default function RingkasanKelas({
   kelompokId,
   tanggal,
@@ -72,6 +82,18 @@ export default function RingkasanKelas({
   const [mode, setMode] = useState<'hari' | 'rentang'>('hari');
   const [dari, setDari] = useState(tanggal);
   const [sampai, setSampai] = useState(tanggal);
+
+  /* Kalender kustom, samakan dgn layar guru lain (2026-08-28). Satu
+     instance dipakai bergantian utk kedua ujung rentang. */
+  const [tglAktif, setTglAktif] = useState<'dari' | 'sampai' | null>(null);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refDari = useRef<HTMLButtonElement>(null);
+  const refSampai = useRef<HTMLButtonElement>(null);
+  function bukaTgl(field: 'dari' | 'sampai', ref: React.RefObject<HTMLButtonElement | null>) {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglAktif(field);
+  }
 
   const [santri, setSantri] = useState<Santri[]>([]);
   const [absensi, setAbsensi] = useState<Absensi[]>([]);
@@ -140,6 +162,21 @@ export default function RingkasanKelas({
 
   return (
     <div className="mt-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
+      <TanggalPicker
+        terbuka={tglAktif !== null}
+        posisi={posTgl}
+        nilai={tglAktif === 'sampai' ? sampai : dari}
+        onPilih={(v) => {
+          if (tglAktif === 'dari') {
+            setDari(v);
+            /* Jangan biarkan rentang terbalik. */
+            if (sampai < v) setSampai(v);
+          } else {
+            setSampai(v);
+          }
+        }}
+        onTutup={() => setTglAktif(null)}
+      />
       <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="text-[15px] font-bold text-text">Ringkasan per Kelas</div>
@@ -160,18 +197,24 @@ export default function RingkasanKelas({
           </select>
           {mode === 'rentang' && (
             <>
-              <input
-                type="date"
-                value={dari}
-                onChange={(e) => setDari(e.target.value)}
-                className="rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12px] text-text"
-              />
-              <input
-                type="date"
-                value={sampai}
-                onChange={(e) => setSampai(e.target.value)}
-                className="rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12px] text-text"
-              />
+              <button
+                type="button"
+                ref={refDari}
+                onClick={() => bukaTgl('dari', refDari)}
+                className="flex items-center gap-1.5 rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12px] text-text"
+              >
+                {fmtTglSingkat(dari)}
+                <CalendarDays size={13} className="shrink-0 text-text-faint" />
+              </button>
+              <button
+                type="button"
+                ref={refSampai}
+                onClick={() => bukaTgl('sampai', refSampai)}
+                className="flex items-center gap-1.5 rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12px] text-text"
+              >
+                {fmtTglSingkat(sampai)}
+                <CalendarDays size={13} className="shrink-0 text-text-faint" />
+              </button>
             </>
           )}
         </div>
