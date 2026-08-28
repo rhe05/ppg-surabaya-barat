@@ -30,6 +30,7 @@ export type Transaksi = {
   tanggal: string;
   keterangan: string | null;
   status: StatusTarik;
+  setoran_id: number | null;
   dicatat_oleh: string | null;
   diputus_pada: string | null;
   catatan_keputusan: string | null;
@@ -54,7 +55,7 @@ export type Penghimpun = {
 };
 
 const KOLOM_TX =
-  'id, jenis_id, santri_id, arah, jumlah, tanggal, keterangan, status, dicatat_oleh, diputus_pada, catatan_keputusan, created_at';
+  'id, jenis_id, santri_id, arah, jumlah, tanggal, keterangan, status, setoran_id, dicatat_oleh, diputus_pada, catatan_keputusan, created_at';
 
 export function formatRupiah(n: number): string {
   const neg = n < 0;
@@ -80,23 +81,27 @@ export function hitungSaldo(tx: Transaksi[]): Map<string, number> {
 }
 
 /* Kas yang masih di tangan seorang guru (belum disetorkan ke penghimpun):
-   Σ terima yang IA catat − Σ tarik disetujui yang IA catat − Σ setoran IA. */
-export function kasDiTanganGuru(
-  tx: Transaksi[],
-  setoran: Setoran[],
-  profileId: string | null,
-  guruId: number | null,
-): number {
+   Σ terima yang IA catat & BELUM masuk setoran − Σ tarik disetujui yang IA
+   catat (dibayar dari kas itu). Terima yang sudah punya setoran_id sudah
+   berpindah ke penghimpun. */
+export function kasDiTanganGuru(tx: Transaksi[], profileId: string | null): number {
   let kas = 0;
   for (const t of tx) {
     if (profileId && t.dicatat_oleh !== profileId) continue;
-    if (t.arah === 'terima') kas += t.jumlah;
-    else if (t.status === 'disetujui') kas -= t.jumlah;
-  }
-  for (const s of setoran) {
-    if (guruId != null && s.guru_id === guruId) kas -= s.jumlah;
+    if (t.arah === 'terima') {
+      if (t.setoran_id == null) kas += t.jumlah;
+    } else if (t.status === 'disetujui') {
+      kas -= t.jumlah;
+    }
   }
   return kas;
+}
+
+/* Terima milik guru ini yang belum dimasukkan ke setoran mana pun. */
+export function terimaBelumSetor(tx: Transaksi[], profileId: string | null): Transaksi[] {
+  return tx.filter(
+    (t) => t.arah === 'terima' && t.setoran_id == null && (!profileId || t.dicatat_oleh === profileId),
+  );
 }
 
 export async function muatJenis(kelompokId: number): Promise<TabunganJenis[]> {
@@ -268,20 +273,48 @@ export async function muatSetoranKelompok(kelompokId: number): Promise<Setoran[]
   return (data ?? []) as Setoran[];
 }
 
+/* Setoran = seikat transaksi "terima" yang diserahkan guru ke penghimpun.
+   jumlah = total transaksi terpilih. Setelah setoran dibuat, tiap terima
+   ditandai setoran_id-nya -> otomatis keluar dari "kas di tangan" guru dan
+   jadi rincian yang dilihat penghimpun. */
 export async function catatSetoran(
   kelompokId: number,
-  isi: { guru_id: number; jumlah: number; tanggal: string; keterangan: string | null },
+  isi: { guru_id: number; tanggal: string; keterangan: string | null },
+  terimaIds: number[],
+  jumlah: number,
   olehId: string | null,
 ): Promise<void> {
-  const { error } = await supabase.from('tabungan_setoran').insert({
-    kelompok_id: kelompokId,
-    ...isi,
-    dicatat_oleh: olehId,
-  });
+  const { data, error } = await supabase
+    .from('tabungan_setoran')
+    .insert({ kelompok_id: kelompokId, ...isi, jumlah, dicatat_oleh: olehId })
+    .select('id')
+    .single();
   if (error) throw new Error(error.message);
+  if (terimaIds.length > 0) {
+    const { error: e2 } = await supabase
+      .from('tabungan_transaksi')
+      .update({ setoran_id: (data as { id: number }).id })
+      .in('id', terimaIds);
+    if (e2) throw new Error(e2.message);
+  }
 }
 
+/* FK ON DELETE SET NULL -> transaksi terima yang tadinya masuk setoran ini
+   otomatis kembali ke "kas di tangan" guru. */
 export async function hapusSetoran(id: number): Promise<void> {
   const { error } = await supabase.from('tabungan_setoran').delete().eq('id', id);
   if (error) throw new Error(error.message);
+}
+
+/* Rincian per-anak dari sekumpulan setoran (utk layar penghimpun / riwayat
+   setoran guru). */
+export async function muatRincianSetoran(setoranIds: number[]): Promise<Transaksi[]> {
+  if (setoranIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from('tabungan_transaksi')
+    .select(KOLOM_TX)
+    .in('setoran_id', setoranIds)
+    .order('id', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Transaksi[];
 }

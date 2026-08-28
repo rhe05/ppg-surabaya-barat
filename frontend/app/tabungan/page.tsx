@@ -23,11 +23,13 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useToast } from '@/components/ui/useToast';
 import TabunganSantriSheet from '@/components/tabungan/TabunganSantriSheet';
 import TabunganSetorSheet from '@/components/tabungan/TabunganSetorSheet';
+import TabunganHimpunanPanel from '@/components/tabungan/TabunganHimpunanPanel';
 import {
   muatJenis,
   muatTransaksiKelompok,
   muatTransaksiSantri,
   muatSetoranKelompok,
+  muatRincianSetoran,
   muatPenghimpun,
   simpanJenis,
   simpanPenghimpun,
@@ -63,6 +65,8 @@ function TabunganContent() {
   const [guru, setGuru] = useState<Guru[]>([]);
   const [tx, setTx] = useState<Transaksi[]>([]);
   const [setoran, setSetoran] = useState<Setoran[]>([]);
+  const [rincianHimpun, setRincianHimpun] = useState<Transaksi[]>([]);
+  const [santriHimpun, setSantriHimpun] = useState<Santri[]>([]);
   const [penghimpun, setPenghimpun] = useState<Penghimpun | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -91,6 +95,21 @@ function TabunganContent() {
       setGuru((gRes.data ?? []) as Guru[]);
       setSetoran(sRes);
       setPenghimpun(pHimp);
+
+      /* Guru yang ditunjuk sbg penghimpun: muat rincian semua setoran +
+         nama santri se-kelompok (rincian menyentuh santri guru lain). */
+      const akuPenghimpun = !isAdmin && pHimp?.guru_id != null && pHimp.guru_id === guruId;
+      if (akuPenghimpun && sRes.length > 0) {
+        const [rinci, { data: dSH }] = await Promise.all([
+          muatRincianSetoran(sRes.map((s) => s.id)).catch(() => [] as Transaksi[]),
+          supabase.from('santri').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null),
+        ]);
+        setRincianHimpun(rinci);
+        setSantriHimpun((dSH ?? []) as Santri[]);
+      } else {
+        setRincianHimpun([]);
+        setSantriHimpun([]);
+      }
 
       if (isAdmin) {
         const [{ data: dS }, txAll] = await Promise.all([
@@ -139,12 +158,25 @@ function TabunganContent() {
 
   const saldo = useMemo(() => hitungSaldo(tx), [tx]);
   const namaGuru = useMemo(() => new Map(guru.map((g) => [g.id, g.nama])), [guru]);
-  const namaSantri = useMemo(() => new Map(santri.map((s) => [s.id, s.nama])), [santri]);
+  const namaSantri = useMemo(() => {
+    const m = new Map<number, string>();
+    for (const s of santri) m.set(s.id, s.nama);
+    for (const s of santriHimpun) m.set(s.id, s.nama);
+    return m;
+  }, [santri, santriHimpun]);
+  const namaJenis = useMemo(() => new Map(jenis.map((j) => [j.id, j.nama])), [jenis]);
+
+  const isPenghimpun = !isAdmin && penghimpun?.guru_id != null && penghimpun.guru_id === guruId;
 
   const penghimpunNama = useMemo(() => {
     if (!penghimpun || penghimpun.guru_id == null) return null;
     return namaGuru.get(penghimpun.guru_id) ?? null;
   }, [penghimpun, namaGuru]);
+
+  const terimaSaya = useMemo(
+    () => tx.filter((t) => t.arah === 'terima' && t.dicatat_oleh === (profile?.id ?? null)),
+    [tx, profile?.id],
+  );
 
   const totalPerJenis = useMemo(() => {
     const m = new Map<number, { total: number; bulanIni: number }>();
@@ -169,8 +201,8 @@ function TabunganContent() {
   );
 
   const kasGuru = useMemo(
-    () => (guruId != null ? kasDiTanganGuru(tx, setoran, profile?.id ?? null, guruId) : 0),
-    [tx, setoran, profile?.id, guruId],
+    () => (guruId != null ? kasDiTanganGuru(tx, profile?.id ?? null) : 0),
+    [tx, profile?.id, guruId],
   );
   const setoranSaya = useMemo(
     () => (guruId != null ? setoran.filter((s) => s.guru_id === guruId) : []),
@@ -231,6 +263,17 @@ function TabunganContent() {
             <ArrowUpRight size={13} /> Setor
           </span>
         </button>
+      )}
+
+      {/* Penghimpun: total himpunan + rincian per guru */}
+      {!loading && isPenghimpun && (
+        <TabunganHimpunanPanel
+          setoran={setoran}
+          rincian={rincianHimpun}
+          guruNama={namaGuru}
+          santriNama={namaSantri}
+          jenisNama={namaJenis}
+        />
       )}
 
       {/* Guru: penarikan yang masih menunggu */}
@@ -496,8 +539,10 @@ function TabunganContent() {
           kelompokId={kelompokId}
           guruId={guruId}
           penghimpunNama={penghimpunNama}
-          kasDiTangan={kasGuru}
+          terimaSaya={terimaSaya}
           setoranSaya={setoranSaya}
+          jenisNama={namaJenis}
+          santriNama={namaSantri}
           olehId={profile?.id ?? null}
           onSelesai={muat}
           onTutup={() => setSetorBuka(false)}
