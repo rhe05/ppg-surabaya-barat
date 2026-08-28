@@ -13,8 +13,10 @@
    ke sesi induk ("Kls 4 & Pra Remaja SMP"). Tabel: kelas_gabung
    (migrasi 20260828200000). */
 
-import { useEffect, useMemo, useState } from 'react';
-import { X, Trash2, Merge } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { X, Trash2, Merge, CalendarDays, Clock } from 'lucide-react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import JamPicker, { type PosisiJam } from '@/components/ui/JamPicker';
 import { useToast } from '@/components/ui/useToast';
 import {
   muatSemuaGabung,
@@ -62,6 +64,29 @@ export default function GabungKelasModal({
   const [ruangan, setRuangan] = useState('');
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* Kalender & jam kustom, samakan dgn fitur lain (2026-08-28). Satu
+     instance masing-masing, dipakai bergantian oleh dua field. */
+  const [tglAktif, setTglAktif] = useState<'mulai' | 'selesai' | null>(null);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const refMulai = useRef<HTMLButtonElement>(null);
+  const refSelesai = useRef<HTMLButtonElement>(null);
+
+  const [jamAktif, setJamAktif] = useState<'mulai' | 'selesai' | null>(null);
+  const [posJam, setPosJam] = useState<PosisiJam | null>(null);
+  const refJamMulai = useRef<HTMLButtonElement>(null);
+  const refJamSelesai = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl(f: 'mulai' | 'selesai', ref: React.RefObject<HTMLButtonElement | null>) {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglAktif(f);
+  }
+  function bukaJam(f: 'mulai' | 'selesai', ref: React.RefObject<HTMLButtonElement | null>) {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPosJam({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setJamAktif(f);
+  }
 
   const namaKelas = useMemo(() => new Map(kelasList.map((k) => [k.id, k.nama])), [kelasList]);
 
@@ -133,6 +158,28 @@ export default function GabungKelasModal({
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <TanggalPicker
+        terbuka={tglAktif !== null}
+        posisi={posTgl}
+        nilai={tglAktif === 'selesai' ? selesai : mulai}
+        onPilih={(v) => {
+          if (tglAktif === 'mulai') {
+            setMulai(v);
+            /* Jangan biarkan rentang terbalik. */
+            if (selesai < v) setSelesai(v);
+          } else {
+            setSelesai(v);
+          }
+        }}
+        onTutup={() => setTglAktif(null)}
+      />
+      <JamPicker
+        terbuka={jamAktif !== null}
+        posisi={posJam}
+        nilai={jamAktif === 'selesai' ? jamSelesai : jamMulai}
+        onPilih={(v) => (jamAktif === 'mulai' ? setJamMulai(v) : setJamSelesai(v))}
+        onTutup={() => setJamAktif(null)}
+      />
       <div className="flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <h2 className="text-[17px] font-extrabold text-text">Gabung Kelas</h2>
@@ -147,12 +194,6 @@ export default function GabungKelasModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <p className="mb-4 text-[12px] leading-relaxed text-text-dim">
-            Untuk sementara, satu kelas ikut belajar bersama kelas lain — misalnya karena
-            gurunya sedang izin. Selama rentang tanggal ini, kelas yang digabung tidak muncul
-            sebagai sesi tersendiri di Pengumuman Jadwal KBM; namanya menempel ke kelas induk.
-          </p>
-
           <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className={LABEL}>Kelas yang Digabung *</label>
@@ -180,19 +221,51 @@ export default function GabungKelasModal({
             </div>
             <div>
               <label className={LABEL}>Mulai *</label>
-              <input type="date" className={INPUT} value={mulai} onChange={(e) => setMulai(e.target.value)} />
+              <button
+                type="button"
+                ref={refMulai}
+                onClick={() => bukaTgl('mulai', refMulai)}
+                className={`${INPUT} flex items-center justify-between text-left`}
+              >
+                {fmtTgl(mulai)}
+                <CalendarDays size={14} className="shrink-0 text-text-faint" />
+              </button>
             </div>
             <div>
               <label className={LABEL}>Sampai *</label>
-              <input type="date" className={INPUT} value={selesai} onChange={(e) => setSelesai(e.target.value)} />
+              <button
+                type="button"
+                ref={refSelesai}
+                onClick={() => bukaTgl('selesai', refSelesai)}
+                className={`${INPUT} flex items-center justify-between text-left`}
+              >
+                {fmtTgl(selesai)}
+                <CalendarDays size={14} className="shrink-0 text-text-faint" />
+              </button>
             </div>
             <div>
               <label className={LABEL}>Jam Mulai</label>
-              <input type="time" className={INPUT} value={jamMulai} onChange={(e) => setJamMulai(e.target.value)} />
+              <button
+                type="button"
+                ref={refJamMulai}
+                onClick={() => bukaJam('mulai', refJamMulai)}
+                className={`${INPUT} flex items-center justify-between text-left tabular-nums`}
+              >
+                {jamMulai || <span className="text-text-faint">Pilih jam</span>}
+                <Clock size={14} className="shrink-0 text-text-faint" />
+              </button>
             </div>
             <div>
               <label className={LABEL}>Jam Selesai</label>
-              <input type="time" className={INPUT} value={jamSelesai} onChange={(e) => setJamSelesai(e.target.value)} />
+              <button
+                type="button"
+                ref={refJamSelesai}
+                onClick={() => bukaJam('selesai', refJamSelesai)}
+                className={`${INPUT} flex items-center justify-between text-left tabular-nums`}
+              >
+                {jamSelesai || <span className="text-text-faint">Pilih jam</span>}
+                <Clock size={14} className="shrink-0 text-text-faint" />
+              </button>
             </div>
             <div className="sm:col-span-2">
               <label className={LABEL}>Ruangan</label>
