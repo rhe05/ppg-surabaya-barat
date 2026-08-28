@@ -8,8 +8,9 @@
    - TARIK  : diajukan sbg 'pending', WAJIB disetujui admin_kelompok.
      Di layar admin, baris pending bisa langsung disetujui/ditolak. */
 
-import { useMemo, useState } from 'react';
-import { X, ArrowDownCircle, ArrowUpCircle, Trash2, Check, Clock, Ban } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { X, ArrowDownCircle, ArrowUpCircle, Trash2, Check, Clock, Ban, Calendar } from 'lucide-react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import {
   catatTransaksi,
@@ -62,6 +63,15 @@ export default function TabunganSantriSheet({
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [prosesId, setProsesId] = useState<number | null>(null);
+  const [tglBuka, setTglBuka] = useState(false);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const tglRef = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl() {
+    const r = tglRef.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglBuka(true);
+  }
 
   const saldoPerJenis = useMemo(() => {
     const m = new Map<number, number>();
@@ -142,6 +152,13 @@ export default function TabunganSantriSheet({
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <TanggalPicker
+        terbuka={tglBuka}
+        posisi={posTgl}
+        nilai={tanggal}
+        onPilih={setTanggal}
+        onTutup={() => setTglBuka(false)}
+      />
       <div className="flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <h2 className="min-w-0 truncate text-[17px] font-extrabold text-text">{santri.nama}</h2>
@@ -218,12 +235,15 @@ export default function TabunganSantriSheet({
                   className="w-full border-none bg-transparent py-2.5 text-[15px] font-extrabold tabular-nums text-text outline-none"
                 />
               </div>
-              <input
-                type="date"
-                className={INPUT}
-                value={tanggal}
-                onChange={(e) => setTanggal(e.target.value)}
-              />
+              <button
+                type="button"
+                ref={tglRef}
+                onClick={bukaTgl}
+                className={`${INPUT} flex items-center justify-between text-left`}
+              >
+                {fmtTgl(tanggal)}
+                <Calendar size={14} className="shrink-0 text-text-faint" />
+              </button>
               <input
                 className={INPUT}
                 value={keterangan}

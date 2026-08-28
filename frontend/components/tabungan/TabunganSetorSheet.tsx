@@ -9,8 +9,9 @@
    dari "kas di tangan" & jadi rincian yang dilihat penghimpun. Tidak ada
    selisih antara catatan guru & penghimpun. */
 
-import { useMemo, useState } from 'react';
-import { X, Trash2, ArrowUpRight, ChevronDown } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { X, Trash2, ArrowUpRight, ChevronDown, Calendar } from 'lucide-react';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import {
   catatSetoran,
@@ -65,6 +66,15 @@ export default function TabunganSetorSheet({
   const [error, setError] = useState<string | null>(null);
   const [bukaId, setBukaId] = useState<number | null>(null);
   const [prosesId, setProsesId] = useState<number | null>(null);
+  const [tglBuka, setTglBuka] = useState(false);
+  const [posTgl, setPosTgl] = useState<PosisiPicker | null>(null);
+  const tglRef = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl() {
+    const r = tglRef.current?.getBoundingClientRect();
+    if (r) setPosTgl({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setTglBuka(true);
+  }
 
   const belumSetor = useMemo(
     () =>
@@ -131,6 +141,13 @@ export default function TabunganSetorSheet({
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <TanggalPicker
+        terbuka={tglBuka}
+        posisi={posTgl}
+        nilai={tanggal}
+        onPilih={setTanggal}
+        onTutup={() => setTglBuka(false)}
+      />
       <div className="flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <h2 className="text-[17px] font-extrabold text-text">Setor ke Penghimpun</h2>
@@ -205,7 +222,15 @@ export default function TabunganSetorSheet({
 
           {belumSetor.length > 0 && (
             <div className="mb-4 flex flex-col gap-2.5">
-              <input type="date" className={INPUT} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+              <button
+                type="button"
+                ref={tglRef}
+                onClick={bukaTgl}
+                className={`${INPUT} flex items-center justify-between text-left`}
+              >
+                {fmtTgl(tanggal)}
+                <Calendar size={14} className="shrink-0 text-text-faint" />
+              </button>
               <input
                 className={INPUT}
                 value={keterangan}
