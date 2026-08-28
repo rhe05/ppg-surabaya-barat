@@ -369,23 +369,12 @@ function GuruSayaContent() {
       />
       <JurnalHeaderChrome tampilkanHero={false} />
       <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-10">
-      {/* Keterangan di bawah judul DIHAPUS khusus tampilan Guru Izin
-          (diminta owner 2026-08-28) -- kartu "Ajukan Izin / Cuti" tepat di
-          bawahnya sudah menjelaskan sendiri. Tampilan Minta Akses tetap
-          punya keterangannya karena alurnya (minta ke guru lain + memutus
-          permintaan masuk) tidak segamblang itu. Margin judul menyesuaikan
-          supaya jarak ke konten tetap sama saat keterangannya tidak ada. */}
-      <h1
-        className={`text-[20px] font-extrabold text-text ${view === 'akses' ? 'mb-2' : 'mb-6'}`}
-      >
-        {judul}
-      </h1>
-      {view === 'akses' && (
-        <p className="mb-6 text-[13px] text-text-dim">
-          Minta akses mengisi absensi kelas guru lain, dan putuskan permintaan yang masuk untuk
-          kelas Anda.
-        </p>
-      )}
+      {/* Keterangan di bawah judul DIHAPUS utk KEDUA tampilan (Guru Izin &
+          Minta Akses, diminta owner 2026-08-28) -- kartu tepat di bawahnya
+          sudah punya judul & penjelasannya sendiri, jadi paragraf ini cuma
+          mengulang. Judul langsung ber-mb-6 supaya jaraknya ke konten sama
+          spt saat keterangannya masih ada. */}
+      <h1 className="mb-6 text-[20px] font-extrabold text-text">{judul}</h1>
 
       {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
       {loading && <SkeletonKartuList jumlah={3} />}
