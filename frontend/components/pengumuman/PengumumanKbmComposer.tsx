@@ -45,10 +45,13 @@ const NAMA_BULAN = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 const EMOJI_ANGKA = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+/* Isi baku catatan -- mengikuti contoh owner 2026-08-28, tapi ditulis
+   dengan ejaan penuh (bukan singkatan "Jgn"/"Utk") supaya terbaca rapi di
+   grup WA wali murid. Tetap bisa diubah guru lewat kotak Catatan. */
 const CATATAN_DEFAULT = [
   'Datang tepat waktu, jangan terlambat',
-  'Memakai seragam Muslim/Muslimah',
-  'Jangan lupa membawa uang untuk shodaqoh & kas',
+  'Memakai seragam TPQ',
+  'Jangan lupa membawa uang untuk shodaqoh qurban & kas',
 ].join('\n');
 
 function angkaEmoji(n: number) {
@@ -178,7 +181,7 @@ export default function PengumumanKbmComposer({
     }
 
     const baris: string[] = [];
-    baris.push('Assalamualaikum Wr. Wb. 🙏');
+    baris.push('Assalamualaikum Wr. Wb.');
     baris.push('');
     baris.push(`*Pengumuman Jadwal KBM Generus ${namaKelompok}*`);
     baris.push('');
@@ -200,15 +203,17 @@ export default function PengumumanKbmComposer({
       nomor += 1;
       baris.push('');
       baris.push(`${angkaEmoji(nomor)} *Pengajar ${g.guruNama}*`);
+      /* Sesi milik satu pengajar dirapatkan TANPA baris kosong di antaranya
+         (contoh owner 2026-08-28) -- satu blok pengajar terbaca sebagai
+         satu kesatuan di WhatsApp, jarak cuma antar-pengajar. */
       g.sesi.forEach((j, i) => {
-        if (i > 0) baris.push('');
         baris.push(
-          `📍 *Sesi ${i + 1} : Kelas ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
+          `📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
         );
-        baris.push(`🏠 *Tempat : ${j.ruangan ?? '-'}*`);
+        baris.push(`*Tempat : ${j.ruangan ?? '-'}*`);
       });
     }
 
@@ -218,12 +223,12 @@ export default function PengumumanKbmComposer({
         baris.push('');
         baris.push(`${angkaEmoji(nomor)} *Kelas ${kat}*`);
         baris.push(
-          `Pengajar : *${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
+          `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
         );
-        baris.push(`🏠 *Tempat : ${j.ruangan ?? '-'}*`);
+        baris.push(`*Tempat : ${j.ruangan ?? '-'}*`);
       }
     }
 
@@ -243,7 +248,7 @@ export default function PengumumanKbmComposer({
     }
 
     baris.push('');
-    baris.push('Alhamdulillahi jaza kumullohu khoiro 🙏');
+    baris.push('Alhamdulillahi jaza kumullohu khoiro 🙏🏻');
     baris.push('');
     baris.push('Wassalamualaikum Wr. Wb.');
 
