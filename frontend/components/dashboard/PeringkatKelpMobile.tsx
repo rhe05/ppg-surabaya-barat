@@ -142,6 +142,23 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
           </div>
         </div>
 
+        {/* Keterangan poin DIPINDAH ke sini, tepat di bawah judul/subjudul
+            (diminta owner 2026-08-28) -- sebelumnya di dasar halaman,
+            terlewat karena daftar peringkat mendorongnya jauh ke bawah.
+            Warnanya sengaja beda dari kartu peringkat (teal, senada angka
+            "Poin" di tiap baris) supaya terbaca sebagai keterangan, bukan
+            salah satu entri peringkat. */}
+        <div className="mb-4 rounded-[var(--radius)] border border-[rgba(13,148,136,0.25)] bg-[rgba(13,148,136,0.07)] px-3.5 py-2.5 text-[11px] leading-relaxed text-teal">
+          <span className="font-extrabold">Poin saat ini:</span> Hadir {konfig.hadir} &middot; Izin{' '}
+          {konfig.izin} &middot; Sakit {konfig.sakit} &middot; Alpa {konfig.alpa}.{' '}
+          {tab === 'guru' && (
+            <>
+              Untuk guru, <span className="font-semibold">Hadir</span> = jumlah hari mengisi absensi
+              kelasnya; <span className="font-semibold">Izin/Sakit</span> = hari tercatat di Guru Izin.
+            </>
+          )}
+        </div>
+
         <div className="mb-4 flex rounded-full border border-border bg-panel-2 p-1">
           {(['generus', 'guru'] as const).map((t) => (
             <button
@@ -224,16 +241,6 @@ export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat
           </button>
         )}
 
-        <div className="mt-5 rounded-[var(--radius)] bg-panel-2 px-3.5 py-3 text-[11px] leading-relaxed text-text-dim">
-          <span className="font-bold text-text">Poin saat ini:</span> Hadir {konfig.hadir} &middot; Izin{' '}
-          {konfig.izin} &middot; Sakit {konfig.sakit} &middot; Alpa {konfig.alpa}.{' '}
-          {tab === 'guru' && (
-            <>
-              Untuk guru, <span className="font-semibold">Hadir</span> = jumlah hari mengisi absensi
-              kelasnya; <span className="font-semibold">Izin/Sakit</span> = hari tercatat di Guru Izin.
-            </>
-          )}
-        </div>
       </div>
 
       {!hanyaLihat && pengaturanTerbuka && kelompokId && (
