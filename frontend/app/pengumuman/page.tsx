@@ -477,6 +477,13 @@ export default function PengumumanPage() {
 
 function PengumumanRouter() {
   const { profile } = useAuth();
-  if (profile?.role === 'guru') return <PengumumanGuruView />;
+  /* Selagi peran belum diketahui JANGAN jatuh ke cabang admin di bawah --
+     tata letaknya beda total dari layar guru, dan sekejap saja terlukis
+     sudah terbaca sebagai "kedipan tampilan lama". RequireAuth memang
+     sudah menahan render sampai profil termuat, tapi penjagaan ini
+     menutup celah sisanya (mis. saat profileError terisi) dengan biaya
+     satu baris. */
+  if (!profile?.role) return null;
+  if (profile.role === 'guru') return <PengumumanGuruView />;
   return <PengumumanContent />;
 }

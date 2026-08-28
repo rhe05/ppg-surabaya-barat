@@ -24,6 +24,7 @@ import { Calendar, Copy, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import {
   muatOverrideKelompok,
   buatCekNonaktif,
@@ -113,7 +114,13 @@ export default function PengumumanKbmComposer({
   const [guruIzinSet, setGuruIzinSet] = useState<Set<number>>(new Set());
   const [catatan, setCatatan] = useState(CATATAN_DEFAULT);
 
-  const [loading, setLoading] = useState(false);
+  /* Mulai dari `true`, BUKAN false (diperbaiki 2026-08-28, laporan owner
+     "muncul flip satu kedipan tampilan lama"). Dgn nilai awal false,
+     render pertama terjadi saat jadwalList masih [] dan pemuatan belum
+     dimulai -- cabang "Belum ada Jadwal KBM di tanggal ini" sempat
+     terlukis satu frame, baru berganti "Memuat jadwal..." lalu isi
+     sebenarnya. Itu yang terbaca sebagai kedipan tampilan lama. */
+  const [loading, setLoading] = useState(true);
   const [menyimpan, setMenyimpan] = useState(false);
   const [tersalin, setTersalin] = useState(false);
   const [pesan, setPesan] = useState<string | null>(null);
@@ -438,7 +445,10 @@ export default function PengumumanKbmComposer({
         />
       </div>
 
-      {loading && <p className="text-[13px] text-text-dim">Memuat jadwal...</p>}
+      {/* Skeleton berbentuk kartu sesi, bukan teks "Memuat..." polos --
+          tingginya mendekati kartu asli sehingga isi di bawahnya tidak
+          melompat saat data datang (sumber kedipan kedua). */}
+      {loading && <SkeletonKartuList jumlah={3} />}
 
       {!loading && jadwalUrut.length === 0 && (
         <p className="rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3 text-[12.5px] text-text-dim">
