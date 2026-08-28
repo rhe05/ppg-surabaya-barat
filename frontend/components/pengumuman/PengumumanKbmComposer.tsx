@@ -66,6 +66,15 @@ function hariIni() {
   return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
 }
 
+/* Tiga status sesi + warna aktifnya. Label sengaja pendek ("Diganti",
+   bukan "Izin - Diganti") supaya muat di sepertiga lebar kartu pada HP
+   sempit tanpa terpotong. */
+const STATUS_SESI: { nilai: StatusSesi; label: string; bg: string }[] = [
+  { nilai: 'hadir', label: 'Hadir', bg: 'bg-sage' },
+  { nilai: 'diganti', label: 'Diganti', bg: 'bg-brass' },
+  { nilai: 'libur', label: 'Libur', bg: 'bg-red' },
+];
+
 const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
 const KELAS_SELECT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-1.5 text-[12.5px] ' +
@@ -369,29 +378,46 @@ export default function PengumumanKbmComposer({
             const status = ov?.status ?? 'hadir';
             return (
               <div key={j.id} className="rounded-[var(--radius)] border border-border bg-panel p-3">
-                <div className="mb-2 flex items-start justify-between gap-2">
-                  <div>
-                    <div className="text-[13px] font-bold text-text">
-                      {j.kategori === 'Cabe Rawit' ? `Kelas ${j.kelas}` : `Kelas ${j.kategori}`}
-                    </div>
-                    <div className="text-[12px] text-text-dim">
-                      {namaGuru(j.guru_id)} &middot; {formatJam(j.jam_mulai)}-{formatJam(j.jam_selesai)} &middot;{' '}
-                      {j.ruangan ?? '-'}
-                    </div>
+                {/* Info kelas: 3 baris ber-truncate, TIDAK lagi berebut ruang
+                    dgn kontrol status. Sebelumnya info & <select> berdampingan
+                    dalam satu baris flex -- blok kiri tanpa `min-w-0` (jadi
+                    tidak bisa menyusut) melawan <select> `shrink-0` yang
+                    lebarnya dipaksa teks opsi terpanjang, hasilnya kartu
+                    melebar keluar layar HP (dilaporkan owner 2026-08-28). */}
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-bold text-text">
+                    {j.kategori === 'Cabe Rawit' ? `Kelas ${j.kelas}` : `Kelas ${j.kategori}`}
                   </div>
-                  <select
-                    className={KELAS_SELECT + ' w-auto shrink-0'}
-                    value={status}
-                    onChange={(e) => setStatus(j.id, e.target.value as StatusSesi)}
-                  >
-                    <option value="hadir">Hadir</option>
-                    <option value="diganti">Izin - Diganti</option>
-                    <option value="libur">Libur</option>
-                  </select>
+                  <div className="truncate text-[12px] text-text-dim">{namaGuru(j.guru_id)}</div>
+                  <div className="truncate text-[11.5px] text-text-faint">
+                    {formatJam(j.jam_mulai)}-{formatJam(j.jam_selesai)} &middot; {j.ruangan ?? '-'}
+                  </div>
+                </div>
+
+                {/* Segmented 3-status selebar kartu -- menggantikan <select>
+                    sempit di pojok. Lebarnya ditentukan kartu (flex-1 per
+                    tombol), bukan panjang teks opsi, jadi tidak mungkin
+                    melebar lagi seberapa pun sempit layarnya. */}
+                <div className="mt-2.5 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
+                  {STATUS_SESI.map((s) => {
+                    const on = status === s.nilai;
+                    return (
+                      <button
+                        key={s.nilai}
+                        type="button"
+                        onClick={() => setStatus(j.id, s.nilai)}
+                        className={`min-w-0 flex-1 cursor-pointer truncate rounded-[calc(var(--radius)-3px)] border-none px-1 py-1.5 text-[11.5px] font-bold transition-colors ${
+                          on ? `${s.bg} text-white` : 'bg-transparent text-text-dim'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    );
+                  })}
                 </div>
                 {status === 'diganti' && (
                   <select
-                    className={KELAS_SELECT}
+                    className={KELAS_SELECT + ' mt-2'}
                     value={ov?.penggantiId ?? ''}
                     onChange={(e) => setPengganti(j.id, Number(e.target.value))}
                   >
