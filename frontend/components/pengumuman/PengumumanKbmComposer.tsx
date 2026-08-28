@@ -67,6 +67,15 @@ const CATATAN_DEFAULT = [
   'Jangan lupa membawa uang untuk shodaqoh qurban & kas',
 ].join('\n');
 
+/* Label alasan izin utk pengumuman. SENGAJA hanya jenis + kategori --
+   `alasan_detail` (teks bebas guru) tidak pernah ikut, karena pengumuman
+   ini dikirim ke grup WA wali murid. */
+function labelIzin(jenis: string | null, kategori: string | null): string {
+  const dasar = jenis === 'cuti' ? 'cuti' : 'izin';
+  if (kategori === 'sakit') return `${dasar} sakit`;
+  return dasar;
+}
+
 function angkaEmoji(n: number) {
   return n <= EMOJI_ANGKA.length ? EMOJI_ANGKA[n - 1] : `${n}.`;
 }
@@ -119,6 +128,9 @@ export default function PengumumanKbmComposer({
      "Sedang izin" di kartu sesi, supaya penyusun tahu KENAPA statusnya
      sudah otomatis "Diganti". */
   const [guruIzinSet, setGuruIzinSet] = useState<Set<number>>(new Set());
+  /* guru_id -> label alasan siap tampil ("izin sakit" / "cuti"). Dipakai
+     di teks pengumuman, bukan cuma lencana. */
+  const [alasanIzin, setAlasanIzin] = useState<Map<number, string>>(new Map());
   const [catatan, setCatatan] = useState(CATATAN_DEFAULT);
 
   /* Mulai dari `true`, BUKAN false (diperbaiki 2026-08-28, laporan owner
@@ -224,10 +236,25 @@ export default function PengumumanKbmComposer({
       if (e1) throw new Error(e1.message);
       if (e2) throw new Error(e2.message);
 
-      const guruIzin = new Set<number>(
-        ((hasilIzin?.data ?? []) as { guru_id: number }[]).map((r) => r.guru_id),
-      );
+      /* Sejak migrasi 20260828220000 fungsinya juga mengembalikan jenis &
+         kategori alasan (BUKAN alasan_detail) supaya pengumuman bisa
+         menyebut "izin sakit". Baris lama tanpa kolom itu tetap aman:
+         field-nya sekadar undefined dan kalimatnya jatuh ke "izin". */
+      const barisIzin = (hasilIzin?.data ?? []) as {
+        guru_id: number;
+        jenis?: string | null;
+        alasan_kategori?: string | null;
+      }[];
+      const guruIzin = new Set<number>(barisIzin.map((r) => r.guru_id));
       setGuruIzinSet(guruIzin);
+      setAlasanIzin(
+        new Map(
+          barisIzin.map((r) => [
+            r.guru_id,
+            labelIzin(r.jenis ?? null, r.alasan_kategori ?? null),
+          ]),
+        ),
+      );
 
       /* Kategori yang berjalan pada hari itu. Kalau tabel hari-aktifnya
          belum diisi sama sekali, JANGAN diam-diam mengosongkan jadwal --
@@ -361,13 +388,25 @@ export default function PengumumanKbmComposer({
     : '(pilih tanggal)';
 
   const teks = useMemo(() => {
-    type Efektif = Jadwal & { penggantiDari?: string; menungguPengganti?: boolean };
+    type Efektif = Jadwal & {
+      penggantiDari?: string;
+      /* Alasan izin guru yang digantikan ("izin sakit"/"cuti") -- dipakai
+         melengkapi penanda "menggantikan X" yang sudah ada, BUKAN baris
+         baru: format teks WA tidak boleh berubah (diminta owner). */
+      alasanDari?: string;
+      menungguPengganti?: boolean;
+    };
     const efektif: Efektif[] = [];
     for (const j of jadwalUrut) {
       const ov = overrides[j.id];
       if (ov?.status === 'libur') continue;
       if (ov?.status === 'diganti' && ov.penggantiId) {
-        efektif.push({ ...j, guru_id: ov.penggantiId, penggantiDari: namaGuru(j.guru_id) });
+        efektif.push({
+          ...j,
+          guru_id: ov.penggantiId,
+          penggantiDari: namaGuru(j.guru_id),
+          alasanDari: j.guru_id != null ? alasanIzin.get(j.guru_id) : undefined,
+        });
       } else if (ov?.status === 'diganti') {
         /* Ditandai diganti tapi penggantinya BELUM dipilih. Jangan diam-
            diam mencetak nama guru yang justru sedang izin -- wali murid
@@ -407,7 +446,7 @@ export default function PengumumanKbmComposer({
          satu kesatuan di WhatsApp, jarak cuma antar-pengajar. */
       g.sesi.forEach((j, i) => {
         baris.push(
-          `📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : j.menungguPengganti ? ` _(pengajar izin -- pengganti belum ditentukan)_` : ''}`
+          `📍 *Sesi ${i + 1} : Kls ${j.kelas}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari}${j.alasanDari ? ` yang ${j.alasanDari}` : ''})_` : j.menungguPengganti ? ` _(pengajar izin -- pengganti belum ditentukan)_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
@@ -424,7 +463,7 @@ export default function PengumumanKbmComposer({
         baris.push(
           j.menungguPengganti
             ? `📍 *Pengajar : _(izin -- pengganti belum ditentukan)_*`
-            : `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari})_` : ''}`
+            : `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari}${j.alasanDari ? ` yang ${j.alasanDari}` : ''})_` : ''}`
         );
         baris.push(
           `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
@@ -454,7 +493,7 @@ export default function PengumumanKbmComposer({
     baris.push('Wassalamualaikum Wr. Wb.');
 
     return baris.join('\n');
-  }, [jadwalUrut, overrides, namaGuru, namaKelompok, tanggalLabel, catatan]);
+  }, [jadwalUrut, overrides, namaGuru, namaKelompok, tanggalLabel, catatan, alasanIzin]);
 
   async function salin() {
     try {
