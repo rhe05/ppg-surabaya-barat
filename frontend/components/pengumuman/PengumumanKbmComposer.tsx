@@ -111,19 +111,62 @@ export default function PengumumanKbmComposer({
       .then(({ data }) => setGuruList(data ?? []));
   }, [kelompokId]);
 
+  /* Jadwal dicocokkan lewat HARI AKTIF kategorinya, BUKAN `tanggal` persis
+     (diperbaiki 2026-08-28, laporan owner "masih belum muncul").
+
+     Duduk perkaranya: `jadwal_kbm` memang jadwal BERULANG per kategori --
+     layar /jadwal sengaja membiarkan kolom `hari`/`tanggal` kosong (lihat
+     komentar di app/jadwal/page.tsx), dan hari mana saja sebuah kategori
+     berjalan disimpan terpisah di `jadwal_kategori_hari.hari_aktif`
+     ("Senin,Selasa,..."). Versi lama komposer ini menyaring
+     `.eq('tanggal', tanggal)`, sehingga hanya cocok untuk baris yang
+     kebetulan punya tanggal persis -- di produksi cuma ada 7 baris warisan
+     migrasi bertanggal 20 Juli 2026, jadi di tanggal LAIN hasilnya selalu
+     kosong dan pengumuman tidak pernah bisa dibuat.
+
+     Baris dgn `tanggal` terisi tetap ikut kalau tanggalnya sama persis
+     (jalur sesi sekali-jalan), di-dedup lewat id supaya tidak dobel. */
   const muat = useCallback(async () => {
     if (!tanggal) return;
     setLoading(true);
     setError(null);
     try {
-      const { data, error: err } = await supabase
-        .from('jadwal_kbm')
-        .select('id, kategori, kelas, guru_id, jam_mulai, jam_selesai, ruangan, keterangan')
-        .eq('kelompok_id', kelompokId)
-        .eq('tanggal', tanggal)
-        .order('jam_mulai');
-      if (err) throw new Error(err.message);
-      setJadwalList((data ?? []) as Jadwal[]);
+      const namaHari = NAMA_HARI[new Date(tanggal + 'T00:00:00').getDay()];
+
+      const [{ data: dJadwal, error: e1 }, { data: dHari, error: e2 }] = await Promise.all([
+        supabase
+          .from('jadwal_kbm')
+          .select('id, kategori, kelas, guru_id, jam_mulai, jam_selesai, ruangan, keterangan, tanggal')
+          .eq('kelompok_id', kelompokId)
+          .order('jam_mulai'),
+        supabase
+          .from('jadwal_kategori_hari')
+          .select('hari_aktif, kategori_kbm(nama)')
+          .eq('kelompok_id', kelompokId),
+      ]);
+      if (e1) throw new Error(e1.message);
+      if (e2) throw new Error(e2.message);
+
+      /* Kategori yang berjalan pada hari itu. Kalau tabel hari-aktifnya
+         belum diisi sama sekali, JANGAN diam-diam mengosongkan jadwal --
+         perlakukan semua kategori sebagai aktif, supaya layar ini tetap
+         berguna dan bukan malah kosong tanpa penjelasan. */
+      const barisHari = (dHari ?? []) as { hari_aktif: string | null; kategori_kbm: { nama: string } | { nama: string }[] | null }[];
+      const aktifHariIni = new Set<string>();
+      for (const b of barisHari) {
+        const k = Array.isArray(b.kategori_kbm) ? b.kategori_kbm[0] : b.kategori_kbm;
+        if (!k?.nama) continue;
+        const daftar = (b.hari_aktif ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+        if (daftar.includes(namaHari)) aktifHariIni.add(k.nama);
+      }
+      const adaAturanHari = barisHari.length > 0;
+
+      const semua = (dJadwal ?? []) as (Jadwal & { tanggal: string | null })[];
+      const terpilih = semua.filter(
+        (j) => j.tanggal === tanggal || !adaAturanHari || aktifHariIni.has(j.kategori),
+      );
+
+      setJadwalList(terpilih.map(({ tanggal: _abaikan, ...sisa }) => sisa) as Jadwal[]);
       setOverrides({});
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat jadwal.');
