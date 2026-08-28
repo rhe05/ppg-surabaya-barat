@@ -8,7 +8,7 @@
    migrasi 20260828100000). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PiggyBank, Search, Settings2, Plus, X } from 'lucide-react';
+import { Banknote, Search, Settings2, Plus, X } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -223,7 +223,7 @@ function TabunganContent() {
         <SkeletonKartuList />
       ) : jenis.length === 0 ? (
         <EmptyState
-          ikon={<PiggyBank size={22} />}
+          ikon={<Banknote size={22} />}
           judul="Belum ada jenis tabungan"
           deskripsi={
             isAdmin

@@ -24,6 +24,7 @@ const HALAMAN_GURU = [
   '/reports',
   '/santri-saya',
   '/pengumuman',
+  '/tabungan',
 ];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
