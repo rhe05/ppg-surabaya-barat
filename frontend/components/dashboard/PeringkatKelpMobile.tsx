@@ -1,19 +1,24 @@
 'use client';
 
-/* "Peringkat" — fitur tersendiri, mobile admin_kelp (2026-08-27, diminta
-   owner). Peringkat kehadiran berbasis POIN, 10 teratas, terpisah utk
-   Generus & Guru, pilih Bulan+Tahun lewat pemilih premium.
+/* "Peringkat" — fitur tersendiri. Peringkat kehadiran berbasis POIN, 10
+   teratas, terpisah utk Generus & Guru, pilih Bulan+Tahun lewat pemilih
+   premium.
+
+   Dipakai 2 peran (2026-08-28):
+   - admin_kelompok (mobile): penuh — bisa atur nilai poin lewat tombol
+     gerigi -> modal "Pengaturan Poin".
+   - guru (mobile, prop `hanyaLihat`): HANYA melihat. Tanpa tombol gerigi,
+     tanpa modal pengaturan; header pakai chrome guru (JurnalHeaderChrome).
 
    Nilai poin per status DIATUR TIAP KELOMPOK (tabel peringkat_konfig_poin,
-   migrasi 20260827100000) lewat tombol gerigi -> modal "Pengaturan Poin".
-   Kalau tabel/baris belum ada, pakai default 3/1/1/0 (fitur tetap jalan,
-   cuma tombol Simpan yang gagal sampai migrasi dijalankan). Rumus di
-   lib/peringkatKehadiran.ts. */
+   migrasi 20260827100000). Kalau tabel/baris belum ada, pakai default
+   3/1/1/0. Rumus di lib/peringkatKehadiran.ts. */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Award, Settings2, X } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import PilihBulanTahun from '@/components/ui/PilihBulanTahun';
 import { useToast } from '@/components/ui/useToast';
 import EmptyState from '@/components/ui/EmptyState';
@@ -32,7 +37,7 @@ type Tab = 'generus' | 'guru';
 
 const MEDALI = ['#D97706', '#94A3B8', '#B45309']; // emas / perak / perunggu
 
-export default function PeringkatKelpMobile() {
+export default function PeringkatKelpMobile({ hanyaLihat = false }: { hanyaLihat?: boolean }) {
   const { profile } = useAuth();
   const { sukses } = useToast();
   const kelompokId = profile?.scope_kelompok_id ?? null;
@@ -85,7 +90,7 @@ export default function PeringkatKelpMobile() {
 
   return (
     <main className="min-h-screen bg-bg">
-      <AdminHeader judul="Peringkat" />
+      {hanyaLihat ? <JurnalHeaderChrome tampilkanHero={false} /> : <AdminHeader judul="Peringkat" />}
 
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
         <div className="mb-3 flex items-start justify-between gap-2">
@@ -102,14 +107,16 @@ export default function PeringkatKelpMobile() {
                 setTahun(t);
               }}
             />
-            <button
-              type="button"
-              aria-label="Pengaturan Poin"
-              onClick={() => setPengaturanTerbuka(true)}
-              className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim active:scale-[0.92]"
-            >
-              <Settings2 size={15} />
-            </button>
+            {!hanyaLihat && (
+              <button
+                type="button"
+                aria-label="Pengaturan Poin"
+                onClick={() => setPengaturanTerbuka(true)}
+                className="flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim active:scale-[0.92]"
+              >
+                <Settings2 size={15} />
+              </button>
+            )}
           </div>
         </div>
 
@@ -192,7 +199,7 @@ export default function PeringkatKelpMobile() {
         </div>
       </div>
 
-      {pengaturanTerbuka && kelompokId && (
+      {!hanyaLihat && pengaturanTerbuka && kelompokId && (
         <PengaturanPoin
           kelompokId={kelompokId}
           awal={konfig}
