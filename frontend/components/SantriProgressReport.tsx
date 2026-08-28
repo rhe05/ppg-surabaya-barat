@@ -299,6 +299,21 @@ export default function SantriProgressReport() {
   // Laporan"), jadi unduh PDF TIDAK memanggil Supabase sama sekali.
   function unduhPdf() {
     if (!laporan) return;
+
+    /* Nama berkas PDF diambil peramban dari document.title -- disamakan
+       dgn jalur guru (GuruLaporanView.tsx), diminta owner 2026-08-28.
+       Karakter terlarang di nama berkas dibuang; nama kelas boleh
+       mengandung "/" (mis. "PAUD/TK") yang akan memotong nama berkas. */
+    const judulAsli = document.title;
+    const aman = (s: string) => s.replace(/[\\/:*?"<>|]/g, '-').trim();
+    document.title = `Laporan Perkembangan Santri - ${aman(laporan.guruNama)} - ${aman(laporan.kelasLabel)}`;
+
+    const pulihkan = () => {
+      document.title = judulAsli;
+      window.removeEventListener('afterprint', pulihkan);
+    };
+    window.addEventListener('afterprint', pulihkan);
+
     window.print();
   }
 

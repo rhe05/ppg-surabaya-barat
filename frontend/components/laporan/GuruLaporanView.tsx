@@ -188,8 +188,31 @@ export default function GuruLaporanView() {
   // muncul -- tanpa ini kadang preview masih kosong saat print dipanggil).
   useEffect(() => {
     if (!laporan) return;
+
+    /* Nama berkas saat guru memilih "Simpan sebagai PDF" di dialog cetak
+       diambil peramban dari document.title (diminta owner 2026-08-28:
+       "Laporan Perkembangan Santri - Nama Guru - Kelas Ngaji"). Judul
+       dikembalikan lagi setelah dialog ditutup supaya tab tidak
+       nyangkut memakai judul laporan.
+
+       Karakter yang dilarang di nama berkas (\ / : * ? " < > |) dibuang
+       -- nama kelas boleh mengandung "/" (mis. "PAUD/TK"), dan kalau
+       dibiarkan sebagian peramban memotong nama berkasnya di situ. */
+    const judulAsli = document.title;
+    const aman = (s: string) => s.replace(/[\\/:*?"<>|]/g, '-').trim();
+    document.title = `Laporan Perkembangan Santri - ${aman(laporan.guruNama)} - ${aman(laporan.kelasLabel)}`;
+
+    const pulihkan = () => {
+      document.title = judulAsli;
+    };
+    window.addEventListener('afterprint', pulihkan);
+
     const id = requestAnimationFrame(() => window.print());
-    return () => cancelAnimationFrame(id);
+    return () => {
+      cancelAnimationFrame(id);
+      window.removeEventListener('afterprint', pulihkan);
+      document.title = judulAsli;
+    };
   }, [laporan]);
 
   const buatLaporan = useCallback(async () => {
@@ -265,6 +288,7 @@ export default function GuruLaporanView() {
         return {
           nama: s.nama,
           hariAktif: total,
+          hadir,
           izin,
           sakit,
           alpa,

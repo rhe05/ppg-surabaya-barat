@@ -13,7 +13,11 @@
 
 export type LaporanBaris = {
   nama: string;
+  /* Jumlah sesi yang tercatat utk santri ini. TIDAK lagi jadi kolom tabel
+     (diminta owner 2026-08-28) -- tetap disimpan karena `persen` dihitung
+     darinya dan berguna kalau nanti dibutuhkan lagi. */
   hariAktif: number;
+  hadir: number;
   izin: number;
   alpa: number;
   sakit: number;
@@ -84,7 +88,7 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
           <thead className="border-b border-border bg-panel-2">
             <tr>
-              {['Nama', 'Hari Aktif', 'Kehadiran', 'Izin', 'Alpa', 'Sakit'].map((h) => (
+              {['Nama', '%Hadir', 'Hadir', 'Izin', 'Alpa', 'Sakit'].map((h) => (
                 <th key={h} className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]">
                   {h}
                 </th>
@@ -102,10 +106,10 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
               laporan.baris.map((b) => (
                 <tr key={b.nama}>
                   <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
-                  <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.hariAktif}</td>
                   <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
                     {b.persen !== null ? `${b.persen}%` : '—'}
                   </td>
+                  <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.hadir}</td>
                   <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.izin}</td>
                   <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.alpa}</td>
                   <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.sakit}</td>
