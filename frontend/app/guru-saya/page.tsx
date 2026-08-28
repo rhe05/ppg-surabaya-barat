@@ -23,6 +23,11 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
+import { useToast } from '@/components/ui/useToast';
+import EmptyState from '@/components/ui/EmptyState';
+import { CalendarDays } from 'lucide-react';
 
 const JENIS_IZIN = [
   { nilai: 'izin', label: 'Izin Harian' },
@@ -105,6 +110,17 @@ function GuruSayaContent() {
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const { konfirmasi, dialog } = useKonfirmasi();
+  const { sukses } = useToast();
+  /* Pesan sukses tampil sebagai toast melayang, bukan teks hijau kecil di
+     tengah halaman yang mudah terlewat (2026-08-28). Dijembatani dari state
+     `pesan` yang sudah ada supaya SELURUH pemanggil setPesan() ikut, tanpa
+     perlu menyentuh satu per satu. */
+  useEffect(() => {
+    if (!pesan) return;
+    sukses(pesan);
+    setPesan(null);
+  }, [pesan, sukses]);
 
   /* Jumlah izin bulan berjalan — padanan serverGetGuruIzinCountBulanIni
      (Modul_InputAbsen.gs:1515). Di app lama dipakai memunculkan konfirmasi
@@ -210,7 +226,14 @@ function GuruSayaContent() {
   }
 
   async function batalkanIzin(i: Izin) {
-    if (!window.confirm(`Batalkan pengajuan ${i.tanggal_mulai} s/d ${i.tanggal_selesai}?`)) return;
+    const setuju = await konfirmasi({
+      judul: 'Batalkan pengajuan izin?',
+      pesan: `Pengajuan ${i.tanggal_mulai} s/d ${i.tanggal_selesai} akan dihapus.`,
+      bahaya: true,
+      labelYa: 'Batalkan',
+      labelTidak: 'Kembali',
+    });
+    if (!setuju) return;
     const { error: err } = await supabase.from('guru_izin').delete().eq('id', i.id);
     if (err) setError(err.message);
     else {
@@ -293,6 +316,7 @@ function GuruSayaContent() {
 
   return (
     <main className="relative flex min-h-screen flex-col bg-bg">
+      {dialog}
       <JurnalHeaderChrome tampilkanHero={false} />
       <div className="mx-auto w-full max-w-3xl px-[18px] pt-4 pb-10">
       <h1 className="mb-2 text-[20px] font-extrabold text-text">{judul}</h1>
@@ -302,9 +326,8 @@ function GuruSayaContent() {
           : 'Ajukan izin harian atau cuti, dan lihat riwayat pengajuan Anda.'}
       </p>
 
-      {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-      {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
+      {loading && <SkeletonKartuList jumlah={3} />}
 
       {view === 'izin' && (
         <>
@@ -383,7 +406,7 @@ function GuruSayaContent() {
       <div className="mb-8">
         <div className="mb-3 text-[15px] font-bold text-text">Riwayat Izin Saya ({izinList.length})</div>
         {izinList.length === 0 && (
-          <p className="text-[13px] text-text-dim">Belum ada pengajuan izin.</p>
+          <EmptyState ikon={<CalendarDays size={22} />} judul="Belum ada pengajuan izin" deskripsi="Pengajuan izin yang Anda buat akan muncul di sini." />
         )}
         {izinList.map((i) => (
           <div

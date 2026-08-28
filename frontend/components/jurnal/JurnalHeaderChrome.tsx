@@ -23,12 +23,7 @@
    satu-satunya jalan guru kembali ke menu, tidak boleh hilang. */
 
 import Image from 'next/image';
-import { useState } from 'react';
-import { Menu } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
-import MenuGuru from '@/components/dashboard/MenuGuru';
-import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
-import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 
 const SINGKATAN_KATEGORI: Record<string, string> = {
@@ -40,34 +35,14 @@ const SINGKATAN_KATEGORI: Record<string, string> = {
 
 export default function JurnalHeaderChrome({ tampilkanHero = true }: { tampilkanHero?: boolean }) {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
-  const [menuTerbuka, setMenuTerbuka] = useState(false);
-  const [chooserTerbuka, setChooserTerbuka] = useState(false);
-  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
   const singkatan = kategoriGuru ? (SINGKATAN_KATEGORI[kategoriGuru] ?? kategoriGuru) : null;
   const barisRole = singkatan ? `Guru Generus - ${singkatan}` : null;
 
   return (
     <>
-      <MenuGuru
-        terbuka={menuTerbuka}
-        onTutup={() => setMenuTerbuka(false)}
-        onKehadiran={() => setChooserTerbuka(true)}
-        onJurnal={() => setJurnalChooserTerbuka(true)}
-      />
-      <KehadiranChooser terbuka={chooserTerbuka} onTutup={() => setChooserTerbuka(false)} />
-      <JurnalChooser terbuka={jurnalChooserTerbuka} onTutup={() => setJurnalChooserTerbuka(false)} />
-
       <div className={`shrink-0 bg-panel ${tampilkanHero ? 'overflow-hidden rounded-b-3xl shadow-[0_6px_20px_rgba(5,150,105,0.22)]' : 'border-b border-border shadow-[var(--shadow-subtle)]'}`}>
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          <button
-            type="button"
-            aria-label="Menu Utama"
-            onClick={() => setMenuTerbuka((v) => !v)}
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-          >
-            <Menu size={22} strokeWidth={2} />
-          </button>
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={20} height={18} className="block shrink-0" />
             <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">

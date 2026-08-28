@@ -23,6 +23,11 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import PengumumanKbmComposer from '@/components/pengumuman/PengumumanKbmComposer';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
+import { useToast } from '@/components/ui/useToast';
+import EmptyState from '@/components/ui/EmptyState';
+import { Megaphone } from 'lucide-react';
 
 const PERAN_TULIS = ['admin_ppg', 'admin_desa', 'admin_kelompok'];
 const NAMA_BULAN = [
@@ -193,6 +198,17 @@ function PengumumanContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const { konfirmasi, dialog } = useKonfirmasi();
+  const { sukses } = useToast();
+  /* Pesan sukses tampil sebagai toast melayang, bukan teks hijau kecil di
+     tengah halaman yang mudah terlewat (2026-08-28). Dijembatani dari state
+     `pesan` yang sudah ada supaya SELURUH pemanggil setPesan() ikut, tanpa
+     perlu menyentuh satu per satu. */
+  useEffect(() => {
+    if (!pesan) return;
+    sukses(pesan);
+    setPesan(null);
+  }, [pesan, sukses]);
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [sedangDiubah, setSedangDiubah] = useState<Pengumuman | null>(null);
   const [komposerTerbuka, setKomposerTerbuka] = useState(false);
@@ -251,7 +267,12 @@ function PengumumanContent() {
   }
 
   async function hapus(p: Pengumuman) {
-    if (!window.confirm(`Hapus pengumuman "${p.judul}"? Tindakan ini tidak bisa dibatalkan.`)) return;
+    const setuju = await konfirmasi({
+      judul: `Hapus pengumuman "${p.judul}"?`,
+      pesan: 'Tindakan ini tidak bisa dibatalkan.',
+      bahaya: true,
+    });
+    if (!setuju) return;
     setError(null);
     setPesan(null);
     try {
@@ -266,6 +287,7 @@ function PengumumanContent() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
+      {dialog}
       <h1 className="mb-2 text-[24px] font-bold text-text">Pengumuman</h1>
       <p className="mb-6 text-[13px] text-text-dim">
         Pengumuman per kelompok, terbaru lebih dulu. Guru bisa membaca pengumuman kelompoknya.
@@ -306,12 +328,11 @@ function PengumumanContent() {
         )}
       </div>
 
-      {pesan && <p className="mb-4 text-[13px] text-sage">{pesan}</p>}
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-      {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
+      {loading && <SkeletonKartuList jumlah={3} />}
       {!loading && !kelompokId && <p className="text-[13px] text-text-dim">Pilih kelompok dulu.</p>}
       {!loading && kelompokId && daftar.length === 0 && (
-        <p className="text-[13px] text-text-dim">Belum ada pengumuman untuk kelompok ini.</p>
+        <EmptyState ikon={<Megaphone size={22} />} judul="Belum ada pengumuman" deskripsi="Pengumuman untuk kelompok ini belum ada." />
       )}
 
       {!loading &&

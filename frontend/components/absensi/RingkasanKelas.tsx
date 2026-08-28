@@ -19,6 +19,7 @@
      Angkanya di sana adalah jumlah SELURUH catatan. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { supabase } from '@/lib/supabase';
 
 type Kelas = { id: number; nama: string; jam_mulai: string; ruangan: string };
@@ -175,7 +176,7 @@ export default function RingkasanKelas({
         </div>
       </div>
 
-      {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
+      {loading && <SkeletonKartuList jumlah={4} />}
       {error && <p className="text-[13px] text-red">{error}</p>}
 
       {!loading && !error && (

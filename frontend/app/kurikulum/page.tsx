@@ -44,6 +44,7 @@ import KebabMenu from '@/components/ui/KebabMenu';
 import PencapaianSantri from '@/components/kurikulum/PencapaianSantri';
 import TargetBulanan from '@/components/kurikulum/TargetBulanan';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
 
 /* Dulu guru dibatasi 1-6 (warisan app lama, KURIKULUM_MOBILE_KELAS_RANGE_
    Modul_MaintainKurikulum.gs:150), lalu PAUD-TK ditambahkan lagi
@@ -322,6 +323,7 @@ function KurikulumContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const { konfirmasi, dialog } = useKonfirmasi();
   const [ubah, setUbah] = useState<
     {
       judul: string;
@@ -530,12 +532,12 @@ function KurikulumContent() {
 
   async function hapusMateri(p: Prota) {
     const nama = namaDari(p.kategori_kbm);
-    if (
-      !window.confirm(
-        `Hapus materi "${nama}" beserta semua program semester dan bulanannya? Tindakan ini tidak bisa dibatalkan.`
-      )
-    )
-      return;
+    const setuju = await konfirmasi({
+      judul: `Hapus materi "${nama}"?`,
+      pesan: 'Semua program semester dan bulanannya ikut terhapus. Tindakan ini tidak bisa dibatalkan.',
+      bahaya: true,
+    });
+    if (!setuju) return;
 
     setSibuk(true);
     setError(null);
@@ -620,6 +622,7 @@ function KurikulumContent() {
   /* ── Isi kurikulum ── */
   return (
     <>
+      {dialog}
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
       <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">

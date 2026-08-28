@@ -29,6 +29,11 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import RekapJurnal from '@/components/jurnal/RekapJurnal';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
+import { useToast } from '@/components/ui/useToast';
+import EmptyState from '@/components/ui/EmptyState';
+import { BookOpen } from 'lucide-react';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -78,6 +83,17 @@ function JurnalContent() {
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pesan, setPesan] = useState<string | null>(null);
+  const { konfirmasi, dialog } = useKonfirmasi();
+  const { sukses } = useToast();
+  /* Pesan sukses tampil sebagai toast melayang, bukan teks hijau kecil di
+     tengah halaman yang mudah terlewat (2026-08-28). Dijembatani dari state
+     `pesan` yang sudah ada supaya SELURUH pemanggil setPesan() ikut, tanpa
+     perlu menyentuh satu per satu. */
+  useEffect(() => {
+    if (!pesan) return;
+    sukses(pesan);
+    setPesan(null);
+  }, [pesan, sukses]);
 
   useEffect(() => {
     async function load() {
@@ -194,7 +210,12 @@ function JurnalContent() {
   }
 
   async function hapus(j: Jurnal) {
-    if (!window.confirm(`Hapus jurnal tanggal ${j.tanggal}?`)) return;
+    const setuju = await konfirmasi({
+      judul: 'Hapus jurnal ini?',
+      pesan: `Jurnal tanggal ${j.tanggal} akan dihapus dari daftar.`,
+      bahaya: true,
+    });
+    if (!setuju) return;
     setError(null);
     setPesan(null);
     try {
@@ -214,6 +235,7 @@ function JurnalContent() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
+      {dialog}
       <h1 className="mb-2 text-[24px] font-bold text-text">Jurnal KBM</h1>
       <p className="mb-6 text-[13px] text-text-dim">
         Catatan materi dan hal penting tiap sesi, satu entri per kelas per tanggal.
@@ -307,7 +329,6 @@ function JurnalContent() {
               />
             </div>
 
-            {pesan && <p className="mb-3 text-[13px] text-sage">{pesan}</p>}
             {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
 
             <button onClick={simpan} disabled={menyimpan || loading} className={KELAS_TOMBOL_UTAMA}>
@@ -316,9 +337,9 @@ function JurnalContent() {
           </div>
 
           <div className="mb-3 text-[15px] font-bold text-text">Riwayat Kelas Ini</div>
-          {loading && <p className="text-[13px] text-text-dim">Memuat...</p>}
+          {loading && <SkeletonKartuList jumlah={4} />}
           {!loading && riwayat.length === 0 && (
-            <p className="text-[13px] text-text-dim">Belum ada jurnal untuk kelas ini.</p>
+            <EmptyState ikon={<BookOpen size={22} />} judul="Belum ada jurnal" deskripsi="Jurnal untuk kelas ini belum pernah diisi." />
           )}
           {!loading && riwayat.length > 0 && (
             <div className="overflow-x-auto rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">

@@ -121,6 +121,18 @@ body {
   }
 }
 
+/* Bottom tab bar GURU (GuruBottomNav.tsx, 2026-08-28). Beda dari admin:
+   navnya dirender di RequireAuth sebagai SIBLING <main> tiap halaman
+   (bukan di dalamnya lewat AdminHeader), jadi `main:has(...)` tidak akan
+   cocok -- :has() dipasang di body. Tidak dibatasi media query: app guru
+   memang dikunci ke kolom 430px di semua ukuran layar, navnya pun selalu
+   tampil. Layar tugas yang menyembunyikan nav (Input Kehadiran, Rencana
+   Pembelajaran) otomatis tidak kena padding ini karena elemennya tidak
+   ada di DOM. */
+body:has([data-guru-nav]) main {
+  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+}
+
 /* .tanpa-scrollbar (20 Agt, diminta owner): sembunyikan scrollbar bawaan
    browser di kolom konten yg overflow-y-auto tapi tetap bisa discroll
    normal (elemen ini dipakai di dalam kolom mobile max-w-[430px], scroll

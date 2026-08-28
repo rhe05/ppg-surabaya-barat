@@ -4,12 +4,10 @@ import Image from 'next/image';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import MenuGuru from '@/components/dashboard/MenuGuru';
-import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
-import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
+import AksiCepatGuru from '@/components/dashboard/AksiCepatGuru';
 import { muatOverrideKelompok, tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
@@ -119,9 +117,6 @@ function durasiMenit(mulai: string | null, selesai: string | null) {
 export default function GuruDashboard() {
   const { profile, namaKelompok, kategoriGuru } = useAuth();
   const [kelas, setKelas] = useState<Kelas[]>([]);
-  const [menuTerbuka, setMenuTerbuka] = useState(false);
-  const [chooserTerbuka, setChooserTerbuka] = useState(false);
-  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
   const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -276,48 +271,13 @@ export default function GuruDashboard() {
 
   return (
     <main className="relative flex min-h-screen flex-col bg-bg">
-      {/* Menu hamburger — dirender di LUAR .ia-header karena header punya
-          overflow-hidden (untuk sudut membulat di bawahnya); dropdown yang
-          absolute di dalamnya akan terpotong kalau ditaruh di sana. */}
-      <MenuGuru
-        terbuka={menuTerbuka}
-        onTutup={() => setMenuTerbuka(false)}
-        onKehadiran={() => setChooserTerbuka(true)}
-        onJurnal={() => setJurnalChooserTerbuka(true)}
-      />
-      <KehadiranChooser terbuka={chooserTerbuka} onTutup={() => setChooserTerbuka(false)} />
-      <JurnalChooser
-        terbuka={jurnalChooserTerbuka}
-        onTutup={() => setJurnalChooserTerbuka(false)}
-      />
-
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
-        {/* .ia-topbar — :4867-4901 */}
+        {/* .ia-topbar — :4867-4901. Hamburger DIHAPUS 2026-08-28: navigasi
+            guru pindah ke bottom tab bar (GuruBottomNav, dirender di
+            RequireAuth) -- dua sistem navigasi sekaligus justru bikin
+            bingung, pola yang sama sudah ditempuh admin 27 Agt. */}
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          {/* .ia-hamburger-btn — :4945-4958 */}
-          <button
-            type="button"
-            aria-label="Menu Utama"
-            onClick={() => setMenuTerbuka((v) => !v)}
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-
           {/* .ia-app-brand — :4875-4895 */}
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image
@@ -446,6 +406,7 @@ export default function GuruDashboard() {
 
       {/* .ia-dashboard-view — :5212-5216 */}
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[100px]">
+        <AksiCepatGuru />
         {!loading && !error && (
           <PengingatAbsenBanner kelas={kelas.filter((k) => k.santri_count > 0).map((k) => ({ id: k.id, nama: k.nama }))} />
         )}

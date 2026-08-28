@@ -33,6 +33,8 @@ import {
   UserRoundX,
   Check,
 } from 'lucide-react';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import EmptyState from '@/components/ui/EmptyState';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -804,12 +806,18 @@ function DataGenerusContent() {
           </div>
 
           {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
-          {loading && <p className="mb-4 text-[13px] text-text-dim">Memuat...</p>}
+          {loading && <SkeletonKartuList jumlah={5} />}
 
           {!loading && santriTersaring.length === 0 && (
-            <p className="text-[13px] text-text-dim">
-              {cari.trim() ? 'Tidak ada yang cocok.' : 'Kelas ini belum punya santri.'}
-            </p>
+            <EmptyState
+              ikon={<User size={22} />}
+              judul={cari.trim() ? 'Tidak ada yang cocok' : 'Belum ada generus'}
+              deskripsi={
+                cari.trim()
+                  ? `Tidak ada generus yang cocok dengan "${cari.trim()}".`
+                  : 'Kelas ini belum punya generus terdaftar.'
+              }
+            />
           )}
 
           <div className="flex flex-col gap-2.5">

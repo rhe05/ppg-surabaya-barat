@@ -33,9 +33,6 @@ import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
-import MenuGuru from '@/components/dashboard/MenuGuru';
-import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
-import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import Skeleton from '@/components/ui/Skeleton';
 
 export type KelasDetail = {
@@ -192,9 +189,6 @@ export default function GuruAbsensiView({
      baris ini. Menu & dua popup pemilih di bawah adalah komponen yang SAMA
      dipakai GuruDashboard — supaya "Kehadiran"/"Jurnal Mengajar" dari menu
      berperilaku identik di mana pun dibuka. */
-  const [menuTerbuka, setMenuTerbuka] = useState(false);
-  const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
-  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
   /* Gate muncul lagi kalau daftar kelas berubah (mis. baru selesai dimuat)
      dan belum ada pilihan — sekali dipilih, tidak diganggu lagi selama sesi
@@ -245,20 +239,6 @@ export default function GuruAbsensiView({
        (flex-1 overflow-y-auto di bawah), diminta owner supaya keduanya
        tetap terlihat sambil menggulir daftar santri yang panjang. */
     <main className="relative flex h-screen flex-col overflow-hidden bg-bg">
-      <MenuGuru
-        terbuka={menuTerbuka}
-        onTutup={() => setMenuTerbuka(false)}
-        onKehadiran={() => setKehadiranChooserTerbuka(true)}
-        onJurnal={() => setJurnalChooserTerbuka(true)}
-      />
-      <KehadiranChooser
-        terbuka={kehadiranChooserTerbuka}
-        onTutup={() => setKehadiranChooserTerbuka(false)}
-      />
-      <JurnalChooser
-        terbuka={jurnalChooserTerbuka}
-        onTutup={() => setJurnalChooserTerbuka(false)}
-      />
       {/* Dirender DI LUAR .ia-header (overflow-hidden) — lihat catatan panjang
           di TanggalPicker.tsx. Posisinya dihitung dari ikon kalender saat
           diklik (lihat onClick di bawah). Sabtu/Minggu + tanggal merah
@@ -305,30 +285,13 @@ export default function GuruAbsensiView({
 
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
-        {/* .ia-topbar — :4867-4901, sama persis GuruDashboard.tsx */}
+        {/* .ia-topbar — :4867-4901, sama persis GuruDashboard.tsx.
+            Hamburger dihapus 2026-08-28 (navigasi pindah ke
+            GuruBottomNav) -- di layar INI navnya sendiri sengaja
+            disembunyikan krn sudah ada tombol "Simpan Kehadiran"
+            melayang di dasar layar; guru keluar lewat tombol kembali
+            pemilih kelas / tab bar di layar lain. */}
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          <button
-            type="button"
-            aria-label="Menu Utama"
-            onClick={() => setMenuTerbuka((v) => !v)}
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image
               src="/logo-ruang-ngaji.png"
@@ -593,7 +556,10 @@ export default function GuruAbsensiView({
           w-full spt sebelumnya. */}
       {kelasId !== null && santri.length > 0 && (
         <div
-          className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom))]"
+          /* pb menyertakan tinggi GuruBottomNav (60px, 2026-08-28) supaya
+             tombol duduk DI ATAS tab bar, bukan tertimbun -- navnya z-40
+             dan opak. */
+          className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(74px+env(safe-area-inset-bottom))]"
           style={{ background: 'linear-gradient(180deg, rgba(248,250,252,0) 0%, var(--bg) 30%)' }}
         >
           <div className="mx-auto max-w-[430px]">

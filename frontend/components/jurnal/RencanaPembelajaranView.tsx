@@ -1517,7 +1517,9 @@ export default function RencanaPembelajaranView() {
           toast pengingat -- TIDAK membuka form (kelasId dibutuhkan utk
           simpan materi). */}
       <div
-        className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(14px+env(safe-area-inset-bottom))]"
+        /* +60px = tinggi GuruBottomNav (2026-08-28), tombol duduk di atas
+           tab bar. Sama dgn GuruAbsensiView.tsx. */
+        className="fixed right-0 bottom-0 left-0 px-[18px] pt-3.5 pb-[calc(74px+env(safe-area-inset-bottom))]"
         style={{ background: 'linear-gradient(180deg, rgba(248,250,252,0) 0%, var(--bg) 30%)' }}
       >
         <div className="mx-auto max-w-[430px]">

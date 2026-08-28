@@ -65,13 +65,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
+import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
-import MenuGuru from '@/components/dashboard/MenuGuru';
-import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
-import JurnalChooser from '@/components/dashboard/JurnalChooser';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, adalahAkhirPekan, type OverrideKelompok } from '@/lib/kalenderKelompok';
 
@@ -184,9 +182,6 @@ function RiwayatKehadiranContent() {
   const [posisiKalender, setPosisiKalender] = useState<{ top: number; right: number } | null>(null);
   const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
-  const [menuTerbuka, setMenuTerbuka] = useState(false);
-  const [kehadiranChooserTerbuka, setKehadiranChooserTerbuka] = useState(false);
-  const [jurnalChooserTerbuka, setJurnalChooserTerbuka] = useState(false);
 
   const [baris, setBaris] = useState<{ santri: Santri; selByDate: Record<string, SelAbsensi> }[]>(
     [],
@@ -418,21 +413,6 @@ function RiwayatKehadiranContent() {
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <MenuGuru
-        terbuka={menuTerbuka}
-        onTutup={() => setMenuTerbuka(false)}
-        onKehadiran={() => setKehadiranChooserTerbuka(true)}
-        onJurnal={() => setJurnalChooserTerbuka(true)}
-      />
-      <KehadiranChooser
-        terbuka={kehadiranChooserTerbuka}
-        onTutup={() => setKehadiranChooserTerbuka(false)}
-      />
-      <JurnalChooser
-        terbuka={jurnalChooserTerbuka}
-        onTutup={() => setJurnalChooserTerbuka(false)}
-      />
-
       <KelasGate
         terbuka={gateTerbuka}
         memuat={gateMemuat}
@@ -537,29 +517,8 @@ function RiwayatKehadiranContent() {
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-topbar — :4867-4901 */}
         <div className="flex items-center gap-2.5 bg-panel px-[18px] pt-3.5 pb-3">
-          {/* .ia-hamburger-btn — :4945-4958 */}
-          <button
-            type="button"
-            aria-label="Menu Utama"
-            onClick={() => setMenuTerbuka((v) => !v)}
-            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-sage transition-all duration-150 active:scale-[0.92]"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="22"
-              height="22"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="4" y1="7" x2="20" y2="7" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-              <line x1="4" y1="17" x2="20" y2="17" />
-            </svg>
-          </button>
-
+          {/* Hamburger dihapus 2026-08-28 — navigasi guru pindah ke
+              GuruBottomNav (RequireAuth.tsx). */}
           {/* .ia-app-brand — :4875-4895 */}
           <div className="flex min-w-0 flex-1 items-center justify-start gap-[7px]">
             <Image
@@ -678,7 +637,7 @@ function RiwayatKehadiranContent() {
         )}
 
         {loading ? (
-          <p className="py-8 text-center text-[13px] text-text-faint">Memuat...</p>
+          <div className="py-4"><SkeletonKartuList jumlah={4} /></div>
         ) : kelasList.length === 0 ? (
           <p className="py-8 text-center text-[13px] text-text-faint">
             Anda belum mengampu kelas apa pun.

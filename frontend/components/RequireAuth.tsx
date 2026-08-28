@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import AdminSidebar from '@/components/dashboard/AdminSidebar';
+import GuruBottomNav from '@/components/dashboard/GuruBottomNav';
 
 /* Halaman yang boleh dibuka peran `guru`, menyalin menu mobile guru app lama
    (Markup_Screens.html:229-257): Dashboard, Pilih Kelas, Jurnal, Kurikulum,
@@ -148,12 +149,24 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
      Simpan) diperbaiki LANGSUNG di komponennya (bungkus max-w-[430px]
      mx-auto DI DALAM elemen fixed itu), bukan lewat trik ancestor di
      sini. */
+  /* GuruBottomNav dirender DI SINI (gerbang tunggal semua halaman guru),
+     bukan di tiap chrome -- guru punya 3 topbar berbeda (GuruDashboard,
+     GuruAbsensiView, JurnalHeaderChrome) dan menaruh nav di masing-masing
+     berarti cepat atau lambat ada layar yang ketinggalan. Ruang bawah
+     supaya konten tidak ketutup nav diatur di globals.css lewat
+     `body:has([data-guru-nav]) main` -- BUKAN padding di kolom ini:
+     GuruAbsensiView memakai `h-screen overflow-hidden`, dan menambah
+     padding pada pembungkusnya membuat halaman jadi 100vh+60px (muncul
+     scroll tipis yang tidak seharusnya ada). Lewat :has(), padding cuma
+     berlaku saat navnya memang dirender -- di layar tugas yang navnya
+     sengaja disembunyikan, padding itu otomatis ikut hilang. */
   if (profile?.role === 'guru') {
     return (
       <div className="min-h-screen w-full bg-border">
         <div className="animasi-konten-muncul mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
           {children}
         </div>
+        <GuruBottomNav />
       </div>
     );
   }
