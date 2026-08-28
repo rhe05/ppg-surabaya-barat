@@ -1,16 +1,22 @@
 'use client';
 
 /* Sheet detail tabungan satu santri — dipakai layar guru & admin
-   (/tabungan). Atas: saldo per jenis. Tengah: form catat setoran/
-   penarikan. Bawah: riwayat transaksi (bisa dihapus). */
+   (/tabungan). Atas: saldo per jenis. Tengah: form Terima / Tarik.
+   Bawah: riwayat transaksi (status penarikan + hapus / setujui).
+
+   - TERIMA : guru terima tunai dari generus, efektif seketika.
+   - TARIK  : diajukan sbg 'pending', WAJIB disetujui admin_kelompok.
+     Di layar admin, baris pending bisa langsung disetujui/ditolak. */
 
 import { useMemo, useState } from 'react';
-import { X, ArrowDownCircle, ArrowUpCircle, Trash2 } from 'lucide-react';
+import { X, ArrowDownCircle, ArrowUpCircle, Trash2, Check, Clock, Ban } from 'lucide-react';
 import { useToast } from '@/components/ui/useToast';
 import {
   catatTransaksi,
   hapusTransaksi,
+  putuskanTarik,
   formatRupiah,
+  txMempengaruhiSaldo,
   type TabunganJenis,
   type Transaksi,
 } from '@/lib/tabungan';
@@ -34,6 +40,7 @@ export default function TabunganSantriSheet({
   jenisList,
   transaksi,
   olehId,
+  isAdmin = false,
   onSelesai,
   onTutup,
 }: {
@@ -42,22 +49,26 @@ export default function TabunganSantriSheet({
   jenisList: TabunganJenis[];
   transaksi: Transaksi[]; // milik santri ini saja
   olehId: string | null;
+  isAdmin?: boolean;
   onSelesai: () => void; // panggil muat ulang di parent
   onTutup: () => void;
 }) {
   const { sukses } = useToast();
   const [jenisId, setJenisId] = useState<number>(jenisList[0]?.id ?? 0);
-  const [arah, setArah] = useState<'masuk' | 'keluar'>('masuk');
+  const [arah, setArah] = useState<'terima' | 'tarik'>('terima');
   const [jumlah, setJumlah] = useState('');
   const [tanggal, setTanggal] = useState(hariIni());
   const [keterangan, setKeterangan] = useState('');
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prosesId, setProsesId] = useState<number | null>(null);
 
   const saldoPerJenis = useMemo(() => {
     const m = new Map<number, number>();
-    for (const t of transaksi)
-      m.set(t.jenis_id, (m.get(t.jenis_id) ?? 0) + (t.arah === 'masuk' ? t.jumlah : -t.jumlah));
+    for (const t of transaksi) {
+      if (!txMempengaruhiSaldo(t)) continue;
+      m.set(t.jenis_id, (m.get(t.jenis_id) ?? 0) + (t.arah === 'terima' ? t.jumlah : -t.jumlah));
+    }
     return m;
   }, [transaksi]);
 
@@ -68,14 +79,29 @@ export default function TabunganSantriSheet({
     setError(null);
     if (!jenisId) return setError('Pilih jenis tabungan.');
     if (nJumlah <= 0) return setError('Nominal harus lebih dari 0.');
+    if (arah === 'tarik' && nJumlah > saldoJenisIni)
+      return setError(`Penarikan melebihi saldo (${formatRupiah(saldoJenisIni)}).`);
     setSibuk(true);
     try {
       await catatTransaksi(
         kelompokId,
-        { jenis_id: jenisId, santri_id: santri.id, arah, jumlah: nJumlah, tanggal, keterangan: keterangan.trim() || null },
+        {
+          jenis_id: jenisId,
+          santri_id: santri.id,
+          arah,
+          jumlah: nJumlah,
+          tanggal,
+          keterangan: keterangan.trim() || null,
+        },
         olehId,
       );
-      sukses(arah === 'masuk' ? 'Setoran dicatat.' : 'Penarikan dicatat.');
+      sukses(
+        arah === 'terima'
+          ? 'Penerimaan tabungan dicatat.'
+          : isAdmin
+            ? 'Penarikan dicatat.'
+            : 'Permintaan penarikan dikirim — menunggu persetujuan admin.',
+      );
       setJumlah('');
       setKeterangan('');
       onSelesai();
@@ -87,12 +113,28 @@ export default function TabunganSantriSheet({
   }
 
   async function hapus(id: number) {
+    setProsesId(id);
     try {
       await hapusTransaksi(id);
       sukses('Transaksi dihapus.');
       onSelesai();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menghapus.');
+    } finally {
+      setProsesId(null);
+    }
+  }
+
+  async function putus(id: number, setuju: boolean) {
+    setProsesId(id);
+    try {
+      await putuskanTarik(id, setuju, olehId);
+      sukses(setuju ? 'Penarikan disetujui.' : 'Penarikan ditolak.');
+      onSelesai();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memproses.');
+    } finally {
+      setProsesId(null);
     }
   }
 
@@ -134,18 +176,22 @@ export default function TabunganSantriSheet({
             <div className="mb-3 flex gap-2">
               <button
                 type="button"
-                onClick={() => setArah('masuk')}
+                onClick={() => setArah('terima')}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] border-[1.5px] py-2 text-[12.5px] font-bold ${
-                  arah === 'masuk' ? 'border-sage bg-[rgba(5,150,105,0.08)] text-sage' : 'border-border text-text-dim'
+                  arah === 'terima'
+                    ? 'border-sage bg-[rgba(5,150,105,0.08)] text-sage'
+                    : 'border-border text-text-dim'
                 }`}
               >
-                <ArrowDownCircle size={15} /> Setor
+                <ArrowDownCircle size={15} /> Terima
               </button>
               <button
                 type="button"
-                onClick={() => setArah('keluar')}
+                onClick={() => setArah('tarik')}
                 className={`flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] border-[1.5px] py-2 text-[12.5px] font-bold ${
-                  arah === 'keluar' ? 'border-brass bg-[rgba(217,119,6,0.08)] text-brass' : 'border-border text-text-dim'
+                  arah === 'tarik'
+                    ? 'border-brass bg-[rgba(217,119,6,0.08)] text-brass'
+                    : 'border-border text-text-dim'
                 }`}
               >
                 <ArrowUpCircle size={15} /> Tarik
@@ -172,11 +218,6 @@ export default function TabunganSantriSheet({
                   className="w-full border-none bg-transparent py-2.5 text-[15px] font-extrabold tabular-nums text-text outline-none"
                 />
               </div>
-              {arah === 'keluar' && nJumlah > saldoJenisIni && (
-                <p className="text-[11px] text-brass">
-                  Penarikan melebihi saldo ({formatRupiah(saldoJenisIni)}) — saldo akan minus.
-                </p>
-              )}
               <input
                 type="date"
                 className={INPUT}
@@ -191,6 +232,13 @@ export default function TabunganSantriSheet({
               />
             </div>
 
+            {arah === 'tarik' && !isAdmin && (
+              <p className="mt-2 flex items-start gap-1.5 rounded-[var(--radius)] bg-[rgba(217,119,6,0.08)] px-2.5 py-2 text-[11px] font-semibold text-brass">
+                <Clock size={13} className="mt-px shrink-0" />
+                Penarikan tabungan wajib menunggu persetujuan admin kelompok sebelum dana keluar.
+              </p>
+            )}
+
             {error && <p className="mt-2 text-[12px] text-red">{error}</p>}
 
             <button
@@ -199,7 +247,13 @@ export default function TabunganSantriSheet({
               onClick={simpan}
               className="mt-3 w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
             >
-              {sibuk ? 'Menyimpan...' : arah === 'masuk' ? 'Catat Setoran' : 'Catat Penarikan'}
+              {sibuk
+                ? 'Menyimpan...'
+                : arah === 'terima'
+                  ? 'Catat Penerimaan'
+                  : isAdmin
+                    ? 'Catat Penarikan'
+                    : 'Ajukan Penarikan'}
             </button>
           </div>
 
@@ -213,36 +267,78 @@ export default function TabunganSantriSheet({
             <div className="flex flex-col">
               {txUrut.map((t) => {
                 const j = jenisList.find((x) => x.id === t.jenis_id);
+                const pending = t.arah === 'tarik' && t.status === 'pending';
+                const ditolak = t.arah === 'tarik' && t.status === 'ditolak';
+                const bolehHapus = !(t.arah === 'tarik' && t.status === 'disetujui');
                 return (
-                  <div
-                    key={t.id}
-                    className="flex items-center gap-3 border-b border-border py-2.5 last:border-b-0"
-                  >
-                    <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
-                        t.arah === 'masuk' ? 'bg-[rgba(5,150,105,0.12)] text-sage' : 'bg-[rgba(217,119,6,0.12)] text-brass'
-                      }`}
-                    >
-                      {t.arah === 'masuk' ? <ArrowDownCircle size={15} /> : <ArrowUpCircle size={15} />}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-bold text-text tabular-nums">
-                        {t.arah === 'keluar' ? '− ' : ''}
-                        {formatRupiah(t.jumlah)}
+                  <div key={t.id} className="border-b border-border py-2.5 last:border-b-0">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${
+                          t.arah === 'terima'
+                            ? 'bg-[rgba(5,150,105,0.12)] text-sage'
+                            : 'bg-[rgba(217,119,6,0.12)] text-brass'
+                        }`}
+                      >
+                        {t.arah === 'terima' ? <ArrowDownCircle size={15} /> : <ArrowUpCircle size={15} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-[13px] font-bold tabular-nums ${ditolak ? 'text-text-faint line-through' : 'text-text'}`}
+                          >
+                            {t.arah === 'tarik' ? '− ' : ''}
+                            {formatRupiah(t.jumlah)}
+                          </span>
+                          {pending && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-[rgba(217,119,6,0.12)] px-1.5 py-px text-[9.5px] font-bold text-brass">
+                              <Clock size={9} /> MENUNGGU
+                            </span>
+                          )}
+                          {ditolak && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-[rgba(220,38,38,0.12)] px-1.5 py-px text-[9.5px] font-bold text-red">
+                              <Ban size={9} /> DITOLAK
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-text-dim">
+                          {j?.nama ?? '-'} · {fmtTgl(t.tanggal)}
+                          {t.keterangan ? ` · ${t.keterangan}` : ''}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-text-dim">
-                        {j?.nama ?? '-'} · {fmtTgl(t.tanggal)}
-                        {t.keterangan ? ` · ${t.keterangan}` : ''}
-                      </div>
+                      {bolehHapus && (
+                        <button
+                          type="button"
+                          disabled={prosesId === t.id}
+                          onClick={() => hapus(t.id)}
+                          aria-label="Hapus transaksi"
+                          className="shrink-0 cursor-pointer border-none bg-transparent p-1 text-text-faint active:opacity-60 disabled:opacity-40"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      )}
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => hapus(t.id)}
-                      aria-label="Hapus transaksi"
-                      className="shrink-0 cursor-pointer border-none bg-transparent p-1 text-text-faint active:opacity-60"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+
+                    {isAdmin && pending && (
+                      <div className="mt-2 flex gap-2 pl-10">
+                        <button
+                          type="button"
+                          disabled={prosesId === t.id}
+                          onClick={() => putus(t.id, true)}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-sage bg-[rgba(5,150,105,0.08)] py-1.5 text-[11.5px] font-bold text-sage disabled:opacity-50"
+                        >
+                          <Check size={13} /> Setujui
+                        </button>
+                        <button
+                          type="button"
+                          disabled={prosesId === t.id}
+                          onClick={() => putus(t.id, false)}
+                          className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-red bg-[rgba(220,38,38,0.06)] py-1.5 text-[11.5px] font-bold text-red disabled:opacity-50"
+                        >
+                          <Ban size={13} /> Tolak
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

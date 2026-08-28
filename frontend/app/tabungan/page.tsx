@@ -1,14 +1,18 @@
 'use client';
 
 /* Fitur "Tabungan" (2026-08-28) — tabungan generus per-SANTRI.
-   - guru: lihat & catat setoran/penarikan santri yang dia ajar.
-   - admin_kelompok: atur jenis + target bulanan, lihat total keseluruhan
-     & per-santri se-kelompok.
-   Data: lib/tabungan.ts (tabel tabungan_jenis + tabungan_transaksi,
-   migrasi 20260828100000). */
+   Alur uang: TERIMA (guru <- generus) -> SETOR (guru -> penghimpun) ->
+   TARIK (generus, wajib disetujui admin_kelompok).
+
+   - guru: catat penerimaan & ajukan penarikan santri yang dia ajar,
+     lihat kas di tangannya, setor ke penghimpun.
+   - admin_kelompok: atur jenis + target + penghimpun, setujui/tolak
+     penarikan, lihat total & rincian per-santri, rekap setoran.
+
+   Data: lib/tabungan.ts (migrasi 20260828100000 + 20260828140000). */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, Search, Settings2, Plus, X } from 'lucide-react';
+import { Banknote, Search, Settings2, Plus, X, Wallet, ArrowUpRight, Clock, Check, Ban, UserCog } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -18,27 +22,33 @@ import EmptyState from '@/components/ui/EmptyState';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import { useToast } from '@/components/ui/useToast';
 import TabunganSantriSheet from '@/components/tabungan/TabunganSantriSheet';
+import TabunganSetorSheet from '@/components/tabungan/TabunganSetorSheet';
 import {
   muatJenis,
   muatTransaksiKelompok,
   muatTransaksiSantri,
+  muatSetoranKelompok,
+  muatPenghimpun,
   simpanJenis,
+  simpanPenghimpun,
+  putuskanTarik,
+  hitungSaldo,
+  kasDiTanganGuru,
   formatRupiah,
   type TabunganJenis,
   type Transaksi,
+  type Setoran,
+  type Penghimpun,
 } from '@/lib/tabungan';
 
 type Santri = { id: number; nama: string };
+type Guru = { id: number; nama: string };
 
 const bulanIniPrefix = () => new Date().toISOString().slice(0, 7);
-
-function saldoMap(tx: Transaksi[]) {
-  const m = new Map<string, number>();
-  for (const t of tx) {
-    const k = `${t.santri_id}:${t.jenis_id}`;
-    m.set(k, (m.get(k) ?? 0) + (t.arah === 'masuk' ? t.jumlah : -t.jumlah));
-  }
-  return m;
+function fmtTgl(iso: string) {
+  const [y, m, d] = iso.split('-');
+  const b = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  return `${Number(d)} ${b[Number(m) - 1] ?? m} ${y}`;
 }
 
 function TabunganContent() {
@@ -50,12 +60,18 @@ function TabunganContent() {
 
   const [jenis, setJenis] = useState<TabunganJenis[]>([]);
   const [santri, setSantri] = useState<Santri[]>([]);
+  const [guru, setGuru] = useState<Guru[]>([]);
   const [tx, setTx] = useState<Transaksi[]>([]);
+  const [setoran, setSetoran] = useState<Setoran[]>([]);
+  const [penghimpun, setPenghimpun] = useState<Penghimpun | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
   const [sheetSantri, setSheetSantri] = useState<Santri | null>(null);
   const [jenisEdit, setJenisEdit] = useState<TabunganJenis | 'baru' | null>(null);
+  const [setorBuka, setSetorBuka] = useState(false);
+  const [aturPenghimpun, setAturPenghimpun] = useState(false);
+  const [prosesId, setProsesId] = useState<number | null>(null);
 
   const muat = useCallback(async () => {
     if (!kelompokId) {
@@ -65,8 +81,16 @@ function TabunganContent() {
     setLoading(true);
     setError(null);
     try {
-      const j = await muatJenis(kelompokId);
+      const [j, gRes, sRes, pHimp] = await Promise.all([
+        muatJenis(kelompokId),
+        supabase.from('guru').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null).order('nama'),
+        muatSetoranKelompok(kelompokId).catch(() => [] as Setoran[]),
+        muatPenghimpun(kelompokId).catch(() => null),
+      ]);
       setJenis(j);
+      setGuru((gRes.data ?? []) as Guru[]);
+      setSetoran(sRes);
+      setPenghimpun(pHimp);
 
       if (isAdmin) {
         const [{ data: dS }, txAll] = await Promise.all([
@@ -81,7 +105,6 @@ function TabunganContent() {
         setSantri((dS ?? []) as Santri[]);
         setTx(txAll);
       } else {
-        /* Guru: santri di kelas yang dia ampu. */
         const { data: dK } = await supabase
           .from('kelas')
           .select('id')
@@ -114,7 +137,14 @@ function TabunganContent() {
     muat();
   }, [muat]);
 
-  const saldo = useMemo(() => saldoMap(tx), [tx]);
+  const saldo = useMemo(() => hitungSaldo(tx), [tx]);
+  const namaGuru = useMemo(() => new Map(guru.map((g) => [g.id, g.nama])), [guru]);
+  const namaSantri = useMemo(() => new Map(santri.map((s) => [s.id, s.nama])), [santri]);
+
+  const penghimpunNama = useMemo(() => {
+    if (!penghimpun || penghimpun.guru_id == null) return null;
+    return namaGuru.get(penghimpun.guru_id) ?? null;
+  }, [penghimpun, namaGuru]);
 
   const totalPerJenis = useMemo(() => {
     const m = new Map<number, { total: number; bulanIni: number }>();
@@ -123,11 +153,29 @@ function TabunganContent() {
     for (const t of tx) {
       const e = m.get(t.jenis_id);
       if (!e) continue;
-      e.total += t.arah === 'masuk' ? t.jumlah : -t.jumlah;
-      if (t.arah === 'masuk' && t.tanggal.startsWith(pfx)) e.bulanIni += t.jumlah;
+      if (t.arah === 'terima') {
+        e.total += t.jumlah;
+        if (t.tanggal.startsWith(pfx)) e.bulanIni += t.jumlah;
+      } else if (t.status === 'disetujui') {
+        e.total -= t.jumlah;
+      }
     }
     return m;
   }, [jenis, tx]);
+
+  const pendingTarik = useMemo(
+    () => tx.filter((t) => t.arah === 'tarik' && t.status === 'pending'),
+    [tx],
+  );
+
+  const kasGuru = useMemo(
+    () => (guruId != null ? kasDiTanganGuru(tx, setoran, profile?.id ?? null, guruId) : 0),
+    [tx, setoran, profile?.id, guruId],
+  );
+  const setoranSaya = useMemo(
+    () => (guruId != null ? setoran.filter((s) => s.guru_id === guruId) : []),
+    [setoran, guruId],
+  );
 
   const santriTersaring = useMemo(() => {
     const term = cari.trim().toLowerCase();
@@ -136,16 +184,135 @@ function TabunganContent() {
 
   const txSantri = (id: number) => tx.filter((t) => t.santri_id === id);
 
+  async function putusAdmin(id: number, setuju: boolean) {
+    setProsesId(id);
+    try {
+      await putuskanTarik(id, setuju, profile?.id ?? null);
+      sukses(setuju ? 'Penarikan disetujui.' : 'Penarikan ditolak.');
+      muat();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal memproses.');
+    } finally {
+      setProsesId(null);
+    }
+  }
+
   const body = (
     <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-24">
       <h1 className="mb-1 text-[20px] font-extrabold text-text">Tabungan</h1>
       <p className="mb-5 text-[13px] text-text-dim">
         {isAdmin
-          ? 'Total tabungan generus se-kelompok, target bulanan, dan rincian per anak.'
-          : 'Catat setoran & penarikan tabungan generus yang Anda ajar.'}
+          ? 'Total tabungan generus, penghimpun, persetujuan penarikan, dan rincian per anak.'
+          : 'Terima setoran generus, setor ke penghimpun, ajukan penarikan.'}
       </p>
 
       {error && <p className="mb-4 text-[13px] text-red">{error}</p>}
+
+      {/* Guru: kas di tangan + setor */}
+      {!loading && !isAdmin && jenis.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setSetorBuka(true)}
+          className="mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(217,119,6,0.12)] text-brass">
+            <Wallet size={19} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11.5px] font-semibold text-text-dim">Kas di tangan Anda</div>
+            <div className="text-[19px] leading-tight font-extrabold tabular-nums text-text">
+              {formatRupiah(kasGuru)}
+            </div>
+            <div className="text-[11px] text-text-dim">
+              Penghimpun: <span className="font-bold text-text">{penghimpunNama ?? 'belum ditetapkan'}</span>
+            </div>
+          </div>
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-brass px-3 py-1.5 text-[11.5px] font-bold text-white">
+            <ArrowUpRight size={13} /> Setor
+          </span>
+        </button>
+      )}
+
+      {/* Guru: penarikan yang masih menunggu */}
+      {!loading && !isAdmin && pendingTarik.length > 0 && (
+        <div className="mb-4 flex items-center gap-2 rounded-card border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
+          <Clock size={14} className="shrink-0" />
+          {pendingTarik.length} penarikan menunggu persetujuan admin kelompok.
+        </div>
+      )}
+
+      {/* Admin: penghimpun */}
+      {!loading && isAdmin && (
+        <button
+          type="button"
+          onClick={() => setAturPenghimpun(true)}
+          className="mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(79,70,229,0.1)] text-indigo">
+            <UserCog size={19} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[11.5px] font-semibold text-text-dim">Penghimpun tabungan</div>
+            <div className="text-[15px] font-extrabold text-text">
+              {penghimpunNama ?? 'Tiap guru pegang sendiri'}
+            </div>
+            {penghimpun?.catatan && (
+              <div className="text-[11px] text-text-dim">{penghimpun.catatan}</div>
+            )}
+          </div>
+          <Settings2 size={16} className="shrink-0 text-text-dim" />
+        </button>
+      )}
+
+      {/* Admin: antrean persetujuan penarikan */}
+      {!loading && isAdmin && pendingTarik.length > 0 && (
+        <div className="mb-5 rounded-card border border-[rgba(217,119,6,0.3)] bg-panel shadow-[var(--shadow-card)]">
+          <div className="flex items-center gap-1.5 border-b border-border px-4 py-3 text-[12.5px] font-extrabold text-brass">
+            <Clock size={14} /> Penarikan Menunggu Persetujuan ({pendingTarik.length})
+          </div>
+          <div className="flex flex-col">
+            {pendingTarik.map((t) => {
+              const j = jenis.find((x) => x.id === t.jenis_id);
+              return (
+                <div key={t.id} className="border-b border-border px-4 py-3 last:border-b-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="truncate text-[13.5px] font-bold text-text">
+                        {namaSantri.get(t.santri_id) ?? `Santri #${t.santri_id}`}
+                      </div>
+                      <div className="text-[11px] text-text-dim">
+                        {j?.nama ?? '-'} · {fmtTgl(t.tanggal)}
+                        {t.keterangan ? ` · ${t.keterangan}` : ''}
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-[14px] font-extrabold tabular-nums text-brass">
+                      − {formatRupiah(t.jumlah)}
+                    </div>
+                  </div>
+                  <div className="mt-2.5 flex gap-2">
+                    <button
+                      type="button"
+                      disabled={prosesId === t.id}
+                      onClick={() => putusAdmin(t.id, true)}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-sage bg-[rgba(5,150,105,0.08)] py-2 text-[12px] font-bold text-sage disabled:opacity-50"
+                    >
+                      <Check size={14} /> Setujui
+                    </button>
+                    <button
+                      type="button"
+                      disabled={prosesId === t.id}
+                      onClick={() => putusAdmin(t.id, false)}
+                      className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-red bg-[rgba(220,38,38,0.06)] py-2 text-[12px] font-bold text-red disabled:opacity-50"
+                    >
+                      <Ban size={14} /> Tolak
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Ringkasan per jenis */}
       {!loading && jenis.length > 0 && (
@@ -186,10 +353,7 @@ function TabunganContent() {
                       <span>Target {formatRupiah(j.target_bulanan!)}</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-panel-2">
-                      <div
-                        className="h-full rounded-full bg-sage"
-                        style={{ width: `${persen}%` }}
-                      />
+                      <div className="h-full rounded-full bg-sage" style={{ width: `${persen}%` }} />
                     </div>
                   </div>
                 )}
@@ -205,6 +369,36 @@ function TabunganContent() {
               <Plus size={15} /> Tambah Jenis Tabungan
             </button>
           )}
+        </div>
+      )}
+
+      {/* Admin: rekap setoran guru */}
+      {!loading && isAdmin && setoran.length > 0 && (
+        <div className="mb-5 rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
+          <div className="border-b border-border px-4 py-3 text-[12.5px] font-extrabold text-text">
+            Setoran Guru ke Penghimpun
+          </div>
+          <div className="flex flex-col">
+            {setoran.slice(0, 8).map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 last:border-b-0"
+              >
+                <div className="min-w-0">
+                  <div className="truncate text-[13px] font-bold text-text">
+                    {namaGuru.get(s.guru_id) ?? `Guru #${s.guru_id}`}
+                  </div>
+                  <div className="text-[11px] text-text-dim">
+                    {fmtTgl(s.tanggal)}
+                    {s.keterangan ? ` · ${s.keterangan}` : ''}
+                  </div>
+                </div>
+                <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-text">
+                  {formatRupiah(s.jumlah)}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -240,6 +434,9 @@ function TabunganContent() {
         <div className="flex flex-col gap-2.5">
           {santriTersaring.map((s) => {
             const total = jenis.reduce((a, j) => a + (saldo.get(`${s.id}:${j.id}`) ?? 0), 0);
+            const adaPending = tx.some(
+              (t) => t.santri_id === s.id && t.arah === 'tarik' && t.status === 'pending',
+            );
             return (
               <button
                 key={s.id}
@@ -248,10 +445,20 @@ function TabunganContent() {
                 className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
               >
                 <div className="min-w-0">
-                  <div className="truncate text-[14px] font-bold text-text">{s.nama}</div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="truncate text-[14px] font-bold text-text">{s.nama}</span>
+                    {adaPending && (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[rgba(217,119,6,0.12)] px-1.5 py-px text-[9px] font-bold text-brass">
+                        <Clock size={8} /> TARIK
+                      </span>
+                    )}
+                  </div>
                   <div className="mt-0.5 text-[11px] text-text-dim">
                     {jenis
-                      .map((j) => `${j.nama.replace(/^Tabungan\s+/i, '')}: ${formatRupiah(saldo.get(`${s.id}:${j.id}`) ?? 0)}`)
+                      .map(
+                        (j) =>
+                          `${j.nama.replace(/^Tabungan\s+/i, '')}: ${formatRupiah(saldo.get(`${s.id}:${j.id}`) ?? 0)}`,
+                      )
                       .join(' · ')}
                   </div>
                 </div>
@@ -278,8 +485,37 @@ function TabunganContent() {
           jenisList={jenis}
           transaksi={txSantri(sheetSantri.id)}
           olehId={profile?.id ?? null}
+          isAdmin={isAdmin}
           onSelesai={muat}
           onTutup={() => setSheetSantri(null)}
+        />
+      )}
+
+      {setorBuka && kelompokId && guruId != null && (
+        <TabunganSetorSheet
+          kelompokId={kelompokId}
+          guruId={guruId}
+          penghimpunNama={penghimpunNama}
+          kasDiTangan={kasGuru}
+          setoranSaya={setoranSaya}
+          olehId={profile?.id ?? null}
+          onSelesai={muat}
+          onTutup={() => setSetorBuka(false)}
+        />
+      )}
+
+      {aturPenghimpun && kelompokId && (
+        <PenghimpunModal
+          kelompokId={kelompokId}
+          guruList={guru}
+          awal={penghimpun}
+          olehId={profile?.id ?? null}
+          onSelesai={() => {
+            setAturPenghimpun(false);
+            sukses('Penghimpun tabungan disimpan.');
+            muat();
+          }}
+          onBatal={() => setAturPenghimpun(false)}
         />
       )}
 
@@ -297,6 +533,104 @@ function TabunganContent() {
         />
       )}
     </main>
+  );
+}
+
+function PenghimpunModal({
+  kelompokId,
+  guruList,
+  awal,
+  olehId,
+  onSelesai,
+  onBatal,
+}: {
+  kelompokId: number;
+  guruList: Guru[];
+  awal: Penghimpun | null;
+  olehId: string | null;
+  onSelesai: () => void;
+  onBatal: () => void;
+}) {
+  const [guruId, setGuruId] = useState<string>(awal?.guru_id != null ? String(awal.guru_id) : '');
+  const [catatan, setCatatan] = useState(awal?.catatan ?? '');
+  const [sibuk, setSibuk] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function simpan() {
+    setError(null);
+    setSibuk(true);
+    try {
+      await simpanPenghimpun(kelompokId, guruId ? Number(guruId) : null, catatan, olehId);
+      onSelesai();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
+      setSibuk(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[610] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
+      <div className="w-full max-w-[420px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-[17px] font-extrabold text-text">Penghimpun Tabungan</h2>
+          <button
+            type="button"
+            onClick={onBatal}
+            aria-label="Tutup"
+            className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        <p className="mb-3 text-[12px] text-text-dim">
+          Guru/pengurus yang diamanahi menghimpun uang tabungan dari guru-guru lain. Pilih
+          &quot;Tiap guru pegang sendiri&quot; jika di kelompok Anda tidak dihimpun jadi satu.
+        </p>
+
+        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Penghimpun</label>
+        <select
+          value={guruId}
+          onChange={(e) => setGuruId(e.target.value)}
+          className="mb-3 w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:outline-none"
+        >
+          <option value="">Tiap guru pegang sendiri</option>
+          {guruList.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.nama}
+            </option>
+          ))}
+        </select>
+
+        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Catatan (opsional)</label>
+        <input
+          value={catatan}
+          onChange={(e) => setCatatan(e.target.value)}
+          placeholder="Misal: setor tiap akhir bulan"
+          className="w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:outline-none"
+        />
+
+        {error && <p className="mt-3 text-[12px] text-red">{error}</p>}
+
+        <div className="mt-5 flex gap-2.5">
+          <button
+            type="button"
+            onClick={onBatal}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            disabled={sibuk}
+            onClick={simpan}
+            className="flex-1 cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+          >
+            {sibuk ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
