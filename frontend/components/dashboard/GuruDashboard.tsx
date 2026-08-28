@@ -7,7 +7,6 @@ import { useAuth } from '@/lib/auth-context';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
-import AksiCepatGuru from '@/components/dashboard/AksiCepatGuru';
 import PesanGalat from '@/components/ui/PesanGalat';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { muatOverrideKelompok, tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
@@ -415,7 +414,6 @@ export default function GuruDashboard() {
 
       {/* .ia-dashboard-view — :5212-5216 */}
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[100px]">
-        <AksiCepatGuru />
         {!loading && !error && (
           <PengingatAbsenBanner kelas={kelas.filter((k) => k.santri_count > 0).map((k) => ({ id: k.id, nama: k.nama }))} />
         )}
