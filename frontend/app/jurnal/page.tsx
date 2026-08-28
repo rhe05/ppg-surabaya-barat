@@ -254,7 +254,7 @@ function JurnalContent() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <main className="mx-auto max-w-4xl p-6">
       {dialog}
       <TanggalPicker
         terbuka={tglBuka}
@@ -433,7 +433,7 @@ function JurnalContent() {
         </div>
       )}
 
-    </div>
+    </main>
   );
 }
 

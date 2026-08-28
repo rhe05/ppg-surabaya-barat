@@ -625,7 +625,7 @@ function KurikulumContent() {
     <>
       {dialog}
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
-      <div className="mx-auto max-w-5xl p-6">
+      <main className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-[24px] font-bold text-text">
@@ -1143,7 +1143,7 @@ function KurikulumContent() {
           </div>
         </div>
       )}
-      </div>
+      </main>
     </>
   );
 }

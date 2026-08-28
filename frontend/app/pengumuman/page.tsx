@@ -449,8 +449,14 @@ function PengumumanGuruView() {
   const { profile, namaKelompok } = useAuth();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
+  /* Akar WAJIB <main>, bukan <div> (diperbaiki 2026-08-28, laporan owner
+     "tombol pengumuman kanan bawah tertutup bottom bar"): ruang bawah utk
+     bottom tab bar guru dipasang lewat aturan global
+     `body:has([data-guru-nav]) main` di globals.css -- pembungkus <div>
+     tidak pernah kena aturan itu, jadi tombol Salin/Simpan di dasar
+     halaman tertimbun navnya. */
   return (
-    <div className="flex min-h-screen flex-col bg-bg">
+    <main className="flex min-h-screen flex-col bg-bg">
       <JurnalHeaderChrome tampilkanHero={false} />
       <div className="flex-1 p-4">
         <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
@@ -463,7 +469,7 @@ function PengumumanGuruView() {
           <p className="text-[13px] text-text-dim">Kelompok belum diketahui.</p>
         )}
       </div>
-    </div>
+    </main>
   );
 }
 
