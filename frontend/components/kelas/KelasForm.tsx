@@ -8,7 +8,9 @@
    perubahan perilaku dari versi lama di app/kelas/page.tsx, murni
    dipindah + diekspor. */
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import { Clock } from 'lucide-react';
+import JamPicker, { type PosisiJam } from '@/components/ui/JamPicker';
 import { JADWAL_KHUSUS_REMAJA_PRA_NIKAH, KATEGORI_JENJANG } from '@/lib/kategori';
 
 export type KategoriKbm = { id: number; nama: string };
@@ -101,6 +103,20 @@ export default function KelasForm({
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* Jam mulai/selesai pakai JamPicker melayang, bukan <input type="time">
+     bawaan browser -- tampilannya beda-beda tiap perangkat (2026-08-29,
+     diminta owner). Pola pemicu+posisi menyalin GabungKelasModal.tsx. */
+  const [jamAktif, setJamAktif] = useState<'mulai' | 'selesai' | null>(null);
+  const [posJam, setPosJam] = useState<PosisiJam | null>(null);
+  const refJamMulai = useRef<HTMLButtonElement>(null);
+  const refJamSelesai = useRef<HTMLButtonElement>(null);
+
+  function bukaJam(f: 'mulai' | 'selesai', ref: React.RefObject<HTMLButtonElement | null>) {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setPosJam({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setJamAktif(f);
+  }
+
   /* Dropdown kategori dibatasi kategori JENJANG. Sisi lain dari tabel
      kategori_kbm berisi mata pelajaran kurikulum yang tidak berlaku di
      sini — lihat lib/kategori.ts. */
@@ -159,6 +175,13 @@ export default function KelasForm({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
+      <JamPicker
+        terbuka={jamAktif !== null}
+        posisi={posJam}
+        nilai={jamAktif === 'selesai' ? selesai : mulai}
+        onPilih={(v) => (jamAktif === 'mulai' ? setMulai(v) : setSelesai(v))}
+        onTutup={() => setJamAktif(null)}
+      />
       <form
         onSubmit={simpan}
         className="my-8 w-full max-w-2xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]"
@@ -341,16 +364,27 @@ export default function KelasForm({
           )}
           <div>
             <label className={KELAS_LABEL}>Jam Mulai *</label>
-            <input type="time" className={KELAS_INPUT} value={mulai} onChange={(e) => setMulai(e.target.value)} />
+            <button
+              type="button"
+              ref={refJamMulai}
+              onClick={() => bukaJam('mulai', refJamMulai)}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left tabular-nums`}
+            >
+              {mulai || <span className="text-text-faint">Pilih jam</span>}
+              <Clock size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           <div>
             <label className={KELAS_LABEL}>Jam Selesai *</label>
-            <input
-              type="time"
-              className={KELAS_INPUT}
-              value={selesai}
-              onChange={(e) => setSelesai(e.target.value)}
-            />
+            <button
+              type="button"
+              ref={refJamSelesai}
+              onClick={() => bukaJam('selesai', refJamSelesai)}
+              className={`${KELAS_INPUT} flex items-center justify-between text-left tabular-nums`}
+            >
+              {selesai || <span className="text-text-faint">Pilih jam</span>}
+              <Clock size={14} className="shrink-0 text-text-faint" />
+            </button>
           </div>
           <div>
             <label className={KELAS_LABEL}>Status</label>
