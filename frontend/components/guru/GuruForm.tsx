@@ -15,9 +15,10 @@
    - Hapus untuk admin_desa/admin_kelompok bersifat halus (deleted_at),
      sama seperti santri — app lama menghapus permanen. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { KATEGORI_GURU, labelKategoriGuru } from '@/lib/kategoriGuru';
 
 export type GuruRow = {
@@ -162,6 +163,19 @@ const KELAS_INPUT =
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
 
+const NAMA_BULAN_SINGKAT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+];
+/* 'YYYY-MM-DD' -> "21 Agu 2026", buat ditampilkan di tombol pemicu
+   TanggalPicker (menggantikan <input type="date"> bawaan browser) --
+   sama persis dgn components/santri/SantriForm.tsx. */
+function formatTanggalTampil(v: string): string {
+  if (!v) return '';
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${String(d).padStart(2, '0')} ${NAMA_BULAN_SINGKAT[m - 1] ?? ''} ${y}`;
+}
+
 function Bagian({ judul, children }: { judul: string; children: React.ReactNode }) {
   return (
     <fieldset className="mb-6 rounded-card border border-border bg-panel-2 p-4">
@@ -187,6 +201,20 @@ export default function GuruForm({
   const [kelompok, setKelompok] = useState<Kelompok[]>([]);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /* Tanggal Lahir pakai kalender custom (TanggalPicker), bukan
+     <input type="date"> bawaan browser yg tampilannya beda-beda tiap
+     perangkat (2026-08-29, diminta owner) -- pola sama persis dgn
+     components/santri/SantriForm.tsx. */
+  const [tglTerbuka, setTglTerbuka] = useState(false);
+  const [posisiTgl, setPosisiTgl] = useState<PosisiPicker | null>(null);
+  const tglLahirRef = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl() {
+    const rect = tglLahirRef.current?.getBoundingClientRect();
+    if (rect) setPosisiTgl({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setTglTerbuka(true);
+  }
 
   const kelompokTerkunci = profile?.role === 'admin_kelompok';
 
@@ -266,6 +294,14 @@ export default function GuruForm({
           {modeUbah ? 'Ubah Guru' : 'Tambah Guru'}
         </h2>
 
+        <TanggalPicker
+          terbuka={tglTerbuka}
+          posisi={posisiTgl}
+          nilai={isian.tanggal_lahir}
+          onPilih={(v) => ubah('tanggal_lahir', v)}
+          onTutup={() => setTglTerbuka(false)}
+        />
+
         <Bagian judul="Data Pokok">
           <div>
             <label className={KELAS_LABEL}>Kelompok *</label>
@@ -330,12 +366,14 @@ export default function GuruForm({
           </div>
           <div>
             <label className={KELAS_LABEL}>Tanggal Lahir</label>
-            <input
-              type="date"
-              className={KELAS_INPUT}
-              value={isian.tanggal_lahir}
-              onChange={(e) => ubah('tanggal_lahir', e.target.value)}
-            />
+            <button
+              type="button"
+              ref={tglLahirRef}
+              onClick={bukaTgl}
+              className={`${KELAS_INPUT} text-left ${isian.tanggal_lahir ? '' : 'text-text-faint'}`}
+            >
+              {isian.tanggal_lahir ? formatTanggalTampil(isian.tanggal_lahir) : 'Pilih tanggal'}
+            </button>
           </div>
         </Bagian>
 
