@@ -224,7 +224,11 @@ function FormPengumuman({
 function PengumumanContent() {
   const { profile, namaKelompok } = useAuth();
   const bolehTulis = PERAN_TULIS.includes(profile?.role ?? '');
-  const adalahAdminKelp = profile?.role === 'admin_kelompok';
+  /* Yang membedakan peran di layar ini tinggal CAKUPAN, bukan rupa: admin
+     kelompok terkunci ke kelompoknya sendiri, admin desa/PPG harus memilih
+     dulu kelompok mana yang diumumkan. Lihat catatan panjang di atas
+     return(). */
+  const terkunciSatuKelompok = profile?.scope_kelompok_id != null;
 
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
   const [kelompokId, setKelompokId] = useState<number | null>(profile?.scope_kelompok_id ?? null);
@@ -247,7 +251,6 @@ function PengumumanContent() {
   }, [pesan, sukses]);
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [sedangDiubah, setSedangDiubah] = useState<Pengumuman | null>(null);
-  const [komposerTerbuka, setKomposerTerbuka] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -321,94 +324,71 @@ function PengumumanContent() {
     }
   }
 
-  /* Tampilan admin_kelompok DISAMAKAN dgn layar guru (diminta owner
-     2026-08-28): top bar, judul "Pengumuman Jadwal KBM", lalu komposer
-     LANGSUNG terpampang -- bukan bersembunyi di balik tombol.
+  /* SATU tampilan utk SEMUA peran admin (2026-08-29, laporan owner: "ketika
+     saya masuk tampilan nya berubah kembali ke tampilan lama").
 
-     Dua hal lain yang ikut beres: (1) halaman ini dulu sama sekali tidak
-     merender AdminHeader, jadi admin kelp kehilangan top bar DAN bottom
-     nav begitu membuka Kabar; (2) dropdown Kelompok bagi admin kelp
-     selalu `disabled` (terkunci ke kelompoknya sendiri) -- murni derau di
-     layar HP, jadi disembunyikan.
+     Duduk perkaranya: tata letak komposer-dulu ini dulu dikunci ke
+     `role === 'admin_kelompok'` saja, padahal akun yang dipakai owner
+     sehari-hari adalah admin_ppg -- jadi begitu ia masuk lewat akun itu,
+     yang muncul memang layar CRUD lebar yang lama, persis seperti sebelum
+     dirapikan. Dua desain untuk satu halaman cuma menunggu waktu utk
+     terbaca sebagai kerusakan; yang boleh berbeda antar-peran itu HAK-nya,
+     bukan rupanya.
 
-     Daftar pengumuman tersimpan TETAP ada di bawah komposer: itu
-     kemampuan yang cuma dipunyai admin (ubah/hapus), tidak ikut dihapus
-     hanya karena tampilannya disamakan. Admin desa/PPG tidak tersentuh --
-     mereka masih butuh pemilih kelompok. */
+     Yang benar-benar berbeda tinggal CAKUPAN, dan itu ditentukan oleh
+     `scope_kelompok_id` -- bukan oleh nama peran: yang terkunci ke satu
+     kelompok tidak diberi pemilih (dulu pun selalu `disabled`, murni derau
+     di layar HP), yang cakupannya lintas-kelompok memilih dulu baru
+     komposernya muncul.
+
+     Riwayat pengumuman TETAP di bawah komposer: ubah/hapus itu kemampuan
+     khas admin, tidak ikut hilang hanya karena tampilannya diseragamkan. */
+  const namaKelompokTerpilih =
+    kelompokList.find((k) => k.id === kelompokId)?.nama ?? namaKelompok ?? '';
+
   return (
     <main className="min-h-screen bg-bg">
       <AdminHeader judul="Pengumuman" />
-      <div
-        className={
-          adalahAdminKelp
-            ? 'mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10'
-            : 'mx-auto max-w-4xl p-6'
-        }
-      >
+      <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
       {dialog}
-      {adalahAdminKelp ? (
-        <>
-          <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
-          <p className="mb-5 text-[12.5px] text-text-dim">
-            Susun pengumuman jadwal KBM, lalu salin ke grup WA wali murid.
-          </p>
-          {kelompokId && (
-            <div className="mb-8">
-              <PengumumanKbmComposer
-                kelompokId={kelompokId}
-                namaKelompok={namaKelompok ?? ''}
-                onTersimpan={muat}
-              />
-            </div>
-          )}
-          {/* Tombol "+ Buat" DIHAPUS (diminta owner 2026-08-28). Bagian ini
-              kini murni RIWAYAT: pengumuman dibuat lewat komposer Jadwal
-              KBM di atasnya. Mengubah/menghapus entri lama tetap bisa
-              lewat ikon pensil & tempat sampah di tiap kartu. */}
-          <h2 className="mb-3 text-[15px] font-extrabold text-text">Riwayat Pengumuman</h2>
-        </>
-      ) : (
-        <>
-          <h1 className="mb-2 text-[24px] font-bold text-text">Pengumuman</h1>
-          <p className="mb-6 text-[13px] text-text-dim">
-            Pengumuman per kelompok, terbaru lebih dulu. Guru bisa membaca pengumuman kelompoknya.
-          </p>
+      <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
+      <p className="mb-5 text-[12.5px] text-text-dim">
+        Susun pengumuman jadwal KBM, lalu salin ke grup WA wali murid.
+      </p>
 
-          <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-            <div className="min-w-[240px] flex-1">
-              <label className={KELAS_LABEL}>Kelompok</label>
-              <select
-                className={KELAS_INPUT}
-                value={kelompokId ?? ''}
-                onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
-              >
-                <option value="">-- Pilih Kelompok --</option>
-                {kelompokList.map((k) => (
-                  <option key={k.id} value={k.id}>
-                    {k.nama}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {bolehTulis && kelompokId && (
-              <div className="flex gap-2">
-                <button onClick={() => setKomposerTerbuka(true)} className={KELAS_TOMBOL_SEKUNDER + ' px-4 py-2.5 text-[13px]'}>
-                  Buat dari Jadwal KBM
-                </button>
-                <button
-                  onClick={() => {
-                    setSedangDiubah(null);
-                    setFormTerbuka(true);
-                  }}
-                  className={KELAS_TOMBOL_UTAMA}
-                >
-                  + Buat Pengumuman
-                </button>
-              </div>
-            )}
-          </div>
-        </>
+      {!terkunciSatuKelompok && (
+        <div className="mb-5">
+          <label className={KELAS_LABEL}>Kelompok</label>
+          <select
+            className={KELAS_INPUT}
+            value={kelompokId ?? ''}
+            onChange={(e) => setKelompokId(e.target.value ? Number(e.target.value) : null)}
+          >
+            <option value="">-- Pilih Kelompok --</option>
+            {kelompokList.map((k) => (
+              <option key={k.id} value={k.id}>
+                {k.nama}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
+
+      {kelompokId && (
+        <div className="mb-8">
+          <PengumumanKbmComposer
+            kelompokId={kelompokId}
+            namaKelompok={namaKelompokTerpilih}
+            onTersimpan={muat}
+          />
+        </div>
+      )}
+
+      {/* Tombol "+ Buat" DIHAPUS (diminta owner 2026-08-28). Bagian ini
+          kini murni RIWAYAT: pengumuman dibuat lewat komposer Jadwal KBM
+          di atasnya. Mengubah/menghapus entri lama tetap bisa lewat ikon
+          pensil & tempat sampah di tiap kartu. */}
+      <h2 className="mb-3 text-[15px] font-extrabold text-text">Riwayat Pengumuman</h2>
 
       {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
       {loading && <SkeletonKartuList jumlah={3} />}
@@ -474,26 +454,6 @@ function PengumumanContent() {
         />
       )}
 
-      {komposerTerbuka && kelompokId && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-          <div className="my-8 w-full max-w-2xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]">
-            <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-[20px] font-bold text-text">Pengumuman dari Jadwal KBM</h2>
-              <button onClick={() => setKomposerTerbuka(false)} className={KELAS_TOMBOL_SEKUNDER}>
-                Tutup
-              </button>
-            </div>
-            <PengumumanKbmComposer
-              kelompokId={kelompokId}
-              namaKelompok={kelompokList.find((k) => k.id === kelompokId)?.nama ?? ''}
-              onTersimpan={async () => {
-                setKomposerTerbuka(false);
-                await muat();
-              }}
-            />
-          </div>
-        </div>
-      )}
       </div>
     </main>
   );
