@@ -14,7 +14,7 @@
      kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
      (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
@@ -66,6 +66,63 @@ const STATUS_NIKAH = ['Siap Nikah', 'Belum Siap'];
 
 type Kelompok = { id: number; nama: string };
 type KelasNgaji = { id: number; nama: string; kelompok_id: number };
+
+/* Riwayat keluarga -- santri lain di kelompok yang sama, dipakai buat
+   saran ketik (nama/nama panggilan/nama ayah/nama ibu) + autofill data
+   keluarga (2026-08-29, diminta owner: "system canggih seperti search
+   engine google"). Cuma field yang relevan buat saran & autofill. */
+type RiwayatKeluarga = {
+  id: number;
+  nama: string | null;
+  nama_panggilan: string | null;
+  nama_ayah: string | null;
+  nama_ibu: string | null;
+  nomor_wa_ayah: string | null;
+  nomor_wa_ibu: string | null;
+  alamat: string | null;
+  rt: string | null;
+  rw: string | null;
+  kelurahan: string | null;
+  kecamatan: string | null;
+  kabupaten_kota: string | null;
+  provinsi: string | null;
+  kode_pos: string | null;
+};
+
+type SaranItem = { teks: string; rec?: RiwayatKeluarga };
+
+/* Daftar nilai unik (case-insensitive) dari satu kolom riwayat, urutan
+   terbaru dulu (riwayat sudah di-order id desc) -- dipakai utk Nama &
+   Nama Panggilan yang cuma butuh saran teks, tanpa autofill lanjutan. */
+function saranTeksUnik(daftar: (string | null)[]): SaranItem[] {
+  const dilihat = new Set<string>();
+  const hasil: SaranItem[] = [];
+  for (const v of daftar) {
+    const t = (v ?? '').trim();
+    if (!t || dilihat.has(t.toLowerCase())) continue;
+    dilihat.add(t.toLowerCase());
+    hasil.push({ teks: t });
+  }
+  return hasil;
+}
+
+/* Sama seperti saranTeksUnik, tapi tiap saran membawa baris riwayat
+   sumbernya (rec) -- dipakai utk Nama Ayah & Nama Ibu supaya klik satu
+   saran bisa langsung menarik seluruh data keluarga yang menyertainya. */
+function saranKeluargaUnik(
+  daftar: RiwayatKeluarga[],
+  ambil: (r: RiwayatKeluarga) => string | null,
+): SaranItem[] {
+  const dilihat = new Set<string>();
+  const hasil: SaranItem[] = [];
+  for (const r of daftar) {
+    const t = (ambil(r) ?? '').trim();
+    if (!t || dilihat.has(t.toLowerCase())) continue;
+    dilihat.add(t.toLowerCase());
+    hasil.push({ teks: t, rec: r });
+  }
+  return hasil;
+}
 
 const KOSONG = {
   kelompok_id: '',
@@ -167,6 +224,76 @@ function Bagian({ judul, children }: { judul: string; children: React.ReactNode 
   );
 }
 
+/* Input teks + dropdown saran ketik (nama/nama panggilan/nama ayah/nama
+   ibu) -- menyaring `saran` terhadap apa yang sudah diketik, mirip kotak
+   pencarian: dibuka saat fokus, disaring tiap ketikan, klik = terpilih.
+   `onPilih` opsional dipanggil dgn item terpilih (bawa `.rec` kalau ada)
+   -- Nama Ayah/Ibu memakainya utk menarik seluruh data keluarga
+   (lihat isiDariKeluarga di bawah), Nama/Nama Panggilan tidak perlu. */
+function FieldSaran({
+  label,
+  wajib,
+  value,
+  onChange,
+  onPilih,
+  saran,
+  placeholder,
+  colSpan,
+}: {
+  label: string;
+  wajib?: boolean;
+  value: string;
+  onChange: (v: string) => void;
+  onPilih?: (item: SaranItem) => void;
+  saran: SaranItem[];
+  placeholder?: string;
+  colSpan?: boolean;
+}) {
+  const [terbuka, setTerbuka] = useState(false);
+  const q = value.trim().toLowerCase();
+  const cocok = (q ? saran.filter((s) => s.teks.toLowerCase().includes(q)) : saran).slice(0, 8);
+
+  return (
+    <div className={colSpan ? 'relative sm:col-span-2' : 'relative'}>
+      <label className={KELAS_LABEL}>
+        {label}
+        {wajib ? ' *' : ''}
+      </label>
+      <input
+        className={KELAS_INPUT}
+        value={value}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+        onFocus={() => setTerbuka(true)}
+        onBlur={() => setTimeout(() => setTerbuka(false), 150)}
+        placeholder={placeholder}
+      />
+      {terbuka && cocok.length > 0 && (
+        <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-[var(--radius)] border border-border bg-panel shadow-[0_10px_25px_-8px_rgba(15,23,42,0.35)]">
+          {cocok.map((item, i) => (
+            <button
+              key={`${item.teks}-${i}`}
+              type="button"
+              /* mousedown+preventDefault supaya klik terdaftar SEBELUM
+                 onBlur input menutup dropdown -- kalau tidak, blur
+                 keburu menutup dropdown & klik jatuh ke tempat kosong. */
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                onChange(item.teks);
+                onPilih?.(item);
+                setTerbuka(false);
+              }}
+              className="block w-full cursor-pointer px-3 py-2 text-left text-[13px] text-text hover:bg-panel-2"
+            >
+              {item.teks}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SantriForm({
   santri,
   kelasNgajiTerkunci,
@@ -251,6 +378,83 @@ export default function SantriForm({
   const kelasKelompokIni = kelasList.filter(
     (k) => String(k.kelompok_id) === String(isian.kelompok_id),
   );
+
+  /* Riwayat santri lain di kelompok yang sama -- sumber saran ketik &
+     autofill keluarga. Dimuat ulang tiap kelompok berganti (relevan buat
+     admin_desa/admin_ppg yang bisa pindah kelompok di dropdown). */
+  const [riwayatKeluarga, setRiwayatKeluarga] = useState<RiwayatKeluarga[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!isian.kelompok_id) {
+        setRiwayatKeluarga([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('santri')
+        .select(
+          'id, nama, nama_panggilan, nama_ayah, nama_ibu, nomor_wa_ayah, nomor_wa_ibu, alamat, rt, rw, kelurahan, kecamatan, kabupaten_kota, provinsi, kode_pos',
+        )
+        .eq('kelompok_id', Number(isian.kelompok_id))
+        .is('deleted_at', null)
+        .order('id', { ascending: false })
+        .limit(500);
+      if (cancelled) return;
+      /* Baris santri yang sedang diubah dikeluarkan -- kalau tidak, form
+         menyarankan namanya sendiri sbg "riwayat". */
+      setRiwayatKeluarga(
+        ((data ?? []) as RiwayatKeluarga[]).filter((r) => !modeUbah || r.id !== santri?.id),
+      );
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isian.kelompok_id]);
+
+  const saranNama = useMemo(
+    () => saranTeksUnik(riwayatKeluarga.map((r) => r.nama)),
+    [riwayatKeluarga],
+  );
+  const saranPanggilan = useMemo(
+    () => saranTeksUnik(riwayatKeluarga.map((r) => r.nama_panggilan)),
+    [riwayatKeluarga],
+  );
+  const saranAyah = useMemo(
+    () => saranKeluargaUnik(riwayatKeluarga, (r) => r.nama_ayah),
+    [riwayatKeluarga],
+  );
+  const saranIbu = useMemo(
+    () => saranKeluargaUnik(riwayatKeluarga, (r) => r.nama_ibu),
+    [riwayatKeluarga],
+  );
+
+  /* Diklik dari saran Nama Ayah ATAU Nama Ibu -- keduanya menarik SELURUH
+     data keluarga yang menyertai baris riwayat itu (adik/kakak kandung di
+     kelompok yang sama biasanya satu keluarga, satu alamat), supaya admin
+     tidak perlu mengetik ulang utk tiap anak. Field yang diisi menimpa
+     nilai yang sudah ada di form -- itu maksud "otomatis muncul", bukan
+     cuma mengisi yang kosong. */
+  function isiDariKeluarga(rec: RiwayatKeluarga | undefined) {
+    if (!rec) return;
+    setIsian((s) => ({
+      ...s,
+      nama_ayah: rec.nama_ayah ?? s.nama_ayah,
+      nomor_wa_ayah: rec.nomor_wa_ayah ?? s.nomor_wa_ayah,
+      nama_ibu: rec.nama_ibu ?? s.nama_ibu,
+      nomor_wa_ibu: rec.nomor_wa_ibu ?? s.nomor_wa_ibu,
+      alamat: rec.alamat ?? s.alamat,
+      rt: rec.rt ?? s.rt,
+      rw: rec.rw ?? s.rw,
+      kelurahan: rec.kelurahan ?? s.kelurahan,
+      kecamatan: rec.kecamatan ?? s.kecamatan,
+      kabupaten_kota: rec.kabupaten_kota ?? s.kabupaten_kota,
+      provinsi: rec.provinsi ?? s.provinsi,
+      kode_pos: rec.kode_pos ?? s.kode_pos,
+    }));
+  }
 
   function ubah(field: keyof Isian, nilai: string) {
     setIsian((s) => {
@@ -375,7 +579,7 @@ export default function SantriForm({
         className="my-8 w-full max-w-3xl rounded-card border border-border bg-panel p-6 shadow-[var(--shadow-card)]"
       >
         <h2 className="mb-6 text-[20px] font-bold text-text">
-          {modeUbah ? 'Ubah Santri' : 'Tambah Santri'}
+          {modeUbah ? 'Ubah Generus' : 'Tambah Generus'}
         </h2>
 
         <TanggalPicker
@@ -414,24 +618,21 @@ export default function SantriForm({
               readOnly
             />
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Nama *</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama}
-              onChange={(e) => ubah('nama', e.target.value)}
-              placeholder="Nama lengkap"
-            />
-          </div>
-          <div>
-            <label className={KELAS_LABEL}>Nama Panggilan</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama_panggilan}
-              onChange={(e) => ubah('nama_panggilan', e.target.value)}
-              placeholder="Misal: Budi"
-            />
-          </div>
+          <FieldSaran
+            label="Nama"
+            wajib
+            value={isian.nama}
+            onChange={(v) => ubah('nama', v)}
+            saran={saranNama}
+            placeholder="Nama lengkap"
+          />
+          <FieldSaran
+            label="Nama Panggilan"
+            value={isian.nama_panggilan}
+            onChange={(v) => ubah('nama_panggilan', v)}
+            saran={saranPanggilan}
+            placeholder="Misal: Budi"
+          />
           <div>
             <label className={KELAS_LABEL}>Jenis Kelamin *</label>
             <div className="flex gap-5 pt-1.5 text-[13px] text-text">
@@ -582,14 +783,13 @@ export default function SantriForm({
         </Bagian>
 
         <Bagian judul="Orang Tua & Kontak">
-          <div>
-            <label className={KELAS_LABEL}>Nama Ayah</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama_ayah}
-              onChange={(e) => ubah('nama_ayah', e.target.value)}
-            />
-          </div>
+          <FieldSaran
+            label="Nama Ayah"
+            value={isian.nama_ayah}
+            onChange={(v) => ubah('nama_ayah', v)}
+            onPilih={(item) => isiDariKeluarga(item.rec)}
+            saran={saranAyah}
+          />
           <div>
             <label className={KELAS_LABEL}>Nomor WA Ayah</label>
             <input
@@ -600,14 +800,13 @@ export default function SantriForm({
               placeholder="0812-3456-7890"
             />
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Nama Ibu</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.nama_ibu}
-              onChange={(e) => ubah('nama_ibu', e.target.value)}
-            />
-          </div>
+          <FieldSaran
+            label="Nama Ibu"
+            value={isian.nama_ibu}
+            onChange={(v) => ubah('nama_ibu', v)}
+            onPilih={(item) => isiDariKeluarga(item.rec)}
+            saran={saranIbu}
+          />
           <div>
             <label className={KELAS_LABEL}>Nomor WA Ibu</label>
             <input
