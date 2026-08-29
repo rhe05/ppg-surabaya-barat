@@ -149,7 +149,10 @@ export default function TabunganSetorSheet({
         onTutup={() => setTglBuka(false)}
       />
       <div className="flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
+          <span className="h-1 w-9 rounded-pill bg-border" />
+        </div>
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
           <h2 className="text-[17px] font-extrabold text-text">Setor ke Penghimpun</h2>
           <button
             type="button"
@@ -162,23 +165,21 @@ export default function TabunganSetorSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <div className="mb-4 rounded-card bg-panel-2 p-4">
-            <div className="text-[11.5px] font-semibold text-text-dim">Akan disetor</div>
-            <div className="mt-0.5 text-[24px] leading-none font-extrabold tabular-nums text-text">
-              {formatRupiah(total)}
+          <div className="kartu-saldo mb-4 p-4">
+            <div className="text-[11px] font-bold tracking-[0.06em] text-white/60 uppercase">
+              Akan disetor
             </div>
-            <div className="mt-2 text-[11.5px] text-text-dim">
+            <div className="angka-metrik mt-1.5 text-[24px] text-white">{formatRupiah(total)}</div>
+            <div className="mt-2.5 border-t border-white/15 pt-2.5 text-[12px] text-white/60">
               Penghimpun:&nbsp;
-              <span className="font-bold text-text">{penghimpunNama ?? 'belum ditetapkan admin'}</span>
+              <span className="font-bold text-white">{penghimpunNama ?? 'belum ditetapkan admin'}</span>
             </div>
           </div>
 
           {/* Pilih penerimaan */}
-          <div className="mb-1 text-[12px] font-bold tracking-[0.02em] text-text-dim uppercase">
-            Rincian penerimaan ({belumSetor.length})
-          </div>
+          <div className="label-mikro mb-2">Rincian penerimaan ({belumSetor.length})</div>
           {belumSetor.length === 0 ? (
-            <p className="py-3 text-[12.5px] text-text-dim">
+            <p className="py-3 text-[13px] text-text-dim">
               Tidak ada penerimaan yang belum disetor.
             </p>
           ) : (
@@ -255,7 +256,7 @@ export default function TabunganSetorSheet({
             Riwayat Setoran ({urutSetoran.length})
           </div>
           {urutSetoran.length === 0 ? (
-            <p className="py-3 text-[12.5px] text-text-dim">Belum ada setoran.</p>
+            <p className="py-3 text-[13px] text-text-dim">Belum ada setoran.</p>
           ) : (
             <div className="flex flex-col">
               {urutSetoran.map((s) => {
@@ -304,7 +305,7 @@ export default function TabunganSetorSheet({
                         {rinci.map((t) => (
                           <div
                             key={t.id}
-                            className="flex items-center justify-between gap-2 border-b border-border py-1.5 text-[11.5px] last:border-b-0"
+                            className="flex items-center justify-between gap-2 border-b border-border py-1.5 text-[12px] last:border-b-0"
                           >
                             <span className="min-w-0 truncate font-semibold text-text">
                               {santriNama.get(t.santri_id) ?? `Santri #${t.santri_id}`}

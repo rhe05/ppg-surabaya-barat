@@ -46,7 +46,6 @@ export default function TabunganHimpunanPanel({
     () => terimaLangsung.reduce((a, t) => a + t.jumlah, 0),
     [terimaLangsung],
   );
-  const total = totalSetoran + totalLangsung;
   const langsungUrut = useMemo(
     () => [...terimaLangsung].sort((a, b) => b.created_at.localeCompare(a.created_at)),
     [terimaLangsung],
@@ -80,25 +79,16 @@ export default function TabunganHimpunanPanel({
   }, [setoran]);
 
   return (
-    <div className="mb-5 rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
-      <div className="flex items-center gap-3 border-b border-border p-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(13,148,136,0.12)] text-teal">
-          <Landmark size={19} />
+    <div className="kartu-premium mb-5 overflow-hidden">
+      {/* Kepala panel sengaja TIDAK mengulang angka besarnya lagi: panel
+          saldo gelap di atas halaman sudah menyebut total yang sama persis
+          beserta rinciannya. Dua angka raksasa identik bersebelahan justru
+          membuat pembacanya ragu apakah keduanya benda yang sama. */}
+      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(13,148,136,0.12)] text-teal">
+          <Landmark size={15} />
         </span>
-        <div>
-          <div className="text-[11.5px] font-semibold text-text-dim">
-            Total himpunan tabungan (Anda penghimpun)
-          </div>
-          <div className="text-[22px] leading-none font-extrabold tabular-nums text-text">
-            {formatRupiah(total)}
-          </div>
-          {totalLangsung > 0 && (
-            <div className="mt-0.5 text-[11px] text-text-dim">
-              Setoran guru {formatRupiah(totalSetoran)} · langsung{' '}
-              {formatRupiah(totalLangsung)}
-            </div>
-          )}
-        </div>
+        <div className="label-mikro">Rincian himpunan</div>
       </div>
 
       {/* Cara 2 lebih dulu: ini uang yang ADA DI TANGAN penghimpun sendiri
@@ -114,14 +104,14 @@ export default function TabunganHimpunanPanel({
               <HandCoins size={15} />
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13.5px] font-bold text-text">
+              <div className="truncate text-[13px] font-bold text-text">
                 Diterima langsung oleh Anda
               </div>
               <div className="text-[11px] text-text-dim">
                 {langsungUrut.length} penerimaan · tanpa lewat guru kelas
               </div>
             </div>
-            <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-text">
+            <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-text">
               {formatRupiah(totalLangsung)}
             </span>
             <ChevronDown
@@ -136,7 +126,7 @@ export default function TabunganHimpunanPanel({
                 {langsungUrut.map((t) => (
                   <div
                     key={t.id}
-                    className="flex items-center justify-between gap-2 border-t border-border py-1.5 text-[11.5px] first:border-t-0"
+                    className="flex items-center justify-between gap-2 border-t border-border py-1.5 text-[12px] first:border-t-0"
                   >
                     <span className="min-w-0 truncate font-semibold text-text">
                       {santriNama.get(t.santri_id) ?? `Santri #${t.santri_id}`}
@@ -157,7 +147,7 @@ export default function TabunganHimpunanPanel({
       )}
 
       {perGuru.length === 0 ? (
-        <p className="px-4 py-4 text-[12.5px] text-text-dim">Belum ada guru yang menyetor.</p>
+        <p className="px-4 py-4 text-[13px] text-text-dim">Belum ada guru yang menyetor.</p>
       ) : (
         <div className="flex flex-col">
           {perGuru.map((g) => {
@@ -170,12 +160,12 @@ export default function TabunganHimpunanPanel({
                   className="flex w-full items-center gap-2 px-4 py-3 text-left"
                 >
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-[13.5px] font-bold text-text">
+                    <div className="truncate text-[13px] font-bold text-text">
                       {guruNama.get(g.guruId) ?? `Guru #${g.guruId}`}
                     </div>
                     <div className="text-[11px] text-text-dim">{g.setoran.length} setoran</div>
                   </div>
-                  <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-text">
+                  <span className="shrink-0 text-[13px] font-extrabold tabular-nums text-text">
                     {formatRupiah(g.total)}
                   </span>
                   <ChevronDown
@@ -208,7 +198,7 @@ export default function TabunganHimpunanPanel({
                               rinci.map((t) => (
                                 <div
                                   key={t.id}
-                                  className="flex items-center justify-between gap-2 border-t border-border py-1.5 text-[11.5px] first:border-t-0"
+                                  className="flex items-center justify-between gap-2 border-t border-border py-1.5 text-[12px] first:border-t-0"
                                 >
                                   <span className="min-w-0 truncate font-semibold text-text">
                                     {santriNama.get(t.santri_id) ?? `Santri #${t.santri_id}`}

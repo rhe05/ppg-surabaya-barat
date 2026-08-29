@@ -13,7 +13,7 @@
 
 import PesanGalat from '@/components/ui/PesanGalat';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banknote, Search, Settings2, Plus, X, Wallet, ArrowUpRight, Clock, Check, Ban, UserCog } from 'lucide-react';
+import { Banknote, Search, Settings2, Plus, X, Wallet, ArrowUpRight, Clock, Check, Ban, UserCog, ChevronRight, Landmark } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
@@ -49,6 +49,12 @@ type Santri = { id: number; nama: string };
 type Guru = { id: number; nama: string };
 
 const bulanIniPrefix = () => new Date().toISOString().slice(0, 7);
+/* Inisial utk avatar baris generus -- dua huruf pertama dari dua kata
+   pertama, cukup utk membedakan tanpa memuat foto apa pun. */
+function inisialNama(n: string) {
+  const kata = n.trim().split(' ').filter(Boolean).slice(0, 2);
+  return kata.map((w) => w[0]).join('').toUpperCase() || '?';
+}
 function fmtTgl(iso: string) {
   const [y, m, d] = iso.split('-');
   const b = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -232,47 +238,115 @@ function TabunganContent() {
     }
   }
 
+  /* Angka utama layar ini berbeda per peran -- disatukan di SATU panel
+     saldo gelap (idiom aplikasi keuangan) supaya mata langsung mendarat
+     di angka yang paling menentukan, bukan tersebar di tiga kartu putih
+     yang bobot visualnya sama semua. */
+  const totalSemua = useMemo(
+    () => [...totalPerJenis.values()].reduce((a, v) => a + v.total, 0),
+    [totalPerJenis],
+  );
+  const totalSetoranMasuk = useMemo(() => setoran.reduce((a, s) => a + s.jumlah, 0), [setoran]);
+  const totalLangsung = useMemo(
+    () => terimaLangsung.reduce((a, t) => a + t.jumlah, 0),
+    [terimaLangsung],
+  );
+
   const body = (
     <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-24">
-      <h1 className="mb-1 text-[20px] font-extrabold text-text">Tabungan</h1>
-      <p className="mb-5 text-[13px] text-text-dim">
-        {isAdmin
-          ? 'Total tabungan generus, penghimpun, persetujuan penarikan, dan rincian per anak.'
-          : isPenghimpun
-            ? 'Anda penghimpun: terima langsung dari generus mana pun se-kelompok, dan lihat setoran yang masuk dari dewan guru.'
-            : 'Terima setoran generus, setor ke penghimpun, ajukan penarikan.'}
-      </p>
+      <h1 className="mb-4 text-[17px] font-extrabold tracking-[-0.01em] text-text">Tabungan</h1>
 
       {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
 
-      {/* Guru: kas di tangan + setor. TIDAK utk penghimpun -- dia tujuan
-          akhir uangnya, tombol "Setor" di akunnya berarti menyetor kepada
-          dirinya sendiri. Yang dia lihat panel Himpunan di bawah. */}
-      {!loading && !isAdmin && !isPenghimpun && jenis.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setSetorBuka(true)}
-          className="mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(217,119,6,0.12)] text-brass">
-            <Wallet size={19} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[11.5px] font-semibold text-text-dim">Kas di tangan Anda</div>
-            <div className="text-[19px] leading-tight font-extrabold tabular-nums text-text">
-              {formatRupiah(kasGuru)}
+      {loading ? (
+        <div className="mb-5 h-[132px] animate-pulse rounded-card bg-panel-2" />
+      ) : (
+        <div className="kartu-saldo mb-5 p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[11px] font-bold tracking-[0.06em] text-white/60 uppercase">
+                {isAdmin
+                  ? 'Total tabungan generus'
+                  : isPenghimpun
+                    ? 'Himpunan di tangan Anda'
+                    : 'Kas di tangan Anda'}
+              </div>
+              <div className="angka-metrik mt-1.5 text-[30px] text-white">
+                {formatRupiah(
+                  isAdmin ? totalSemua : isPenghimpun ? totalSetoranMasuk + totalLangsung : kasGuru,
+                )}
+              </div>
             </div>
-            <div className="text-[11px] text-text-dim">
-              Penghimpun: <span className="font-bold text-text">{penghimpunNama ?? 'belum ditetapkan'}</span>
-            </div>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/10 text-white">
+              {isAdmin ? <Banknote size={19} /> : isPenghimpun ? <Landmark size={19} /> : <Wallet size={19} />}
+            </span>
           </div>
-          <span className="flex shrink-0 items-center gap-1 rounded-full bg-brass px-3 py-1.5 text-[11.5px] font-bold text-white">
-            <ArrowUpRight size={13} /> Setor
-          </span>
-        </button>
+
+          <div className="mt-4 flex items-stretch gap-3 border-t border-white/15 pt-3">
+            {isAdmin ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Generus</div>
+                  <div className="truncate text-[13px] font-bold tabular-nums text-white">
+                    {santri.length}
+                  </div>
+                </div>
+                <div className="w-px bg-white/15" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Jenis</div>
+                  <div className="truncate text-[13px] font-bold tabular-nums text-white">
+                    {jenis.length}
+                  </div>
+                </div>
+                <div className="w-px bg-white/15" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Menunggu</div>
+                  <div
+                    className={`truncate text-[13px] font-bold tabular-nums ${pendingTarik.length > 0 ? 'text-volt' : 'text-white'}`}
+                  >
+                    {pendingTarik.length}
+                  </div>
+                </div>
+              </>
+            ) : isPenghimpun ? (
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Setoran guru</div>
+                  <div className="truncate text-[13px] font-bold tabular-nums text-white">
+                    {formatRupiah(totalSetoranMasuk)}
+                  </div>
+                </div>
+                <div className="w-px bg-white/15" />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Terima langsung</div>
+                  <div className="truncate text-[13px] font-bold tabular-nums text-white">
+                    {formatRupiah(totalLangsung)}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] text-white/55">Disetorkan ke</div>
+                  <div className="truncate text-[13px] font-bold text-white">
+                    {penghimpunNama ?? 'Belum ditetapkan'}
+                  </div>
+                </div>
+                {jenis.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSetorBuka(true)}
+                    className="flex shrink-0 cursor-pointer items-center gap-1.5 self-center rounded-pill border-none bg-white px-4 py-2 text-[13px] font-extrabold text-text active:scale-95"
+                  >
+                    <ArrowUpRight size={14} /> Setor
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
 
-      {/* Penghimpun: total himpunan + rincian per guru */}
       {!loading && isPenghimpun && (
         <TabunganHimpunanPanel
           setoran={setoran}
@@ -284,68 +358,134 @@ function TabunganContent() {
         />
       )}
 
-      {/* Guru: penarikan yang masih menunggu */}
       {!loading && !isAdmin && pendingTarik.length > 0 && (
-        <div className="mb-4 flex items-center gap-2 rounded-card border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
-          <Clock size={14} className="shrink-0" />
+        <div className="mb-5 flex items-center gap-2 rounded-card border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-4 py-3 text-[13px] font-semibold text-brass">
+          <Clock size={15} className="shrink-0" />
           {pendingTarik.length} penarikan menunggu persetujuan admin kelompok.
         </div>
       )}
 
-      {/* Admin: penghimpun */}
+      {!loading && jenis.length > 0 && (
+        <>
+          <div className="label-mikro mb-2">Per jenis tabungan</div>
+          <div className="tanpa-scrollbar -mx-[18px] mb-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[18px] pb-1">
+            {jenis.map((j) => {
+              const t = totalPerJenis.get(j.id) ?? { total: 0, bulanIni: 0 };
+              const persen =
+                j.target_bulanan && j.target_bulanan > 0
+                  ? Math.min(100, Math.round((t.bulanIni / j.target_bulanan) * 100))
+                  : null;
+              return (
+                <div
+                  key={j.id}
+                  className="kartu-premium flex shrink-0 basis-[62%] snap-start flex-col p-4"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 truncate text-[12px] font-bold text-text-dim">
+                      {j.nama}
+                    </div>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setJenisEdit(j)}
+                        aria-label={`Atur ${j.nama}`}
+                        className="-mt-1 -mr-1 shrink-0 cursor-pointer border-none bg-transparent p-1 text-text-faint active:opacity-60"
+                      >
+                        <Settings2 size={15} />
+                      </button>
+                    )}
+                  </div>
+                  <div className="angka-metrik mt-1 text-[17px] text-text">
+                    {formatRupiah(t.total)}
+                  </div>
+                  {persen !== null ? (
+                    <div className="mt-auto pt-3">
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[11px]">
+                        <span className="font-bold tabular-nums text-sage">{persen}%</span>
+                        <span className="truncate text-text-faint">
+                          bulan ini {formatRupiah(t.bulanIni)}
+                        </span>
+                      </div>
+                      <div className="h-[5px] overflow-hidden rounded-pill bg-panel-2">
+                        <div
+                          className="h-full rounded-pill bg-sage transition-[width] duration-500"
+                          style={{ width: `${persen}%` }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-auto pt-3 text-[11px] text-text-faint">
+                      Bulan ini {formatRupiah(t.bulanIni)}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => setJenisEdit('baru')}
+                className="flex shrink-0 basis-[38%] snap-start cursor-pointer flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-border bg-panel text-[12px] font-bold text-text-dim active:scale-[0.98]"
+              >
+                <Plus size={17} /> Tambah
+              </button>
+            )}
+          </div>
+        </>
+      )}
+
       {!loading && isAdmin && (
         <button
           type="button"
           onClick={() => setAturPenghimpun(true)}
-          className="mb-4 flex w-full items-center gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+          className="kartu-premium mb-5 flex w-full cursor-pointer items-center gap-3 p-4 text-left active:scale-[0.99]"
         >
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(79,70,229,0.1)] text-indigo">
             <UserCog size={19} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="text-[11.5px] font-semibold text-text-dim">Penghimpun tabungan</div>
-            <div className="text-[15px] font-extrabold text-text">
+            <div className="label-mikro">Penghimpun tabungan</div>
+            <div className="mt-0.5 truncate text-[15px] font-extrabold text-text">
               {penghimpunNama ?? 'Tiap guru pegang sendiri'}
             </div>
             {penghimpun?.catatan && (
-              <div className="text-[11px] text-text-dim">{penghimpun.catatan}</div>
+              <div className="truncate text-[12px] text-text-dim">{penghimpun.catatan}</div>
             )}
           </div>
-          <Settings2 size={16} className="shrink-0 text-text-dim" />
+          <Settings2 size={16} className="shrink-0 text-text-faint" />
         </button>
       )}
 
-      {/* Admin: antrean persetujuan penarikan */}
       {!loading && isAdmin && pendingTarik.length > 0 && (
-        <div className="mb-5 rounded-card border border-[rgba(217,119,6,0.3)] bg-panel shadow-[var(--shadow-card)]">
-          <div className="flex items-center gap-1.5 border-b border-border px-4 py-3 text-[12.5px] font-extrabold text-brass">
-            <Clock size={14} /> Penarikan Menunggu Persetujuan ({pendingTarik.length})
+        <div className="kartu-premium mb-5 overflow-hidden border-[rgba(217,119,6,0.3)]">
+          <div className="flex items-center gap-1.5 border-b border-border bg-[rgba(217,119,6,0.06)] px-4 py-3 text-[11px] font-bold tracking-[0.06em] text-brass uppercase">
+            <Clock size={14} /> Menunggu persetujuan ({pendingTarik.length})
           </div>
           <div className="flex flex-col">
             {pendingTarik.map((t) => {
               const j = jenis.find((x) => x.id === t.jenis_id);
               return (
-                <div key={t.id} className="border-b border-border px-4 py-3 last:border-b-0">
+                <div key={t.id} className="baris-daftar px-4 py-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="truncate text-[13.5px] font-bold text-text">
+                      <div className="truncate text-[15px] font-bold text-text">
                         {namaSantri.get(t.santri_id) ?? `Santri #${t.santri_id}`}
                       </div>
-                      <div className="text-[11px] text-text-dim">
+                      <div className="text-[12px] text-text-dim">
                         {j?.nama ?? '-'} · {fmtTgl(t.tanggal)}
                         {t.keterangan ? ` · ${t.keterangan}` : ''}
                       </div>
                     </div>
-                    <div className="shrink-0 text-[14px] font-extrabold tabular-nums text-brass">
+                    <div className="shrink-0 text-[15px] font-extrabold tabular-nums text-brass">
                       − {formatRupiah(t.jumlah)}
                     </div>
                   </div>
-                  <div className="mt-2.5 flex gap-2">
+                  <div className="mt-3 flex gap-2">
                     <button
                       type="button"
                       disabled={prosesId === t.id}
                       onClick={() => putusAdmin(t.id, true)}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-sage bg-[rgba(5,150,105,0.08)] py-2 text-[12px] font-bold text-sage disabled:opacity-50"
+                      className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-[var(--radius)] border border-sage bg-[rgba(5,150,105,0.08)] py-2 text-[13px] font-bold text-sage active:scale-[0.98] disabled:opacity-50"
                     >
                       <Check size={14} /> Setujui
                     </button>
@@ -353,7 +493,7 @@ function TabunganContent() {
                       type="button"
                       disabled={prosesId === t.id}
                       onClick={() => putusAdmin(t.id, false)}
-                      className="flex flex-1 items-center justify-center gap-1 rounded-[var(--radius)] border border-red bg-[rgba(220,38,38,0.06)] py-2 text-[12px] font-bold text-red disabled:opacity-50"
+                      className="flex flex-1 cursor-pointer items-center justify-center gap-1 rounded-[var(--radius)] border border-red bg-[rgba(220,38,38,0.06)] py-2 text-[13px] font-bold text-red active:scale-[0.98] disabled:opacity-50"
                     >
                       <Ban size={14} /> Tolak
                     </button>
@@ -365,81 +505,19 @@ function TabunganContent() {
         </div>
       )}
 
-      {/* Ringkasan per jenis */}
-      {!loading && jenis.length > 0 && (
-        <div className="mb-5 flex flex-col gap-3">
-          {jenis.map((j) => {
-            const t = totalPerJenis.get(j.id) ?? { total: 0, bulanIni: 0 };
-            const persen =
-              j.target_bulanan && j.target_bulanan > 0
-                ? Math.min(100, Math.round((t.bulanIni / j.target_bulanan) * 100))
-                : null;
-            return (
-              <div
-                key={j.id}
-                className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-[12.5px] font-bold text-text-dim">{j.nama}</div>
-                    <div className="mt-0.5 text-[22px] leading-none font-extrabold tabular-nums text-text">
-                      {formatRupiah(t.total)}
-                    </div>
-                  </div>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => setJenisEdit(j)}
-                      aria-label={`Atur ${j.nama}`}
-                      className="shrink-0 cursor-pointer border-none bg-transparent p-1 text-text-dim active:opacity-60"
-                    >
-                      <Settings2 size={16} />
-                    </button>
-                  )}
-                </div>
-                {persen !== null && (
-                  <div className="mt-3">
-                    <div className="mb-1 flex justify-between text-[11px] font-semibold text-text-dim">
-                      <span>Bulan ini {formatRupiah(t.bulanIni)}</span>
-                      <span>Target {formatRupiah(j.target_bulanan!)}</span>
-                    </div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-panel-2">
-                      <div className="h-full rounded-full bg-sage" style={{ width: `${persen}%` }} />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setJenisEdit('baru')}
-              className="flex items-center justify-center gap-2 rounded-card border border-dashed border-border bg-panel py-3 text-[12.5px] font-bold text-text-dim active:scale-[0.99]"
-            >
-              <Plus size={15} /> Tambah Jenis Tabungan
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Admin: rekap setoran guru */}
       {!loading && isAdmin && setoran.length > 0 && (
-        <div className="mb-5 rounded-card border border-border bg-panel shadow-[var(--shadow-card)]">
-          <div className="border-b border-border px-4 py-3 text-[12.5px] font-extrabold text-text">
-            Setoran Guru ke Penghimpun
+        <div className="kartu-premium mb-5 overflow-hidden">
+          <div className="label-mikro border-b border-border px-4 py-3">
+            Setoran guru ke penghimpun
           </div>
           <div className="flex flex-col">
             {setoran.slice(0, 8).map((s) => (
-              <div
-                key={s.id}
-                className="flex items-center justify-between gap-2 border-b border-border px-4 py-2.5 last:border-b-0"
-              >
+              <div key={s.id} className="baris-daftar flex items-center justify-between gap-2 px-4 py-3">
                 <div className="min-w-0">
                   <div className="truncate text-[13px] font-bold text-text">
                     {namaGuru.get(s.guru_id) ?? `Guru #${s.guru_id}`}
                   </div>
-                  <div className="text-[11px] text-text-dim">
+                  <div className="text-[12px] text-text-dim">
                     {fmtTgl(s.tanggal)}
                     {s.keterangan ? ` · ${s.keterangan}` : ''}
                   </div>
@@ -453,14 +531,17 @@ function TabunganContent() {
         </div>
       )}
 
-      {/* Daftar santri */}
-      <div className="relative mb-4">
-        <Search size={15} className="absolute top-1/2 left-3 -translate-y-1/2 text-text-faint" />
+      <div className="label-mikro mb-3">
+        Generus{santriTersaring.length > 0 ? ` (${santriTersaring.length})` : ''}
+      </div>
+
+      <div className="relative mb-3">
+        <Search size={15} className="absolute top-1/2 left-4 -translate-y-1/2 text-text-faint" />
         <input
           value={cari}
           onChange={(e) => setCari(e.target.value)}
           placeholder="Cari nama generus..."
-          className="w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 pr-3.5 pl-9 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+          className="w-full rounded-pill border border-border bg-panel py-2.5 pr-4 pl-10 text-[13px] text-text shadow-[var(--shadow-subtle)] focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
         />
       </div>
 
@@ -478,11 +559,14 @@ function TabunganContent() {
           aksi={isAdmin ? { label: 'Tambah Jenis', onClick: () => setJenisEdit('baru') } : undefined}
         />
       ) : santriTersaring.length === 0 ? (
-        <p className="text-[13px] text-text-dim">
+        <p className="rounded-card border border-border bg-panel-2 px-4 py-4 text-[13px] text-text-dim">
           {cari.trim() ? `Tidak ada yang cocok dengan "${cari.trim()}".` : 'Belum ada generus.'}
         </p>
       ) : (
-        <div className="flex flex-col gap-2.5">
+        /* Satu kartu berisi baris-baris terbagi garis, BUKAN puluhan kartu
+           melayang sendiri-sendiri -- daftar panjang jadi jauh lebih tenang
+           dan terbaca sbg satu daftar, bukan tumpukan kotak. */
+        <div className="kartu-premium overflow-hidden">
           {santriTersaring.map((s) => {
             const total = jenis.reduce((a, j) => a + (saldo.get(`${s.id}:${j.id}`) ?? 0), 0);
             const adaPending = tx.some(
@@ -493,29 +577,35 @@ function TabunganContent() {
                 key={s.id}
                 type="button"
                 onClick={() => setSheetSantri(s)}
-                className="flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+                className="baris-daftar flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-4 py-3 text-left active:bg-panel-2"
               >
-                <div className="min-w-0">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel-2 text-[12px] font-extrabold text-text-dim">
+                  {inisialNama(s.nama)}
+                </span>
+                <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className="truncate text-[14px] font-bold text-text">{s.nama}</span>
+                    <span className="truncate text-[15px] font-bold text-text">{s.nama}</span>
                     {adaPending && (
-                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-full bg-[rgba(217,119,6,0.12)] px-1.5 py-px text-[9px] font-bold text-brass">
-                        <Clock size={8} /> TARIK
+                      <span className="inline-flex shrink-0 items-center gap-0.5 rounded-pill bg-[rgba(217,119,6,0.12)] px-1.5 py-px text-[11px] font-bold text-brass">
+                        <Clock size={9} /> TARIK
                       </span>
                     )}
                   </div>
-                  <div className="mt-0.5 text-[11px] text-text-dim">
+                  <div className="mt-0.5 truncate text-[12px] text-text-dim">
                     {jenis
                       .map(
                         (j) =>
-                          `${j.nama.replace(/^Tabungan\s+/i, '')}: ${formatRupiah(saldo.get(`${s.id}:${j.id}`) ?? 0)}`,
+                          `${j.nama.replace(/^Tabungan\s+/i, '')} ${formatRupiah(saldo.get(`${s.id}:${j.id}`) ?? 0)}`,
                       )
                       .join(' · ')}
                   </div>
                 </div>
-                <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-sage">
+                <span
+                  className={`shrink-0 text-[15px] font-extrabold tabular-nums ${total > 0 ? 'text-sage' : 'text-text-faint'}`}
+                >
                   {formatRupiah(total)}
                 </span>
+                <ChevronRight size={15} className="-ml-1 shrink-0 text-text-faint" />
               </button>
             );
           })}

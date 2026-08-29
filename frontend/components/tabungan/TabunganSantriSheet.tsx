@@ -26,11 +26,20 @@ function hariIni() {
   const d = new Date();
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
 }
+/* Inisial utk avatar -- dua huruf pertama dari dua kata pertama. */
+function inisialNama(n: string) {
+  const kata = n.trim().split(' ').filter(Boolean).slice(0, 2);
+  return kata.map((w) => w[0]).join('').toUpperCase() || '?';
+}
+
 function fmtTgl(iso: string) {
   const [y, m, d] = iso.split('-');
   const b = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
   return `${Number(d)} ${b[Number(m) - 1] ?? m} ${y}`;
 }
+
+/* Pecahan yang benar-benar dipakai di lapangan utk tabungan generus. */
+const NOMINAL_CEPAT = [2000, 5000, 10000, 20000, 50000];
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
@@ -85,6 +94,11 @@ export default function TabunganSantriSheet({
     }
     return m;
   }, [transaksi]);
+
+  const totalSemuaJenis = useMemo(
+    () => [...saldoPerJenis.values()].reduce((a, v) => a + v, 0),
+    [saldoPerJenis],
+  );
 
   const nJumlah = Number(jumlah.replace(/\D/g, '')) || 0;
   const saldoJenisIni = saldoPerJenis.get(jenisId) ?? 0;
@@ -165,8 +179,27 @@ export default function TabunganSantriSheet({
         onTutup={() => setTglBuka(false)}
       />
       <div className="flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
-        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-          <h2 className="min-w-0 truncate text-[17px] font-extrabold text-text">{santri.nama}</h2>
+        {/* Gagang tarik -- penanda baku "lembar ini bisa digeser" di
+            aplikasi mobile; tanpa ini sheet terbaca seperti dialog desktop
+            yang kebetulan menempel di bawah. */}
+        <div className="flex justify-center pt-2.5 pb-1 sm:hidden">
+          <span className="h-1 w-9 rounded-pill bg-border" />
+        </div>
+
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-3.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-panel-2 text-[12px] font-extrabold text-text-dim">
+              {inisialNama(santri.nama)}
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-[17px] leading-tight font-extrabold text-text">
+                {santri.nama}
+              </h2>
+              <div className="text-[11px] font-bold tracking-[0.06em] text-text-faint uppercase">
+                Total {formatRupiah(totalSemuaJenis)}
+              </div>
+            </div>
+          </div>
           <button
             type="button"
             onClick={onTutup}
@@ -178,31 +211,35 @@ export default function TabunganSantriSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* Saldo per jenis */}
-          <div className="mb-4 flex flex-col gap-2">
+          {/* Saldo per jenis -- dua kolom kalau jenisnya lebih dari satu,
+              supaya tidak memakan seluruh layar sebelum formnya terlihat. */}
+          <div className={`mb-4 grid gap-2 ${jenisList.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}>
             {jenisList.map((j) => (
               <div
                 key={j.id}
-                className="flex items-center justify-between rounded-[var(--radius)] bg-panel-2 px-3.5 py-2.5"
+                className="rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-2.5"
               >
-                <span className="text-[12.5px] font-semibold text-text-dim">{j.nama}</span>
-                <span className="text-[15px] font-extrabold tabular-nums text-text">
+                <div className="truncate text-[11px] font-bold tracking-[0.06em] text-text-faint uppercase">
+                  {j.nama.replace(/^Tabungan\s+/i, '')}
+                </div>
+                <div className="mt-0.5 text-[15px] font-extrabold tabular-nums text-text">
                   {formatRupiah(saldoPerJenis.get(j.id) ?? 0)}
-                </span>
+                </div>
               </div>
             ))}
           </div>
 
           {/* Form catat */}
-          <div className="mb-4 rounded-card border border-border p-3.5">
-            <div className="mb-3 flex gap-2">
+          <div className="mb-5 rounded-card border border-border bg-panel-2 p-3.5">
+            {/* Segmented dlm satu palung, bukan dua tombol berdampingan --
+                terbaca sbg SATU pilihan dua keadaan, idiom yang sama dgn
+                pemilih status di komposer Pengumuman. */}
+            <div className="mb-3.5 flex gap-1 rounded-[var(--radius)] border border-border bg-panel p-0.5">
               <button
                 type="button"
                 onClick={() => setArah('terima')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] border-[1.5px] py-2 text-[12.5px] font-bold ${
-                  arah === 'terima'
-                    ? 'border-sage bg-[rgba(5,150,105,0.08)] text-sage'
-                    : 'border-border text-text-dim'
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[calc(var(--radius)-3px)] border-none py-2 text-[13px] font-bold transition-colors ${
+                  arah === 'terima' ? 'bg-sage text-white' : 'bg-transparent text-text-dim'
                 }`}
               >
                 <ArrowDownCircle size={15} /> Terima
@@ -210,10 +247,8 @@ export default function TabunganSantriSheet({
               <button
                 type="button"
                 onClick={() => setArah('tarik')}
-                className={`flex flex-1 items-center justify-center gap-1.5 rounded-[var(--radius)] border-[1.5px] py-2 text-[12.5px] font-bold ${
-                  arah === 'tarik'
-                    ? 'border-brass bg-[rgba(217,119,6,0.08)] text-brass'
-                    : 'border-border text-text-dim'
+                className={`flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[calc(var(--radius)-3px)] border-none py-2 text-[13px] font-bold transition-colors ${
+                  arah === 'tarik' ? 'bg-brass text-white' : 'bg-transparent text-text-dim'
                 }`}
               >
                 <ArrowUpCircle size={15} /> Tarik
@@ -230,16 +265,41 @@ export default function TabunganSantriSheet({
                   ))}
                 </select>
               )}
+
+              {/* Nominal sbg angka BESAR, bukan sekadar isian teks -- ini
+                  satu-satunya nilai yang benar-benar harus diperiksa ulang
+                  sebelum disimpan, jadi ukurannya dibedakan tegas. */}
               <div className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-panel px-3.5 focus-within:border-brass focus-within:shadow-[0_0_0_3px_rgba(217,119,6,0.1)]">
-                <span className="text-[13px] font-bold text-text-dim">Rp</span>
+                <span className="text-[15px] font-bold text-text-faint">Rp</span>
                 <input
                   inputMode="numeric"
-                  value={jumlah ? Number(jumlah.replace(/\D/g, '')).toLocaleString('id-ID') : ''}
-                  onChange={(e) => setJumlah(e.target.value.replace(/\D/g, ''))}
+                  value={jumlah ? Number(jumlah.replace(/[^0-9]/g, '')).toLocaleString('id-ID') : ''}
+                  onChange={(e) => setJumlah(e.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="0"
-                  className="w-full border-none bg-transparent py-2.5 text-[15px] font-extrabold tabular-nums text-text outline-none"
+                  className="angka-metrik w-full border-none bg-transparent py-2.5 text-[24px] text-text outline-none placeholder:text-text-faint"
                 />
               </div>
+
+              {/* Pintasan nominal -- di lapangan uang tabungan hampir selalu
+                  pecahan bulat ini, dan mengetik enam digit di HP sambil
+                  memegang uang tunai adalah bagian paling lambat. */}
+              <div className="tanpa-scrollbar -mx-0.5 flex gap-1.5 overflow-x-auto px-0.5">
+                {NOMINAL_CEPAT.map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setJumlah(String(n))}
+                    className={`shrink-0 cursor-pointer rounded-pill border px-3 py-1.5 text-[12px] font-bold tabular-nums transition-colors ${
+                      nJumlah === n
+                        ? 'border-brass bg-brass text-white'
+                        : 'border-border bg-panel text-text-dim'
+                    }`}
+                  >
+                    {n.toLocaleString('id-ID')}
+                  </button>
+                ))}
+              </div>
+
               <button
                 type="button"
                 ref={tglRef}
@@ -266,11 +326,16 @@ export default function TabunganSantriSheet({
 
             {error && <p className="mt-2 text-[12px] text-red">{error}</p>}
 
+            {/* Warna tombol simpan MENGIKUTI mode terpilih -- hijau utk
+                menerima, brass utk menarik. Satu isyarat lagi bahwa yang
+                akan tersimpan memang arah yang dimaksud. */}
             <button
               type="button"
               disabled={sibuk}
               onClick={simpan}
-              className="mt-3 w-full cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-50"
+              className={`mt-3.5 w-full cursor-pointer rounded-[var(--radius)] border-none px-4 py-3 text-[13px] font-extrabold text-white transition-colors active:scale-[0.99] disabled:opacity-50 ${
+                arah === 'terima' ? 'bg-sage' : 'bg-brass'
+              }`}
             >
               {sibuk
                 ? 'Menyimpan...'
@@ -283,9 +348,7 @@ export default function TabunganSantriSheet({
           </div>
 
           {/* Riwayat */}
-          <div className="mb-1 text-[12px] font-bold tracking-[0.02em] text-text-dim uppercase">
-            Riwayat ({txUrut.length})
-          </div>
+          <div className="label-mikro mb-2">Riwayat ({txUrut.length})</div>
           {txUrut.length === 0 ? (
             <p className="py-3 text-[12.5px] text-text-dim">Belum ada transaksi.</p>
           ) : (

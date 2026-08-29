@@ -246,3 +246,74 @@ body:has([data-guru-nav]) main {
     margin: 14mm;
   }
 }
+
+/* ── Primitif "premium" (2026-08-29, diminta owner utk Tabungan) ───────
+   Diangkat jadi kelas bersama, BUKAN gaya sekali-pakai di satu layar:
+   patokan kartu KPI proyek ini (memori feedback-dashboard-design-standard)
+   memang mensyaratkan bayangan dua lapis + label mikro + angka tabular,
+   dan menuliskannya ulang inline di tiap komponen adalah cara tercepat
+   membuat dua layar diam-diam berbeda. Dipakai Tabungan lebih dulu;
+   layar lain boleh ikut tanpa menyalin apa pun.
+
+   Nilai warnanya SELALU var(--…), tidak ada heksa mentah. */
+
+.kartu-premium {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.03),
+    0 10px 24px -12px rgba(15, 23, 42, 0.12);
+}
+
+/* Panel gelap utk angka utama — penanda "ini saldo", idiom aplikasi
+   keuangan. Kilau brass di pojok kanan atas dibuat dgn radial-gradient
+   supaya tidak perlu aset gambar sama sekali. */
+.kartu-saldo {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(120% 140% at 88% -20%, rgba(217, 119, 6, 0.38) 0%, rgba(217, 119, 6, 0) 55%),
+    linear-gradient(155deg, #1E293B 0%, var(--text) 62%);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 18px 38px -18px rgba(15, 23, 42, 0.55);
+}
+
+/* Garis kilau tipis di tepi atas — detail kecil yang membuat panel
+   gelap terbaca "berlapis" alih-alih kotak datar. */
+.kartu-saldo::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.34) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.label-mikro {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.angka-metrik {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+/* Daftar terbagi garis di DALAM satu kartu — lebih tenang daripada
+   puluhan kartu melayang sendiri-sendiri, dan itu yang membedakan
+   tampilan produk dgn tumpukan kotak. */
+.baris-daftar + .baris-daftar {
+  border-top: 1px solid var(--border);
+}
