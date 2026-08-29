@@ -108,7 +108,9 @@ function dariBaris(g: GuruRow): Isian {
     tanggal_lahir: g.tanggal_lahir ?? '',
     mulai_mengajar: g.mulai_mengajar ?? '',
     pendidikan: g.pendidikan ?? '',
-    nomor_wa: g.nomor_wa ?? '',
+    /* Baris lama bisa menyimpan format apa pun (+62, spasi, tanpa strip)
+       -- dirapikan saat dibuka supaya tampilannya seragam. */
+    nomor_wa: formatNomorWa(g.nomor_wa ?? ''),
     alamat: g.alamat ?? '',
     rt: g.rt ?? '',
     rw: g.rw ?? '',
@@ -162,6 +164,14 @@ const KELAS_INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+/* Nomor WA: hanya angka, digroup 4-4-4 dgn strip -- diketik apa pun,
+   karakter non-angka dibuang lalu diformat ulang dari nol setiap kali.
+   Sama persis dgn components/santri/SantriForm.tsx. */
+function formatNomorWa(v: string): string {
+  const digit = v.replace(/\D/g, '');
+  return digit.replace(/(\d{4})(?=\d)/g, '$1-');
+}
 
 const NAMA_BULAN_SINGKAT = [
   'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
@@ -415,7 +425,7 @@ export default function GuruForm({
             <input
               className={KELAS_INPUT}
               value={isian.nomor_wa}
-              onChange={(e) => ubah('nomor_wa', e.target.value)}
+              onChange={(e) => ubah('nomor_wa', formatNomorWa(e.target.value))}
               placeholder="0812-3456-7890"
               inputMode="numeric"
             />
