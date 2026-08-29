@@ -37,6 +37,7 @@ import {
   putuskanTarik,
   hitungSaldo,
   kasDiTanganGuru,
+  terimaLangsungPenghimpun,
   formatRupiah,
   type TabunganJenis,
   type Transaksi,
@@ -67,7 +68,6 @@ function TabunganContent() {
   const [tx, setTx] = useState<Transaksi[]>([]);
   const [setoran, setSetoran] = useState<Setoran[]>([]);
   const [rincianHimpun, setRincianHimpun] = useState<Transaksi[]>([]);
-  const [santriHimpun, setSantriHimpun] = useState<Santri[]>([]);
   const [penghimpun, setPenghimpun] = useState<Penghimpun | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,22 +97,22 @@ function TabunganContent() {
       setSetoran(sRes);
       setPenghimpun(pHimp);
 
-      /* Guru yang ditunjuk sbg penghimpun: muat rincian semua setoran +
-         nama santri se-kelompok (rincian menyentuh santri guru lain). */
       const akuPenghimpun = !isAdmin && pHimp?.guru_id != null && pHimp.guru_id === guruId;
+
+      /* Guru yang ditunjuk sbg penghimpun: rincian semua setoran yang
+         masuk, sampai ke tingkat per-anak. */
       if (akuPenghimpun && sRes.length > 0) {
-        const [rinci, { data: dSH }] = await Promise.all([
-          muatRincianSetoran(sRes.map((s) => s.id)).catch(() => [] as Transaksi[]),
-          supabase.from('santri').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null),
-        ]);
-        setRincianHimpun(rinci);
-        setSantriHimpun((dSH ?? []) as Santri[]);
+        setRincianHimpun(await muatRincianSetoran(sRes.map((s) => s.id)).catch(() => [] as Transaksi[]));
       } else {
         setRincianHimpun([]);
-        setSantriHimpun([]);
       }
 
-      if (isAdmin) {
+      /* Penghimpun memuat data se-KELOMPOK, sama seperti admin -- bukan
+         cuma kelas yang dia ampu (2026-08-29, migrasi 20260829100000).
+         Sejak ada jalur "generus setor LANGSUNG ke penghimpun", ia harus
+         bisa mencari & mencatat untuk anak mana pun; daftar yang cuma
+         berisi kelasnya sendiri membuat jalur itu mustahil dipakai. */
+      if (isAdmin || akuPenghimpun) {
         const [{ data: dS }, txAll] = await Promise.all([
           supabase
             .from('santri')
@@ -159,12 +159,7 @@ function TabunganContent() {
 
   const saldo = useMemo(() => hitungSaldo(tx), [tx]);
   const namaGuru = useMemo(() => new Map(guru.map((g) => [g.id, g.nama])), [guru]);
-  const namaSantri = useMemo(() => {
-    const m = new Map<number, string>();
-    for (const s of santri) m.set(s.id, s.nama);
-    for (const s of santriHimpun) m.set(s.id, s.nama);
-    return m;
-  }, [santri, santriHimpun]);
+  const namaSantri = useMemo(() => new Map(santri.map((s) => [s.id, s.nama])), [santri]);
   const namaJenis = useMemo(() => new Map(jenis.map((j) => [j.id, j.nama])), [jenis]);
 
   const isPenghimpun = !isAdmin && penghimpun?.guru_id != null && penghimpun.guru_id === guruId;
@@ -202,8 +197,15 @@ function TabunganContent() {
   );
 
   const kasGuru = useMemo(
-    () => (guruId != null ? kasDiTanganGuru(tx, profile?.id ?? null) : 0),
-    [tx, profile?.id, guruId],
+    () => (guruId != null ? kasDiTanganGuru(tx, profile?.id ?? null, isPenghimpun) : 0),
+    [tx, profile?.id, guruId, isPenghimpun],
+  );
+  /* Uang cara-2: diserahkan generus LANGSUNG ke penghimpun, jadi tidak
+     pernah lewat tabungan_setoran. Harus ikut dijumlahkan di panelnya,
+     kalau tidak uang ini tidak muncul di total mana pun. */
+  const terimaLangsung = useMemo(
+    () => (isPenghimpun ? terimaLangsungPenghimpun(tx, profile?.id ?? null) : []),
+    [isPenghimpun, tx, profile?.id],
   );
   const setoranSaya = useMemo(
     () => (guruId != null ? setoran.filter((s) => s.guru_id === guruId) : []),
@@ -236,13 +238,17 @@ function TabunganContent() {
       <p className="mb-5 text-[13px] text-text-dim">
         {isAdmin
           ? 'Total tabungan generus, penghimpun, persetujuan penarikan, dan rincian per anak.'
-          : 'Terima setoran generus, setor ke penghimpun, ajukan penarikan.'}
+          : isPenghimpun
+            ? 'Anda penghimpun: terima langsung dari generus mana pun se-kelompok, dan lihat setoran yang masuk dari dewan guru.'
+            : 'Terima setoran generus, setor ke penghimpun, ajukan penarikan.'}
       </p>
 
       {error && <PesanGalat pesan={error} onCobaLagi={muat} sedangMemuat={loading} className="mb-4" />}
 
-      {/* Guru: kas di tangan + setor */}
-      {!loading && !isAdmin && jenis.length > 0 && (
+      {/* Guru: kas di tangan + setor. TIDAK utk penghimpun -- dia tujuan
+          akhir uangnya, tombol "Setor" di akunnya berarti menyetor kepada
+          dirinya sendiri. Yang dia lihat panel Himpunan di bawah. */}
+      {!loading && !isAdmin && !isPenghimpun && jenis.length > 0 && (
         <button
           type="button"
           onClick={() => setSetorBuka(true)}
@@ -271,6 +277,7 @@ function TabunganContent() {
         <TabunganHimpunanPanel
           setoran={setoran}
           rincian={rincianHimpun}
+          terimaLangsung={terimaLangsung}
           guruNama={namaGuru}
           santriNama={namaSantri}
           jenisNama={namaJenis}
@@ -529,6 +536,8 @@ function TabunganContent() {
           jenisList={jenis}
           transaksi={txSantri(sheetSantri.id)}
           olehId={profile?.id ?? null}
+          olehGuruId={guruId}
+          guruNama={namaGuru}
           isAdmin={isAdmin}
           onSelesai={muat}
           onTutup={() => setSheetSantri(null)}

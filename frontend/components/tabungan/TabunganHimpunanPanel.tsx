@@ -3,10 +3,18 @@
 /* Panel "Himpunan Tabungan" — hanya tampil di akun guru yang ditunjuk
    admin_kelompok sebagai PENGHIMPUN. Menampilkan total seluruh setoran
    yang masuk + rincian siapa saja yang menyetor, sampai ke tingkat
-   (nama anak · jenis · nominal) supaya cocok dengan catatan tiap guru. */
+   (nama anak · jenis · nominal) supaya cocok dengan catatan tiap guru.
+
+   Sejak 2026-08-29 uang bisa datang lewat DUA jalur, dan totalnya harus
+   mencakup keduanya:
+     cara 1  guru kelas -> Setor -> penghimpun   (`setoran` + `rincian`)
+     cara 2  generus -> penghimpun langsung      (`terimaLangsung`)
+   Cara 2 sengaja tidak punya baris `tabungan_setoran` -- tidak ada
+   perpindahan tangan yang perlu dicatat -- jadi kalau tidak ikut
+   dijumlahkan di sini, uang itu tidak muncul di total mana pun. */
 
 import { useMemo, useState } from 'react';
-import { ChevronDown, Landmark } from 'lucide-react';
+import { ChevronDown, Landmark, HandCoins } from 'lucide-react';
 import { formatRupiah, type Setoran, type Transaksi } from '@/lib/tabungan';
 
 function fmtTgl(iso: string) {
@@ -18,19 +26,31 @@ function fmtTgl(iso: string) {
 export default function TabunganHimpunanPanel({
   setoran,
   rincian,
+  terimaLangsung,
   guruNama,
   santriNama,
   jenisNama,
 }: {
   setoran: Setoran[];
   rincian: Transaksi[]; // transaksi 'terima' yg punya setoran_id
+  terimaLangsung: Transaksi[]; // cara 2: generus -> penghimpun langsung
   guruNama: Map<number, string>;
   santriNama: Map<number, string>;
   jenisNama: Map<number, string>;
 }) {
   const [bukaGuru, setBukaGuru] = useState<number | null>(null);
+  const [bukaLangsung, setBukaLangsung] = useState(false);
 
-  const total = useMemo(() => setoran.reduce((a, s) => a + s.jumlah, 0), [setoran]);
+  const totalSetoran = useMemo(() => setoran.reduce((a, s) => a + s.jumlah, 0), [setoran]);
+  const totalLangsung = useMemo(
+    () => terimaLangsung.reduce((a, t) => a + t.jumlah, 0),
+    [terimaLangsung],
+  );
+  const total = totalSetoran + totalLangsung;
+  const langsungUrut = useMemo(
+    () => [...terimaLangsung].sort((a, b) => b.created_at.localeCompare(a.created_at)),
+    [terimaLangsung],
+  );
   const rincianPerSetoran = useMemo(() => {
     const m = new Map<number, Transaksi[]>();
     for (const t of rincian) {
@@ -72,8 +92,69 @@ export default function TabunganHimpunanPanel({
           <div className="text-[22px] leading-none font-extrabold tabular-nums text-text">
             {formatRupiah(total)}
           </div>
+          {totalLangsung > 0 && (
+            <div className="mt-0.5 text-[11px] text-text-dim">
+              Setoran guru {formatRupiah(totalSetoran)} · langsung{' '}
+              {formatRupiah(totalLangsung)}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Cara 2 lebih dulu: ini uang yang ADA DI TANGAN penghimpun sendiri
+          dan paling sering perlu dicocokkan, bukan riwayat orang lain. */}
+      {langsungUrut.length > 0 && (
+        <div className="border-b border-border">
+          <button
+            type="button"
+            onClick={() => setBukaLangsung(!bukaLangsung)}
+            className="flex w-full items-center gap-2 px-4 py-3 text-left"
+          >
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgba(5,150,105,0.12)] text-sage">
+              <HandCoins size={15} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13.5px] font-bold text-text">
+                Diterima langsung oleh Anda
+              </div>
+              <div className="text-[11px] text-text-dim">
+                {langsungUrut.length} penerimaan · tanpa lewat guru kelas
+              </div>
+            </div>
+            <span className="shrink-0 text-[14px] font-extrabold tabular-nums text-text">
+              {formatRupiah(totalLangsung)}
+            </span>
+            <ChevronDown
+              size={15}
+              className={`shrink-0 text-text-faint transition-transform ${bukaLangsung ? 'rotate-180' : ''}`}
+            />
+          </button>
+
+          {bukaLangsung && (
+            <div className="px-4 pb-3">
+              <div className="rounded-[var(--radius)] bg-panel-2 p-3">
+                {langsungUrut.map((t) => (
+                  <div
+                    key={t.id}
+                    className="flex items-center justify-between gap-2 border-t border-border py-1.5 text-[11.5px] first:border-t-0"
+                  >
+                    <span className="min-w-0 truncate font-semibold text-text">
+                      {santriNama.get(t.santri_id) ?? `Santri #${t.santri_id}`}
+                      <span className="text-text-dim">
+                        {' '}
+                        · {jenisNama.get(t.jenis_id) ?? '-'} · {fmtTgl(t.tanggal)}
+                      </span>
+                    </span>
+                    <span className="shrink-0 font-bold tabular-nums text-text">
+                      {formatRupiah(t.jumlah)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {perGuru.length === 0 ? (
         <p className="px-4 py-4 text-[12.5px] text-text-dim">Belum ada guru yang menyetor.</p>

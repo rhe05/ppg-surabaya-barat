@@ -7,6 +7,13 @@
      TARIK   generus tarik tabungan          -> saldo santri − , WAJIB
              disetujui admin_kelompok (mulai status 'pending')
 
+   DUA jalur masuk sejak 2026-08-29 (migrasi 20260829100000):
+     cara 1  generus -> guru kelas -> Setor -> penghimpun
+     cara 2  generus -> penghimpun LANGSUNG (tanpa Setor: uangnya sudah
+             di tujuan akhir sejak detik pertama)
+   Karena itu penerimaan yang dicatat penghimpun TIDAK pernah masuk
+   hitungan "kas menunggu disetorkan" -- lihat terimaBelumSetor().
+
    Tabel: tabungan_jenis, tabungan_transaksi (terima/tarik + status),
    tabungan_penghimpun, tabungan_setoran. */
 
@@ -32,6 +39,10 @@ export type Transaksi = {
   status: StatusTarik;
   setoran_id: number | null;
   dicatat_oleh: string | null;
+  /* Guru pencatat, utk ditampilkan ("· Kak Ratna"). Terpisah dari
+     dicatat_oleh krn profiles_self_read menutup pemetaan uuid -> nama di
+     sisi klien. Null utk baris yang dicatat admin (bukan guru). */
+  dicatat_guru_id: number | null;
   diputus_pada: string | null;
   catatan_keputusan: string | null;
   created_at: string;
@@ -55,7 +66,7 @@ export type Penghimpun = {
 };
 
 const KOLOM_TX =
-  'id, jenis_id, santri_id, arah, jumlah, tanggal, keterangan, status, setoran_id, dicatat_oleh, diputus_pada, catatan_keputusan, created_at';
+  'id, jenis_id, santri_id, arah, jumlah, tanggal, keterangan, status, setoran_id, dicatat_oleh, dicatat_guru_id, diputus_pada, catatan_keputusan, created_at';
 
 export function formatRupiah(n: number): string {
   const neg = n < 0;
@@ -83,8 +94,18 @@ export function hitungSaldo(tx: Transaksi[]): Map<string, number> {
 /* Kas yang masih di tangan seorang guru (belum disetorkan ke penghimpun):
    Σ terima yang IA catat & BELUM masuk setoran − Σ tarik disetujui yang IA
    catat (dibayar dari kas itu). Terima yang sudah punya setoran_id sudah
-   berpindah ke penghimpun. */
-export function kasDiTanganGuru(tx: Transaksi[], profileId: string | null): number {
+   berpindah ke penghimpun.
+
+   `akuPenghimpun` WAJIB diisi true kalau pemanggilnya penghimpun sendiri.
+   Uang yang IA terima sudah berada di tujuan akhir sejak awal -- tanpa
+   penjagaan ini aplikasi akan menghitungnya sbg "menunggu disetorkan" dan
+   menagih orangnya menyetor KEPADA DIRINYA SENDIRI. */
+export function kasDiTanganGuru(
+  tx: Transaksi[],
+  profileId: string | null,
+  akuPenghimpun = false,
+): number {
+  if (akuPenghimpun) return 0;
   let kas = 0;
   for (const t of tx) {
     if (profileId && t.dicatat_oleh !== profileId) continue;
@@ -97,11 +118,30 @@ export function kasDiTanganGuru(tx: Transaksi[], profileId: string | null): numb
   return kas;
 }
 
-/* Terima milik guru ini yang belum dimasukkan ke setoran mana pun. */
-export function terimaBelumSetor(tx: Transaksi[], profileId: string | null): Transaksi[] {
+/* Terima milik guru ini yang belum dimasukkan ke setoran mana pun.
+   Kosong utk penghimpun, alasan sama seperti kasDiTanganGuru di atas. */
+export function terimaBelumSetor(
+  tx: Transaksi[],
+  profileId: string | null,
+  akuPenghimpun = false,
+): Transaksi[] {
+  if (akuPenghimpun) return [];
   return tx.filter(
     (t) => t.arah === 'terima' && t.setoran_id == null && (!profileId || t.dicatat_oleh === profileId),
   );
+}
+
+/* Penerimaan CARA 2 -- generus menyerahkan langsung ke penghimpun, tanpa
+   melewati guru kelas. Tidak pernah punya baris `tabungan_setoran` (tidak
+   ada perpindahan tangan yang perlu dicatat), jadi kalau tidak ikut
+   dijumlahkan di panel penghimpun, uang ini tidak muncul di total mana
+   pun. */
+export function terimaLangsungPenghimpun(
+  tx: Transaksi[],
+  profileId: string | null,
+): Transaksi[] {
+  if (!profileId) return [];
+  return tx.filter((t) => t.arah === 'terima' && t.dicatat_oleh === profileId);
 }
 
 export async function muatJenis(kelompokId: number): Promise<TabunganJenis[]> {
@@ -195,12 +235,14 @@ export async function catatTransaksi(
     keterangan: string | null;
   },
   olehId: string | null,
+  olehGuruId: number | null = null,
 ): Promise<void> {
   const { error } = await supabase.from('tabungan_transaksi').insert({
     kelompok_id: kelompokId,
     ...isi,
     status: isi.arah === 'tarik' ? 'pending' : 'disetujui',
     dicatat_oleh: olehId,
+    dicatat_guru_id: olehGuruId,
   });
   if (error) throw new Error(error.message);
 }

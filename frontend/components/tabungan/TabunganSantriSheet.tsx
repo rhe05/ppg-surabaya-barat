@@ -41,6 +41,8 @@ export default function TabunganSantriSheet({
   jenisList,
   transaksi,
   olehId,
+  olehGuruId = null,
+  guruNama,
   isAdmin = false,
   onSelesai,
   onTutup,
@@ -50,6 +52,8 @@ export default function TabunganSantriSheet({
   jenisList: TabunganJenis[];
   transaksi: Transaksi[]; // milik santri ini saja
   olehId: string | null;
+  olehGuruId?: number | null;
+  guruNama: Map<number, string>;
   isAdmin?: boolean;
   onSelesai: () => void; // panggil muat ulang di parent
   onTutup: () => void;
@@ -104,6 +108,7 @@ export default function TabunganSantriSheet({
           keterangan: keterangan.trim() || null,
         },
         olehId,
+        olehGuruId,
       );
       sukses(
         arah === 'terima'
@@ -321,8 +326,16 @@ export default function TabunganSantriSheet({
                             </span>
                           )}
                         </div>
+                        {/* Nama pencatat ikut ditampilkan sejak ada DUA
+                            jalur uang masuk (guru kelas atau langsung ke
+                            penghimpun) -- tanpa itu guru kelas melihat
+                            penerimaan yang bukan catatannya lalu mencatat
+                            ulang, dan saldo anaknya jadi dobel. */}
                         <div className="text-[11px] text-text-dim">
                           {j?.nama ?? '-'} · {fmtTgl(t.tanggal)}
+                          {t.dicatat_guru_id != null && guruNama.get(t.dicatat_guru_id)
+                            ? ` · ${guruNama.get(t.dicatat_guru_id)}`
+                            : ''}
                           {t.keterangan ? ` · ${t.keterangan}` : ''}
                         </div>
                       </div>
