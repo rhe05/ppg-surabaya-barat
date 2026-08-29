@@ -20,7 +20,7 @@
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Copy, Check } from 'lucide-react';
+import { Calendar, Copy, Check, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
@@ -160,6 +160,10 @@ export default function PengumumanKbmComposer({
      sudah otomatis "Diganti". */
   const [guruIzinSet, setGuruIzinSet] = useState<Set<number>>(new Set());
   const [catatan, setCatatan] = useState(CATATAN_DEFAULT);
+  /* Jumlah baris jadwal_kbm kelompok ini TANPA saringan hari -- dipakai
+     hanya utk membedakan "belum ada jadwal sama sekali" dari "ada, tapi
+     tidak berjalan di hari ini" pada pesan layar kosong. */
+  const [jumlahJadwalSemua, setJumlahJadwalSemua] = useState(0);
 
   /* Mulai dari `true`, BUKAN false (diperbaiki 2026-08-28, laporan owner
      "muncul flip satu kedipan tampilan lama"). Dgn nilai awal false,
@@ -298,6 +302,7 @@ export default function PengumumanKbmComposer({
       const adaAturanHari = barisHari.length > 0;
 
       const semua = (dJadwal ?? []) as (Jadwal & { tanggal: string | null; kelas_id: number | null })[];
+      setJumlahJadwalSemua(semua.length);
       const terpilih = semua.filter(
         (j) => j.tanggal === tanggal || !adaAturanHari || aktifHariIni.has(j.kategori),
       );
@@ -413,6 +418,31 @@ export default function PengumumanKbmComposer({
   const tanggalLabel = tanggalObj
     ? `${NAMA_HARI[tanggalObj.getDay()]}, ${tanggalObj.getDate()} ${NAMA_BULAN[tanggalObj.getMonth()]} ${tanggalObj.getFullYear()}`
     : '(pilih tanggal)';
+
+  /* Layar kosong WAJIB menjelaskan dirinya sendiri (2026-08-29, setelah
+     owner dua kali melaporkan "pengumuman kembali ke model lama").
+
+     Duduk perkaranya: dulu cabang kosong cuma menulis "Belum ada Jadwal
+     KBM di tanggal ini" -- kalimat buta yang tidak membedakan "hari ini
+     memang bukan hari KBM" dari "datanya hilang". Dibuka di hari Sabtu,
+     layar ini kosong melompong dan terbaca sebagai aplikasi rusak /
+     tampilan lama, padahal datanya sehat sempurna.
+
+     Tanggal bakunya sendiri sudah digeser ke hari aktif terdekat, jadi
+     kasus Sabtu tidak muncul lagi dengan sendirinya. Tapi pengguna tetap
+     BISA memilih tanggal terkunci, dan jadwalnya tetap bisa kosong karena
+     sebab lain -- jadi tiap sebab disebut terang-terangan berikut ke mana
+     harus pergi utk membetulkannya. */
+  const alasanKosong = useMemo(() => {
+    if (jadwalUrut.length > 0) return null;
+    const d = tanggal ? new Date(tanggal + 'T00:00:00') : null;
+    const terkunci = d ? cekNonaktif(tanggal, d) : null;
+    if (terkunci)
+      return `${terkunci.alasan} — tidak ada KBM di tanggal ini. Pilih tanggal lain lewat kalender di atas.`;
+    if (jumlahJadwalSemua === 0)
+      return 'Kelompok ini belum punya Jadwal KBM sama sekali. Jadwalnya disusun di menu Jadwal, bukan di layar ini.';
+    return 'Tidak ada kategori KBM yang berjalan di hari ini. Hari aktif tiap kategori diatur di menu Jadwal.';
+  }, [jadwalUrut.length, tanggal, cekNonaktif, jumlahJadwalSemua]);
 
   const teks = useMemo(() => {
     type Efektif = Jadwal & {
@@ -588,9 +618,10 @@ export default function PengumumanKbmComposer({
       {loading && <SkeletonKartuList jumlah={3} />}
 
       {!loading && jadwalUrut.length === 0 && (
-        <p className="rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3 text-[12.5px] text-text-dim">
-          Belum ada Jadwal KBM di tanggal ini.
-        </p>
+        <div className="flex items-start gap-2 rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3 text-[13px] text-text-dim">
+          <Info size={15} className="mt-px shrink-0 text-text-faint" />
+          <span>{alasanKosong}</span>
+        </div>
       )}
 
       {!loading && jadwalUrut.length > 0 && (
