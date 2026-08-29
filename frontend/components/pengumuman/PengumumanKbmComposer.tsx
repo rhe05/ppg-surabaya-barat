@@ -19,7 +19,7 @@
    ditulis ke jadwal_kbm) -- jadwal aslinya tidak tersentuh, guru yang mau
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Copy, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
@@ -37,6 +37,7 @@ import {
   buatCekNonaktif,
   type OverrideKelompok,
 } from '@/lib/kalenderKelompok';
+import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
 type Jadwal = {
   id: number;
@@ -73,10 +74,40 @@ function angkaEmoji(n: number) {
 function formatJam(j: string) {
   return (j || '').slice(0, 5).replace(':', '.');
 }
-function hariIni() {
-  const d = new Date();
-  const dua = (n: number) => String(n).padStart(2, '0');
+const dua = (n: number) => String(n).padStart(2, '0');
+function iso(d: Date) {
   return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
+}
+function hariIni() {
+  return iso(new Date());
+}
+
+type CekNonaktif = (tglStr: string, tgl: Date) => { alasan: string; merah?: boolean } | null;
+
+/* Tanggal aktif pertama mulai dari `mulai` (inklusif) -- maju sehari demi
+   sehari sampai `cek` bilang tanggal itu tidak terkunci.
+
+   Dibutuhkan karena TIDAK ADA satu pun kategori KBM yang berjalan
+   Sabtu/Minggu (jadwal_kategori_hari: semuanya Senin-Jumat), sementara
+   tanggal baku komposer ini dulu `hari ini` mentah. Akibatnya setiap
+   kali layar dibuka di akhir pekan, jadwalnya kosong -- kartu sesi,
+   nama pengajar, dan tombol Hadir/Diganti/Libur semuanya lenyap -- dan
+   tanggal yang sedang terpilih itu justru tanggal yang kalendernya
+   sendiri menolak dipilih. Buntu total, dan terbaca sbg "layarnya
+   kembali ke model lama" (dilaporkan owner 2026-08-29, kena di guru
+   MAUPUN admin kelompok).
+
+   Batas 14 hari cuma penjaga: kalau sampai dua pekan penuh terkunci,
+   kembalikan tanggal asalnya dan biarkan layar jujur bilang belum ada
+   jadwal -- lebih baik daripada gelang tak berujung. */
+function hariAktifTerdekat(mulai: string, cek: CekNonaktif): string {
+  const d = new Date(mulai + 'T00:00:00');
+  for (let i = 0; i < 14; i++) {
+    const s = iso(d);
+    if (!cek(s, d)) return s;
+    d.setDate(d.getDate() + 1);
+  }
+  return mulai;
 }
 
 /* Tiga status sesi + warna aktifnya. Label sengaja pendek ("Diganti",
@@ -108,7 +139,16 @@ export default function PengumumanKbmComposer({
   namaKelompok: string;
   onTersimpan?: () => void;
 }) {
-  const [tanggal, setTanggal] = useState(hariIni());
+  /* Aturan akhir pekan + libur nasional itu statis (fungsi murni, tanpa
+     DB), jadi tanggal awalnya sudah bisa benar SEKETIKA -- tidak ada
+     kedipan "belum ada jadwal" lalu berpindah sendiri. Pengecualian
+     per-kelompok baru datang belakangan & disempurnakan di efek di bawah. */
+  const [tanggal, setTanggal] = useState(() =>
+    hariAktifTerdekat(hariIni(), nonaktifAkhirPekanLibur),
+  );
+  /* Begitu pengguna memilih tanggal sendiri, penyesuaian otomatis berhenti
+     selamanya -- termasuk kalau ia sengaja membuka tanggal lampau. */
+  const dipilihManual = useRef(false);
   const [pickerTerbuka, setPickerTerbuka] = useState(false);
   const [posisiPicker, setPosisiPicker] = useState<PosisiPicker | null>(null);
 
@@ -154,7 +194,16 @@ export default function PengumumanKbmComposer({
     if (!kelompokId) return;
     let batal = false;
     muatOverrideKelompok(kelompokId).then((peta) => {
-      if (!batal) setOverrideKelompok(peta);
+      if (batal) return;
+      setOverrideKelompok(peta);
+      /* Penyempurnaan tanggal awal: kelompok ini mungkin meliburkan hari
+         kerja biasa (mis. "Pengajian Penerobosan"). Tanggal statis di
+         atas tidak tahu-menahu soal itu, jadi dihitung ulang begitu
+         petanya tiba. Biasanya hasilnya sama persis -> setTanggal
+         dilewati React, tidak ada pemuatan ulang. */
+      if (dipilihManual.current) return;
+      const cek = buatCekNonaktif(peta);
+      setTanggal((kini) => hariAktifTerdekat(kini, cek));
     });
     return () => {
       batal = true;
@@ -524,7 +573,10 @@ export default function PengumumanKbmComposer({
           terbuka={pickerTerbuka}
           posisi={posisiPicker}
           nilai={tanggal}
-          onPilih={setTanggal}
+          onPilih={(v) => {
+            dipilihManual.current = true;
+            setTanggal(v);
+          }}
           onTutup={() => setPickerTerbuka(false)}
           tanggalNonaktif={cekNonaktif}
         />
