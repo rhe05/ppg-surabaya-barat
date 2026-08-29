@@ -18,6 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
+import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 
 export type SantriRow = {
   id: number;
@@ -89,7 +90,10 @@ type RiwayatKeluarga = {
   kode_pos: string | null;
 };
 
-type SaranItem = { teks: string; rec?: RiwayatKeluarga };
+/* Generik supaya satu bentuk saran dipakai ulang utk dua sumber beda:
+   riwayat santri lain (RiwayatKeluarga, dari DB) & daftar wilayah
+   Surabaya statis (WilayahSurabaya, dari lib/wilayahSurabaya.ts). */
+type SaranItem<T = unknown> = { teks: string; rec?: T };
 
 /* Daftar nilai unik (case-insensitive) dari satu kolom riwayat, urutan
    terbaru dulu (riwayat sudah di-order id desc) -- dipakai utk Nama &
@@ -112,9 +116,9 @@ function saranTeksUnik(daftar: (string | null)[]): SaranItem[] {
 function saranKeluargaUnik(
   daftar: RiwayatKeluarga[],
   ambil: (r: RiwayatKeluarga) => string | null,
-): SaranItem[] {
+): SaranItem<RiwayatKeluarga>[] {
   const dilihat = new Set<string>();
-  const hasil: SaranItem[] = [];
+  const hasil: SaranItem<RiwayatKeluarga>[] = [];
   for (const r of daftar) {
     const t = (ambil(r) ?? '').trim();
     if (!t || dilihat.has(t.toLowerCase())) continue;
@@ -122,6 +126,12 @@ function saranKeluargaUnik(
     hasil.push({ teks: t, rec: r });
   }
   return hasil;
+}
+
+/* Hanya angka -- dipakai RT/RW supaya tidak bisa diisi huruf, sama pola
+   dgn formatNomorWa (non-angka dibuang tiap ketikan). */
+function formatAngka(v: string): string {
+  return v.replace(/\D/g, '');
 }
 
 const KOSONG = {
@@ -230,7 +240,7 @@ function Bagian({ judul, children }: { judul: string; children: React.ReactNode 
    `onPilih` opsional dipanggil dgn item terpilih (bawa `.rec` kalau ada)
    -- Nama Ayah/Ibu memakainya utk menarik seluruh data keluarga
    (lihat isiDariKeluarga di bawah), Nama/Nama Panggilan tidak perlu. */
-function FieldSaran({
+function FieldSaran<T = unknown>({
   label,
   wajib,
   value,
@@ -244,8 +254,8 @@ function FieldSaran({
   wajib?: boolean;
   value: string;
   onChange: (v: string) => void;
-  onPilih?: (item: SaranItem) => void;
-  saran: SaranItem[];
+  onPilih?: (item: SaranItem<T>) => void;
+  saran: SaranItem<T>[];
   placeholder?: string;
   colSpan?: boolean;
 }) {
@@ -456,6 +466,32 @@ export default function SantriForm({
     }));
   }
 
+  /* Saran ketik Kelurahan: daftar statis 153 kelurahan Kota Surabaya
+     (lib/wilayahSurabaya.ts), BUKAN dari riwayat DB -- lebih lengkap &
+     tidak tergantung apa yang kebetulan pernah diketik admin lain. */
+  const saranKelurahan = useMemo<SaranItem<WilayahSurabaya>[]>(
+    () => WILAYAH_SURABAYA.map((w) => ({ teks: w.kelurahan, rec: w })),
+    [],
+  );
+
+  /* Diklik dari saran Kelurahan -- menebak Kecamatan/Kabupaten-Kota/
+     Provinsi/Kode Pos dari kelurahan yang dipilih (diminta owner
+     2026-08-29, sumber pemerintahan.surabaya.go.id). Tetap MENIMPA field
+     terkait, sama alasannya dgn isiDariKeluarga -- tapi hasilnya cuma
+     tebakan awal, admin/guru tetap bebas mengetik ulang manual kalau
+     keluarganya tidak tinggal di Surabaya atau datanya meleset. */
+  function isiDariWilayah(rec: WilayahSurabaya | undefined) {
+    if (!rec) return;
+    setIsian((s) => ({
+      ...s,
+      kelurahan: rec.kelurahan,
+      kecamatan: rec.kecamatan,
+      kabupaten_kota: rec.kabupaten_kota,
+      provinsi: rec.provinsi,
+      kode_pos: rec.kode_pos,
+    }));
+  }
+
   function ubah(field: keyof Isian, nilai: string) {
     setIsian((s) => {
       /* Ganti kelompok = kelas lamanya milik kelompok lain. Dikosongkan di
@@ -470,6 +506,10 @@ export default function SantriForm({
 
   function ubahWa(field: 'nomor_wa' | 'nomor_wa_ayah' | 'nomor_wa_ibu', nilaiMentah: string) {
     ubah(field, formatNomorWa(nilaiMentah));
+  }
+
+  function ubahAngka(field: 'rt' | 'rw', nilaiMentah: string) {
+    ubah(field, formatAngka(nilaiMentah));
   }
 
   async function simpan(e: React.FormEvent) {
@@ -848,26 +888,27 @@ export default function SantriForm({
             <label className={KELAS_LABEL}>RT</label>
             <input
               className={KELAS_INPUT}
+              inputMode="numeric"
               value={isian.rt}
-              onChange={(e) => ubah('rt', e.target.value)}
+              onChange={(e) => ubahAngka('rt', e.target.value)}
             />
           </div>
           <div>
             <label className={KELAS_LABEL}>RW</label>
             <input
               className={KELAS_INPUT}
+              inputMode="numeric"
               value={isian.rw}
-              onChange={(e) => ubah('rw', e.target.value)}
+              onChange={(e) => ubahAngka('rw', e.target.value)}
             />
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Kelurahan</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.kelurahan}
-              onChange={(e) => ubah('kelurahan', e.target.value)}
-            />
-          </div>
+          <FieldSaran
+            label="Kelurahan"
+            value={isian.kelurahan}
+            onChange={(v) => ubah('kelurahan', v)}
+            onPilih={(item) => isiDariWilayah(item.rec)}
+            saran={saranKelurahan}
+          />
           <div>
             <label className={KELAS_LABEL}>Kecamatan</label>
             <input
