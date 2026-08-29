@@ -368,7 +368,24 @@ function TabunganContent() {
       {!loading && jenis.length > 0 && (
         <>
           <div className="label-mikro mb-2">Per jenis tabungan</div>
-          <div className="tanpa-scrollbar -mx-[18px] mb-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-[18px] pb-1">
+          {/* KISI, bukan geseran mendatar (2026-08-29, laporan owner "card
+              tabungan qurban kepotong").
+
+              Versi geser sebelumnya terpotong di DUA sisi sekaligus:
+              scroll-snap menarik kartu pertama rata ke tepi snapport
+              sehingga padding kiri 18px habis dimakan (scrollLeft jadi 18
+              begitu halaman dibuka), dan `overflow-x: auto` membuat
+              overflow-y ikut jadi `auto` sehingga bayangan kartu terpotong
+              di bawah. Keduanya bisa ditambal (scroll-padding + padding
+              bawah), tapi jenis tabungan di satu kelompok cuma 2-3 --
+              menyembunyikan setengahnya di balik gestur geser memang tidak
+              ada untungnya sejak awal. Kisi menghapus seluruh kelas
+              masalah ini sekaligus. */}
+          <div
+            className={`mb-5 grid gap-3 ${
+              jenis.length === 1 && !isAdmin ? 'grid-cols-1' : 'grid-cols-2'
+            }`}
+          >
             {jenis.map((j) => {
               const t = totalPerJenis.get(j.id) ?? { total: 0, bulanIni: 0 };
               const persen =
@@ -378,7 +395,7 @@ function TabunganContent() {
               return (
                 <div
                   key={j.id}
-                  className="kartu-premium flex shrink-0 basis-[62%] snap-start flex-col p-4"
+                  className="kartu-premium flex flex-col p-4"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 truncate text-[12px] font-bold text-text-dim">
@@ -402,8 +419,11 @@ function TabunganContent() {
                     <div className="mt-auto pt-3">
                       <div className="mb-1.5 flex items-baseline justify-between gap-2 text-[11px]">
                         <span className="font-bold tabular-nums text-sage">{persen}%</span>
+                        {/* Tanpa awalan "bulan ini": di kisi dua kolom lebar
+                            kartunya cuma ~131px, awalan itu memaksa nominalnya
+                            terpotong padahal nominal yang penting. */}
                         <span className="truncate text-text-faint">
-                          bulan ini {formatRupiah(t.bulanIni)}
+                          {formatRupiah(t.bulanIni)}
                         </span>
                       </div>
                       <div className="h-[5px] overflow-hidden rounded-pill bg-panel-2">
@@ -425,7 +445,7 @@ function TabunganContent() {
               <button
                 type="button"
                 onClick={() => setJenisEdit('baru')}
-                className="flex shrink-0 basis-[38%] snap-start cursor-pointer flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-border bg-panel text-[12px] font-bold text-text-dim active:scale-[0.98]"
+                className="flex min-h-[104px] cursor-pointer flex-col items-center justify-center gap-1.5 rounded-card border border-dashed border-border bg-panel text-[12px] font-bold text-text-dim active:scale-[0.98]"
               >
                 <Plus size={17} /> Tambah
               </button>
