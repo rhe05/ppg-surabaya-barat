@@ -405,33 +405,37 @@ function PindahKelasModal({
   );
 }
 
-/* Konfirmasi "Naik Kelas" -- naikkan JENJANG (bukan kelas_ngaji/kelas_id
-   spt "Pindah Kelas") satu tingkat sekaligus utk semua santri terpilih.
-   Tidak perlu pilih tujuan (beda dari Pindah Kelas): tujuannya selalu
-   "satu tingkat di atas jenjang masing-masing", jadi cukup pratinjau +
-   konfirmasi. Santri yang sudah di jenjang tertinggi (Remaja) ditandai
-   & dilewati server (RPC naikkan_jenjang_santri, migrasi 20260821160000),
-   bukan menggagalkan permintaan yang lain. */
+/* Konfirmasi "Naik Kelas" -- SEKALIGUS dua hal (sejak migrasi
+   20260901100000): jenjang tiap santri naik satu tingkat DAN semuanya
+   dipindah ke kelas tujuan yang dipilih (semua kelas aktif di kelompok,
+   bukan cuma kelas guru sendiri -- sama spt "Pindah Kelas"). Kelas tujuan
+   WAJIB dipilih. Santri yang sudah di jenjang tertinggi (Remaja) tetap
+   ikut pindah kelas, jenjangnya saja yang tidak berubah. */
 function NaikKelasModal({
   daftarSantri,
+  opsiKelas,
   onKonfirmasi,
   onBatal,
 }: {
   daftarSantri: SantriRow[];
-  onKonfirmasi: () => Promise<void>;
+  opsiKelas: Kelas[];
+  onKonfirmasi: (kelasTujuanId: number) => Promise<void>;
   onBatal: () => void;
 }) {
+  const [kelasTujuanId, setKelasTujuanId] = useState<number | null>(null);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const bisaNaik = daftarSantri.filter((s) => jenjangBerikutnya(s.jenjang_saat_ini) !== null);
-  const sudahMentok = daftarSantri.length - bisaNaik.length;
+  const sudahMentok = daftarSantri.filter(
+    (s) => jenjangBerikutnya(s.jenjang_saat_ini) === null,
+  ).length;
 
   async function konfirmasi() {
+    if (kelasTujuanId === null) return;
     setMenyimpan(true);
     setError(null);
     try {
-      await onKonfirmasi();
+      await onKonfirmasi(kelasTujuanId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menaikkan jenjang.');
     } finally {
@@ -444,7 +448,8 @@ function NaikKelasModal({
       <div className="w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
         <h2 className="mb-1 text-[17px] font-bold text-text">Naik Kelas</h2>
         <p className="mb-4 text-[12.5px] text-text-dim">
-          Jenjang tiap santri terpilih naik satu tingkat.
+          Jenjang tiap santri terpilih naik satu tingkat, lalu semuanya dipindah ke kelas tujuan
+          yang Anda pilih.
         </p>
 
         <div className="mb-4 flex max-h-[45vh] flex-col gap-2 overflow-y-auto">
@@ -470,9 +475,38 @@ function NaikKelasModal({
 
         {sudahMentok > 0 && (
           <p className="mb-3 text-[11.5px] text-text-faint">
-            {sudahMentok} santri sudah di jenjang tertinggi, tidak ikut dinaikkan.
+            {sudahMentok} santri sudah di jenjang tertinggi -- jenjangnya tetap, tapi kelasnya
+            tetap ikut pindah.
           </p>
         )}
+
+        <p className="mb-2 text-[11px] font-bold tracking-[0.08em] text-text-faint uppercase">
+          Kelas Tujuan
+        </p>
+        <div className="mb-4 flex max-h-[30vh] flex-col gap-2.5 overflow-y-auto">
+          {opsiKelas.map((k) => (
+            <label
+              key={k.id}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-card border-[1.5px] p-3 ${
+                kelasTujuanId === k.id ? 'border-sage bg-[rgba(5,150,105,0.06)]' : 'border-border'
+              }`}
+            >
+              <input
+                type="radio"
+                name="kelas_tujuan_naik"
+                className="shrink-0"
+                checked={kelasTujuanId === k.id}
+                onChange={() => setKelasTujuanId(k.id)}
+              />
+              <span className="text-[13.5px] font-bold text-text">Kelas {k.nama}</span>
+            </label>
+          ))}
+          {opsiKelas.length === 0 && (
+            <p className="text-[12px] text-text-faint">
+              Belum ada kelas lain di kelompok ini yang bisa dijadikan tujuan.
+            </p>
+          )}
+        </div>
 
         {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
 
@@ -486,7 +520,7 @@ function NaikKelasModal({
           </button>
           <button
             type="button"
-            disabled={menyimpan || bisaNaik.length === 0}
+            disabled={menyimpan || kelasTujuanId === null}
             onClick={konfirmasi}
             className="flex-1 cursor-pointer rounded-[var(--radius)] border border-sage bg-sage px-4 py-2.5 text-[13px] font-bold text-white disabled:opacity-40"
           >
@@ -691,9 +725,12 @@ function DataGenerusContent() {
     muatSantri();
     tampilkanPesanTerkirim();
   }
-  async function konfirmasiNaikKelas() {
+  async function konfirmasiNaikKelas(kelasTujuanId: number) {
     const { error: err } = await supabase.rpc('ajukan_permintaan_generus', {
-      p: { jenis: 'naik_kelas', payload: { santri_ids: Array.from(terpilihMassal) } },
+      p: {
+        jenis: 'naik_kelas',
+        payload: { santri_ids: Array.from(terpilihMassal), kelas_tujuan_id: kelasTujuanId },
+      },
     });
     if (err) throw new Error(err.message);
     setKonfirmasiNaikTerbuka(false);
@@ -967,6 +1004,9 @@ function DataGenerusContent() {
           {konfirmasiNaikTerbuka && (
             <NaikKelasModal
               daftarSantri={santri.filter((s) => terpilihMassal.has(s.id))}
+              opsiKelas={(kelasKelompok.length ? kelasKelompok : kelasList).filter(
+                (k) => k.id !== kelasId,
+              )}
               onKonfirmasi={konfirmasiNaikKelas}
               onBatal={() => setKonfirmasiNaikTerbuka(false)}
             />

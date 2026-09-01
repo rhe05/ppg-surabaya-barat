@@ -178,10 +178,10 @@ export default function AdminSantriMobile() {
       sukses(`${ids.length} generus dipindah kelasnya.`);
     } else if (modeMassal === 'naik') {
       const { error: err } = await supabase.rpc('naikkan_jenjang_santri', {
-        p: { santri_ids: ids, kelompok_id: kelompokId },
+        p: { santri_ids: ids, kelompok_id: kelompokId, kelas_tujuan_id: payload.kelas_tujuan_id },
       });
       if (err) throw new Error(err.message);
-      sukses(`${ids.length} generus dinaikkan jenjangnya.`);
+      sukses(`${ids.length} generus naik kelas.`);
     } else {
       const { error: err } = await supabase.rpc('nonaktifkan_santri', {
         p: {
@@ -369,7 +369,8 @@ export default function AdminSantriMobile() {
       {modalKonfirmasi && modeMassal === 'naik' && (
         <NaikKelasModal
           daftar={santriTerpilih}
-          onKonfirmasi={() => jalankanAksi({})}
+          opsiKelas={kelasList}
+          onKonfirmasi={(kelasTujuanId) => jalankanAksi({ kelas_tujuan_id: kelasTujuanId })}
           onBatal={() => setModalKonfirmasi(false)}
         />
       )}
@@ -459,15 +460,20 @@ function PindahKelasModal({
   );
 }
 
+/* Sejak migrasi 20260901100000 "Naik Kelas" = naik jenjang SEKALIGUS
+   pindah ke kelas tujuan yang dipilih (wajib), bukan lagi cuma jenjang. */
 function NaikKelasModal({
   daftar,
+  opsiKelas,
   onKonfirmasi,
   onBatal,
 }: {
   daftar: SantriRow[];
-  onKonfirmasi: () => Promise<void>;
+  opsiKelas: KelasRingkas[];
+  onKonfirmasi: (kelasTujuanId: number) => Promise<void>;
   onBatal: () => void;
 }) {
+  const [kelasTujuanId, setKelasTujuanId] = useState<number | null>(null);
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const mentok = daftar.filter((s) => jenjangBerikutnya(s.jenjang_saat_ini) === null).length;
@@ -475,7 +481,10 @@ function NaikKelasModal({
     <div className={OVERLAY}>
       <div className={SHEET}>
         <h2 className="mb-1 text-[17px] font-bold text-text">Naik Kelas</h2>
-        <p className="mb-4 text-[12.5px] text-text-dim">Jenjang tiap generus terpilih naik satu tingkat.</p>
+        <p className="mb-4 text-[12.5px] text-text-dim">
+          Jenjang tiap generus terpilih naik satu tingkat, lalu semuanya dipindah ke kelas tujuan
+          yang Anda pilih.
+        </p>
         <div className="mb-4 flex max-h-[45vh] flex-col gap-2 overflow-y-auto">
           {daftar.map((s) => {
             const b = jenjangBerikutnya(s.jenjang_saat_ini);
@@ -498,9 +507,35 @@ function NaikKelasModal({
         </div>
         {mentok > 0 && (
           <p className="mb-3 text-[11.5px] text-text-faint">
-            {mentok} generus sudah di jenjang tertinggi, tidak ikut dinaikkan.
+            {mentok} generus sudah di jenjang tertinggi -- jenjangnya tetap, tapi kelasnya tetap
+            ikut pindah.
           </p>
         )}
+        <p className="mb-2 text-[11px] font-bold tracking-[0.08em] text-text-faint uppercase">
+          Kelas Tujuan
+        </p>
+        <div className="mb-4 flex max-h-[30vh] flex-col gap-2.5 overflow-y-auto">
+          {opsiKelas.map((k) => (
+            <label
+              key={k.id}
+              className={`flex cursor-pointer items-center gap-2.5 rounded-card border-[1.5px] p-3 ${
+                kelasTujuanId === k.id ? 'border-sage bg-[rgba(5,150,105,0.06)]' : 'border-border'
+              }`}
+            >
+              <input
+                type="radio"
+                name="kelas_tujuan_naik"
+                className="shrink-0"
+                checked={kelasTujuanId === k.id}
+                onChange={() => setKelasTujuanId(k.id)}
+              />
+              <span className="text-[13.5px] font-bold text-text">Kelas {k.nama}</span>
+            </label>
+          ))}
+          {opsiKelas.length === 0 && (
+            <p className="text-[12px] text-text-faint">Belum ada kelas yang bisa dijadikan tujuan.</p>
+          )}
+        </div>
         {error && <p className="mb-3 text-[13px] text-red">{error}</p>}
         <div className="flex gap-3">
           <button
@@ -512,12 +547,13 @@ function NaikKelasModal({
           </button>
           <button
             type="button"
-            disabled={sibuk}
+            disabled={sibuk || kelasTujuanId === null}
             onClick={async () => {
+              if (kelasTujuanId === null) return;
               setSibuk(true);
               setError(null);
               try {
-                await onKonfirmasi();
+                await onKonfirmasi(kelasTujuanId);
               } catch (e) {
                 setError(e instanceof Error ? e.message : 'Gagal menaikkan jenjang.');
                 setSibuk(false);
