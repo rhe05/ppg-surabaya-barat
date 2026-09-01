@@ -1144,6 +1144,47 @@ kode) — kelas "1A" berubah dari `adaData:false` → `avgPct:86`.
 
 ---
 
+## #32 — Riwayat Kehadiran bulan LAMPAU ikut pindah kelas saat santri naik/pindah kelas (2026-09-01)
+
+**Gejala** (dilaporkan owner): Sheza tercatat di kelas 1A (kelas Neiza)
+sampai akhir Agustus dan naik ke 2 A per awal September. Begitu dipindah,
+filter bulan Juli & Agustus di Riwayat Kehadiran TIDAK lagi menampilkan
+Sheza di 1A — datanya seolah pindah semua ke kelas barunya.
+
+**Akar masalah**: tabel `absensi` tidak menyimpan kelas sama sekali
+(`santri_id, kelompok_id, tanggal, status, ...`), dan layar Riwayat
+menyaring anggota kelas dgn `santri.kelas_id` — nilai SEKARANG, tanpa
+dimensi waktu. Jadi keanggotaan kelas historis memang tidak tersimpan di
+mana pun. Ini melengkapi period-awareness status aktif (`deleted_at`,
+migrasi 20260821130000/20260821140000) yang sudah ada lebih dulu.
+
+**Penanganan**: migrasi `20260901110000` — tabel `santri_kelas_riwayat`
+(`mulai`/`selesai` inklusif, `selesai IS NULL` = masih berlaku) diisi
+otomatis oleh trigger `sinkron_santri_kelas_riwayat`; perpindahan berlaku
+sejak AWAL BULAN saat dilakukan (keputusan owner) supaya satu santri tak
+pernah terbelah dua kelas dalam sebulan. RLS baca-saja, tulis hanya lewat
+trigger. Frontend: `lib/riwayatKelas.ts` (`santriIdsKelasPadaPeriode`)
+dipakai `app/absensi/riwayat/page.tsx` + `RiwayatKehadiranKelasInline.tsx`.
+
+⚠️ **Jebakan yang memakan satu putaran**: `CREATE TRIGGER ... AFTER UPDATE
+OF kelas_id` TIDAK PERNAH menyala di app ini — aplikasi menulis
+`kelas_ngaji`, lalu trigger `sinkron_santri_kelas` (migrasi 20260819110000)
+yang mengisi `kelas_id`, sedangkan `UPDATE OF kolom` hanya menyala kalau
+kolom itu disebut di daftar SET. Pakai `AFTER INSERT OR UPDATE` polos dan
+bandingkan `old`/`new` di dalam fungsi.
+
+**Cara verifikasi**: `tools/supabase_query.js` dgn peniruan role
+(`BEGIN … ROLLBACK`) — pindahkan satu santri, lalu jalankan query yang
+persis dipakai layar utk Juli/Agustus/September. Hasil yang benar: bulan
+sebelum perpindahan muncul di kelas LAMA saja, bulan sesudahnya di kelas
+BARU saja. Riwayat SEBELUM migrasi ini tidak bisa direkonstruksi (backfill
+= kelas terakhir sejak `mulai_ngaji`); santri yang terlanjur dipindah
+sebelum migrasi harus dibetulkan barisnya manual — sudah dilakukan utk
+Sheza Banafsha (1A s.d. 2026-08-31, 2 A sejak 2026-09-01).
+
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
