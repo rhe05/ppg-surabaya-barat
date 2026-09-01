@@ -278,7 +278,7 @@ function TambahMenu({
         </button>
         {!bisaPindahKelas && (
           <p className="px-3 pt-1 pb-1.5 text-[11px] text-text-faint">
-            Anda hanya mengampu satu kelas.
+            Belum ada kelas lain di kelompok ini.
           </p>
         )}
         <button
@@ -321,11 +321,10 @@ function TambahMenu({
 
 /* Konfirmasi "Pindah Kelas" -- muncul SETELAH guru memilih santri (mode
    centang di daftar) & menekan tombol "Pindah" di bilah bawah. Menampilkan
-   berapa santri terpilih + daftar kelas tujuan (kelas guru sendiri yang
-   LAIN dari kelas yang sedang dibuka -- satu-satunya tujuan yang valid dari
-   layar ini). RPC pindah_kelas_santri (migrasi 20260821150000) sebenarnya
-   juga mengizinkan kelas tujuan milik guru lain dalam kelompok yang sama,
-   tapi layar ini cuma tahu kelas guru yang sedang login. */
+   berapa santri terpilih + daftar SEMUA kelas aktif di kelompok ini (bukan
+   cuma kelas yang diampu guru sendiri), kecuali kelas yang sedang dibuka --
+   sesuai RPC pindah_kelas_santri (migrasi 20260821150000 lalu 20260821180000)
+   yang memang menerima kelas tujuan milik guru lain selama satu kelompok. */
 function PindahKelasModal({
   jumlah,
   opsiKelas,
@@ -531,6 +530,10 @@ function DataGenerusContent() {
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
+  /* Semua kelas aktif di kelompok ini -- HANYA dipakai sbg daftar kelas
+     tujuan "Pindah Kelas". Terpisah dari kelasList (kelas yang diampu guru
+     ini) yang menentukan santri mana yang boleh dia lihat/ubah. */
+  const [kelasKelompok, setKelasKelompok] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | null>(null);
   const [gateTerbuka, setGateTerbuka] = useState(false);
 
@@ -580,6 +583,27 @@ function DataGenerusContent() {
       cancelled = true;
     };
   }, [guruId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function muatKelasKelompok() {
+      if (!kelompokId) {
+        setKelasKelompok([]);
+        return;
+      }
+      const { data } = await supabase
+        .from('kelas')
+        .select('id, nama, santri_count')
+        .eq('kelompok_id', kelompokId)
+        .is('deleted_at', null)
+        .order('nama');
+      if (!cancelled) setKelasKelompok(data ?? []);
+    }
+    muatKelasKelompok();
+    return () => {
+      cancelled = true;
+    };
+  }, [kelompokId]);
 
   const muatSantri = useCallback(async () => {
     if (!kelasId) return;
@@ -809,7 +833,10 @@ function DataGenerusContent() {
               onPindahDomisili={() => mulaiModeMassal('pindah_domisili')}
               onNaikKelas={() => mulaiModeMassal('naik')}
               onNonAktif={() => mulaiModeMassal('non_aktif')}
-              bisaPindahKelas={kelasList.length > 1}
+              bisaPindahKelas={
+                (kelasKelompok.length ? kelasKelompok : kelasList).filter((k) => k.id !== kelasId)
+                  .length > 0
+              }
             />
           </div>
         )}
@@ -929,7 +956,9 @@ function DataGenerusContent() {
           {konfirmasiPindahTerbuka && (
             <PindahKelasModal
               jumlah={terpilihMassal.size}
-              opsiKelas={kelasList.filter((k) => k.id !== kelasId)}
+              opsiKelas={(kelasKelompok.length ? kelasKelompok : kelasList).filter(
+                (k) => k.id !== kelasId,
+              )}
               onKonfirmasi={konfirmasiPindahKelas}
               onBatal={() => setKonfirmasiPindahTerbuka(false)}
             />
