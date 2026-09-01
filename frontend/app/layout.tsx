@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { ToastProvider } from "@/components/ui/useToast";
+import AjakanPasangApp from "@/components/ui/AjakanPasangApp";
 
 export const metadata: Metadata = {
   title: "Ruang Ngaji — Platform Manajemen Ngaji",
@@ -47,7 +48,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            {children}
+            {/* Ajakan "Tambah ke Layar Utama" — di sini, bukan di
+                RequireAuth, supaya ikut tampil di halaman login. */}
+            <AjakanPasangApp />
+          </ToastProvider>
         </AuthProvider>
       </body>
     </html>
