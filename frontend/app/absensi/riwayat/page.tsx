@@ -72,6 +72,7 @@ import { useAuth } from '@/lib/auth-context';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, adalahAkhirPekan, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { santriIdsKelasPadaPeriode } from '@/lib/riwayatKelas';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 // Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
@@ -272,15 +273,22 @@ function RiwayatKehadiranContent() {
       const akhirTanggal = new Date(tahun, bulan, 0).getDate();
       const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
 
-      /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut
-         tampil -- deleted_at dipakai sbg "sejak kapan tidak aktif", bukan
-         cuma penanda hapus (lihat migrasi 20260821130000). Bulan yang
-         sudah lewat sebelum dia pindah harus tetap menunjukkan riwayatnya. */
-      const { data: dataSantri, error: errSantri } = await supabase
-        .from('santri')
-        .select('id, nama, nama_panggilan')
-        .eq('kelas_id', kelasId)
-        .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
+      /* Anggota kelas ini PADA BULAN YANG DIFILTER, bukan anggotanya
+         sekarang: santri yang sudah naik/pindah kelas tetap muncul di
+         bulan-bulan saat dia masih di kelas ini, dan hilang dari bulan
+         setelah perpindahannya (lib/riwayatKelas.ts + migrasi
+         20260901110000 -- perpindahan berlaku sejak awal bulan).
+         Santri yang pindah/nonaktif SETELAH bulan ini dimulai juga tetap
+         ikut tampil -- deleted_at dipakai sbg "sejak kapan tidak aktif",
+         bukan cuma penanda hapus (lihat migrasi 20260821130000). */
+      const idsKelas = await santriIdsKelasPadaPeriode(kelasId, awal, akhir);
+      const { data: dataSantri, error: errSantri } = idsKelas.length
+        ? await supabase
+            .from('santri')
+            .select('id, nama, nama_panggilan')
+            .in('id', idsKelas)
+            .or(`deleted_at.is.null,deleted_at.gt.${awal}`)
+        : { data: [], error: null };
       if (errSantri) throw new Error(errSantri.message);
 
       const santriList = (dataSantri ?? []).slice().sort((a, b) => {

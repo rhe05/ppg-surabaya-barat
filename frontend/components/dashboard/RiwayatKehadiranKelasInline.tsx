@@ -15,6 +15,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { santriIdsKelasPadaPeriode } from '@/lib/riwayatKelas';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 
@@ -65,13 +66,20 @@ export default function RiwayatKehadiranKelasInline({
         const akhirTanggal = new Date(tahun, bulan, 0).getDate();
         const akhir = `${tahun}-${dua(bulan)}-${dua(akhirTanggal)}`;
 
-        /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut
-           -- deleted_at = "sejak kapan tidak aktif" (migrasi 20260821130000). */
-        const { data: dataSantri, error: errSantri } = await supabase
-          .from('santri')
-          .select('id, nama, nama_panggilan')
-          .eq('kelas_id', kelasId)
-          .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
+        /* Anggota kelas ini PADA BULAN ITU (bukan anggotanya sekarang) --
+           santri yang sudah pindah kelas tetap muncul di bulan-bulan saat
+           dia masih di sini, lihat lib/riwayatKelas.ts + migrasi
+           20260901110000. Santri yang pindah/nonaktif SETELAH bulan ini
+           dimulai juga tetap ikut -- deleted_at = "sejak kapan tidak
+           aktif" (migrasi 20260821130000). */
+        const idsKelas = await santriIdsKelasPadaPeriode(kelasId, awal, akhir);
+        const { data: dataSantri, error: errSantri } = idsKelas.length
+          ? await supabase
+              .from('santri')
+              .select('id, nama, nama_panggilan')
+              .in('id', idsKelas)
+              .or(`deleted_at.is.null,deleted_at.gt.${awal}`)
+          : { data: [], error: null };
         if (errSantri) throw new Error(errSantri.message);
 
         const santriList = (dataSantri ?? []).slice().sort((a, b) => {
