@@ -61,6 +61,7 @@ import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
+import { pesanGalatDb } from '@/lib/pesanGalatDb';
 import {
   muatKelasGuru,
   muatMateriBulan,
@@ -519,6 +520,27 @@ export default function RencanaPembelajaranView() {
       klasikal_hafalan_surat: suratTerpilih,
       klasikal_hafalan_doa: doa,
     };
+    /* Penjaga dobel LAPIS PERTAMA (2026-09-02, dilaporkan owner: muncul
+       dua Klasikal di tanggal yang sama). Satu baris klasikal sudah
+       memuat hafalan surat DAN hafalan doa sekaligus, jadi satu tanggal
+       cukup satu baris — menambah lagi di tanggal yang sama artinya guru
+       sebenarnya ingin MENGUBAH yang sudah ada. Lapis keduanya indeks
+       unik di basis data (migrasi 20260902140000); yang ini ada supaya
+       guru dapat kalimat yang bisa ditindak, bukan galat mentah. */
+    if (!idDiubah) {
+      const sudahAda = materiList.find(
+        (m) => m.jenis === 'klasikal' && m.tanggal_rencana === tanggalKlasikalBaru
+      );
+      if (sudahAda) {
+        push(
+          'Materi Klasikal untuk tanggal itu sudah ada. Ubah yang sudah ada lewat titik-tiga di kartu minggunya.',
+          'info'
+        );
+        setMenyimpanKlasikal(false);
+        return;
+      }
+    }
+
     const materiListSebelum = materiList;
     setMateriList((prev) =>
       idDiubah ? prev.map((m) => (m.id === idDiubah ? sementara : m)) : [...prev, sementara]
@@ -547,7 +569,7 @@ export default function RencanaPembelajaranView() {
       await muatMateri();
     } catch (e) {
       setMateriList(materiListSebelum);
-      push(e instanceof Error ? e.message : 'Gagal menyimpan materi klasikal.', 'error');
+      push(pesanGalatDb(e, 'Gagal menyimpan materi klasikal.'), 'error');
     } finally {
       setMenyimpanKlasikal(false);
     }
@@ -589,6 +611,21 @@ export default function RencanaPembelajaranView() {
     const judul = judulBaru.trim();
     const mingguKe = Number(mingguBaru);
 
+    /* Penjaga dobel lapis pertama utk materi ngaji: judul yang sama di
+       kelas & tanggal yang sama. Dibandingkan tanpa peduli huruf
+       besar-kecil, sama dengan indeks uniknya di basis data (migrasi
+       20260902140000) -- "Baca Simak" dan "baca simak" itu satu materi. */
+    const bentrok = materiList.find(
+      (m) =>
+        m.jenis !== 'klasikal' &&
+        m.tanggal_rencana === tanggalRencanaBaru &&
+        m.judul.trim().toLowerCase() === judul.toLowerCase()
+    );
+    if (bentrok) {
+      push(`Materi "${judul}" sudah ada di tanggal itu.`, 'info');
+      return;
+    }
+
     // Optimistic: baris sementara langsung tampil, modal langsung tertutup.
     const sementara: Materi = {
       id: idSementara--,
@@ -626,7 +663,7 @@ export default function RencanaPembelajaranView() {
     } catch (e) {
       // Gagal -> tarik lagi baris sementara.
       setMateriList((prev) => prev.filter((m) => m.id !== sementara.id));
-      push(e instanceof Error ? e.message : 'Gagal menyimpan materi.', 'error');
+      push(pesanGalatDb(e, 'Gagal menyimpan materi.'), 'error');
     } finally {
       setMenyimpan(false);
     }

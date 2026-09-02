@@ -17,6 +17,7 @@
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '../lib/hafalanSurat.ts';
 import { pecahJudulMateri } from '../lib/judulMateri.ts';
 import { rentangMinggu, mingguKeDariTanggal, labelRentangMinggu } from '../lib/mingguBulan.ts';
+import { pesanGalatDb } from '../lib/pesanGalatDb.ts';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -130,6 +131,32 @@ periksa(
     return 'aman';
   })(),
   'aman'
+);
+
+/* ── pesanGalatDb: galat basis data jadi kalimat yang bisa ditindak ─ */
+
+periksa(
+  'bentrok Klasikal diterjemahkan, bukan ditampilkan mentah',
+  pesanGalatDb(new Error('duplicate key value violates unique constraint "uq_jurnal_klasikal_kelas_tanggal"'), 'cadangan'),
+  'Materi Klasikal untuk tanggal itu sudah ada. Ubah yang sudah ada, jangan tambah baru — satu tanggal cukup satu Klasikal (hafalan surat & doa jadi satu).'
+);
+
+periksa(
+  'bentrok judul materi ngaji diterjemahkan',
+  pesanGalatDb(new Error('duplicate key ... "uq_jurnal_ngaji_kelas_tanggal_judul"'), 'cadangan'),
+  'Materi dengan judul yang sama sudah ada di tanggal itu.'
+);
+
+periksa(
+  'galat yang TIDAK dikenali diteruskan apa adanya (jangan ditelan)',
+  pesanGalatDb(new Error('connection refused'), 'cadangan'),
+  'connection refused'
+);
+
+periksa(
+  'galat kosong jatuh ke pesan cadangan',
+  pesanGalatDb(null, 'Gagal menyimpan.'),
+  'Gagal menyimpan.'
 );
 
 /* ── hasil ────────────────────────────────────────────────────────── */
