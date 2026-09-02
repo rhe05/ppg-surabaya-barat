@@ -133,6 +133,27 @@ body:has([data-guru-nav]) main {
   padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 
+/* Bilah aksi yang menempel di bawah layar (tombol utama satu halaman,
+   mis. "Simpan Pelaksanaan"). Ditaruh di CSS, bukan kelas Tailwind di
+   komponennya, karena posisinya bergantung pada ADA/TIDAKNYA nav guru —
+   sama alasannya dgn aturan padding di atas: navnya sibling <main>,
+   komponen di dalam main tidak bisa tahu sendiri. Tanpa nav (mis. admin
+   membuka halaman yang sama) bilahnya turun menempel ke dasar layar,
+   tidak menggantung dgn celah kosong 60px. */
+.bilah-aksi-bawah {
+  position: fixed;
+  right: 0;
+  bottom: env(safe-area-inset-bottom);
+  left: 0;
+  z-index: 40;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+}
+
+body:has([data-guru-nav]) .bilah-aksi-bawah {
+  bottom: calc(60px + env(safe-area-inset-bottom));
+}
+
 /* .tanpa-scrollbar (20 Agt, diminta owner): sembunyikan scrollbar bawaan
    browser di kolom konten yg overflow-y-auto tapi tetap bisa discroll
    normal (elemen ini dipakai di dalam kolom mobile max-w-[430px], scroll

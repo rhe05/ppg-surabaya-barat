@@ -132,6 +132,7 @@ export default function PelaksanaanPembelajaranView() {
   const [terbukaId, setTerbukaId] = useState<number | null>(null); // baris yg catatannya sedang diperluas
   const [loading, setLoading] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
+  const [baruTersimpan, setBaruTersimpan] = useState(false);
 
   const [tambahanTerbuka, setTambahanTerbuka] = useState(false);
   const [judulTambahan, setJudulTambahan] = useState('');
@@ -253,6 +254,7 @@ export default function PelaksanaanPembelajaranView() {
         }
       }
       push('Pelaksanaan tersimpan.', 'sukses');
+      setBaruTersimpan(true);
       await muat();
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal menyimpan pelaksanaan.', 'error');
@@ -264,6 +266,26 @@ export default function PelaksanaanPembelajaranView() {
   const direncanakan = baris.length;
   const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
   const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
+
+  /* Tombol Simpan mati sampai benar2 ADA yang berubah (2026-09-02,
+     diminta owner). statusAsli/catatanAsli sudah dipegang tiap baris utk
+     keperluan batch UPDATE, jadi perbandingannya tidak butuh state baru
+     -- materi tambahan (id null) selalu dihitung sbg perubahan krn belum
+     pernah tersimpan. */
+  const adaPerubahan = baris.some(
+    (b) => b.id === null || b.status !== b.statusAsli || b.catatan !== b.catatanAsli
+  );
+  /* Label "Tersimpan" sesaat setelah berhasil -- umpan balik yang tinggal
+     di tempat tombolnya, bukan cuma toast yang lewat. Hilang sendiri
+     begitu guru menyentuh sesuatu lagi. */
+  useEffect(() => {
+    if (adaPerubahan) setBaruTersimpan(false);
+  }, [adaPerubahan]);
+  useEffect(() => {
+    if (!baruTersimpan) return;
+    const t = setTimeout(() => setBaruTersimpan(false), 2600);
+    return () => clearTimeout(t);
+  }, [baruTersimpan]);
 
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
@@ -285,7 +307,9 @@ export default function PelaksanaanPembelajaranView() {
           kembali ke menu, tidak boleh hilang (lihat JurnalHeaderChrome.tsx). */}
       <JurnalHeaderChrome tampilkanHero={false} />
 
-      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
+      {/* pb-[86px]: ruang utk bilah aksi yang menempel di bawah, supaya
+          baris terakhir daftar tidak tertutup tombol Simpan. */}
+      <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-[86px]">
         {/* Judul + chip kelas kiri, ikon kalender + info Bulan/Tahun kanan --
             konsep & markup SAMA PERSIS RencanaPembelajaranView.tsx (diminta
             owner 2026-08-23). Popup-nya (di bawah) py SATU dropdown lebih
@@ -432,14 +456,7 @@ export default function PelaksanaanPembelajaranView() {
                 <Skeleton className="h-[52px] w-full" />
               </div>
             )}
-            {!loading && baris.length === 0 && (
-              <p className="mb-4 text-[13px] text-text-dim">
-                Belum ada materi direncanakan minggu ini. Tambahkan lewat &ldquo;Tambah Materi Tambahan&rdquo;
-                di bawah.
-              </p>
-            )}
-
-            {baris.length > 0 && (
+            {!(loading && baris.length === 0) && (
               /* SATU kartu berisi baris-baris berpemisah, bukan setumpuk
                  kartu masing2 berbingkai (2026-09-02, diminta owner).
                  Sebelumnya ada empat lapis kotak bersarang: latar
@@ -449,6 +466,11 @@ export default function PelaksanaanPembelajaranView() {
                   loading ? 'pointer-events-none opacity-40' : 'opacity-100'
                 }`}
               >
+                {baris.length === 0 && (
+                  <p className="px-3.5 py-4 text-[13px] text-text-dim">
+                    Belum ada materi direncanakan minggu ini.
+                  </p>
+                )}
                 {baris.map((b, idx) => {
                   const dicentang = b.status === 'disampaikan';
                   const diperluas = terbukaId === b.id || (b.id === null && dicentang);
@@ -503,67 +525,88 @@ export default function PelaksanaanPembelajaranView() {
                     </div>
                   );
                 })}
-              </div>
-            )}
 
-            {!tambahanTerbuka ? (
-              <button
-                type="button"
-                onClick={() => setTambahanTerbuka(true)}
-                className="mb-4 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius)] border-[1.5px] border-dashed border-sage bg-transparent py-3 text-[13px] font-semibold text-sage"
-              >
-                <Plus size={16} strokeWidth={2.4} />
-                Tambah Materi Tambahan
-              </button>
-            ) : (
-              <div className="mb-4 rounded-card border border-border bg-panel p-3.5">
-                <label className="mb-1.5 block text-[11.5px] font-semibold text-text-dim">
-                  Materi yang tidak ada di rencana
-                </label>
-                <input
-                  type="text"
-                  value={judulTambahan}
-                  onChange={(e) => setJudulTambahan(e.target.value)}
-                  placeholder="Judul materi"
-                  className="mb-2 w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text"
-                />
-                <div className="flex gap-2">
+                {/* "Tambah Materi Tambahan" jadi BARIS TERAKHIR di kartu
+                    yang sama (2026-09-02, diminta owner). Sebelumnya
+                    tombol bergaris putus-putus hijau yang mengambang
+                    sendiri di bawah daftar -- pola template gratisan.
+                    Sbg baris, ia terbaca sbg lanjutan daftar: bergaris
+                    pemisah yang sama, teks redup, tanpa bingkai sendiri.
+                    Baris materi di atasnya tetap py border-b krn baris
+                    ini yang sekarang jadi anak terakhir (last:border-b-0). */}
+                {!tambahanTerbuka ? (
                   <button
                     type="button"
-                    onClick={tambahMateriTambahan}
-                    disabled={judulTambahan.trim().length === 0}
-                    className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={() => setTambahanTerbuka(true)}
+                    className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-3.5 py-3 text-left text-[13px] font-semibold text-text-dim transition-colors duration-150 hover:text-sage"
                   >
-                    Tambahkan
+                    <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 border-dashed border-border text-text-faint">
+                      <Plus size={13} strokeWidth={2.6} />
+                    </span>
+                    Tambah materi tambahan
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTambahanTerbuka(false);
-                      setJudulTambahan('');
-                    }}
-                    className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12.5px] font-semibold text-text"
-                  >
-                    Batal
-                  </button>
-                </div>
+                ) : (
+                  <div className="px-3.5 py-3">
+                    <label className="label-mikro mb-1.5 block">Materi yang tidak ada di rencana</label>
+                    <input
+                      type="text"
+                      value={judulTambahan}
+                      onChange={(e) => setJudulTambahan(e.target.value)}
+                      placeholder="Judul materi"
+                      autoFocus
+                      className="mb-2 w-full rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[13px] text-text"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={tambahMateriTambahan}
+                        disabled={judulTambahan.trim().length === 0}
+                        className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Tambahkan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTambahanTerbuka(false);
+                          setJudulTambahan('');
+                        }}
+                        className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12.5px] font-semibold text-text"
+                      >
+                        Batal
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-
-            <button
-              type="button"
-              disabled={menyimpan || baris.length === 0}
-              onClick={simpanPelaksanaan}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(5,150,105,0.3)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, var(--sage), var(--brand-green))' }}
-            >
-              <Check size={18} strokeWidth={2} />
-              {menyimpan ? 'Menyimpan...' : 'Simpan Pelaksanaan'}
-            </button>
             </div>
           </TinggiHalus>
         )}
       </div>
+
+      {/* Bilah aksi menempel di bawah (2026-09-02, diminta owner).
+          Sebelumnya tombol ini ikut menggulung di ujung halaman dgn
+          gradien + bayangan hijau menyala (0 6px 16px rgba(5,150,105,.3))
+          -- bayangan berwarna itu penanda paling cepat "dibuat asal".
+          Sekarang: isi warna solid, bayangan nyaris tak ada, garis rambut
+          pemisah di atas bilah, dan tombolnya MATI selama tidak ada yang
+          berubah supaya tidak mengundang tekan-tekan tanpa guna. */}
+      {kelasId !== '' && (
+        <div className="bilah-aksi-bawah">
+          <div className="mx-auto w-full max-w-[430px] px-[18px] py-3">
+            <button
+              type="button"
+              disabled={menyimpan || !adaPerubahan}
+              onClick={simpanPelaksanaan}
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none bg-sage py-[14px] text-[14.5px] font-bold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-150 active:scale-[0.99] disabled:cursor-default disabled:bg-panel-2 disabled:text-text-faint disabled:shadow-none"
+            >
+              {!menyimpan && (baruTersimpan || adaPerubahan) && <Check size={17} strokeWidth={2.4} />}
+              {menyimpan ? 'Menyimpan...' : baruTersimpan ? 'Tersimpan' : 'Simpan Pelaksanaan'}
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
