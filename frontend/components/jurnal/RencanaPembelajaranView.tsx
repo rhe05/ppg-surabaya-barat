@@ -536,7 +536,6 @@ export default function RencanaPembelajaranView() {
   const [tanggalPickerTerbuka, setTanggalPickerTerbuka] = useState(false);
   const [posisiTanggalPicker, setPosisiTanggalPicker] = useState<PosisiPicker | null>(null);
   const tanggalBtnRef = useRef<HTMLButtonElement>(null);
-  const [mingguBaru, setMingguBaru] = useState('1');
   const [pertemuanKeBaru, setPertemuanKeBaru] = useState('');
   const [tujuanBaru, setTujuanBaru] = useState('');
   const [catatanBaru, setCatatanBaru] = useState('');
@@ -548,7 +547,6 @@ export default function RencanaPembelajaranView() {
     setJudulBaru('');
     setTopikBaru('');
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
-    setMingguBaru(String(mingguKeDariTanggal(new Date())));
     setPertemuanKeBaru('');
     setTujuanBaru('');
     setCatatanBaru('');
@@ -820,7 +818,12 @@ export default function RencanaPembelajaranView() {
   async function simpanMateriBaru() {
     if (kelasId === '' || judulBaru.trim().length === 0 || tanggalRencanaBaru === '') return;
     const judul = judulBaru.trim();
-    const mingguKe = Number(mingguBaru);
+    /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
+       Klasikal (dropdown "Masukkan ke" dihapus 2026-09-03, diminta
+       owner). */
+    const mingguKe = mingguKeDariTanggal(new Date(tanggalRencanaBaru + 'T00:00:00'));
+    const bulanBaru = Number(tanggalRencanaBaru.slice(5, 7));
+    const tahunBaru = Number(tanggalRencanaBaru.slice(0, 4));
 
     /* Penjaga dobel lapis pertama utk materi ngaji: judul yang sama di
        kelas & tanggal yang sama. Dibandingkan tanpa peduli huruf
@@ -855,8 +858,8 @@ export default function RencanaPembelajaranView() {
     try {
       const { error: err } = await supabase.from('jurnal_materi').insert({
         kelas_id: kelasId,
-        tahun,
-        bulan,
+        tahun: tahunBaru,
+        bulan: bulanBaru,
         minggu_ke: mingguKe,
         judul,
         topik: topikBaru.trim() === '' ? null : topikBaru.trim(),
@@ -869,7 +872,7 @@ export default function RencanaPembelajaranView() {
       });
       if (err) throw new Error(err.message);
       push('Materi rencana tersimpan.', 'sukses');
-      tandaiMateriBerubah(kelasId, tahun, bulan);
+      tandaiMateriBerubah(kelasId, tahunBaru, bulanBaru);
       await muatMateri();
     } catch (e) {
       // Gagal -> tarik lagi baris sementara.
@@ -948,13 +951,6 @@ export default function RencanaPembelajaranView() {
 
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
-  const opsiMinggu = [1, 2, 3, 4, 5]
-    .filter((mk) => rentangMinggu(tahun, bulan, mk))
-    .map((mk) => ({
-      value: String(mk),
-      label: `Minggu ${mk}`,
-      sublabel: labelRentangMinggu(tahun, bulan, mk, NAMA_BULAN),
-    }));
 
   return (
     /* h-screen + overflow-hidden -- diminta owner (20 Agt): saat pindah
@@ -1364,31 +1360,11 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 pb-4">
-                <FieldTambah label="Materi Ngaji" wajib>
-                  <InputIkon
-                    value={judulBaru}
-                    onChange={setJudulBaru}
-                    placeholder="Pilih dari Kurikulum atau tulis sendiri"
-                    ikon={<BookOpen size={16} />}
-                    list="opsi-materi-ngaji"
-                  />
-                  <datalist id="opsi-materi-ngaji">
-                    {opsiMateriKurikulum.map((nama) => (
-                      <option key={nama} value={nama} />
-                    ))}
-                  </datalist>
-                </FieldTambah>
-
-                <FieldTambah label="Topik">
-                  <InputIkon
-                    value={topikBaru}
-                    onChange={setTopikBaru}
-                    placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
-                    ikon={<Tag size={16} />}
-                  />
-                </FieldTambah>
-
-                <FieldTambah label="Tanggal Rencana" wajib>
+                {/* "Tanggal" di urutan PALING ATAS + tanpa dropdown Minggu
+                    (diminta owner 2026-09-03: "buat seperti materi
+                    klasikal"). Minggu diturunkan otomatis dari tanggal
+                    ini di simpanMateriBaru, sama spt Materi Klasikal. */}
+                <FieldTambah label="Tanggal" wajib>
                   <button
                     ref={tanggalBtnRef}
                     type="button"
@@ -1421,8 +1397,28 @@ export default function RencanaPembelajaranView() {
                   />
                 </FieldTambah>
 
-                <FieldTambah label="Masukkan ke" wajib>
-                  <SelectKustom value={mingguBaru} onChange={setMingguBaru} opsi={opsiMinggu} ikon={<Calendar size={16} />} />
+                <FieldTambah label="Materi Ngaji" wajib>
+                  <InputIkon
+                    value={judulBaru}
+                    onChange={setJudulBaru}
+                    placeholder="Pilih dari Kurikulum atau tulis sendiri"
+                    ikon={<BookOpen size={16} />}
+                    list="opsi-materi-ngaji"
+                  />
+                  <datalist id="opsi-materi-ngaji">
+                    {opsiMateriKurikulum.map((nama) => (
+                      <option key={nama} value={nama} />
+                    ))}
+                  </datalist>
+                </FieldTambah>
+
+                <FieldTambah label="Topik">
+                  <InputIkon
+                    value={topikBaru}
+                    onChange={setTopikBaru}
+                    placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
+                    ikon={<Tag size={16} />}
+                  />
                 </FieldTambah>
 
                 <FieldTambah label="Pertemuan ke-">
