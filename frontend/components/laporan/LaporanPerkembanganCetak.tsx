@@ -9,7 +9,19 @@
    ada di versi admin. Dengan satu komponen ini, hasil cetak (id=
    "laporan-cetak", CSS print di app/globals.css) DIJAMIN identik strukturnya
    apa pun jalur pembuatnya -- perbaikan cukup di satu tempat, tidak bisa
-   ngedrift lagi. */
+   ngedrift lagi.
+
+   PUTARAN KELIMA (2026-09-02, diminta owner, admin desktop SAJA):
+   section "Materi Klasikal" -- 2 kartu (Haf Surat & Haf Do'a), tiap
+   kartu menunjukkan total pengulangan pada periode laporan yang sama.
+   Field `materiKlasikal` SENGAJA opsional & section-nya HANYA dirender
+   kalau field itu ADA -- SantriProgressReport.tsx (admin) mengisinya
+   dari RPC `jurnal_pengulangan_kelas` yang sudah ada (lib/dataGuru.ts,
+   fitur Monitoring guru), GuruLaporanView.tsx (mobile) SENGAJA TIDAK
+   diubah/tidak mengisinya, jadi tampilan guru mobile 100% tidak
+   berubah. Haf Do'a masih "—" (belum ada data model, sama seperti fase
+   1 Monitoring guru -- lihat lib/periodeAkademik.ts & catatan di
+   components/monitoring/PencapaianMateriView.tsx). */
 
 export type LaporanBaris = {
   nama: string;
@@ -22,6 +34,17 @@ export type LaporanBaris = {
   alpa: number;
   sakit: number;
   persen: number | null;
+};
+
+/* Total pengulangan Materi Klasikal pada periode laporan yang sama --
+   `hafSuratPengulangan` = jumlah surat "kali" dijumlahkan dari RPC
+   jurnal_pengulangan_kelas (satu materi Klasikal bisa memuat >1 surat
+   sekaligus, jadi ini total repetisi-surat, bukan total sesi).
+   `hafDoaPengulangan` SELALU null utk sekarang -- belum ada data model
+   Hafalan Do'a (fase 1 fitur Pengulangan cuma Hafalan Surat). */
+export type MateriKlasikal = {
+  hafSuratPengulangan: number;
+  hafDoaPengulangan: number | null;
 };
 
 export type LaporanPerkembangan = {
@@ -37,6 +60,9 @@ export type LaporanPerkembangan = {
   totalAlpa: number;
   totalSakit: number;
   baris: LaporanBaris[];
+  /* Opsional & admin-desktop-only, lihat catatan PUTARAN KELIMA di
+     kepala berkas. */
+  materiKlasikal?: MateriKlasikal;
 };
 
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
@@ -83,6 +109,28 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         <KartuMetrik label="Alpa" nilai={String(laporan.totalAlpa)} warna="var(--red)" catatan={`${pct(laporan.totalAlpa)}% santri`} />
         <KartuMetrik label="Sakit" nilai={String(laporan.totalSakit)} warna="var(--teal)" catatan={`${pct(laporan.totalSakit)}% santri`} />
       </div>
+
+      {laporan.materiKlasikal && (
+        <div className="cetak-jaga-utuh mb-5 sm:mb-6">
+          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
+            Materi Klasikal
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <KartuMetrik
+              label="Haf Surat"
+              nilai={String(laporan.materiKlasikal.hafSuratPengulangan)}
+              warna="var(--violet)"
+              catatan="Pengulangan"
+            />
+            <KartuMetrik
+              label="Haf Do'a"
+              nilai={laporan.materiKlasikal.hafDoaPengulangan !== null ? String(laporan.materiKlasikal.hafDoaPengulangan) : '—'}
+              warna="var(--text-faint)"
+              catatan="Pengulangan"
+            />
+          </div>
+        </div>
+      )}
 
       <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
         <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">

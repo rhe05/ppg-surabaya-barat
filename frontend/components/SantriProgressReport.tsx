@@ -68,6 +68,7 @@ import {
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
+import { muatPengulanganKelas } from '@/lib/dataGuru';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
@@ -228,6 +229,25 @@ export default function SantriProgressReport() {
 
       const tanggalAktif = new Set(absensiHariKerja.map((a) => a.tanggal));
 
+      /* Materi Klasikal (2026-09-02, diminta owner, admin desktop) --
+         pakai RPC yang sama dgn fitur Monitoring guru (lib/dataGuru.ts),
+         periode SAMA PERSIS dgn laporan ini (bulan+tahun yg sudah
+         dipilih di atas). kelasId sudah dijamin number di sini (dicek
+         di awal fungsi). Kalau RPC-nya gagal, laporan tetap tampil --
+         section "Materi Klasikal" cukup dilewati (lihat catatan try/
+         catch di bawah), jangan sampai satu fitur tambahan menggagalkan
+         seluruh laporan kehadiran yang sudah jadi kebutuhan utama. */
+      let materiKlasikal: LaporanPerkembangan['materiKlasikal'];
+      try {
+        const barisKlasikal = await muatPengulanganKelas(kelasId, awal, akhir);
+        materiKlasikal = {
+          hafSuratPengulangan: barisKlasikal.reduce((s, b) => s + b.jumlah, 0),
+          hafDoaPengulangan: null,
+        };
+      } catch {
+        materiKlasikal = undefined;
+      }
+
       const baris = santri.map((s) => {
         const milik = absensiHariKerja.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
@@ -286,6 +306,7 @@ export default function SantriProgressReport() {
         totalAlpa: baris.filter((b) => b.status === 'Alpa').length,
         totalSakit: baris.filter((b) => b.status === 'Sakit').length,
         baris,
+        materiKlasikal,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat laporan.');
