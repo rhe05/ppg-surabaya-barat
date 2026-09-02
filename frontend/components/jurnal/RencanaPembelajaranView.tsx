@@ -45,7 +45,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BookOpen, Tag, Calendar, Hash, FileText, Bell,
+  BookOpen, Calendar, Hash, FileText, Bell,
   X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -356,15 +356,26 @@ export default function RencanaPembelajaranView() {
     };
   }, [profile?.scope_kelompok_id, tahun]);
 
+  /* Saran "Materi Ngaji" disaring ke jenjang kelas ruang ini (diminta
+     owner 2026-09-03: "jika kelas di bawah kelas 4 maka ... tidak
+     muncul Bacaan Al-Qur'an karena itu khusus kelas 4 ke atas").
+     Kumulatif PAUD-TK s.d. kelas ruang -- pola SAMA PERSIS
+     opsiHafalanSurat/opsiHafalanDoa. Dulu SENGAJA union semua kelas
+     (khawatir salah petakan ruang->kurikulum), tapi kedua opsi Hafalan
+     sudah pakai pemetaan yg sama & terbukti, jadi konsisten. */
   const opsiMateriKurikulum = useMemo(() => {
+    if (kelasId === '') return [];
+    const namaRuang = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
+    const kelasTarget = kelasTargetKumulatif(namaRuang);
     const daftar = protaKelompok
+      .filter((b) => kelasTarget.includes(b.kelas ?? ''))
       .map((b) => {
         const namaAsli = namaKategori(b.kategori_kbm);
         return namaAsli ? namaMateriTampil(namaAsli, b.kelas) : null;
       })
       .filter((v): v is string => v !== null);
     return [...new Set(daftar)].sort();
-  }, [protaKelompok]);
+  }, [protaKelompok, kelasId, kelasList]);
 
   /* Pengecualian kalender per kelompok (kalender_kelompok, 2026-08-24) --
      kelp yang tetap masuk di tanggal merah ('aktif') atau libur mendadak
@@ -531,7 +542,6 @@ export default function RencanaPembelajaranView() {
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
-  const [topikBaru, setTopikBaru] = useState('');
   const [tanggalRencanaBaru, setTanggalRencanaBaru] = useState('');
   const [tanggalPickerTerbuka, setTanggalPickerTerbuka] = useState(false);
   const [posisiTanggalPicker, setPosisiTanggalPicker] = useState<PosisiPicker | null>(null);
@@ -543,7 +553,6 @@ export default function RencanaPembelajaranView() {
 
   function bukaFormTambah() {
     setJudulBaru('');
-    setTopikBaru('');
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
     setPertemuanKeBaru('');
     setCatatanBaru('');
@@ -858,7 +867,6 @@ export default function RencanaPembelajaranView() {
         bulan: bulanBaru,
         minggu_ke: mingguKe,
         judul,
-        topik: topikBaru.trim() === '' ? null : topikBaru.trim(),
         tanggal_rencana: tanggalRencanaBaru,
         pertemuan_ke: pertemuanKeBaru.trim() === '' ? null : pertemuanKeBaru.trim(),
         catatan: catatanBaru.trim() === '' ? null : catatanBaru.trim(),
@@ -1404,15 +1412,6 @@ export default function RencanaPembelajaranView() {
                       <option key={nama} value={nama} />
                     ))}
                   </datalist>
-                </FieldTambah>
-
-                <FieldTambah label="Topik">
-                  <InputIkon
-                    value={topikBaru}
-                    onChange={setTopikBaru}
-                    placeholder="Contoh: Akidah, Fiqih, Akhlak, Al-Qur'an"
-                    ikon={<Tag size={16} />}
-                  />
                 </FieldTambah>
 
                 <FieldTambah label="Pertemuan ke-">
