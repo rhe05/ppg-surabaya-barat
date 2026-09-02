@@ -65,7 +65,21 @@
    beri bungkus scope setelah itu baru rincian hafalan doanya"). Beda
    perlakuannya krn ia bukan satu materi spesifik spt "Asmaul Husna"
    atau "Doa dan dzikir setelah sholat" -- lebih tepat dibaca sbg
-   catatan pengantar drpd item dlm daftar. */
+   catatan pengantar drpd item dlm daftar.
+
+   PUTARAN KESEPULUH (2026-09-02, diminta owner, ada gambar contoh):
+   owner menunjukkan mockup tabel kaku (kotak persegi bergaris,
+   angka "1x" di tiap item Do'a) minta "yang lebih elegan, tidak
+   terlalu kaku ... mungkin bagian ujungnya ada lekukan". DITANYAKAN
+   dulu soal angka "1x" (krn Hafalan Do'a memang tidak py hitungan
+   pengulangan sungguhan) -- owner pilih TANPA angka utk Do'a, hanya
+   nama materinya. Bentuknya: bukan pil terpisah-pisah (renggang) &
+   bukan tabel bergaris kaku -- SATU kartu tergabung per bagian
+   (`divide-x divide-y divide-border` di atas `flex flex-wrap`),
+   `rounded-xl` + `overflow-hidden` di kartu pembungkusnya SAJA (bukan
+   tiap item) -- garis antar-item lurus/kaku spt tabel, tapi UJUNG
+   kartunya (4 sudut luar) melengkung. Hafalan Surat TETAP py angka
+   "N×" (realisasi pengulangan sungguhan, beda sifat dgn Do'a). */
 
 export type LaporanBaris = {
   nama: string;
@@ -223,11 +237,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
               Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
             </div>
           ) : (
-            <div className="mb-4 flex flex-wrap gap-1.5 sm:gap-2">
+            <div className="mb-4 flex flex-wrap divide-x divide-y divide-border overflow-hidden rounded-xl border border-border">
               {laporan.materiKlasikal.hafSurat.map((b) => (
                 <span
                   key={b.namaSurat}
-                  className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
+                  className="flex shrink-0 items-center gap-2 bg-panel px-3 py-1.5 text-[11px] whitespace-nowrap text-text"
                 >
                   {b.namaSurat}
                   <span className="font-extrabold" style={{ color: 'var(--violet)' }}>
@@ -251,11 +265,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                   materi spesifik. Lihat PUTARAN KESEMBILAN. */}
               {menerampilkan && <div className="mb-1.5 text-[11px] text-text">{menerampilkan}</div>}
               {rincianDoa.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                <div className="flex flex-wrap divide-x divide-y divide-border overflow-hidden rounded-xl border border-border">
                   {rincianDoa.map((item) => (
                     <span
                       key={item}
-                      className="shrink-0 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
+                      className="shrink-0 bg-panel px-3 py-1.5 text-[11px] whitespace-nowrap text-text"
                     >
                       {item}
                     </span>
