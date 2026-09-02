@@ -22,7 +22,7 @@ export default function PenyaringPeriode({
   onUbah: (k: KunciPeriode) => void;
 }) {
   return (
-    <div className="flex gap-1.5">
+    <div className="flex flex-wrap gap-1.5">
       {OPSI.map((o) => {
         const aktif = kunci === o.kunci;
         return (

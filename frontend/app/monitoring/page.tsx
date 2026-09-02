@@ -24,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MatriksKehadiran from '@/components/monitoring/MatriksKehadiran';
 import PencapaianMateriView from '@/components/monitoring/PencapaianMateriView';
+import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 
 /* Nilai jenjang harus cocok persis dgn enum santri_jenjang di Postgres.
    MONITORING_JENJANG_LIST_ app lama memakai 4 dari 5 nilai enum — 'PAUD/TK'
@@ -266,8 +267,23 @@ function MonitoringContent() {
   }, [hitung]);
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-2 text-[24px] font-bold text-text">Monitoring</h1>
+    <>
+      {/* Top bar sama persis Jurnal/Riwayat Pembelajaran (2026-09-02) --
+          sebelumnya layar ini satu-satunya di app guru tanpa top bar,
+          langsung <h1> polos begitu masuk dari GuruBottomNav. Admin
+          TIDAK diubah (di luar cakupan permintaan owner kali ini,
+          layarnya masih dibungkus AdminSidebar apa adanya). */}
+      {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
+      <div className={adalahGuru ? 'px-[18px] pt-4 pb-10' : 'mx-auto max-w-5xl p-6'}>
+      <h1
+        className={
+          adalahGuru
+            ? 'mb-4 pt-1.5 text-[17px] font-extrabold text-text'
+            : 'mb-2 text-[24px] font-bold text-text'
+        }
+      >
+        Monitoring
+      </h1>
 
       {/* Tab hanya utk admin -- guru langsung "materi" tanpa pilihan
           (tab Kehadiran tidak pernah ada baginya, bukan cuma disembunyikan). */}
@@ -441,7 +457,8 @@ function MonitoringContent() {
       )}
         </>
       )}
-    </div>
+      </div>
+    </>
   );
 }
 

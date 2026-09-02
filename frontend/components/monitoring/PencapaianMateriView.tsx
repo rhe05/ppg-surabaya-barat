@@ -28,9 +28,16 @@
    Tidak ada ambang tercapai/belum -- murni informasi (diminta owner).
    Pembilang (jumlah_efektif) SELALU ditampilkan bersama penyebut
    (jumlah_kelas): "5/10", bukan cuma "5" -- tanpa penyebut, santri rajin
-   di kelas yang jarang mengulang akan terlihat buruk tanpa konteks. */
+   di kelas yang jarang mengulang akan terlihat buruk tanpa konteks.
 
-import { useEffect, useMemo, useState } from 'react';
+   PUTARAN KETIGA (2026-09-02 sore, diminta owner): paragraf penjelasan
+   di kepala layar dihapus (sudah jelas dari label "Pencapaian Materi" +
+   header layar), dan pemilih periode (dulu 3 pil Bulan/Semester/Tahun
+   Ajaran selalu terlihat) diganti ikon kalender + panel melayang, pola
+   SAMA PERSIS Riwayat Pembelajaran -- satu bahasa filter di seluruh app. */
+
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import Skeleton from '@/components/ui/Skeleton';
@@ -120,6 +127,17 @@ export default function PencapaianMateriView() {
     [kunciPeriode, acuan]
   );
 
+  /* Ikon kalender + panel melayang, pola SAMA PERSIS Riwayat Pembelajaran
+     (RiwayatPembelajaranView.tsx) -- diminta owner 2026-09-02 sore, spy
+     tidak ada dua bahasa filter berbeda dlm satu app (dulu di sini tiga
+     pil Bulan/Semester/Tahun Ajaran selalu terlihat penuh satu baris). */
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
+  const [pemilihPeriodeTerbuka, setPemilihPeriodeTerbuka] = useState(false);
+  const [posisiPemilihPeriode, setPosisiPemilihPeriode] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+
   /* ── Data per KELAS ── */
   const [barisKelas, setBarisKelas] = useState<PengulanganKelas[]>([]);
   const [loadingKelas, setLoadingKelas] = useState(false);
@@ -190,11 +208,6 @@ export default function PencapaianMateriView() {
 
   return (
     <div>
-      <p className="mb-4 text-[13px] text-text-dim">
-        Berapa kali satu surat diulang klasikal, dan berapa kali tiap santri HADIR saat itu
-        terjadi. Murni informasi -- tidak ada nilai lulus/tidak lulus.
-      </p>
-
       {!adalahGuru && (
         <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
@@ -264,10 +277,42 @@ export default function PencapaianMateriView() {
       )}
 
       {kelasId !== '' && (
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="mb-5 flex items-center justify-between gap-3">
           <div className="label-mikro">{periode.label}</div>
-          <PenyaringPeriode kunci={kunciPeriode} onUbah={setKunciPeriode} />
+          <button
+            ref={ikonKalenderRef}
+            type="button"
+            aria-label="Pilih Periode"
+            onClick={() => {
+              const rect = ikonKalenderRef.current?.getBoundingClientRect();
+              if (rect) {
+                setPosisiPemilihPeriode({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+              }
+              setPemilihPeriodeTerbuka((v) => !v);
+            }}
+            className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-indigo-lembut text-indigo transition-all duration-150 active:scale-[0.92]"
+          >
+            <Calendar size={19} />
+          </button>
         </div>
+      )}
+
+      {pemilihPeriodeTerbuka && posisiPemilihPeriode && (
+        <>
+          <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihPeriodeTerbuka(false)} />
+          <div
+            className="fixed z-[1100] w-[230px] rounded-[var(--radius-lg)] border border-border bg-panel p-3.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            style={{ top: posisiPemilihPeriode.top, right: posisiPemilihPeriode.right }}
+          >
+            <PenyaringPeriode
+              kunci={kunciPeriode}
+              onUbah={(k) => {
+                setKunciPeriode(k);
+                setPemilihPeriodeTerbuka(false);
+              }}
+            />
+          </div>
+        </>
       )}
 
       {kelasId === '' && (
