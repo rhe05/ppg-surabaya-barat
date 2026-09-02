@@ -848,20 +848,7 @@ export default function PelaksanaanPembelajaranView() {
                   </span>
                 </button>
 
-                {asadMingguIni.map((iso) => (
-                  <div
-                    key={`asad-${iso}`}
-                    className="border-t border-[rgba(220,38,38,0.25)] bg-[rgba(220,38,38,0.05)] px-3.5 py-2.5"
-                  >
-                    <span className="block text-[12px] font-bold text-red">
-                      {tanggalPanjang(iso)}
-                    </span>
-                    <span className="block text-[12px] text-text-dim">
-                      Pencak Silat ASAD — tidak ada klasikal hari ini.
-                    </span>
-                  </div>
-                ))}
-                {terbukaMinggu && grup.isi.length === 0 && (
+                {terbukaMinggu && grup.isi.length === 0 && asadMingguIni.length === 0 && (
                   <p className="border-t border-border px-3.5 py-3.5 text-[13px] text-text-dim">
                     Belum ada materi direncanakan minggu ini.
                   </p>
@@ -1008,6 +995,23 @@ export default function PelaksanaanPembelajaranView() {
                     </div>
                   );
                 })}
+
+                {/* Pemberitahuan Pencak Silat ASAD (2026-09-03, diminta
+                    owner) -- diletakkan DI BAWAH baris materi (setelah
+                    Kamis, tempat Jumat berada secara kronologis), bukan
+                    di kepala kartu. Pasif: bukan cek-list. */}
+                {terbukaMinggu &&
+                  asadMingguIni.map((iso) => (
+                    <div
+                      key={`asad-${iso}`}
+                      className="border-t border-[rgba(220,38,38,0.25)] bg-[rgba(220,38,38,0.05)] px-3.5 py-2.5"
+                    >
+                      <span className="block text-[12px] font-bold text-red">{tanggalPanjang(iso)}</span>
+                      <span className="block text-[12px] text-text-dim">
+                        Pencak Silat ASAD — tidak ada klasikal hari ini.
+                      </span>
+                    </div>
+                  ))}
               </div>
               );
             })}
