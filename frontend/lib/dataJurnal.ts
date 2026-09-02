@@ -105,6 +105,14 @@ export function tandaiMateriBerubah(kelasId: number, tahun: number, bulan: numbe
   buang(`materi:${kelasId}:${tahun}:${bulan}`);
 }
 
+/* Dipakai tarik-untuk-segarkan: guru menarik layar justru KARENA ia
+   curiga datanya sudah basi (mis. rekannya baru mengubah jadwal), jadi
+   seluruh singgahan dibuang -- termasuk daftar kelas & kurikulum, bukan
+   cuma materi bulan yang sedang dilihat. */
+export function buangSemuaSinggahan() {
+  singgahan.clear();
+}
+
 export type ProtaBaris = {
   kelas: string | null;
   target: string | null;

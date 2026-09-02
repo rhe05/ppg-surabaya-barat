@@ -25,7 +25,8 @@ import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
-import { muatKelasGuru, muatMateriBulan, type MateriJurnal } from '@/lib/dataJurnal';
+import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataJurnal';
+import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Kelas = { id: number; nama: string };
 /* Tipe barisnya ikut sumber bersama (lib/dataJurnal.ts) -- layar ini cuma
@@ -132,7 +133,18 @@ export default function RiwayatPembelajaranView() {
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
 
+  /* Tarik-untuk-segarkan (audit 2026-09-02, temuan 05): komponennya
+     sudah ada & dipakai Dashboard guru, tapi tiga layar jurnal belum.
+     Penting khusus di app yang dipasang ke Layar Utama -- di mode
+     standalone Chrome TIDAK menyediakan tarik-bawaan, jadi tanpa ini
+     satu-satunya cara memuat ulang adalah menutup app. */
+  async function segarkan() {
+    buangSemuaSinggahan();
+    await muat();
+  }
+
   return (
+    <TarikUntukSegarkan onSegarkan={segarkan}>
     <main className="flex min-h-screen flex-col bg-bg">
       {/* Hero hijau DIHAPUS (diminta owner 2026-09-02) -- menyusul
           keputusan yang sama di Rencana & Pelaksanaan Pembelajaran. Top
@@ -383,5 +395,6 @@ export default function RiwayatPembelajaranView() {
         )}
       </div>
     </main>
+    </TarikUntukSegarkan>
   );
 }

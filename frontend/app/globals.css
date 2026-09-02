@@ -21,6 +21,9 @@
      mentah berulang kali di Pelaksanaan & Rencana Pembelajaran --
      dijadikan token 2026-09-02 supaya nada indigonya satu sumber dan
      mode gelap nanti cukup menimpa di sini. */
+  /* Ungu pendamping indigo, khusus gradien tombol utama di Rencana
+     Pembelajaran (dulu #7C3AED mentah). */
+  --violet: #7C3AED;
   --indigo-lembut: #EEF2FF;
   --indigo-lembut-2: #E0E7FF;
   --teal: #0D9488;
@@ -88,6 +91,7 @@
   --color-indigo: var(--indigo);
   --color-brass-lembut: var(--brass-lembut);
   --color-sage-lembut: var(--sage-lembut);
+  --color-violet: var(--violet);
   --color-indigo-lembut: var(--indigo-lembut);
   --color-indigo-lembut-2: var(--indigo-lembut-2);
   --color-teal: var(--teal);

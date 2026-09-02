@@ -190,7 +190,7 @@ function LabelInfo({ teks }: { teks: string }) {
       {terbuka && (
         <>
           <div className="fixed inset-0 z-[700]" onClick={() => setTerbuka(false)} />
-          <div className="absolute top-full left-0 z-[701] mt-1.5 w-[230px] rounded-[var(--radius)] border border-border bg-panel p-2.5 text-[11.5px] leading-snug font-normal text-text shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+          <div className="absolute top-full left-0 z-[701] mt-1.5 w-[230px] rounded-[var(--radius)] border border-border bg-panel p-2.5 text-[11px] leading-snug font-normal text-text shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
             {teks}
           </div>
         </>
@@ -736,10 +736,10 @@ export default function RencanaPembelajaranView() {
                       key={k.id}
                       type="button"
                       onClick={() => setKelasId(k.id)}
-                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
                         aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
                       }`}
-                      style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                      style={aktif ? { background: 'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)' } : undefined}
                     >
                       {k.nama}
                     </button>
@@ -760,11 +760,11 @@ export default function RencanaPembelajaranView() {
                 }
                 setPemilihBulanTerbuka((v) => !v);
               }}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-indigo-lembut text-indigo transition-all duration-150 active:scale-[0.92]"
             >
               <Calendar size={19} />
             </button>
-            <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
+            <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
               {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
           </div>
@@ -786,7 +786,7 @@ export default function RencanaPembelajaranView() {
         )}
 
         {/* Ringkasan Rencana */}
-        <div className="mb-5 rounded-card border border-border bg-[#EEF2FF] p-4">
+        <div className="mb-5 rounded-card border border-border bg-indigo-lembut p-4">
           <div className="mb-3 text-[13px] font-bold text-text">Ringkasan Rencana</div>
           <div className="flex gap-6">
             <div className="flex items-center gap-2.5">
@@ -794,7 +794,7 @@ export default function RencanaPembelajaranView() {
                 <ClipboardList size={18} />
               </span>
               <div>
-                <div className="text-[20px] leading-none font-extrabold text-text">{materiList.length}</div>
+                <div className="angka-metrik text-[17px] leading-none text-text">{materiList.length}</div>
                 <div className="text-[11px] text-text-dim">Materi</div>
               </div>
             </div>
@@ -803,7 +803,7 @@ export default function RencanaPembelajaranView() {
                 <CalendarDays size={18} />
               </span>
               <div>
-                <div className="text-[20px] leading-none font-extrabold text-text">{totalPertemuan}</div>
+                <div className="angka-metrik text-[17px] leading-none text-text">{totalPertemuan}</div>
                 <div className="text-[11px] text-text-dim">Pertemuan</div>
               </div>
             </div>
@@ -849,12 +849,12 @@ export default function RencanaPembelajaranView() {
               <div key={mingguKe} className="rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
                 <div className="mb-2 flex items-start justify-between gap-2">
                   <div>
-                    <div className="text-[14px] font-bold text-text">Minggu {mingguKe}</div>
-                    <div className="text-[11.5px] text-text-dim">
+                    <div className="text-[15px] font-bold text-text">Minggu {mingguKe}</div>
+                    <div className="text-[11px] text-text-dim">
                       {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
                     </div>
                   </div>
-                  <span className="shrink-0 rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-bold text-indigo">
+                  <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
                     {materi.length} Materi
                   </span>
                 </div>
@@ -898,7 +898,7 @@ export default function RencanaPembelajaranView() {
                 onClick={() => setKlasikalBulanTerbuka((v) => !v)}
                 className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
               >
-                <span className="text-[14px] font-bold text-text">
+                <span className="text-[15px] font-bold text-text">
                   Materi Klasikal {NAMA_BULAN[bulan - 1]} {tahun}
                 </span>
                 <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
@@ -969,8 +969,8 @@ export default function RencanaPembelajaranView() {
                       onClick={() => toggleKlasikalDetail(mingguKe)}
                       className="flex min-w-0 flex-1 cursor-pointer items-baseline gap-1.5 border-none bg-transparent text-left"
                     >
-                      <span className="text-[14px] font-bold text-text">Minggu {mingguKe}</span>
-                      <span className="truncate text-[11.5px] text-text-dim">
+                      <span className="text-[15px] font-bold text-text">Minggu {mingguKe}</span>
+                      <span className="truncate text-[11px] text-text-dim">
                         · {labelRentangAktifMinggu(tahun, bulan, rentang!)} · {jumlahHariAktifMinggu(tahun, bulan, rentang!)}{' '}
                         Hari Aktif
                       </span>
@@ -992,7 +992,7 @@ export default function RencanaPembelajaranView() {
                         return (
                           <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
                             <div className="flex items-start justify-between gap-2">
-                              <div className={`text-[12.5px] font-bold ${namaLibur ? 'text-red' : 'text-text'}`}>
+                              <div className={`text-[12px] font-bold ${namaLibur ? 'text-red' : 'text-text'}`}>
                                 {NAMA_HARI[tgl.getDay()]}, {formatTanggalDDMMYYYY(tgl)}
                                 {namaLibur && <span className="ml-1 font-semibold">· {namaLibur}</span>}
                               </div>
@@ -1033,7 +1033,7 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                <div className="text-[16px] font-bold text-text">Tambah Materi Rencana</div>
+                <div className="text-[17px] font-bold text-text">Tambah Materi Rencana</div>
                 <button
                   type="button"
                   onClick={() => setTambahTerbuka(false)}
@@ -1138,7 +1138,7 @@ export default function RencanaPembelajaranView() {
                       <FileText size={16} />
                     </span>
                   </div>
-                  <div className="mt-1 text-right text-[10.5px] text-text-faint">{catatanBaru.length}/200</div>
+                  <div className="mt-1 text-right text-[11px] text-text-faint">{catatanBaru.length}/200</div>
                 </FieldTambah>
 
                 <FieldTambah label="Referensi / Sumber">
@@ -1156,8 +1156,8 @@ export default function RencanaPembelajaranView() {
                       <Bell size={16} />
                     </span>
                     <div>
-                      <div className="text-[12.5px] font-semibold text-text">Pengingat</div>
-                      <div className="text-[10.5px] text-text-dim">Ingatkan saya sebelum tanggal rencana</div>
+                      <div className="text-[12px] font-semibold text-text">Pengingat</div>
+                      <div className="text-[11px] text-text-dim">Ingatkan saya sebelum tanggal rencana</div>
                     </div>
                   </div>
                   <button
@@ -1182,7 +1182,7 @@ export default function RencanaPembelajaranView() {
                 <button
                   type="button"
                   onClick={() => setTambahTerbuka(false)}
-                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[14px] font-semibold text-text"
+                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[15px] font-semibold text-text"
                 >
                   Batal
                 </button>
@@ -1190,8 +1190,8 @@ export default function RencanaPembelajaranView() {
                   type="button"
                   disabled={judulBaru.trim().length === 0 || tanggalRencanaBaru === '' || menyimpan}
                   onClick={simpanMateriBaru}
-                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[15px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%)' }}
                 >
                   <Check size={16} strokeWidth={2.6} />
                   Simpan Materi
@@ -1217,7 +1217,7 @@ export default function RencanaPembelajaranView() {
                 <span className="h-1 w-9 rounded-full bg-border" />
               </div>
               <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                <div className="text-[16px] font-bold text-text">Tambah Materi</div>
+                <div className="text-[17px] font-bold text-text">Tambah Materi</div>
                 <button
                   type="button"
                   onClick={() => setPilihJenisTerbuka(false)}
@@ -1236,11 +1236,11 @@ export default function RencanaPembelajaranView() {
                   }}
                   className="flex cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-panel-2 p-4 text-left transition-colors duration-150 hover:border-brass"
                 >
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EEF2FF] text-indigo">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-indigo-lembut text-indigo">
                     <BookOpen size={20} strokeWidth={2} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-bold text-text">Materi Ngaji</span>
+                    <span className="block text-[15px] font-bold text-text">Materi Ngaji</span>
                     <span className="block text-[12px] text-text-dim">Materi per-minggu spt biasa</span>
                   </span>
                   <ChevronRight size={18} className="shrink-0 text-text-faint" />
@@ -1257,7 +1257,7 @@ export default function RencanaPembelajaranView() {
                     <Users size={20} strokeWidth={2} />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-bold text-text">Materi Klasikal</span>
+                    <span className="block text-[15px] font-bold text-text">Materi Klasikal</span>
                     <span className="block text-[12px] text-text-dim">Sesi pembukaan: hafalan surat & doa</span>
                   </span>
                   <ChevronRight size={18} className="shrink-0 text-text-faint" />
@@ -1282,7 +1282,7 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                <div className="text-[16px] font-bold text-text">
+                <div className="text-[17px] font-bold text-text">
                   {editKlasikalId ? 'Ubah Materi Klasikal' : 'Tambah Materi Klasikal'}
                 </div>
                 <button
@@ -1384,7 +1384,7 @@ export default function RencanaPembelajaranView() {
                     </div>
                   )}
                   {hafalanSuratBaru.length > 0 && (
-                    <div className="mt-1.5 text-[11.5px] text-text-dim">
+                    <div className="mt-1.5 text-[11px] text-text-dim">
                       Dipilih ({hafalanSuratBaru.length}): {hafalanSuratBaru.join(', ')}
                     </div>
                   )}
@@ -1404,7 +1404,7 @@ export default function RencanaPembelajaranView() {
                 <button
                   type="button"
                   onClick={() => setKlasikalTerbuka(false)}
-                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[14px] font-semibold text-text"
+                  className="flex-1 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel-2 py-3 text-[15px] font-semibold text-text"
                 >
                   Batal
                 </button>
@@ -1414,8 +1414,8 @@ export default function RencanaPembelajaranView() {
                     tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0 || menyimpanKlasikal
                   }
                   onClick={simpanKlasikalBaru}
-                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[14px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                  style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+                  className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[15px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  style={{ background: 'linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%)' }}
                 >
                   <Check size={16} strokeWidth={2.6} />
                   {editKlasikalId ? 'Simpan Perubahan' : 'Simpan Materi'}
@@ -1451,8 +1451,8 @@ export default function RencanaPembelajaranView() {
               }
               setPilihJenisTerbuka(true);
             }}
-            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[14px] font-bold text-white shadow-[0_6px_16px_rgba(79,70,229,0.3)] transition-transform duration-150 active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)' }}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-[13px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(79,70,229,0.3)] transition-transform duration-150 active:scale-[0.98]"
+            style={{ background: 'linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%)' }}
           >
             <Plus size={18} strokeWidth={2.4} />
             Tambah Materi
