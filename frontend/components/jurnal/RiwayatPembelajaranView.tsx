@@ -25,11 +25,11 @@ import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
-import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataJurnal';
+import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Kelas = { id: number; nama: string };
-/* Tipe barisnya ikut sumber bersama (lib/dataJurnal.ts) -- layar ini cuma
+/* Tipe barisnya ikut sumber bersama (lib/dataGuru.ts) -- layar ini cuma
    memakai sebagian kolomnya, dan itu tidak apa-apa: satu query gemuk yang
    dipakai tiga layar lebih murah drpd tiga query ramping yang mengulang. */
 type Materi = MateriJurnal;

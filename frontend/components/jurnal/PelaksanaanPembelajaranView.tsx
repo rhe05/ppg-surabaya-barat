@@ -52,7 +52,7 @@ import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker'
 import { useToast } from '@/components/ui/useToast';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
-import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal , buangSemuaSinggahan } from '@/lib/dataJurnal';
+import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 const NAMA_BULAN = [
@@ -345,7 +345,7 @@ export default function PelaksanaanPembelajaranView() {
         }
         /* Singgahan bersama dibuang supaya Rencana & Riwayat tidak
            menampilkan keadaan sebelum centang ini saat dibuka sebentar
-           lagi (lib/dataJurnal.ts). */
+           lagi (lib/dataGuru.ts). */
         tandaiMateriBerubah(kelasId, tahun, bulan);
         setJamTersimpan(
           new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),

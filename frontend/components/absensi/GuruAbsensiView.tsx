@@ -335,13 +335,13 @@ export default function GuruAbsensiView({
           <div className="min-w-0">
             <div className="text-[15px] font-bold">{namaGuru}</div>
             {aktif && (
-              <div className="mt-1 text-[12.5px] font-medium text-white/90">
+              <div className="mt-1 text-[12px] font-medium text-white/90">
                 Kelas {aktif.nama}
                 {aktif.ruangan ? ` · ${aktif.ruangan}` : ''} · {aktif.santri_count} Santri
               </div>
             )}
             {aktif && jam(aktif.jam_mulai) && jam(aktif.jam_selesai) && (
-              <div className="mt-0.5 text-[12.5px] font-medium text-white/90">
+              <div className="mt-0.5 text-[12px] font-medium text-white/90">
                 {jam(aktif.jam_mulai)}–{jam(aktif.jam_selesai)}
                 {durasiMenit(aktif.jam_mulai, aktif.jam_selesai) != null
                   ? ` · Durasi: ${durasiMenit(aktif.jam_mulai, aktif.jam_selesai)} Menit`
@@ -404,11 +404,11 @@ export default function GuruAbsensiView({
                   }`}
                   style={
                     inii
-                      ? { background: 'linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)' }
+                      ? { background: 'linear-gradient(135deg, var(--sage-lembut) 0%, var(--sage-lembut-2) 100%)' }
                       : undefined
                   }
                 >
-                  <span className="text-[13.5px] font-bold whitespace-nowrap text-text">
+                  <span className="text-[13px] font-bold whitespace-nowrap text-text">
                     {k.pinjam && <span className="mr-0.5 text-[11px]">🔓</span>}
                     {k.nama}
                   </span>
@@ -456,7 +456,7 @@ export default function GuruAbsensiView({
                   >
                     {ringkasan[s.kunci]}
                   </div>
-                  <div className="mt-0.5 text-[10.5px] font-semibold text-text-dim">{s.label}</div>
+                  <div className="mt-0.5 text-[11px] font-semibold text-text-dim">{s.label}</div>
                 </div>
               ))}
             </div>
@@ -469,12 +469,12 @@ export default function GuruAbsensiView({
           yang fixed, supaya baris santri terakhir tidak tertutup tombol. */}
       <div className="flex-1 overflow-y-auto px-[18px] py-4 pb-[130px]">
         {error && (
-          <p className="mb-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+          <p className="mb-3 rounded-[var(--radius)] bg-red-lembut px-3.5 py-3 text-[13px] text-red">
             {error}
           </p>
         )}
         {pesan && (
-          <p className="mb-3 rounded-[var(--radius)] bg-[#ECFDF5] px-3.5 py-3 text-[13px] text-[#047857]">
+          <p className="mb-3 rounded-[var(--radius)] bg-sage-lembut px-3.5 py-3 text-[13px] text-[#047857]">
             {pesan}
           </p>
         )}
@@ -511,7 +511,7 @@ export default function GuruAbsensiView({
                     >
                       {inisial(s.nama)}
                     </div>
-                    <div className="min-w-0 flex-1 truncate text-[14px] font-semibold text-text">
+                    <div className="min-w-0 flex-1 truncate text-[15px] font-semibold text-text">
                       {s.nama}
                     </div>
                     <div className="flex shrink-0 gap-[3px] rounded-[var(--radius-button)] bg-bg p-[3px]">
@@ -570,9 +570,9 @@ export default function GuruAbsensiView({
               className="w-full cursor-pointer rounded-[var(--radius-lg)] border-none py-[15px] text-[15px] font-bold text-white shadow-[0_6px_16px_rgba(0,0,0,0.2)] transition-transform duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
               style={{
                 background: liburTanggalDipilih
-                  ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                  ? 'linear-gradient(135deg, var(--text-faint), var(--text-dim))'
                   : sudahTersimpanSemua
-                    ? 'linear-gradient(135deg, #94A3B8, #64748B)'
+                    ? 'linear-gradient(135deg, var(--text-faint), var(--text-dim))'
                     : 'linear-gradient(135deg, var(--sage), var(--brand-green))',
                 boxShadow: sudahTersimpanSemua
                   ? '0 4px 12px rgba(100,116,139,0.25)'

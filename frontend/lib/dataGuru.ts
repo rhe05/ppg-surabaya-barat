@@ -1,5 +1,7 @@
-/* Sumber data BERSAMA untuk tiga layar jurnal guru (Rencana, Pelaksanaan,
-   Riwayat) — dibuat 2026-09-02 setelah audit permintaan jaringan.
+/* Sumber data BERSAMA untuk layar-layar GURU — dibuat 2026-09-02 setelah
+   audit permintaan jaringan (mula-mula utk tiga layar jurnal, lalu ikut
+   dipakai Input & Riwayat Kehadiran; berkasnya sempat bernama
+   dataJurnal.ts).
 
    Masalah yang diselesaikan: ketiga layar dulu mengambil datanya
    sendiri-sendiri, jadi satu siklus Rencana → Pelaksanaan → Riwayat
@@ -52,19 +54,45 @@ function buang(awalan: string) {
   }
 }
 
-export type KelasJurnal = { id: number; nama: string; jam_mulai: string | null };
+/* Kolomnya GABUNGAN kebutuhan semua layar guru: jurnal cuma perlu
+   id/nama/jam_mulai, Input Kehadiran perlu ruangan, jam_selesai,
+   santri_count & kategori utk kartu pilih kelas. Satu query gemuk yang
+   dipakai berlima tetap lebih murah daripada dua query ramping yang
+   saling mengulang. */
+export type KelasJurnal = {
+  id: number;
+  nama: string;
+  ruangan: string | null;
+  jam_mulai: string | null;
+  jam_selesai: string | null;
+  santri_count: number | null;
+  kategori_kbm: { nama: string } | { nama: string }[] | null;
+};
 
-/** Daftar kelas yang diampu seorang guru. Dipakai ketiga layar jurnal. */
+/** Daftar kelas yang diampu seorang guru. Dipakai semua layar guru. */
 export function muatKelasGuru(guruId: number): Promise<KelasJurnal[]> {
   return ambil(`kelas:${guruId}`, async () => {
     const { data, error } = await supabase
       .from('kelas')
-      .select('id, nama, jam_mulai')
+      .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)')
       .eq('guru_id', guruId)
       .is('deleted_at', null)
       .order('nama');
     if (error) throw new Error(error.message);
-    return (data ?? []) as KelasJurnal[];
+    return (data ?? []) as unknown as KelasJurnal[];
+  });
+}
+
+/* Kutipan harian: dulu SELURUH tabel ditarik tiap kali layar Input
+   Kehadiran dibuka, padahal isinya cuma dipakai di popup SETELAH absen
+   berhasil disimpan — guru yang membuka layar lalu keluar membayar
+   permintaan itu percuma (audit kehadiran, temuan 04). Sekarang
+   disinggahkan dan dipanggil saat dibutuhkan. */
+export function muatQuoteHarian(): Promise<string[]> {
+  return ambil('quote', async () => {
+    const { data, error } = await supabase.from('quote_harian').select('teks');
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((r) => r.teks as string).filter(Boolean);
   });
 }
 

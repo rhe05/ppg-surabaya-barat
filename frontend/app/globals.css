@@ -15,6 +15,10 @@
   --brand-green: #6B9975;
   --volt: #FBBF24;
   --red: #DC2626;
+  /* Latar lembut merah & hijau utk pesan galat/berhasil sebaris.
+     Ditambah 2026-09-02 saat merapikan layar kehadiran. */
+  --red-lembut: #FEF2F2;
+  --sage-lembut-2: #D1FAE5;
   --indigo: #4F46E5;
   /* Dua nada indigo LEMBUT utk permukaan (latar pil bulan, tombol ikon
      kalender, chip kelas terpilih). Sebelumnya #EEF2FF/#E0E7FF ditulis
@@ -91,6 +95,8 @@
   --color-indigo: var(--indigo);
   --color-brass-lembut: var(--brass-lembut);
   --color-sage-lembut: var(--sage-lembut);
+  --color-sage-lembut-2: var(--sage-lembut-2);
+  --color-red-lembut: var(--red-lembut);
   --color-violet: var(--violet);
   --color-indigo-lembut: var(--indigo-lembut);
   --color-indigo-lembut-2: var(--indigo-lembut-2);

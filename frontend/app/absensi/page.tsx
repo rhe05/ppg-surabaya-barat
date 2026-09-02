@@ -10,6 +10,7 @@ import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
 import StatusModal from '@/components/absensi/StatusModal';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatKelasGuru, muatQuoteHarian } from '@/lib/dataGuru';
 
 const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
@@ -110,8 +111,7 @@ function AbsensiContent() {
      belum mulai, sedang mengajukan izin). Kutipan diprefetch sekali saat
      layar dibuka, persis app lama (iaLoadQuoteHariIni_/iaPickRandomQuote_)
      — supaya popup sukses tampil instan tanpa round-trip tambahan tepat
-     saat guru klik Simpan. */
-  const [quotePool, setQuotePool] = useState<string[]>([]);
+     saat guru klik Simpan -- lihat muatQuoteHarian(). */
   const [statusModal, setStatusModal] = useState<{
     tone: 'success' | 'warning';
     judul: string;
@@ -167,6 +167,14 @@ function AbsensiContent() {
         setOpsiKelas([]);
         return;
       }
+      /* Daftar ini MILIK TAMPILAN ADMIN (dropdown penyaring + kartu
+         RingkasanKelas). Guru memakai kelasDetail di bawah, jadi buat
+         guru query ini murni pemborosan — dilewati sejak audit kehadiran
+         2026-09-02. */
+      if (adalahGuru) {
+        setOpsiKelas([]);
+        return;
+      }
       /* jam_mulai/ruangan ditambahkan (2026-08-23) supaya bisa dioper ke
          RingkasanKelas sbg prop `kelasAwal` -- sebelumnya RingkasanKelas
          mengambil ulang persis query `kelas` yang SAMA ini sendiri
@@ -184,7 +192,7 @@ function AbsensiContent() {
     return () => {
       cancelled = true;
     };
-  }, [kelompokId]);
+  }, [kelompokId, adalahGuru]);
 
   /* Kelas milik guru (statis) + kelas "pinjam" (akses_kelas_request berstatus
      approved UNTUK TANGGAL yang sedang dibuka — Modul_InputAbsen.gs:369-379).
@@ -199,14 +207,15 @@ function AbsensiContent() {
         setKelasDetail([]);
         return;
       }
+      /* Kelas MILIK SENDIRI lewat singgahan bersama (lib/dataGuru.ts) --
+         daftar itu tidak pernah bergantung tanggal, tapi dulu ikut
+         ditembak ulang tiap kali guru menggeser tanggal, dan ditembak
+         lagi dari nol di layar Riwayat Kehadiran (audit kehadiran,
+         temuan 03 & 05). Yang benar-benar bergantung tanggal cuma kelas
+         PINJAM di bawahnya. */
       const kolom = 'id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)';
-      const [hasilSendiri, hasilPinjam] = await Promise.all([
-        supabase
-          .from('kelas')
-          .select(kolom)
-          .eq('guru_id', profile.guru_id)
-          .is('deleted_at', null)
-          .order('jam_mulai'),
+      const [sendiriMentah, hasilPinjam] = await Promise.all([
+        muatKelasGuru(profile.guru_id),
         supabase
           .from('akses_kelas_request')
           .select(`kelas:kelas_id(${kolom})`)
@@ -216,7 +225,11 @@ function AbsensiContent() {
       ]);
       if (cancelled) return;
 
-      const sendiri = (hasilSendiri.data ?? []) as unknown as KelasDetail[];
+      /* Singgahan mengurutkan menurut nama; layar ini butuh urut jam
+         mulai (jadwal harian guru), jadi diurutkan lagi di sini. */
+      const sendiri = [...sendiriMentah].sort((a, b) =>
+        (a.jam_mulai ?? '').localeCompare(b.jam_mulai ?? '')
+      ) as unknown as KelasDetail[];
       const idSendiri = new Set(sendiri.map((k) => k.id));
       const pinjamMentah = (hasilPinjam.data ?? []) as unknown as { kelas: KelasDetail | null }[];
       const pinjam: KelasDetail[] = [];
@@ -241,20 +254,11 @@ function AbsensiContent() {
     };
   }, [adalahGuru, profile?.guru_id, tanggal]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function loadQuote() {
-      if (!adalahGuru) return;
-      const { data } = await supabase.from('quote_harian').select('teks');
-      if (cancelled) return;
-      const teks = (data ?? []).map((r) => r.teks).filter(Boolean);
-      setQuotePool(teks.length ? teks : [QUOTE_CADANGAN]);
-    }
-    loadQuote();
-    return () => {
-      cancelled = true;
-    };
-  }, [adalahGuru]);
+  /* Kutipan TIDAK lagi diambil saat layar dibuka (audit kehadiran,
+     temuan 04): isinya cuma dipakai di popup setelah absen tersimpan,
+     jadi guru yang membuka layar lalu keluar dulu membayar permintaan
+     itu percuma. Sekarang diambil saat menyimpan, lewat singgahan
+     bersama -- praktis nol biaya untuk simpan berikutnya. */
 
   const load = useCallback(async () => {
     if (!kelompokId) return;
@@ -269,20 +273,34 @@ function AbsensiContent() {
         .order('nama');
       if (kelasId) qSantri = qSantri.eq('kelas_id', Number(kelasId));
 
-      const [santriRes, absensiRes] = await Promise.all([
-        qSantri,
-        supabase
-          .from('absensi')
-          .select('id, santri_id, status, updated_at')
-          .eq('kelompok_id', kelompokId)
-          .eq('tanggal', tanggal)
-          .is('deleted_at', null),
-      ]);
-
+      const santriRes = await qSantri;
       if (santriRes.error) throw new Error(santriRes.error.message);
+      const daftarSantri: Santri[] = santriRes.data ?? [];
+
+      /* Absensi dipersempit ke santri yang BENAR-BENAR ditampilkan
+         (audit kehadiran, temuan 06). Sebelumnya seluruh baris absensi
+         satu kelompok pada tanggal itu ditarik lalu sebagian besar
+         dibuang: utk Petemon ±69 baris demi ±15 yang dipakai, dan
+         angkanya tumbuh seiring jumlah santri per kelompok. Saat
+         penyaring kelas kosong ("Semua kelas") hasilnya sama saja
+         seperti dulu, karena daftar santrinya memang sekelompok penuh.
+         Dua query dijalankan BERURUTAN sekarang, bukan paralel: yang
+         kedua butuh id dari yang pertama. Tukarnya adil -- satu
+         perjalanan pulang-pergi ekstra, ditukar muatan yang jauh lebih
+         kecil dan pekerjaan RLS yang jauh lebih sedikit di server. */
+      const idSantri = daftarSantri.map((s) => s.id);
+      const absensiRes = idSantri.length
+        ? await supabase
+            .from('absensi')
+            .select('id, santri_id, status, updated_at')
+            .eq('kelompok_id', kelompokId)
+            .eq('tanggal', tanggal)
+            .in('santri_id', idSantri)
+            .is('deleted_at', null)
+        : { data: [] as AbsensiRow[], error: null };
+
       if (absensiRes.error) throw new Error(absensiRes.error.message);
 
-      const daftarSantri: Santri[] = santriRes.data ?? [];
       const daftarAbsensi: AbsensiRow[] = absensiRes.data ?? [];
 
       const petaTersimpan: Record<number, AbsensiRow> = {};
@@ -498,9 +516,14 @@ function AbsensiContent() {
 
     const hasil = await handleSimpan();
     if (hasil.ok) {
+      /* Kutipan diambil DI SINI, bukan saat layar dibuka (audit kehadiran
+         temuan 04). Lewat singgahan bersama, jadi simpan kedua dst tidak
+         menembak jaringan lagi. Gagal ambil = pakai kutipan cadangan;
+         kutipan tidak boleh menahan kabar gembira "absen tersimpan". */
+      const daftarKutipan = await muatQuoteHarian().catch(() => [] as string[]);
       const kutipan =
-        quotePool.length > 0
-          ? quotePool[Math.floor(Math.random() * quotePool.length)]
+        daftarKutipan.length > 0
+          ? daftarKutipan[Math.floor(Math.random() * daftarKutipan.length)]
           : QUOTE_CADANGAN;
       setStatusModal({
         tone: 'success',
@@ -527,7 +550,7 @@ function AbsensiContent() {
     return (
       <main className="min-h-screen bg-bg p-6">
         <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
-          <h1 className="mb-2 text-[16px] font-bold text-text">Input Absensi</h1>
+          <h1 className="mb-2 text-[17px] font-bold text-text">Input Absensi</h1>
           <p className="text-[13px] text-red">
             Anda tidak berwenang mencatat absensi. Role saat ini: {profile.role ?? '-'}.
           </p>
@@ -660,7 +683,7 @@ function AbsensiContent() {
 
       <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-[16px] font-bold text-text">Daftar Santri</h2>
+          <h2 className="text-[17px] font-bold text-text">Daftar Santri</h2>
           <button
             onClick={handleSimpan}
             disabled={saving || loading || santri.length === 0}

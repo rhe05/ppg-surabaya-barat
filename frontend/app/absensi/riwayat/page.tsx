@@ -63,7 +63,7 @@
    .ia-header (overflow-hidden tetap memotong keturunan fixed/absolute —
    sudah pernah dibuktikan pahit di TanggalPicker, jangan diulang). */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState } from 'react';
 import Image from 'next/image';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import RequireAuth from '@/components/RequireAuth';
@@ -73,6 +73,8 @@ import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, adalahAkhirPekan, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { santriIdsKelasPadaPeriode } from '@/lib/riwayatKelas';
+import { muatKelasGuru, buangSemuaSinggahan } from '@/lib/dataGuru';
+import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
 // Sel absensi yang SUDAH ada di DB — dibawa demi penjaga versi optimistik
@@ -238,20 +240,21 @@ function RiwayatKehadiranContent() {
         setLoading(false);
         return;
       }
-      const { data, error: err } = await supabase
-        .from('kelas')
-        .select('id, nama, ruangan, jam_mulai, jam_selesai, kategori_kbm(nama)')
-        .eq('guru_id', guruId)
-        .is('deleted_at', null)
-        .order('nama');
-      if (dibatalkan) return;
+      /* Lewat singgahan bersama (lib/dataGuru.ts) -- daftar kelas guru
+         ini identik dengan yang dipakai Input Kehadiran & tiga layar
+         jurnal, tapi dulu tiap layar menembaknya sendiri-sendiri (audit
+         kehadiran, temuan 03). */
+      const data = await muatKelasGuru(guruId).catch((e: unknown) => {
+        if (!dibatalkan) {
+          setGateMemuat(false);
+          setError(e instanceof Error ? e.message : 'Gagal memuat kelas');
+          setLoading(false);
+        }
+        return null;
+      });
+      if (dibatalkan || data === null) return;
       setGateMemuat(false);
-      if (err) {
-        setError(err.message);
-        setLoading(false);
-        return;
-      }
-      const daftar = (data ?? []) as unknown as Kelas[];
+      const daftar = data as unknown as Kelas[];
       setKelasList(daftar);
       if (daftar.length === 1) setKelasId(daftar[0].id);
       else if (daftar.length > 1) setGateTerbuka(true);
@@ -386,13 +389,23 @@ function RiwayatKehadiranContent() {
     }
   }
 
-  const hariAktif = tanggalDiisi.filter(
-    (t) => overrideKelompok.get(t)?.jenis !== 'libur' && !adalahAkhirPekan(t),
-  ).length;
+  /* Tiga perhitungan turunan di bawah dulu dijalankan ulang tiap render
+     -- termasuk saat popup Edit dibuka/ditutup dan tiap kali status
+     tersimpan (audit kehadiran, temuan 07). Matriks bulanannya bukan
+     perhitungan sepele: satu kelas 25 santri x 22 hari aktif = 550 sel. */
+  const hariAktif = useMemo(
+    () =>
+      tanggalDiisi.filter(
+        (t) => overrideKelompok.get(t)?.jenis !== 'libur' && !adalahAkhirPekan(t),
+      ).length,
+    [tanggalDiisi, overrideKelompok]
+  );
 
-  const semuaTanggal = tanggalKerjaBulan(tahun, bulan);
-  const tanggalList =
-    minggu === 'semua' ? semuaTanggal : (kelompokkanMinggu(semuaTanggal)[minggu] ?? []);
+  const semuaTanggal = useMemo(() => tanggalKerjaBulan(tahun, bulan), [tahun, bulan]);
+  const tanggalList = useMemo(
+    () => (minggu === 'semua' ? semuaTanggal : (kelompokkanMinggu(semuaTanggal)[minggu] ?? [])),
+    [minggu, semuaTanggal]
+  );
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
 
   const gateDaftar: KelasGateItem[] = kelasList.map((k) => ({
@@ -412,14 +425,24 @@ function RiwayatKehadiranContent() {
   if (guruId == null) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-bg p-6">
-        <p className="text-[13.5px] text-text-dim">
+        <p className="text-[13px] text-text-dim">
           Fitur ini khusus untuk akun guru yang tertaut ke data guru.
         </p>
       </main>
     );
   }
 
+  /* Tarik-untuk-segarkan (audit kehadiran, temuan 09). Bisa di layar INI
+     karena gulirnya di tingkat jendela (min-h-screen); Input Kehadiran
+     TIDAK bisa -- di sana h-screen + overflow-hidden, gulirnya di wadah
+     dalam, persis kasus Rencana Pembelajaran. */
+  async function segarkan() {
+    buangSemuaSinggahan();
+    await muatMatrix();
+  }
+
   return (
+    <TarikUntukSegarkan onSegarkan={segarkan}>
     <main className="flex min-h-screen flex-col bg-bg">
       <KelasGate
         terbuka={gateTerbuka}
@@ -496,7 +519,7 @@ function RiwayatKehadiranContent() {
                     key={m}
                     type="button"
                     onClick={() => setMinggu(m)}
-                    className="cursor-pointer rounded-[var(--radius-button)] border px-2.5 py-1 text-[11.5px] font-bold transition-all duration-150"
+                    className="cursor-pointer rounded-[var(--radius-button)] border px-2.5 py-1 text-[11px] font-bold transition-all duration-150"
                     style={
                       aktif
                         ? { background: 'var(--brass)', borderColor: 'var(--brass)', color: '#fff' }
@@ -566,19 +589,19 @@ function RiwayatKehadiranContent() {
 
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-header-hero — :4903-4910 */}
-        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
+        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,var(--sage)_0%,var(--brand-green)_100%)] px-[18px] pt-4 pb-5">
           {/* .ia-greeting — :5026-5044 */}
           <div className="min-w-0 flex-1">
             <div className="text-[20px] leading-[1.2] font-bold text-white">
               {profile?.display_name ?? '-'}
             </div>
             {barisRole && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {barisRole}
               </div>
             )}
             {namaKelompok && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {namaKelompok}
               </div>
             )}
@@ -635,11 +658,11 @@ function RiwayatKehadiranContent() {
            sini SUDAH DIPINDAH ke ikon kalender di hero (diminta owner:
            dianggap ramai digabung dgn "Hari Aktif" di baris yang sama). */}
         <div className="mb-3">
-          <span className="text-[13.5px] font-bold text-teal">Hari Aktif - {hariAktif} Hari</span>
+          <span className="text-[13px] font-bold text-teal">Hari Aktif - {hariAktif} Hari</span>
         </div>
 
         {error && (
-          <p className="mb-4 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
+          <p className="mb-4 rounded-[var(--radius)] bg-red-lembut px-3.5 py-3 text-[13px] text-red">
             {error}
           </p>
         )}
@@ -686,12 +709,12 @@ function RiwayatKehadiranContent() {
                         key={tgl}
                         title={namaLibur || liburKelompok || undefined}
                         className={`sticky top-0 z-[3] min-w-[44px] whitespace-nowrap border-r border-b border-[rgba(148,163,184,0.35)] border-border px-2.5 py-2 text-center text-[11px] font-bold ${
-                          tandaiMerah ? 'bg-[#FEF2F2] text-red' : 'bg-panel-2 text-text'
+                          tandaiMerah ? 'bg-red-lembut text-red' : 'bg-panel-2 text-text'
                         }`}
                       >
                         {d.getDate()}
                         <span
-                          className={`mt-0.5 block text-[10.5px] font-semibold ${tandaiMerah ? 'text-red' : 'text-text'}`}
+                          className={`mt-0.5 block text-[11px] font-semibold ${tandaiMerah ? 'text-red' : 'text-text'}`}
                         >
                           {liburKelompok ? 'Libur' : HARI_PENDEK[d.getDay()]}
                         </span>
@@ -815,11 +838,12 @@ function RiwayatKehadiranContent() {
               })}
             </div>
 
-            {errorEdit && <p className="mt-4 text-[12.5px] text-red">{errorEdit}</p>}
+            {errorEdit && <p className="mt-4 text-[12px] text-red">{errorEdit}</p>}
           </div>
         </div>
       )}
     </main>
+    </TarikUntukSegarkan>
   );
 }
 

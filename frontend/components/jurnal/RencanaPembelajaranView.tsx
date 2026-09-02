@@ -68,7 +68,7 @@ import {
   tandaiMateriBerubah,
   namaKategori,
   type ProtaBaris,
-} from '@/lib/dataJurnal';
+} from '@/lib/dataGuru';
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -302,7 +302,7 @@ export default function RencanaPembelajaranView() {
      sekali utk saran "Materi Ngaji", sekali utk daftar Hafalan Surat --
      dan yang kedua ikut `kelasId` sehingga menembak ulang tiap kali guru
      mengetuk chip kelas. Sekarang: ambil sekali (disinggahkan di
-     lib/dataJurnal.ts), saring di aplikasi. */
+     lib/dataGuru.ts), saring di aplikasi. */
   const [protaKelompok, setProtaKelompok] = useState<ProtaBaris[]>([]);
 
   useEffect(() => {
