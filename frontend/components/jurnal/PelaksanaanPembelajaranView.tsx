@@ -84,6 +84,12 @@ type Baris = {
      Rabu). Null saat status 'belum'. */
   tanggalDisampaikan: string | null;
   tanggalDisampaikanAsli: string | null;
+  mingguKe: number;
+  /* jenis 'klasikal' = materi Klasikal, yang isinya DUA materi
+     sekaligus (hafalan surat + hafalan doa) di kolomnya sendiri. */
+  jenis: string;
+  hafalanSurat: string | null;
+  hafalanDoa: string | null;
 };
 
 type StatusSimpan = 'diam' | 'menyimpan' | 'tersimpan' | 'gagal';
@@ -235,7 +241,21 @@ export default function PelaksanaanPembelajaranView() {
     };
   }, []);
 
-  const [tambahanTerbuka, setTambahanTerbuka] = useState(false);
+  /* Minggu mana yang borang 'tambah materi'-nya sedang terbuka (null =
+     tidak ada). Dulu cuma boolean krn layar ini hanya menampilkan satu
+     minggu. */
+  const [tambahanMinggu, setTambahanMinggu] = useState<number | null>(null);
+  /* Minggu yang kartunya terbentang. Bawaannya minggu berjalan saja. */
+  const [mingguTerbuka, setMingguTerbuka] = useState<Set<number>>(
+    () => new Set([mingguKeDariTanggal(new Date())])
+  );
+  /* Dropdown Minggu di popup kalender sekarang berfungsi "buka minggu
+     itu" -- daftarnya tidak lagi disaring per minggu (semua minggu bulan
+     itu tampil sekaligus), jadi tanpa ini pilihannya tidak berpengaruh
+     apa-apa dan terasa rusak. */
+  useEffect(() => {
+    setMingguTerbuka((prev) => (prev.has(mingguKe) ? prev : new Set(prev).add(mingguKe)));
+  }, [mingguKe]);
   const [judulTambahan, setJudulTambahan] = useState('');
 
   useEffect(() => {
@@ -262,11 +282,10 @@ export default function PelaksanaanPembelajaranView() {
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
-        .select('id, judul, status, catatan, tanggal_rencana, tanggal_disampaikan')
+        .select('id, judul, status, catatan, tanggal_rencana, tanggal_disampaikan, minggu_ke, jenis, klasikal_hafalan_surat, klasikal_hafalan_doa')
         .eq('kelas_id', kelasId)
         .eq('tahun', tahun)
         .eq('bulan', bulan)
-        .eq('minggu_ke', mingguKe)
         .is('deleted_at', null)
         .order('id', { ascending: true });
       if (err) throw new Error(err.message);
@@ -282,6 +301,10 @@ export default function PelaksanaanPembelajaranView() {
           tanggalRencana: m.tanggal_rencana ?? null,
           tanggalDisampaikan: m.tanggal_disampaikan ?? null,
           tanggalDisampaikanAsli: m.tanggal_disampaikan ?? null,
+          mingguKe: m.minggu_ke,
+          jenis: m.jenis,
+          hafalanSurat: m.klasikal_hafalan_surat ?? null,
+          hafalanDoa: m.klasikal_hafalan_doa ?? null,
         })),
       );
     } catch (e) {
@@ -290,12 +313,12 @@ export default function PelaksanaanPembelajaranView() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan, mingguKe]);
+  }, [kelasId, tahun, bulan]);
 
   useEffect(() => {
     muat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan, mingguKe]);
+  }, [kelasId, tahun, bulan]);
 
   /* ── Penyimpanan OTOMATIS (2026-09-02, diminta owner) ──────────────
      Tombol "Simpan Pelaksanaan" dihapus: tiap centang langsung ditulis,
@@ -329,7 +352,11 @@ export default function PelaksanaanPembelajaranView() {
               kelas_id: kelasId,
               tahun,
               bulan,
-              minggu_ke: mingguKe,
+              /* Minggu diambil dari BARISNYA, bukan dari minggu yang
+                 sedang dipilih di kalender: sejak seluruh minggu bulan
+                 itu tampil sekaligus, guru bisa menambah materi di kartu
+                 minggu mana pun. */
+              minggu_ke: b.mingguKe,
               judul: b.judul,
               status,
               tanggal_disampaikan: tanggal,
@@ -364,7 +391,7 @@ export default function PelaksanaanPembelajaranView() {
         push(e instanceof Error ? e.message : 'Gagal menyimpan.', 'error');
       }
     },
-    [kelasId, tahun, bulan, mingguKe, push],
+    [kelasId, tahun, bulan, push],
   );
 
   function jadwalkanSimpan(uid: string, jeda: number) {
@@ -388,9 +415,9 @@ export default function PelaksanaanPembelajaranView() {
     );
   }
 
-  function toggleStatus(idx: number) {
-    const asal = baris[idx];
-    const uid = asal.uid;
+  function toggleStatus(uid: string) {
+    const asal = barisRef.current.find((b) => b.uid === uid);
+    if (!asal) return;
     /* Penahan kedua, di samping kotak centang yang memang sudah
        dinonaktifkan: baris terkunci tidak boleh berubah lewat jalan lain
        mana pun (mis. jam mulai terlewati saat baris sedang terbuka). */
@@ -417,8 +444,7 @@ export default function PelaksanaanPembelajaranView() {
     jadwalkanSimpan(uid, 0);
   }
 
-  function ubahCatatan(idx: number, catatan: string) {
-    const uid = baris[idx].uid;
+  function ubahCatatan(uid: string, catatan: string) {
     setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, catatan } : b)));
     jadwalkanSimpan(uid, 900);
   }
@@ -431,7 +457,7 @@ export default function PelaksanaanPembelajaranView() {
     jadwalkanSimpan(uid, 0);
   }
 
-  function tambahMateriTambahan() {
+  function tambahMateriTambahan(mingguKeBaris: number) {
     if (judulTambahan.trim().length === 0) return;
     const uid = `baru-${Date.now()}`;
     setBaris((prev) => [
@@ -449,10 +475,14 @@ export default function PelaksanaanPembelajaranView() {
         tanggalRencana: null,
         tanggalDisampaikan: todayStr(),
         tanggalDisampaikanAsli: null,
+        mingguKe: mingguKeBaris,
+        jenis: 'ngaji',
+        hafalanSurat: null,
+        hafalanDoa: null,
       },
     ]);
     setJudulTambahan('');
-    setTambahanTerbuka(false);
+    setTambahanMinggu(null);
     jadwalkanSimpan(uid, 0);
   }
 
@@ -490,6 +520,30 @@ export default function PelaksanaanPembelajaranView() {
 
      Materi tanpa tanggal rencana (materi tambahan yang diketik guru saat
      itu juga) diperlakukan sbg materi hari ini: ikut aturan nomor 2. */
+  /* ── Kelompokkan per MINGGU, seperti Rencana Pembelajaran ───────────
+     (2026-09-02, diminta owner). Layar ini dulu cuma menampilkan SATU
+     minggu terpilih; sekarang seluruh minggu bulan itu tampil sbg kartu
+     sendiri-sendiri. Minggu 5 ikut hanya kalau bulannya memang punya --
+     rentangMinggu balik null utk Februari non-kabisat (28 hari, pas 4x7),
+     satu-satunya bulan tanpa Minggu 5.
+
+     Urutan di dalam minggu: KLASIKAL DULU (hafalan surat + hafalan doa),
+     baru materi KBM -- urutan yang sama dgn Rencana Pembelajaran, dan
+     memang urutan mengajarnya. */
+  const mingguDipakai = [1, 2, 3, 4, 5]
+    .map((mk) => ({
+      mingguKe: mk,
+      rentang: rentangMinggu(tahun, bulan, mk),
+      isi: baris
+        .filter((b) => b.mingguKe === mk)
+        .sort((a, b) => {
+          const bobot = (x: Baris) => (x.jenis === 'klasikal' ? 0 : 1);
+          if (bobot(a) !== bobot(b)) return bobot(a) - bobot(b);
+          return (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER);
+        }),
+    }))
+    .filter((m) => m.rentang !== null);
+
   const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
   const jamMulaiKelas = kelasAktif?.jam_mulai ? kelasAktif.jam_mulai.slice(0, 5) : null;
 
@@ -675,7 +729,7 @@ export default function PelaksanaanPembelajaranView() {
               </div>
             </div>
 
-            <div className="label-mikro mb-2">{apakahMingguIni ? 'Materi' : `Materi Minggu ${mingguKe}`}</div>
+            <div className="label-mikro mb-2">Materi {NAMA_BULAN[bulan - 1]} {tahun}</div>
 
             {/* Skeleton HANYA di pemuatan pertama (belum ada baris sama
                 sekali) -- diminta owner 2026-08-24: pindah chip kelas
@@ -695,30 +749,65 @@ export default function PelaksanaanPembelajaranView() {
                 <Skeleton className="h-[52px] w-full" />
               </div>
             )}
-            {!(loading && baris.length === 0) && (
-              /* SATU kartu berisi baris-baris berpemisah, bukan setumpuk
-                 kartu masing2 berbingkai (2026-09-02, diminta owner).
-                 Sebelumnya ada empat lapis kotak bersarang: latar
-                 halaman > kartu > kartu materi > kotak catatan. */
+            {!(loading && baris.length === 0) &&
+              mingguDipakai.map((grup) => {
+              const terbukaMinggu = mingguTerbuka.has(grup.mingguKe);
+              const sudah = grup.isi.filter((b) => b.status === 'disampaikan').length;
+              return (
+              /* SATU kartu per MINGGU, isinya baris berpemisah -- bukan
+                 setumpuk kartu berbingkai (2026-09-02, diminta owner).
+                 Minggu berjalan terbuka bawaan, minggu lain ditutup:
+                 satu bulan bisa berisi 20+ materi, dan membentangkan
+                 semuanya sekaligus mengubur minggu yang sedang dikerjakan. */
               <div
-                className={`kartu-premium mb-4 overflow-hidden transition-opacity duration-200 ${
+                key={grup.mingguKe}
+                className={`kartu-premium mb-3 overflow-hidden transition-opacity duration-200 ${
                   loading ? 'pointer-events-none opacity-40' : 'opacity-100'
                 }`}
               >
-                {baris.length === 0 && (
-                  <p className="px-3.5 py-4 text-[13px] text-text-dim">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMingguTerbuka((prev) => {
+                      const baru = new Set(prev);
+                      if (baru.has(grup.mingguKe)) baru.delete(grup.mingguKe);
+                      else baru.add(grup.mingguKe);
+                      return baru;
+                    })
+                  }
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 border-none bg-transparent px-3.5 py-3 text-left"
+                >
+                  <span className="min-w-0">
+                    <span className="block text-[15px] font-bold text-text">Minggu {grup.mingguKe}</span>
+                    <span className="block text-[12px] text-text-dim">
+                      {labelRentangMinggu(tahun, bulan, grup.mingguKe, NAMA_BULAN)}
+                    </span>
+                  </span>
+                  <span className="shrink-0 text-[12px] font-semibold text-text-dim">
+                    {grup.isi.length === 0 ? 'Kosong' : `${sudah}/${grup.isi.length}`}
+                  </span>
+                </button>
+
+                {terbukaMinggu && grup.isi.length === 0 && (
+                  <p className="border-t border-border px-3.5 py-3.5 text-[13px] text-text-dim">
                     Belum ada materi direncanakan minggu ini.
                   </p>
                 )}
-                {baris.map((b, idx) => {
+                {terbukaMinggu && grup.isi.map((b) => {
                   const dicentang = b.status === 'disampaikan';
                   const diperluas = terbukaUid === b.uid;
                   const terkunci = alasanTerkunci(b);
                   const { kategori, utama, rincian } = pecahJudulMateri(b.judul);
+                  /* Baris Klasikal berjudul 'Klasikal' saja: dua materinya
+                     (surat & doa) sudah tampil sbg dua baris di bawahnya,
+                     jadi judul 'Hafalan Surat' hasil pecahJudulMateri akan
+                     mengulang salah satunya dan menutupi yang lain. */
+                  const judulBaris = b.jenis === 'klasikal' ? 'Klasikal' : utama;
+                  const labelBaris = b.jenis === 'klasikal' ? null : kategori;
                   return (
                     <div
                       key={b.uid}
-                      className="border-b border-border px-3.5 py-3 last:border-b-0"
+                      className="border-t border-border px-3.5 py-3"
                     >
                       {/* Status dinyatakan SEKALI, lewat kotak centang.
                           Lencana "Belum disampaikan"/"Disampaikan" di
@@ -727,7 +816,7 @@ export default function PelaksanaanPembelajaranView() {
                           (belum diajar jam segini) terbaca sbg peringatan. */}
                       <button
                         type="button"
-                        onClick={() => toggleStatus(idx)}
+                        onClick={() => toggleStatus(b.uid)}
                         aria-disabled={terkunci !== null}
                         className={`flex w-full items-start gap-3 border-none bg-transparent p-0 text-left ${
                           terkunci ? 'cursor-default' : 'cursor-pointer'
@@ -751,9 +840,9 @@ export default function PelaksanaanPembelajaranView() {
                               pernah menampilkan materi ini untuk hari
                               apa, padahal satu minggu bisa berisi
                               beberapa hari KBM. */}
-                          {(kategori || b.tanggalRencana) && (
+                          {(labelBaris || b.tanggalRencana) && (
                             <span className="label-mikro block">
-                              {[kategori, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
+                              {[labelBaris, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
                                 .filter(Boolean)
                                 .join(' · ')}
                             </span>
@@ -763,10 +852,39 @@ export default function PelaksanaanPembelajaranView() {
                               dicentang || terkunci ? 'text-text-dim' : 'text-text'
                             }`}
                           >
-                            {utama}
+                            {judulBaris}
                           </span>
-                          {rincian && (
-                            <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
+                          {/* Materi Klasikal isinya DUA materi (diminta
+                              owner 2026-09-02): Hafalan Surat & Hafalan
+                              Do'a, masing2 di kolomnya sendiri. Dulu
+                              layar ini cuma menampilkan `judul` yang
+                              memuat hafalan suratnya saja -- hafalan
+                              do'a yang sudah disusun di Rencana tidak
+                              pernah kelihatan waktu mengajar. */}
+                          {b.jenis === 'klasikal' ? (
+                            <>
+                              {b.hafalanSurat && (
+                                <span className="mt-1 block text-[12px] leading-snug text-text-dim">
+                                  <span className="font-semibold text-text">Hafalan Surat:</span>{' '}
+                                  {b.hafalanSurat}
+                                </span>
+                              )}
+                              {b.hafalanDoa && (
+                                <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
+                                  <span className="font-semibold text-text">Hafalan Do&rsquo;a:</span>{' '}
+                                  {b.hafalanDoa}
+                                </span>
+                              )}
+                              {!b.hafalanSurat && !b.hafalanDoa && rincian && (
+                                <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
+                                  {rincian}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            rincian && (
+                              <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
+                            )
                           )}
                           {terkunci && (
                             <span className="mt-1 block text-[12px] leading-snug text-text-faint">{terkunci}</span>
@@ -812,7 +930,7 @@ export default function PelaksanaanPembelajaranView() {
                           <label className="label-mikro mb-1 block">Catatan</label>
                           <textarea
                             value={b.catatan}
-                            onChange={(e) => ubahCatatan(idx, e.target.value)}
+                            onChange={(e) => ubahCatatan(b.uid, e.target.value)}
                             placeholder="Catatan pelaksanaan (opsional)"
                             rows={2}
                             className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[12px] text-text"
@@ -823,27 +941,24 @@ export default function PelaksanaanPembelajaranView() {
                   );
                 })}
 
-                {/* "Tambah Materi Tambahan" jadi BARIS TERAKHIR di kartu
-                    yang sama (2026-09-02, diminta owner). Sebelumnya
-                    tombol bergaris putus-putus hijau yang mengambang
-                    sendiri di bawah daftar -- pola template gratisan.
-                    Sbg baris, ia terbaca sbg lanjutan daftar: bergaris
-                    pemisah yang sama, teks redup, tanpa bingkai sendiri.
-                    Baris materi di atasnya tetap py border-b krn baris
-                    ini yang sekarang jadi anak terakhir (last:border-b-0). */}
-                {!tambahanTerbuka ? (
+                {/* "Tambah materi tambahan" = baris terakhir DI DALAM
+                    kartu minggunya (2026-09-02). Karena tiap minggu punya
+                    kartunya sendiri, tombol ini otomatis tahu materi baru
+                    itu masuk minggu yang mana -- tidak perlu lagi
+                    menebak dari minggu yang sedang dipilih di kalender. */}
+                {terbukaMinggu && tambahanMinggu !== grup.mingguKe ? (
                   <button
                     type="button"
-                    onClick={() => setTambahanTerbuka(true)}
-                    className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent px-3.5 py-3 text-left text-[13px] font-semibold text-text-dim transition-colors duration-150 hover:text-sage"
+                    onClick={() => setTambahanMinggu(grup.mingguKe)}
+                    className="flex w-full cursor-pointer items-center gap-3 border-t border-border bg-transparent px-3.5 py-3 text-left text-[13px] font-semibold text-text-dim transition-colors duration-150 hover:text-sage"
                   >
                     <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 border-dashed border-border text-text-faint">
                       <Plus size={13} strokeWidth={2.6} />
                     </span>
                     Tambah materi tambahan
                   </button>
-                ) : (
-                  <div className="px-3.5 py-3">
+                ) : terbukaMinggu ? (
+                  <div className="border-t border-border px-3.5 py-3">
                     <label className="label-mikro mb-1.5 block">Materi yang tidak ada di rencana</label>
                     <input
                       type="text"
@@ -856,7 +971,7 @@ export default function PelaksanaanPembelajaranView() {
                     <div className="flex gap-2">
                       <button
                         type="button"
-                        onClick={tambahMateriTambahan}
+                        onClick={() => tambahMateriTambahan(grup.mingguKe)}
                         disabled={judulTambahan.trim().length === 0}
                         className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
@@ -865,7 +980,7 @@ export default function PelaksanaanPembelajaranView() {
                       <button
                         type="button"
                         onClick={() => {
-                          setTambahanTerbuka(false);
+                          setTambahanMinggu(null);
                           setJudulTambahan('');
                         }}
                         className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12px] font-semibold text-text"
@@ -874,9 +989,10 @@ export default function PelaksanaanPembelajaranView() {
                       </button>
                     </div>
                   </div>
-                )}
+                ) : null}
               </div>
-            )}
+              );
+            })}
             </div>
           </TinggiHalus>
         )}
