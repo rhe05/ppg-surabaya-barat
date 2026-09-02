@@ -61,6 +61,7 @@ import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
+import { uraikanTargetDoa } from '@/lib/materiHafalanDoa';
 import { pesanGalatDb } from '@/lib/pesanGalatDb';
 import {
   muatKelasGuru,
@@ -167,6 +168,25 @@ const BATAS_SMP = KELAS_KURIKULUM_URUT.indexOf('9') + 1;
    ke lib/hafalanSurat.ts (2026-09-02) supaya bisa diuji langsung ke data
    produksi lewat tools/uji-hafalan-surat.mjs -- lihat berkas itu. */
 
+/* Ruang guru "N" -> daftar kelas Kurikulum yang boleh disarankan,
+   KUMULATIF PAUD-TK s.d. N (dipakai bareng Hafalan Surat & Hafalan
+   Do'a -- dulu cuma di dalam opsiHafalanSurat, dipisah 2026-09-02
+   supaya opsiHafalanDoa bisa memakainya jg tanpa menyalin ulang).
+   Lihat komentar panjang di opsiHafalanSurat utk alasan lengkapnya. */
+function kelasTargetKumulatif(namaRuangRaw: string): string[] {
+  const namaRuang = namaRuangRaw.toLowerCase();
+  if (namaRuang.includes('paud')) return ['PAUD-TK'];
+  if (namaRuang.includes('sma')) return KELAS_KURIKULUM_URUT;
+  if (/remaja|smp/.test(namaRuang)) return KELAS_KURIKULUM_URUT.slice(0, BATAS_SMP);
+  const angka = [...namaRuang.matchAll(/\d+/g)].map((m) => Number(m[0]));
+  const batasAtas = angka.length > 0 ? Math.max(...angka) : 0;
+  return KELAS_KURIKULUM_URUT.slice(0, batasAtas + 1);
+}
+
+function labelKelasKurikulum(k: string | null) {
+  return k === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${k}`;
+}
+
 let idSementara = -1;
 
 /* Ikon info + tooltip ketuk-utk-buka (BUKAN hover -- form ini dipakai di
@@ -204,6 +224,7 @@ function FieldTambah({
   label,
   wajib,
   info,
+  sembunyikanPenanda,
   children,
 }: {
   label: string;
@@ -211,13 +232,18 @@ function FieldTambah({
   /* Opsional: teks tooltip info singkat, muncul lewat ikon (i) di
      samping label -- lihat LabelInfo di atas. */
   info?: string;
+  /* Sembunyikan tanda wajib(*)/(Opsional) bawaan -- dipakai kalau
+     labelnya SUDAH membawa makna itu sendiri (mis. "(Hafalan Do'a-Do'a
+     Harian)", diminta owner 2026-09-02: tag "(Opsional)" terpisah jadi
+     berlebihan krn labelnya sendiri sudah dalam tanda kurung). */
+  sembunyikanPenanda?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="mb-3.5">
       <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text-dim">
-        {label} {wajib && <span className="text-red">*</span>}
-        {!wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
+        {label} {!sembunyikanPenanda && wajib && <span className="text-red">*</span>}
+        {!sembunyikanPenanda && !wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
         {info && <LabelInfo teks={info} />}
       </label>
       {children}
@@ -361,61 +387,89 @@ export default function RencanaPembelajaranView() {
      lulus semua jenjang SD -- tampilkan kumulatif penuh PAUD-TK s.d. 9. */
   const opsiHafalanSurat = useMemo<OpsiSelect[]>(() => {
     if (kelasId === '' || protaKelompok.length === 0) return [];
-    const namaRuang = (kelasList.find((k) => k.id === kelasId)?.nama ?? '').toLowerCase();
-    let kelasTarget: string[];
-    if (namaRuang.includes('paud')) {
-      kelasTarget = ['PAUD-TK'];
-    } else if (namaRuang.includes('sma')) {
-      kelasTarget = KELAS_KURIKULUM_URUT;
-    } else if (/remaja|smp/.test(namaRuang)) {
-      kelasTarget = KELAS_KURIKULUM_URUT.slice(0, BATAS_SMP);
-    } else {
-      const angka = [...namaRuang.matchAll(/\d+/g)].map((m) => Number(m[0]));
-      const batasAtas = angka.length > 0 ? Math.max(...angka) : 0;
-      kelasTarget = KELAS_KURIKULUM_URUT.slice(0, batasAtas + 1);
-    }
+    const namaRuang = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
+    const kelasTarget = kelasTargetKumulatif(namaRuang);
 
     /* Penyaringan kelas yang dulu dilakukan server lewat .in('kelas', ...)
        kini dilakukan di sini -- datanya sudah ada di memori. */
     const data = protaKelompok.filter((b) => kelasTarget.includes(b.kelas ?? ''));
-    {
-      {
-        const labelKelas = (k: string | null) => (k === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${k}`);
-        const peta = new Map<string, OpsiSelect>();
-        /* Urutkan menurut kelas (PAUD/TK, 1, 2, ... 12) lalu semester --
-           diminta owner 2026-09-02. Hasil dari PostgREST datang tanpa
-           urutan yang dijamin, jadi dulu daftarnya tampak teracak
-           (mis. Kelas 4 lalu Kelas 8). `kelasTarget` sudah tersusun
-           menurut KELAS_KURIKULUM_URUT, jadi cukup ikuti indeksnya --
-           `.order('kelas')` di sisi server TIDAK bisa dipakai: kolomnya
-           teks, "10" akan mendahului "2". */
-        const urutKelas = (k: string | null) => {
-          const i = kelasTarget.indexOf(k ?? '');
-          return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-        };
-        const barisTerurut = [...data].sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
-        for (const b of barisTerurut) {
-          if (namaKategori(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
-          for (const [teks, semester] of [
-            [b.target, 1],
-            [b.target2, 2],
-          ] as const) {
-            for (const baris of barisHafalanDariTeks(teks)) {
-              for (const surat of uraikanBarisHafalan(baris)) {
-                if (!peta.has(surat)) {
-                  peta.set(surat, {
-                    value: surat,
-                    label: surat,
-                    sublabel: `${labelKelas(b.kelas)} · Sem ${semester}`,
-                  });
-                }
-              }
+    const peta = new Map<string, OpsiSelect>();
+    /* Urutkan menurut kelas (PAUD/TK, 1, 2, ... 12) lalu semester --
+       diminta owner 2026-09-02. Hasil dari PostgREST datang tanpa
+       urutan yang dijamin, jadi dulu daftarnya tampak teracak
+       (mis. Kelas 4 lalu Kelas 8). `kelasTarget` sudah tersusun
+       menurut KELAS_KURIKULUM_URUT, jadi cukup ikuti indeksnya --
+       `.order('kelas')` di sisi server TIDAK bisa dipakai: kolomnya
+       teks, "10" akan mendahului "2". */
+    const urutKelas = (k: string | null) => {
+      const i = kelasTarget.indexOf(k ?? '');
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const barisTerurut = [...data].sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
+    for (const b of barisTerurut) {
+      if (namaKategori(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
+      for (const [teks, semester] of [
+        [b.target, 1],
+        [b.target2, 2],
+      ] as const) {
+        for (const baris of barisHafalanDariTeks(teks)) {
+          for (const surat of uraikanBarisHafalan(baris)) {
+            if (!peta.has(surat)) {
+              peta.set(surat, {
+                value: surat,
+                label: surat,
+                sublabel: `${labelKelasKurikulum(b.kelas)} · Sem ${semester}`,
+              });
             }
           }
         }
-        return [...peta.values()];
       }
     }
+    return [...peta.values()];
+  }, [protaKelompok, kelasId, kelasList]);
+
+  /* Opsi "Hafalan Do'a-Do'a Harian" -- pola SAMA PERSIS Hafalan Surat di
+     atas (diminta owner 2026-09-02: "saya sudah masukan materi hafalan
+     doa doa harian di prota masing masing kelas tolong uraikan seperti
+     materi hafalan surat"), cuma penguraian teksnya beda: baris bernomor
+     polos ("1. X\n2. Y", lib/materiHafalanDoa.ts uraikanTargetDoa),
+     bukan format "s/d" spt Hafalan Surat. SENGAJA TIDAK dipakai
+     gabungkanDoaDuaSemester (yang menggabung Asmaul Husna 2 semester
+     jadi satu, dipakai di Laporan Perkembangan Santri) -- di sini guru
+     justru perlu tahu PERSIS semester berapa tiap materi berasal
+     (diminta owner: "berikan keterangan kelas di bawah haf doa dan sem
+     berapa 1 atau 2"), jadi Asmaul Husna Sem 1 & Sem 2 sengaja tetap
+     dua baris terpisah dgn sublabel semesternya masing-masing. */
+  const opsiHafalanDoa = useMemo<OpsiSelect[]>(() => {
+    if (kelasId === '' || protaKelompok.length === 0) return [];
+    const namaRuang = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
+    const kelasTarget = kelasTargetKumulatif(namaRuang);
+
+    const data = protaKelompok.filter((b) => kelasTarget.includes(b.kelas ?? ''));
+    const peta = new Map<string, OpsiSelect>();
+    const urutKelas = (k: string | null) => {
+      const i = kelasTarget.indexOf(k ?? '');
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const barisTerurut = [...data].sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
+    for (const b of barisTerurut) {
+      if (namaKategori(b.kategori_kbm) !== "Hafalan Do'a-Do'a Harian") continue;
+      for (const [teks, semester] of [
+        [b.target, 1],
+        [b.target2, 2],
+      ] as const) {
+        for (const item of uraikanTargetDoa(teks)) {
+          if (!peta.has(item)) {
+            peta.set(item, {
+              value: item,
+              label: item,
+              sublabel: `${labelKelasKurikulum(b.kelas)} · Sem ${semester}`,
+            });
+          }
+        }
+      }
+    }
+    return [...peta.values()];
   }, [protaKelompok, kelasId, kelasList]);
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
@@ -464,12 +518,12 @@ export default function RencanaPembelajaranView() {
      2026-08-23: guru bisa pilih BEBERAPA surat sekaligus (mis. Al-
      Fatihah + An-Nas), bukan cuma satu. */
   const [hafalanSuratBaru, setHafalanSuratBaru] = useState<string[]>([]);
-  /* Materi Hafalan Do'a-Do'a Harian (termasuk Asmaul Husna) -- ketentuan
-     isian & sumbernya BELUM ditentukan owner ("buatkan dulu, nanti
-     menyusul"), jadi sementara input bebas ketik, bukan dropdown spt
-     Hafalan Surat. Opsional (tidak wajib), beda dari Hafalan Surat yg
-     wajib. */
-  const [hafalanDoaBaru, setHafalanDoaBaru] = useState('');
+  /* Materi Hafalan Do'a-Do'a Harian -- cek list, pola SAMA PERSIS
+     Hafalan Surat (2026-09-02, diminta owner) sejak Prota kategori itu
+     diisi owner. Tetap opsional (tidak wajib), beda dari Hafalan Surat
+     yg wajib -- satu Klasikal tetap sah kalau cuma Hafalan Surat tanpa
+     Do'a. */
+  const [hafalanDoaBaru, setHafalanDoaBaru] = useState<string[]>([]);
   const [menyimpanKlasikal, setMenyimpanKlasikal] = useState(false);
   /* null = mode Tambah (INSERT baris baru). Angka = mode Ubah (UPDATE
      baris itu) -- diminta owner 2026-08-23, dibuka lewat titik-tiga di
@@ -480,7 +534,7 @@ export default function RencanaPembelajaranView() {
     setEditKlasikalId(null);
     setTanggalKlasikalBaru(new Date().toISOString().slice(0, 10));
     setHafalanSuratBaru([]);
-    setHafalanDoaBaru('');
+    setHafalanDoaBaru([]);
     setKlasikalTerbuka(true);
   }
 
@@ -492,12 +546,20 @@ export default function RencanaPembelajaranView() {
         ? m.klasikal_hafalan_surat.split(',').map((s) => s.trim()).filter((s) => s !== '')
         : []
     );
-    setHafalanDoaBaru(m.klasikal_hafalan_doa ?? '');
+    setHafalanDoaBaru(
+      m.klasikal_hafalan_doa
+        ? m.klasikal_hafalan_doa.split(',').map((s) => s.trim()).filter((s) => s !== '')
+        : []
+    );
     setKlasikalTerbuka(true);
   }
 
   function toggleHafalanSurat(nilai: string) {
     setHafalanSuratBaru((prev) => (prev.includes(nilai) ? prev.filter((v) => v !== nilai) : [...prev, nilai]));
+  }
+
+  function toggleHafalanDoa(nilai: string) {
+    setHafalanDoaBaru((prev) => (prev.includes(nilai) ? prev.filter((v) => v !== nilai) : [...prev, nilai]));
   }
 
   async function simpanKlasikalBaru() {
@@ -507,7 +569,8 @@ export default function RencanaPembelajaranView() {
     const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
     const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
     const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
-    const doa = hafalanDoaBaru.trim() === '' ? null : hafalanDoaBaru.trim();
+    const doaTerpilih = hafalanDoaBaru.join(', ');
+    const doa = doaTerpilih === '' ? null : doaTerpilih;
     const idDiubah = editKlasikalId;
 
     const sementara: Materi = {
@@ -1427,13 +1490,46 @@ export default function RencanaPembelajaranView() {
                   )}
                 </FieldTambah>
 
-                <FieldTambah label="Materi Hafalan Do'a-Do'a Harian">
-                  <InputIkon
-                    value={hafalanDoaBaru}
-                    onChange={setHafalanDoaBaru}
-                    placeholder="Termasuk Asmaul Husna -- ketentuan menyusul"
-                    ikon={<Tag size={16} />}
-                  />
+                <FieldTambah label="(Hafalan Do&rsquo;a-Do&rsquo;a Harian)" sembunyikanPenanda>
+                  {opsiHafalanDoa.length === 0 ? (
+                    <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
+                  ) : (
+                    <div className="max-h-[260px] overflow-y-auto rounded-[var(--radius)] border border-border">
+                      {opsiHafalanDoa.map((o) => {
+                        const dipilih = hafalanDoaBaru.includes(o.value);
+                        return (
+                          <button
+                            key={o.value}
+                            type="button"
+                            onClick={() => toggleHafalanDoa(o.value)}
+                            aria-pressed={dipilih}
+                            className={`flex w-full cursor-pointer items-center gap-2.5 border-b border-border px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0 hover:bg-panel-2 ${
+                              dipilih ? 'bg-[rgba(79,70,229,0.06)]' : ''
+                            }`}
+                          >
+                            <span
+                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
+                                dipilih ? 'border-indigo bg-indigo' : 'border-border bg-panel'
+                              }`}
+                            >
+                              {dipilih && <Check size={13} strokeWidth={3} className="text-white" />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-[13px] font-semibold text-text">{o.label}</span>
+                              {o.sublabel && (
+                                <span className="block truncate text-[11px] text-text-faint">{o.sublabel}</span>
+                              )}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {hafalanDoaBaru.length > 0 && (
+                    <div className="mt-1.5 text-[11px] text-text-dim">
+                      Dipilih ({hafalanDoaBaru.length}): {hafalanDoaBaru.join(', ')}
+                    </div>
+                  )}
                 </FieldTambah>
               </div>
 
