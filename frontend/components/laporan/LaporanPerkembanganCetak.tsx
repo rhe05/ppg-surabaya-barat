@@ -53,7 +53,19 @@
    sendiri), berjajar ke samping, baru turun ke baris berikutnya kalau
    lebarnya sudah penuh. Ukuran font diturunkan ke 11px (dari 12.5-13px)
    -- padat tanpa terasa sesak, krn tiap pil sudah punya jarak (gap)
-   sendiri dari pil sebelahnya. */
+   sendiri dari pil sebelahnya.
+
+   PUTARAN KESEMBILAN (2026-09-02, diminta owner): baris "Menerampilkan
+   hafalan do'a pada jenjang sebelumnya" -- SATU-SATUNYA baris yang
+   bukan materi baru (ia cuma instruksi "ulangi materi jenjang
+   sebelumnya", selalu muncul di kedua semester, lihat lib/
+   materiHafalanDoa.ts) -- ditarik KELUAR dari daftar pil & ditaruh
+   sbg teks polos TANPA bungkus pil, tepat di bawah label "Hafalan
+   Do'a", SEBELUM pil-pil rincian materi (diminta owner: "tanpa di
+   beri bungkus scope setelah itu baru rincian hafalan doanya"). Beda
+   perlakuannya krn ia bukan satu materi spesifik spt "Asmaul Husna"
+   atau "Doa dan dzikir setelah sholat" -- lebih tepat dibaca sbg
+   catatan pengantar drpd item dlm daftar. */
 
 export type LaporanBaris = {
   nama: string;
@@ -103,6 +115,11 @@ export type LaporanPerkembangan = {
   materiKlasikal?: MateriKlasikal;
 };
 
+/* "Menerampilkan hafalan do'a pada jenjang sebelumnya" -- toleran thd
+   varian tanda kutip apostrof ("do'a" vs "do’a"), lihat PUTARAN
+   KESEMBILAN di kepala berkas. */
+const RE_MENERAMPILKAN = /^menerampilkan\s+hafalan\s+do.?a\s+pada\s+jenjang\s+sebelumnya$/i;
+
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
   return (
     <div className="rounded-card border border-border bg-panel p-3.5 shadow-[var(--shadow-card)]">
@@ -117,6 +134,10 @@ function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: s
 
 export default function LaporanPerkembanganCetak({ laporan }: { laporan: LaporanPerkembangan }) {
   const pct = (n: number) => (laporan.totalSantri ? Math.round((n / laporan.totalSantri) * 100) : 0);
+
+  const hafDoaSemua = laporan.materiKlasikal?.hafDoa ?? [];
+  const menerampilkan = hafDoaSemua.find((item) => RE_MENERAMPILKAN.test(item)) ?? null;
+  const rincianDoa = hafDoaSemua.filter((item) => !RE_MENERAMPILKAN.test(item));
 
   return (
     <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)] sm:p-6">
@@ -220,21 +241,28 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             Hafalan Do&rsquo;a
           </div>
-          {laporan.materiKlasikal.hafDoa.length === 0 ? (
+          {hafDoaSemua.length === 0 ? (
             <div className="text-[11px] text-text-faint">
               Belum ada kurikulum Hafalan Do&rsquo;a utk kelas ini.
             </div>
           ) : (
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
-              {laporan.materiKlasikal.hafDoa.map((item) => (
-                <span
-                  key={item}
-                  className="shrink-0 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
+            <>
+              {/* Teks polos TANPA pil -- catatan pengantar, bukan satu
+                  materi spesifik. Lihat PUTARAN KESEMBILAN. */}
+              {menerampilkan && <div className="mb-1.5 text-[11px] text-text">{menerampilkan}</div>}
+              {rincianDoa.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                  {rincianDoa.map((item) => (
+                    <span
+                      key={item}
+                      className="shrink-0 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       )}
