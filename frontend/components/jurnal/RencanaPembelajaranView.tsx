@@ -1445,9 +1445,10 @@ export default function RencanaPembelajaranView() {
                     Menggantikan field "Pertemuan ke-" biasa selama
                     kondisi ini aktif. */}
                 {tampilPeragaTilawati ? (
-                  /* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke
-                     (diminta owner 2026-09-03). Kolom kecil semua, angka. */
-                  <div className="mb-3.5 flex items-end gap-2">
+                  <div className="mb-3.5">
+                  {/* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke
+                      (diminta owner 2026-09-03). Kolom kecil semua, angka. */}
+                  <div className="flex items-end gap-2">
                     <div className="shrink-0">
                       <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
                         Peraga Tilawati
@@ -1505,6 +1506,18 @@ export default function RencanaPembelajaranView() {
                         className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                       />
                     </div>
+                  </div>
+
+                  {/* Pengingat tetap di bawah baris (diminta owner
+                      2026-09-03) — jilid yg dipakai tiap santri beda. */}
+                  <div className="mt-3">
+                    <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                      Buku Tilawati Jilid
+                    </label>
+                    <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
+                      Sesuai Kondisi Setiap Santri
+                    </div>
+                  </div>
                   </div>
                 ) : (
                   <FieldTambah label="Pertemuan ke-">
