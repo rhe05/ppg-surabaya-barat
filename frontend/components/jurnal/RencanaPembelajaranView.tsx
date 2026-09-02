@@ -556,7 +556,7 @@ export default function RencanaPembelajaranView() {
      bagian `judul`: "Baca Huruf Al-Qur'an: Peraga Tilawati hal X-Y". */
   const [peragaTilawatiDari, setPeragaTilawatiDari] = useState('');
   const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
-  const [peragaJudulBaru, setPeragaJudulBaru] = useState('');
+  const [peragaJilidBaru, setPeragaJilidBaru] = useState('');
   const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
   const tampilPeragaTilawati =
     judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
@@ -567,7 +567,7 @@ export default function RencanaPembelajaranView() {
     setPertemuanKeBaru('');
     setPeragaTilawatiDari('');
     setPeragaTilawatiSampai('');
-    setPeragaJudulBaru('');
+    setPeragaJilidBaru('');
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
@@ -843,9 +843,9 @@ export default function RencanaPembelajaranView() {
       const d = peragaTilawatiDari.trim();
       const s = peragaTilawatiSampai.trim();
       const rentang = d && s ? `${d}–${s}` : d || s;
-      const j = peragaJudulBaru.trim();
+      const jilid = peragaJilidBaru.trim();
       let inti = "Baca Huruf Al-Qur'an";
-      if (j) inti += ` — ${j}`;
+      if (jilid) inti += ` — Jilid ${jilid}`;
       judul = rentang ? `${inti}: Peraga Tilawati hal ${rentang}` : inti;
     }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
@@ -1445,10 +1445,11 @@ export default function RencanaPembelajaranView() {
                     Menggantikan field "Pertemuan ke-" biasa selama
                     kondisi ini aktif. */}
                 {tampilPeragaTilawati ? (
-                  <div className="mb-3.5">
-                   <div className="flex items-start gap-3">
+                  /* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke
+                     (diminta owner 2026-09-03). Kolom kecil semua, angka. */
+                  <div className="mb-3.5 flex items-end gap-2">
                     <div className="shrink-0">
-                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
                         Peraga Tilawati
                       </label>
                       <div className="flex items-center gap-1">
@@ -1458,9 +1459,8 @@ export default function RencanaPembelajaranView() {
                         ].map(([nilai, set], i) => (
                           <div key={i} className="flex items-center gap-1">
                             {i === 1 && <span className="text-[11px] text-text-faint">s/d</span>}
-                            <div className="relative w-[52px]">
-                              {/* "hal" hilang begitu halaman sungguhan
-                                  diketik (diminta owner 2026-09-03). */}
+                            <div className="relative w-[44px]">
+                              {/* "hal" hilang begitu halaman diketik. */}
                               {!nilai && (
                                 <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 text-[10px] font-semibold text-text-faint">
                                   hal
@@ -1473,7 +1473,7 @@ export default function RencanaPembelajaranView() {
                                 value={nilai}
                                 onChange={(e) => set(e.target.value)}
                                 className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none ${
-                                  nilai ? 'px-1' : 'pr-1 pl-6'
+                                  nilai ? 'px-1' : 'pr-1 pl-5'
                                 }`}
                               />
                             </div>
@@ -1481,41 +1481,30 @@ export default function RencanaPembelajaranView() {
                         ))}
                       </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <label className="mb-1.5 block text-[12px] font-semibold text-text">Judul</label>
+                    <div className="w-[52px] shrink-0">
+                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">Jilid</label>
                       <input
-                        type="text"
-                        value={peragaJudulBaru}
-                        onChange={(e) => setPeragaJudulBaru(e.target.value)}
-                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={peragaJilidBaru}
+                        onChange={(e) => setPeragaJilidBaru(e.target.value)}
+                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                       />
                     </div>
-                   </div>
-
-                   <div className="mt-3 w-[110px]">
-                     <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                       Pertemuan ke
-                     </label>
-                     <input
-                       type="number"
-                       inputMode="numeric"
-                       min={1}
-                       value={pertemuanKeBaru}
-                       onChange={(e) => setPertemuanKeBaru(e.target.value)}
-                       className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                     />
-                   </div>
-
-                   {/* Jilid buku tiap santri beda-beda -> bukan input,
-                       cuma pengingat tetap (diminta owner 2026-09-03). */}
-                   <div className="mt-3">
-                     <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                       Buku Tilawati Jilid
-                     </label>
-                     <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
-                       Sesuai Kondisi Setiap Santri
-                     </div>
-                   </div>
+                    <div className="w-[64px] shrink-0">
+                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
+                        Pertemuan ke
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={pertemuanKeBaru}
+                        onChange={(e) => setPertemuanKeBaru(e.target.value)}
+                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                      />
+                    </div>
                   </div>
                 ) : (
                   <FieldTambah label="Pertemuan ke-">
