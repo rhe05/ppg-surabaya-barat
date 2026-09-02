@@ -28,6 +28,12 @@ const HALAMAN_GURU = [
   '/pengumuman',
   '/tabungan',
   '/peringkat',
+  /* Ditambahkan 2026-09-02: tab "Pencapaian Materi" di Monitoring dibuka
+     utk guru (terbatas kelasnya sendiri). Tab "Kehadiran" di halaman yang
+     SAMA tetap admin-only -- dibedakan di dalam app/monitoring/page.tsx
+     sendiri (guru langsung mendarat di tab materi, tab Kehadiran tidak
+     pernah dirender baginya), bukan lewat rute terpisah. */
+  '/monitoring',
 ];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {

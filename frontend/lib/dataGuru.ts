@@ -193,3 +193,52 @@ export function muatProtaKelompok(kelompokId: number, tahun: number): Promise<Pr
 export function namaKategori(v: ProtaBaris['kategori_kbm']): string | null {
   return (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
 }
+
+/* ── Pengulangan Hafalan Surat (2026-09-02, migrasi 20260902150000) ─────
+   Dua RPC ini SENGAJA TIDAK lewat singgahan `ambil()` di atas: angkanya
+   berubah tiap kali guru menandai materi Klasikal "disampaikan" di
+   Pelaksanaan, dan layar ini bukan jalur panas yang berpindah-pindah
+   cepat spt kelas/kurikulum -- lebih aman memanggil langsung drpd
+   menambah satu jalur invalidasi lagi yang bisa lupa dipanggil. */
+
+export type PengulanganKelas = { nama_surat: string; jumlah: number; terakhir: string };
+
+/** "Surat ini sudah diulang berapa kali" utk satu kelas, satu rentang. */
+export async function muatPengulanganKelas(
+  kelasId: number,
+  awal: string,
+  akhir: string
+): Promise<PengulanganKelas[]> {
+  const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas', {
+    p_kelas_id: kelasId,
+    p_awal: awal,
+    p_akhir: akhir,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PengulanganKelas[];
+}
+
+export type PengulanganSantri = {
+  santri_id: number;
+  nama_santri: string;
+  nama_surat: string;
+  jumlah_efektif: number;
+  jumlah_kelas: number;
+};
+
+/** Per santri, per surat: berapa kali santri itu HADIR saat surat itu
+ * diulang, dari total pengulangan kelasnya (jumlah_kelas = penyebut,
+ * WAJIB ditampilkan bersama -- lihat komentar RPC-nya di migrasi). */
+export async function muatPengulanganSantri(
+  kelasId: number,
+  awal: string,
+  akhir: string
+): Promise<PengulanganSantri[]> {
+  const { data, error } = await supabase.rpc('jurnal_pengulangan_santri', {
+    p_kelas_id: kelasId,
+    p_awal: awal,
+    p_akhir: akhir,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PengulanganSantri[];
+}

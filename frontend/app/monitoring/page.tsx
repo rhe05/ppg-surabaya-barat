@@ -23,6 +23,7 @@ import RequireAuth from '@/components/RequireAuth';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import MatriksKehadiran from '@/components/monitoring/MatriksKehadiran';
+import PencapaianMateriView from '@/components/monitoring/PencapaianMateriView';
 
 /* Nilai jenjang harus cocok persis dgn enum santri_jenjang di Postgres.
    MONITORING_JENJANG_LIST_ app lama memakai 4 dari 5 nilai enum — 'PAUD/TK'
@@ -108,9 +109,27 @@ async function ambilAbsensiBulan(
   return semua;
 }
 
+/* Monitoring bercabang dua sejak 2026-09-02 (diminta owner): Kehadiran
+   (yang sudah ada di bawah, TIDAK diubah isinya) dan Pencapaian Materi
+   (baru, lihat PencapaianMateriView.tsx). SATU menu ber-tab, bukan dua
+   entri navigasi terpisah -- "satu jalan saja per tujuan" (aturan
+   proyek ini sendiri, feedback-jangan-duplikasi-navigasi).
+
+   Kehadiran TETAP admin-only spt sebelumnya. Pencapaian Materi dibuka
+   utk guru JUGA (terbatas kelasnya sendiri) -- makanya '/monitoring'
+   ditambahkan ke HALAMAN_GURU (RequireAuth.tsx), dan di sinilah
+   perannya dibedakan: guru langsung mendarat di tab Materi tanpa pilihan
+   (tab Kehadiran disembunyikan sepenuhnya, bukan cuma tombolnya --
+   seluruh state/efek Kehadiran juga dilewati di bawah supaya tidak ada
+   permintaan sia-sia ke Supabase utk data yang tidak pernah ditampilkan). */
+type TabMonitoring = 'kehadiran' | 'materi';
+
 function MonitoringContent() {
   const { profile } = useAuth();
+  const adalahGuru = profile?.role === 'guru';
   const kini = new Date();
+
+  const [tab, setTab] = useState<TabMonitoring>(adalahGuru ? 'materi' : 'kehadiran');
 
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
   const [kelompokId, setKelompokId] = useState<number | null>(profile?.scope_kelompok_id ?? null);
@@ -123,15 +142,16 @@ function MonitoringContent() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (adalahGuru) return;
     async function load() {
       const { data } = await supabase.from('kelompok').select('id, nama').order('nama');
       setKelompokList(data ?? []);
     }
     load();
-  }, []);
+  }, [adalahGuru]);
 
   const hitung = useCallback(async () => {
-    if (!kelompokId) return;
+    if (adalahGuru || !kelompokId) return;
     setLoading(true);
     setError(null);
     try {
@@ -239,7 +259,7 @@ function MonitoringContent() {
     } finally {
       setLoading(false);
     }
-  }, [kelompokId, tahun, bulan]);
+  }, [adalahGuru, kelompokId, tahun, bulan]);
 
   useEffect(() => {
     hitung();
@@ -247,7 +267,36 @@ function MonitoringContent() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <h1 className="mb-2 text-[24px] font-bold text-text">Monitoring Kehadiran</h1>
+      <h1 className="mb-2 text-[24px] font-bold text-text">Monitoring</h1>
+
+      {/* Tab hanya utk admin -- guru langsung "materi" tanpa pilihan
+          (tab Kehadiran tidak pernah ada baginya, bukan cuma disembunyikan). */}
+      {!adalahGuru && (
+        <div className="mb-5 flex gap-2 border-b border-border">
+          {(
+            [
+              ['kehadiran', 'Kehadiran'],
+              ['materi', 'Pencapaian Materi'],
+            ] as const
+          ).map(([kunci, label]) => (
+            <button
+              key={kunci}
+              type="button"
+              onClick={() => setTab(kunci)}
+              className={`cursor-pointer border-b-2 px-1 pb-2.5 text-[14px] font-bold transition-colors duration-150 ${
+                tab === kunci ? 'border-brass text-text' : 'border-transparent text-text-dim'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {tab === 'materi' && <PencapaianMateriView />}
+
+      {tab === 'kehadiran' && (
+        <>
       <p className="mb-6 text-[13px] text-text-dim">
         Rata-rata kehadiran per jenjang dan kelas ngaji. Angka jenjang adalah rata-rata dari
         rata-rata kelas, supaya kelas kecil tidak tenggelam oleh kelas besar.
@@ -389,6 +438,8 @@ function MonitoringContent() {
         <div className="mt-8">
           <MatriksKehadiran kelompokId={kelompokId} tahun={tahun} bulan={bulan} />
         </div>
+      )}
+        </>
       )}
     </div>
   );
