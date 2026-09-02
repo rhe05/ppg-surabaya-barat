@@ -51,8 +51,13 @@ import { useKonfirmasi } from '@/components/ui/useKonfirmasi';
    Modul_MaintainKurikulum.gs:150), lalu PAUD-TK ditambahkan lagi
    (2026-08-23), sekarang 7-9 jg dibuka (2026-08-23, diminta owner) --
    guru mobile lihat kelas SAMA PERSIS spt admin, jadi satu daftar
-   KELAS_LIST sudah cukup, tidak perlu daftar kedua khusus guru lagi. */
-const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+   KELAS_LIST sudah cukup, tidak perlu daftar kedua khusus guru lagi.
+   Kelas 10-12 dibuka 2026-09-02 (diminta owner) -- kolom
+   kurikulum_prota.kelas cuma teks bebas (dicek langsung ke produksi:
+   tidak ada CHECK constraint yang membatasi nilainya), jadi cukup
+   ditambah di daftar ini; baris Prota-nya nanti diisi lewat Tambah
+   Materi seperti kelas lain. */
+const KELAS_LIST = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
 /* Kurikulum berhenti jadi data per-kelompok (diminta owner 2026-08-22):
    cuma admin_ppg ("admin aplikasi") yang boleh tulis, admin_desa/
    admin_kelompok/guru semuanya lihat-saja sekarang. RLS kurikulum_prota/
