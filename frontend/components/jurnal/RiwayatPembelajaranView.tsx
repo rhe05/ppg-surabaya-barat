@@ -16,7 +16,7 @@
    dari RencanaPembelajaranView.tsx). */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Calendar, Search, CheckCircle2, Clock } from 'lucide-react';
+import { Calendar, Search, CheckCircle2, Clock, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -311,16 +311,41 @@ export default function RiwayatPembelajaranView() {
               ))}
             </div>
 
-            <div className="relative mb-4">
+            {/* Kotak cari: bentuk pil senada chip di atasnya, latar
+                panel-2 supaya terbaca sbg ISIAN (cekung) bukan kartu, dan
+                ada tombol silang utk mengosongkan -- sebelumnya satu2nya
+                cara membatalkan pencarian di HP adalah menghapus
+                huruf satu per satu. */}
+            <div className="relative mb-3">
               <input
                 type="text"
                 value={cari}
                 onChange={(e) => setCari(e.target.value)}
-                placeholder="Cari materi pembelajaran..."
-                className="w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 pr-3.5 pl-9 text-[13px] text-text placeholder:text-text-faint"
+                placeholder="Cari materi..."
+                className="w-full rounded-[var(--radius-button)] border border-border bg-panel-2 py-2.5 pr-10 pl-9 text-[13px] text-text placeholder:text-text-faint focus:border-indigo focus:outline-none"
               />
-              <Search size={16} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-faint" />
+              <Search size={16} className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-text-faint" />
+              {cari !== '' && (
+                <button
+                  type="button"
+                  onClick={() => setCari('')}
+                  aria-label="Kosongkan pencarian"
+                  className="absolute top-1/2 right-2.5 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-faint active:scale-[0.92]"
+                >
+                  <X size={15} strokeWidth={2.4} />
+                </button>
+              )}
             </div>
+
+            {/* Berapa yang tersaring -- tanpa ini, pencarian yang tidak
+                cocok cuma menampilkan daftar pendek tanpa penjelasan
+                kenapa materi lain hilang. Muncul HANYA saat ada saringan
+                aktif, jadi tidak menambah keramaian di keadaan normal. */}
+            {(cari.trim() !== '' || filter !== 'semua') && (
+              <div className="mb-3 text-[12px] text-text-dim">
+                Menampilkan {baris.length} dari {total} materi
+              </div>
+            )}
 
             {loading && (
               <div className="flex flex-col gap-2.5">
