@@ -166,7 +166,17 @@ function namaDari(nilai: Tersemat) {
    deskripsi2 -- migrasi 20260822110000_tulis_huruf_arab_semester_ganda.sql
    & 20260823090000_hafalan_surat_semester_ganda.sql memecah data
    "A -> B" yang sudah ada jadi target=A, target2=B. */
-const KATEGORI_TARGET_SEMESTER_GANDA = ['Tulis Huruf Arab', "Hafalan Surat-Surat Al-Qur'an"];
+/* "Hafalan Do'a-Do'a Harian" ikut bergabung 2026-09-02 (diminta owner:
+   "seperti materi hafalan quran"). Beda dgn dua kategori sebelumnya,
+   kategori ini TIDAK butuh migrasi pemecah data: dicek langsung ke
+   produksi, ke-13 baris Protanya (PAUD-TK s.d. 12) target/target2/
+   deskripsi/deskripsi2-nya masih NULL semua, jadi tidak ada teks lama
+   yang perlu dipindah kolom. */
+const KATEGORI_TARGET_SEMESTER_GANDA = [
+  'Tulis Huruf Arab',
+  "Hafalan Surat-Surat Al-Qur'an",
+  "Hafalan Do'a-Do'a Harian",
+];
 
 /* Palet Probul SENGAJA ditekan jadi satu warna netral + SATU aksen
    (indigo, dipakai di tempat lain di app ini utk aksi khusus) -- bukan
