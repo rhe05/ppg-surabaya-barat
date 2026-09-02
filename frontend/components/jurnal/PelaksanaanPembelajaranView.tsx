@@ -7,18 +7,24 @@
    Selalu "hari ini": minggu_ke dihitung dari tanggal hari ini
    (mingguKeDariTanggal), materi yang tampil = seluruh baris jurnal_materi
    milik kelas pada minggu berjalan (baik yang sudah maupun belum
-   disampaikan) -- guru mencentang satu-satu dan mengisi catatan opsional.
+   disampaikan) -- guru mencentang satu-satu.
 
    PENYIMPANAN OTOMATIS sejak 2026-09-02 (diminta owner): tombol "Simpan
-   Pelaksanaan" DIHAPUS. Tiap centang langsung ditulis ke DB, catatan
-   ditulis 900ms setelah guru berhenti mengetik, dan bilah bawah cuma
-   melaporkan keadaannya ("Tersimpan · 11.14" / "Ada yang belum
-   tersimpan" + Coba Lagi). Sebelumnya semua perubahan ditahan di state
-   sampai tombol Simpan ditekan -- alasan lamanya "biar guru bisa ralat
-   dulu" kalah oleh risiko nyatanya: guru mencentang di tengah KBM sambil
-   memegang HP, sekali layar terkunci/telepon masuk sebelum Simpan
-   ditekan, seluruh centang hilang tanpa jejak. Ralat tetap bisa: centang
-   ulang saja, tulisan berikutnya menimpa yang sebelumnya.
+   Pelaksanaan" DIHAPUS. Tiap centang langsung ditulis ke DB, dan bilah
+   bawah cuma melaporkan keadaannya ("Tersimpan · 11.14" / "Ada yang
+   belum tersimpan" + Coba Lagi). Sebelumnya semua perubahan ditahan di
+   state sampai tombol Simpan ditekan -- alasan lamanya "biar guru bisa
+   ralat dulu" kalah oleh risiko nyatanya: guru mencentang di tengah KBM
+   sambil memegang HP, sekali layar terkunci/telepon masuk sebelum
+   Simpan ditekan, seluruh centang hilang tanpa jejak. Ralat tetap bisa:
+   centang ulang saja, tulisan berikutnya menimpa yang sebelumnya.
+
+   PUTARAN KETIGA (2026-09-02 sore, diminta owner): kolom "Catatan" yang
+   dulu muncul di bawah baris yang dicentang, dan tombol "Tambah materi
+   tambahan" (borang judul bebas per minggu) -- KEDUANYA DIHAPUS, "tidak
+   digunakan oleh guru". Kolom `catatan`/`catatan_asli` TETAP ada di tipe
+   `Baris` & payload penyimpanan (data lama yang mungkin sudah terlanjur
+   terisi tidak disentuh), cuma jalan UI utk mengisinya yang dicabut.
 
    ⚠️ Layar Input Kehadiran (app/absensi/page.tsx) SENGAJA tidak ikut
    berubah -- di sana satu tombol Simpan masih dipertahankan karena
@@ -41,7 +47,7 @@
    owner cuma utk Rencana Pembelajaran. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Plus, Check } from 'lucide-react';
+import { Calendar, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -62,13 +68,16 @@ const NAMA_BULAN = [
 
 type Kelas = KelasJurnal;
 type Baris = {
-  /* Kunci LOKAL yang tidak pernah berubah selama baris hidup di layar --
-     `id` DB belum ada saat materi tambahan baru dibuat, dan sejak
-     penyimpanan jadi otomatis (2026-09-02) baris bisa berpindah dari
-     "belum py id" ke "py id" di tengah pengetikan. Semua penjadwalan
-     simpan & penanda baris terbuka dikunci ke uid ini, bukan ke id. */
+  /* Kunci LOKAL yang tidak pernah berubah selama baris hidup di layar.
+     Semua penjadwalan simpan & penanda baris terbuka dikunci ke uid ini,
+     bukan ke id. */
   uid: string;
-  id: number | null; // null = materi tambahan baru, belum tersimpan
+  /* `id: null` sebelum insert pertama baris ini tersimpan ke server --
+     dulu jalan utama masuknya lewat tombol "Tambah materi tambahan"
+     (DIHAPUS 2026-09-02 sore, "tidak digunakan oleh guru"); ditinggal
+     apa adanya di tipe & alur simpan sbg jaring pengaman umum, bukan
+     krn masih ada jalan UI yang membuatnya. */
+  id: number | null;
   judul: string;
   status: 'belum' | 'disampaikan';
   catatan: string;
@@ -88,8 +97,8 @@ type Baris = {
   tanggalDisampaikan: string | null;
   tanggalDisampaikanAsli: string | null;
   /* Versi baris yang TERAKHIR dilihat layar ini. Dikirim balik sbg
-     penjaga saat menyimpan; null utk materi tambahan yang belum pernah
-     tersimpan. */
+     penjaga saat menyimpan; null utk baris yang belum pernah tersimpan
+     (lihat catatan `id` di atas). */
   updatedAt: string | null;
   mingguKe: number;
   /* jenis 'klasikal' = materi Klasikal, yang isinya DUA materi
@@ -222,10 +231,6 @@ export default function PelaksanaanPembelajaranView() {
     };
   }, []);
 
-  /* Minggu mana yang borang 'tambah materi'-nya sedang terbuka (null =
-     tidak ada). Dulu cuma boolean krn layar ini hanya menampilkan satu
-     minggu. */
-  const [tambahanMinggu, setTambahanMinggu] = useState<number | null>(null);
   /* Kartu bulan (pembungkus semua kartu minggu) -- lihat komentar di
      JSX-nya utk kenapa bawaannya terbuka, beda dgn Rencana. */
   const [bulanTerbuka, setBulanTerbuka] = useState(true);
@@ -240,7 +245,6 @@ export default function PelaksanaanPembelajaranView() {
   useEffect(() => {
     setMingguTerbuka((prev) => (prev.has(mingguKe) ? prev : new Set(prev).add(mingguKe)));
   }, [mingguKe]);
-  const [judulTambahan, setJudulTambahan] = useState('');
 
   useEffect(() => {
     if (guruId == null) return;
@@ -460,46 +464,11 @@ export default function PelaksanaanPembelajaranView() {
     jadwalkanSimpan(uid, 0);
   }
 
-  function ubahCatatan(uid: string, catatan: string) {
-    setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, catatan } : b)));
-    jadwalkanSimpan(uid, 900);
-  }
-
   /* Guru mengubah "materi ini tersampaikan hari apa" lewat kalender di
      baris yang terbuka. Tanggal masa depan tidak bisa dipilih (kalender
      mematikannya), jadi di sini cukup menyimpan. */
   function ubahTanggalDisampaikan(uid: string, iso: string) {
     setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, tanggalDisampaikan: iso } : b)));
-    jadwalkanSimpan(uid, 0);
-  }
-
-  function tambahMateriTambahan(mingguKeBaris: number) {
-    if (judulTambahan.trim().length === 0) return;
-    const uid = `baru-${Date.now()}`;
-    setBaris((prev) => [
-      ...prev,
-      {
-        uid,
-        id: null,
-        judul: judulTambahan.trim(),
-        status: 'disampaikan',
-        catatan: '',
-        statusAsli: 'belum',
-        catatanAsli: '',
-        /* Materi tambahan tidak punya rencana -- ia memang materi yang
-           baru saja disampaikan, jadi tercatat hari ini. */
-        tanggalRencana: null,
-        tanggalDisampaikan: todayStr(),
-        tanggalDisampaikanAsli: null,
-        updatedAt: null,
-        mingguKe: mingguKeBaris,
-        jenis: 'ngaji',
-        hafalanSurat: null,
-        hafalanDoa: null,
-      },
-    ]);
-    setJudulTambahan('');
-    setTambahanMinggu(null);
     jadwalkanSimpan(uid, 0);
   }
 
@@ -535,8 +504,9 @@ export default function PelaksanaanPembelajaranView() {
      3. Materi yang tanggalnya SUDAH LEWAT bebas ditandai kapan saja --
         justru itu gunanya layar ini (hari Rabu menyusulkan materi Senin).
 
-     Materi tanpa tanggal rencana (materi tambahan yang diketik guru saat
-     itu juga) diperlakukan sbg materi hari ini: ikut aturan nomor 2. */
+     Materi tanpa tanggal rencana (mis. peninggalan "Tambah materi
+     tambahan", DIHAPUS 2026-09-02 sore) diperlakukan sbg materi hari
+     ini: ikut aturan nomor 2. */
   /* ── Kelompokkan per MINGGU, seperti Rencana Pembelajaran ───────────
      (2026-09-02, diminta owner). Layar ini dulu cuma menampilkan SATU
      minggu terpilih; sekarang seluruh minggu bulan itu tampil sbg kartu
@@ -953,104 +923,49 @@ export default function PelaksanaanPembelajaranView() {
                         </span>
                       </button>
 
-                      {diperluas && !terkunci && (
+                      {/* "Materi ini tersampaikan hari apa" (diminta owner
+                          2026-09-02). Bakunya tanggal rencana, jadi
+                          menyusulkan materi Senin di hari Rabu tetap
+                          tercatat Senin -- bukan Rabu. Kolom Catatan yang
+                          dulu tampil di sini bersama tanggal ini DIHAPUS
+                          (diminta owner 2026-09-02 sore: "tidak digunakan
+                          oleh guru") -- setelah itu dihapus, ini
+                          satu-satunya isi blok yang meluas, jadi syarat
+                          `dicentang` dinaikkan ke syarat pembuka blok
+                          sekalian (dulu blok pembungkusnya tetap muncul
+                          kosong saat guru MEMBATALKAN centang). */}
+                      {diperluas && !terkunci && dicentang && (
                         <div className="mt-2.5 pl-[34px]">
-                          {/* "Materi ini tersampaikan hari apa" (diminta
-                              owner 2026-09-02). Bakunya tanggal rencana,
-                              jadi menyusulkan materi Senin di hari Rabu
-                              tetap tercatat Senin -- bukan Rabu. */}
-                          {dicentang && (
-                            <div className="mb-2.5">
-                              <label className="label-mikro mb-1 block">Disampaikan pada</label>
-                              <button
-                                type="button"
-                                ref={(el) => {
-                                  tombolTanggalRef.current[b.uid] = el;
-                                }}
-                                onClick={() => {
-                                  const rect = tombolTanggalRef.current[b.uid]?.getBoundingClientRect();
-                                  if (rect) {
-                                    setPosisiTanggalBaris({
-                                      top: rect.bottom + 6,
-                                      right: window.innerWidth - rect.right,
-                                    });
-                                  }
-                                  setTanggalPickerUid((v) => (v === b.uid ? null : b.uid));
-                                }}
-                                className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[13px] text-text"
-                              >
-                                <span>
-                                  {b.tanggalDisampaikan
-                                    ? tanggalPanjang(b.tanggalDisampaikan)
-                                    : 'Pilih tanggal'}
-                                </span>
-                                <Calendar size={15} className="text-text-faint" />
-                              </button>
-                            </div>
-                          )}
-                          <label className="label-mikro mb-1 block">Catatan</label>
-                          <textarea
-                            value={b.catatan}
-                            onChange={(e) => ubahCatatan(b.uid, e.target.value)}
-                            placeholder="Catatan pelaksanaan (opsional)"
-                            rows={2}
-                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[12px] text-text"
-                          />
+                          <label className="label-mikro mb-1 block">Disampaikan pada</label>
+                          <button
+                            type="button"
+                            ref={(el) => {
+                              tombolTanggalRef.current[b.uid] = el;
+                            }}
+                            onClick={() => {
+                              const rect = tombolTanggalRef.current[b.uid]?.getBoundingClientRect();
+                              if (rect) {
+                                setPosisiTanggalBaris({
+                                  top: rect.bottom + 6,
+                                  right: window.innerWidth - rect.right,
+                                });
+                              }
+                              setTanggalPickerUid((v) => (v === b.uid ? null : b.uid));
+                            }}
+                            className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[13px] text-text"
+                          >
+                            <span>
+                              {b.tanggalDisampaikan
+                                ? tanggalPanjang(b.tanggalDisampaikan)
+                                : 'Pilih tanggal'}
+                            </span>
+                            <Calendar size={15} className="text-text-faint" />
+                          </button>
                         </div>
                       )}
                     </div>
                   );
                 })}
-
-                {/* "Tambah materi tambahan" = baris terakhir DI DALAM
-                    kartu minggunya (2026-09-02). Karena tiap minggu punya
-                    kartunya sendiri, tombol ini otomatis tahu materi baru
-                    itu masuk minggu yang mana -- tidak perlu lagi
-                    menebak dari minggu yang sedang dipilih di kalender. */}
-                {terbukaMinggu && tambahanMinggu !== grup.mingguKe ? (
-                  <button
-                    type="button"
-                    onClick={() => setTambahanMinggu(grup.mingguKe)}
-                    className="flex w-full cursor-pointer items-center gap-3 border-t border-border bg-transparent px-3.5 py-3 text-left text-[13px] font-semibold text-text-dim transition-colors duration-150 hover:text-sage"
-                  >
-                    <span className="flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 border-dashed border-border text-text-faint">
-                      <Plus size={13} strokeWidth={2.6} />
-                    </span>
-                    Tambah materi tambahan
-                  </button>
-                ) : terbukaMinggu ? (
-                  <div className="border-t border-border px-3.5 py-3">
-                    <label className="label-mikro mb-1.5 block">Materi yang tidak ada di rencana</label>
-                    <input
-                      type="text"
-                      value={judulTambahan}
-                      onChange={(e) => setJudulTambahan(e.target.value)}
-                      placeholder="Judul materi"
-                      autoFocus
-                      className="mb-2 w-full rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[13px] text-text"
-                    />
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => tambahMateriTambahan(grup.mingguKe)}
-                        disabled={judulTambahan.trim().length === 0}
-                        className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        Tambahkan
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setTambahanMinggu(null);
-                          setJudulTambahan('');
-                        }}
-                        className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12px] font-semibold text-text"
-                      >
-                        Batal
-                      </button>
-                    </div>
-                  </div>
-                ) : null}
               </div>
               );
             })}
