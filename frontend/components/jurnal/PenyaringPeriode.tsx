@@ -1,9 +1,10 @@
 'use client';
 
-/* Tiga pil Bulan/Semester/Tahun Ajaran -- dipakai dua tempat (kartu
-   Pengulangan di Riwayat Pembelajaran & Monitoring Materi), dijadikan
-   satu komponen supaya keduanya tidak diam-diam melenceng. Gaya chip
-   sama persis dgn chip kelas/filter yg sudah ada di seluruh app ini. */
+/* Tiga pil Bulan/Semester/Tahun Ajaran -- dipakai di Monitoring >
+   Pencapaian Materi (sisi per-kelas & per-santri fitur Pengulangan,
+   SATU pemilih utk keduanya sejak 2026-09-02 sore). Komponen sendiri
+   krn bentuknya (3 chip) dipakai identik di sana; kalau nanti ada
+   layar lain yg butuh periode serupa, dipakai ulang dari sini juga. */
 
 import type { KunciPeriode } from '@/lib/periodeAkademik';
 

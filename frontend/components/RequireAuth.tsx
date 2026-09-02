@@ -28,11 +28,13 @@ const HALAMAN_GURU = [
   '/pengumuman',
   '/tabungan',
   '/peringkat',
-  /* Ditambahkan 2026-09-02: tab "Pencapaian Materi" di Monitoring dibuka
-     utk guru (terbatas kelasnya sendiri). Tab "Kehadiran" di halaman yang
-     SAMA tetap admin-only -- dibedakan di dalam app/monitoring/page.tsx
-     sendiri (guru langsung mendarat di tab materi, tab Kehadiran tidak
-     pernah dirender baginya), bukan lewat rute terpisah. */
+  /* Ditambahkan 2026-09-02, dibuka lebar sore harinya: Monitoring kini
+     fitur berdiri sendiri di menu utama guru (GuruBottomNav > Lainnya),
+     BUKAN tautan tersembunyi dari layar lain. Tab "Pencapaian Materi"
+     terbuka utk guru (terbatas kelasnya sendiri, mendarat langsung di
+     tab itu); tab "Kehadiran" di halaman yang SAMA tetap admin-only --
+     dibedakan di dalam app/monitoring/page.tsx sendiri, bukan lewat rute
+     terpisah. */
   '/monitoring',
 ];
 

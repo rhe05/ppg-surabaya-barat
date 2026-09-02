@@ -27,7 +27,6 @@ import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
-import KartuPengulanganKelas from '@/components/jurnal/KartuPengulanganKelas';
 
 type Kelas = { id: number; nama: string };
 /* Tipe barisnya ikut sumber bersama (lib/dataGuru.ts) -- layar ini cuma
@@ -280,14 +279,6 @@ export default function RiwayatPembelajaranView() {
                 </div>
               </div>
             </div>
-
-            {/* Sisi PER KELAS dari fitur Pengulangan (2026-09-02) --
-                kartunya sendiri yang memuat datanya sendiri, dgn
-                penyaring periode sendiri. Sisi PER SANTRI ada di
-                Monitoring > Pencapaian Materi. kelasId sudah dijamin
-                number di sini -- blok ini ada di dalam cabang
-                `kelasId === '' ? ... : (...)` di atasnya. */}
-            <KartuPengulanganKelas kelasId={kelasId} />
 
             {/* Saringan status: chip, satu bahasa dgn chip kelas di atas
                 -- sebelumnya tiga tombol kotak selebar layar dgn isian

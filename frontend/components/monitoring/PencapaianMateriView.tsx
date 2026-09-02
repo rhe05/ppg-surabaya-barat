@@ -1,13 +1,18 @@
 'use client';
 
-/* Monitoring > Pencapaian Materi -- sisi PER SANTRI dari fitur
-   Pengulangan (disepakati owner 2026-09-02). Sisi per-kelas ada di kartu
-   "Pengulangan Materi Klasikal" pada Riwayat Pembelajaran
-   (KartuPengulanganKelas.tsx) -- pemisahan ini disengaja: angka per
-   kelas dipakai guru sambil bekerja (layar kerja hariannya), angka per
-   santri dipakai utk MEMUTUSKAN siapa perlu diperhatikan (guru & admin
-   kelompok, bukan admin_ppg saja) -- dua pekerjaan berbeda, dua tempat
-   berbeda, sama spt Riwayat vs Monitoring Kehadiran yang sudah ada.
+/* Monitoring > Pencapaian Materi -- SATU layar yang memuat KEDUA sisi
+   fitur Pengulangan (disepakati owner 2026-09-02, lalu diminta owner
+   2026-09-02 sore utk digabung ke sini): per KELAS (berapa kali satu
+   surat diulang klasikal) dan per SANTRI (berapa kali santri itu hadir
+   saat surat itu diulang, dari total pengulangan kelasnya).
+
+   RIWAYAT AWAL, supaya tidak terulang: putaran pertama menaruh sisi
+   per-kelas sbg kartu di Riwayat Pembelajaran dan sisi per-santri di
+   sini, dgn alasan "layar kerja vs layar keputusan". Owner MEMBATALKAN
+   pemisahan itu: keduanya sekarang di SINI, satu fitur berdiri sendiri,
+   dibuka dari menu utama (GuruBottomNav > Lainnya > "Monitoring") --
+   BUKAN lewat tautan tersembunyi di layar lain. Riwayat Pembelajaran
+   tidak menyinggung fitur ini sama sekali lagi.
 
    Dipasang di halaman /monitoring yang SAMA dgn Monitoring Kehadiran
    (bukan route terpisah) supaya jadi SATU menu Monitoring ber-tab, bukan
@@ -30,7 +35,14 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import Skeleton from '@/components/ui/Skeleton';
 import PenyaringPeriode from '@/components/jurnal/PenyaringPeriode';
-import { muatKelasGuru, muatPengulanganSantri, type PengulanganSantri, type KelasJurnal } from '@/lib/dataGuru';
+import {
+  muatKelasGuru,
+  muatPengulanganKelas,
+  muatPengulanganSantri,
+  type PengulanganKelas,
+  type PengulanganSantri,
+  type KelasJurnal,
+} from '@/lib/dataGuru';
 import { rentangPeriode, type KunciPeriode } from '@/lib/periodeAkademik';
 
 type KelasRingkas = { id: number; nama: string };
@@ -40,6 +52,14 @@ const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
   'text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none';
 const LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+function tanggalPendek(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
 
 export default function PencapaianMateriView() {
   const { profile } = useAuth();
@@ -83,10 +103,13 @@ export default function PencapaianMateriView() {
       .then(({ data }) => setKelasAdmin(data ?? []));
   }, [adalahGuru, kelompokId]);
 
-  /* ── Periode: acuan "sekarang" dihitung sekali, sama spt kartu kelas
-     di Riwayat Pembelajaran -- keduanya sengaja SELALU periode
-     BERJALAN, bukan bisa ditengok ke bulan lampau (perluasan terpisah
-     kalau nanti dibutuhkan). */
+  /* ── Periode: acuan "sekarang" dihitung sekali -- layar ini SELALU
+     periode BERJALAN, bukan bisa ditengok ke bulan lampau (perluasan
+     terpisah kalau nanti dibutuhkan). SATU pemilih periode utk KEDUA
+     sisi (per kelas & per santri) -- dulu masing-masing punya pemilih
+     sendiri di dua layar berbeda, sekarang satu layar wajib satu sumber
+     kebenaran, kalau tidak keduanya bisa menampilkan periode yang
+     berbeda tanpa guru sadar. */
   const [kunciPeriode, setKunciPeriode] = useState<KunciPeriode>('bulan');
   const [acuan] = useState(() => {
     const d = new Date();
@@ -97,28 +120,56 @@ export default function PencapaianMateriView() {
     [kunciPeriode, acuan]
   );
 
-  /* ── Data ── */
-  const [baris, setBaris] = useState<PengulanganSantri[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /* ── Data per KELAS ── */
+  const [barisKelas, setBarisKelas] = useState<PengulanganKelas[]>([]);
+  const [loadingKelas, setLoadingKelas] = useState(false);
+  const [errorKelas, setErrorKelas] = useState<string | null>(null);
 
   useEffect(() => {
     if (kelasId === '') {
-      setBaris([]);
+      setBarisKelas([]);
       return;
     }
     let batal = false;
-    setLoading(true);
-    setError(null);
-    muatPengulanganSantri(kelasId, periode.awal, periode.akhir)
+    setLoadingKelas(true);
+    setErrorKelas(null);
+    muatPengulanganKelas(kelasId, periode.awal, periode.akhir)
       .then((d) => {
-        if (!batal) setBaris(d);
+        if (!batal) setBarisKelas(d);
       })
       .catch((e) => {
-        if (!batal) setError(e instanceof Error ? e.message : 'Gagal memuat data.');
+        if (!batal) setErrorKelas(e instanceof Error ? e.message : 'Gagal memuat data.');
       })
       .finally(() => {
-        if (!batal) setLoading(false);
+        if (!batal) setLoadingKelas(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, periode.awal, periode.akhir]);
+
+  /* ── Data per SANTRI ── */
+  const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
+  const [loadingSantri, setLoadingSantri] = useState(false);
+  const [errorSantri, setErrorSantri] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (kelasId === '') {
+      setBarisSantri([]);
+      return;
+    }
+    let batal = false;
+    setLoadingSantri(true);
+    setErrorSantri(null);
+    muatPengulanganSantri(kelasId, periode.awal, periode.akhir)
+      .then((d) => {
+        if (!batal) setBarisSantri(d);
+      })
+      .catch((e) => {
+        if (!batal) setErrorSantri(e instanceof Error ? e.message : 'Gagal memuat data.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingSantri(false);
       });
     return () => {
       batal = true;
@@ -129,19 +180,19 @@ export default function PencapaianMateriView() {
      ulang di sini murni utk tampilan (satu kartu per santri). */
   const perSantri = useMemo(() => {
     const peta = new Map<number, { nama: string; baris: PengulanganSantri[] }>();
-    for (const b of baris) {
+    for (const b of barisSantri) {
       const s = peta.get(b.santri_id) ?? { nama: b.nama_santri, baris: [] };
       s.baris.push(b);
       peta.set(b.santri_id, s);
     }
     return [...peta.entries()].map(([id, v]) => ({ santriId: id, ...v }));
-  }, [baris]);
+  }, [barisSantri]);
 
   return (
     <div>
       <p className="mb-4 text-[13px] text-text-dim">
-        Berapa kali tiap santri HADIR saat surat itu diulang klasikal, dari total pengulangan
-        kelasnya. Murni informasi -- tidak ada nilai lulus/tidak lulus.
+        Berapa kali satu surat diulang klasikal, dan berapa kali tiap santri HADIR saat itu
+        terjadi. Murni informasi -- tidak ada nilai lulus/tidak lulus.
       </p>
 
       {!adalahGuru && (
@@ -213,7 +264,7 @@ export default function PencapaianMateriView() {
       )}
 
       {kelasId !== '' && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-2.5">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-2.5">
           <div className="label-mikro">{periode.label}</div>
           <PenyaringPeriode kunci={kunciPeriode} onUbah={setKunciPeriode} />
         </div>
@@ -225,38 +276,74 @@ export default function PencapaianMateriView() {
         </p>
       )}
 
-      {loading && (
-        <div className="flex flex-col gap-2.5">
-          <Skeleton className="h-[68px] w-full" />
-          <Skeleton className="h-[68px] w-full" />
-        </div>
-      )}
-      {error && <p className="text-[13px] text-red">{error}</p>}
-      {!loading && !error && kelasId !== '' && perSantri.length === 0 && (
-        <p className="text-[13px] text-text-dim">
-          Belum ada materi Klasikal yang disampaikan pada periode ini.
-        </p>
-      )}
-
-      {!loading &&
-        perSantri.map((s) => (
-          <div key={s.santriId} className="kartu-premium mb-3 overflow-hidden">
-            <div className="border-b border-border px-3.5 py-2.5">
-              <span className="text-[15px] font-bold text-text">{s.nama}</span>
+      {kelasId !== '' && (
+        <>
+          {/* ── Sisi PER KELAS ── */}
+          <div className="label-mikro mb-2">Per Kelas</div>
+          {loadingKelas && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {errorKelas && <p className="mb-5 text-[13px] text-red">{errorKelas}</p>}
+          {!loadingKelas && !errorKelas && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {barisKelas.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada materi Klasikal yang disampaikan pada periode ini.
+                </p>
+              ) : (
+                barisKelas.map((b) => (
+                  <div
+                    key={b.nama_surat}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-text">
+                      {b.nama_surat}
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-1.5">
+                      <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
+                      <span className="text-[11px] whitespace-nowrap text-text-faint">
+                        terakhir {tanggalPendek(b.terakhir)}
+                      </span>
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-            {s.baris.map((b) => (
-              <div
-                key={b.nama_surat}
-                className="flex items-center justify-between border-b border-border px-3.5 py-2.5 last:border-b-0"
-              >
-                <span className="text-[13px] text-text">{b.nama_surat}</span>
-                <span className="angka-metrik text-[13px] text-text-dim">
-                  {b.jumlah_efektif}/{b.jumlah_kelas}
-                </span>
+          )}
+
+          {/* ── Sisi PER SANTRI ── */}
+          <div className="label-mikro mb-2">Per Santri</div>
+          {loadingSantri && (
+            <div className="flex flex-col gap-2.5">
+              <Skeleton className="h-[68px] w-full" />
+              <Skeleton className="h-[68px] w-full" />
+            </div>
+          )}
+          {errorSantri && <p className="text-[13px] text-red">{errorSantri}</p>}
+          {!loadingSantri && !errorSantri && perSantri.length === 0 && (
+            <p className="text-[13px] text-text-dim">
+              Belum ada materi Klasikal yang disampaikan pada periode ini.
+            </p>
+          )}
+          {!loadingSantri &&
+            perSantri.map((s) => (
+              <div key={s.santriId} className="kartu-premium mb-3 overflow-hidden">
+                <div className="border-b border-border px-3.5 py-2.5">
+                  <span className="text-[15px] font-bold text-text">{s.nama}</span>
+                </div>
+                {s.baris.map((b) => (
+                  <div
+                    key={b.nama_surat}
+                    className="flex items-center justify-between border-b border-border px-3.5 py-2.5 last:border-b-0"
+                  >
+                    <span className="text-[13px] text-text">{b.nama_surat}</span>
+                    <span className="angka-metrik text-[13px] text-text-dim">
+                      {b.jumlah_efektif}/{b.jumlah_kelas}
+                    </span>
+                  </div>
+                ))}
               </div>
             ))}
-          </div>
-        ))}
+        </>
+      )}
     </div>
   );
 }

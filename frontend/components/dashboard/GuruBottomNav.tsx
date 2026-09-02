@@ -38,6 +38,7 @@ import {
   CalendarDays,
   UserRound,
   FileText,
+  Activity,
   LogOut,
   X,
 } from 'lucide-react';
@@ -68,6 +69,12 @@ const LAINNYA: { label: string; href: string; ikon: typeof House }[] = [
   { label: 'Guru Izin', href: '/guru-saya', ikon: CalendarDays },
   { label: 'Minta Akses', href: '/guru-saya?v=akses', ikon: UserRound },
   { label: 'Laporan', href: '/reports', ikon: FileText },
+  /* Ditambahkan 2026-09-02 sore: fitur Pengulangan (per kelas & per
+     santri) tadinya ditaruh di balik tautan tersembunyi dari Riwayat
+     Pembelajaran -- owner MEMBATALKAN itu, minta Monitoring jadi fitur
+     berdiri sendiri yang terlihat di menu utama. Guru mendarat langsung
+     di tab "Pencapaian Materi" (lihat app/monitoring/page.tsx). */
+  { label: 'Monitoring', href: '/monitoring', ikon: Activity },
 ];
 
 export default function GuruBottomNav() {
