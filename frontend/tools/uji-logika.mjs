@@ -19,6 +19,7 @@ import { pecahJudulMateri } from '../lib/judulMateri.ts';
 import { rentangMinggu, mingguKeDariTanggal, labelRentangMinggu } from '../lib/mingguBulan.ts';
 import { pesanGalatDb } from '../lib/pesanGalatDb.ts';
 import { rentangBulan } from '../lib/periodeAkademik.ts';
+import { gabungkanDoaDuaSemester } from '../lib/materiHafalanDoa.ts';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -169,6 +170,45 @@ periksa(
   rentangBulan(2028, 2),
   { awal: '2028-02-01', akhir: '2028-02-29', label: 'Februari 2028' }
 );
+
+/* ── materiHafalanDoa: gabung Asmaul Husna 2 semester ────────────────
+   Contoh disalin dari kurikulum_prota produksi (kategori "Hafalan
+   Do'a-Do'a Harian"), bukan karangan. */
+
+periksa(
+  'Kelas 1: Asmaul Husna 1-20 (Sem 1) + 21-40 (Sem 2) -> digabung 1-40, baris lain tetap terpisah',
+  gabungkanDoaDuaSemester(
+    "1. Menerampilkan hafalan do'a pada jenjang sebelumnya \n2. Asmaul Husna (1 sampai 20)\n3. Doa dan dzikir setelah sholat \n4. Do'a ketetapan iman",
+    "1. Menerampilkan hafalan do'a pada jenjang sebelumnya \n2. Asmaul Husna (21 sampai 40)\n3. Doa masuk dan keluar rumah "
+  ),
+  [
+    "Menerampilkan hafalan do'a pada jenjang sebelumnya",
+    'Asmaul Husna (1 sampai 40)',
+    'Doa dan dzikir setelah sholat',
+    "Do'a ketetapan iman",
+    'Doa masuk dan keluar rumah',
+  ]
+);
+
+periksa(
+  "PAUD-TK: Asmaul Husna di baris PERTAMA (bukan kedua) tetap digabung di posisi pertama",
+  gabungkanDoaDuaSemester(
+    "1. Asmaul Husna (1 sampai 10)\n2. Do'a ketika akan tidur dan setelah bangun tidur ",
+    "1. Asmaul Husna (11 sampai 20)\n2. Do'a untuk kedua orang tua"
+  ),
+  ['Asmaul Husna (1 sampai 20)', "Do'a ketika akan tidur dan setelah bangun tidur", "Do'a untuk kedua orang tua"]
+);
+
+periksa(
+  'Kelas 5: tanpa Asmaul Husna sama sekali -> cuma digabung apa adanya, tanpa baris kosong',
+  gabungkanDoaDuaSemester(
+    "1. Menerampilkan hafalan do'a pada jenjang sebelumnya \n2. Doa minta dimudahakan dalam segala urusan ",
+    "1. Menerampilkan hafalan do'a pada jenjang sebelumnya \n2. Doa ketika ada petir "
+  ),
+  ["Menerampilkan hafalan do'a pada jenjang sebelumnya", 'Doa minta dimudahakan dalam segala urusan', 'Doa ketika ada petir']
+);
+
+periksa('target & target2 dua-duanya null -> daftar kosong, bukan error', gabungkanDoaDuaSemester(null, null), []);
 
 /* ── hasil ────────────────────────────────────────────────────────── */
 

@@ -68,7 +68,8 @@ import {
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
-import { muatPengulanganKelas } from '@/lib/dataGuru';
+import { muatPengulanganKelas, muatProtaKelompok, namaKategori } from '@/lib/dataGuru';
+import { gabungkanDoaDuaSemester } from '@/lib/materiHafalanDoa';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
@@ -82,6 +83,25 @@ const NAMA_BULAN = [
 
 const SELECT_FILTER =
   'rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text focus:border-brass focus:outline-none';
+
+/* Kurikulum = data BERSAMA satu kelompok tetap (2026-08-22, lihat
+   app/kurikulum/page.tsx KELOMPOK_KURIKULUM_BERSAMA_ID) -- disalin
+   nilainya di sini (bukan diimpor, konstanta itu tidak diekspor dari
+   halamannya) khusus utk mencocokkan baris Prota Hafalan Do'a. */
+const KELOMPOK_KURIKULUM_BERSAMA_ID = 1;
+
+/* Nama ruang ("1A", "PAUD/TK ...", dst) -> kelas Prota ("1", "PAUD-TK").
+   SENGAJA satu kelas SAJA (bukan kumulatif spt opsiHafalanSurat di
+   RencanaPembelajaranView.tsx) -- diminta owner: "cukup materi sesuai
+   kelas tersebut, seumpama kelas 1 maka yang ditampilkan cukup materi
+   di kelas 1 saja". Ruang tanpa angka & bukan PAUD (mis. "Remaja") ->
+   null, RPC-nya cukup tidak menemukan baris yg cocok (bukan error). */
+function kelasProtaDari(namaRuang: string): string | null {
+  const n = namaRuang.toLowerCase();
+  if (n.includes('paud')) return 'PAUD-TK';
+  const angka = [...n.matchAll(/\d+/g)].map((m) => Number(m[0]));
+  return angka.length > 0 ? String(Math.max(...angka)) : null;
+}
 
 function batasBulan(tahun: number, bulan: number) {
   const dua = (n: number) => String(n).padStart(2, '0');
@@ -230,22 +250,46 @@ export default function SantriProgressReport() {
       const tanggalAktif = new Set(absensiHariKerja.map((a) => a.tanggal));
 
       /* Materi Klasikal (2026-09-02, diminta owner, admin desktop) --
-         pakai RPC yang sama dgn fitur Monitoring guru (lib/dataGuru.ts),
-         periode SAMA PERSIS dgn laporan ini (bulan+tahun yg sudah
-         dipilih di atas), kelas SAMA PERSIS jg (`p_kelas_id: kelasId`)
-         -- rincian per-surat OTOMATIS cuma milik kelas ini, bukan
-         daftar baku kurikulum (diminta owner: "cukup materi sesuai
-         kelas tersebut"). kelasId sudah dijamin number di sini (dicek
-         di awal fungsi). Kalau RPC-nya gagal, laporan tetap tampil --
+         Hafalan Surat: RPC yang sama dgn fitur Monitoring guru
+         (lib/dataGuru.ts), periode SAMA PERSIS dgn laporan ini
+         (bulan+tahun yg sudah dipilih di atas), kelas SAMA PERSIS jg
+         (`p_kelas_id: kelasId`) -- rincian per-surat OTOMATIS cuma
+         milik kelas ini, bukan daftar baku kurikulum.
+
+         Hafalan Do'a: BEDA sumber -- bukan RPC pengulangan (belum ada
+         data model), tapi kurikulum_prota kategori "Hafalan Do'a-Do'a
+         Harian" (diminta owner 2026-09-02: "saya sudah input kurikulum
+         materi haf doa di prota, tolong masukan ke perkembangan
+         santri"). `muatProtaKelompok` singgahan bersama, dipanggil dgn
+         `tahun` yg SAMA PERSIS dgn kalender laporan (kolom `tahun` di
+         kurikulum_prota memang cuma tahun kalender polos, dicek
+         langsung ke app/kurikulum/page.tsx). Baris Prota dicocokkan ke
+         kelasDipakai[0].nama lewat kelasProtaDari() -- "cukup materi
+         sesuai kelas tersebut", BUKAN kumulatif spt picker guru.
+         Semester 1 (target) + Semester 2 (target2) digabung jadi satu
+         daftar tahunan (lib/materiHafalanDoa.ts).
+
+         Kalau salah satu/keduanya gagal, laporan tetap tampil --
          section "Materi Klasikal" cukup dilewati (lihat catatan try/
-         catch di bawah), jangan sampai satu fitur tambahan menggagalkan
+         catch di bawah), jangan sampai fitur tambahan menggagalkan
          seluruh laporan kehadiran yang sudah jadi kebutuhan utama. */
       let materiKlasikal: LaporanPerkembangan['materiKlasikal'];
       try {
         const barisKlasikal = await muatPengulanganKelas(kelasId, awal, akhir);
+
+        let hafDoa: string[] = [];
+        const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
+        if (kelasProta) {
+          const prota = await muatProtaKelompok(KELOMPOK_KURIKULUM_BERSAMA_ID, tahun);
+          const baris = prota.find(
+            (p) => p.kelas === kelasProta && namaKategori(p.kategori_kbm) === "Hafalan Do'a-Do'a Harian"
+          );
+          if (baris) hafDoa = gabungkanDoaDuaSemester(baris.target, baris.target2);
+        }
+
         materiKlasikal = {
           hafSurat: barisKlasikal.map((b) => ({ namaSurat: b.nama_surat, jumlah: b.jumlah })),
-          hafDoaPengulangan: null,
+          hafDoa,
         };
       } catch {
         materiKlasikal = undefined;

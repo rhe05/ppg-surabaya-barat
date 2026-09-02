@@ -28,8 +28,20 @@
    OTOMATIS cuma milik kelas yang dipilih di laporan (RPC-nya menerima
    `p_kelas_id`) -- kelas 1 hanya menampilkan surat yang PERNAH benar2
    diulang klasikal di kelas 1 pada periode itu, bukan daftar baku
-   kurikulum kelas 1. Haf Do'a TETAP satu placeholder "—" (belum ada
-   data model). */
+   kurikulum kelas 1.
+
+   PUTARAN KETUJUH (2026-09-02, diminta owner): "Haf Do'a" bukan lagi
+   placeholder kosong -- owner sudah mengisi Prota kategori "Hafalan
+   Do'a-Do'a Harian" (target Semester 1 + target2 Semester 2), jadi
+   sekarang menampilkan RINCIAN materi tahunan kelas itu (gabungan 2
+   semester, lib/materiHafalanDoa.ts -- Asmaul Husna digabung jadi satu
+   rentang, mis. "1 sampai 20" + "21 sampai 40" -> "1 sampai 40", TIDAK
+   ditampilkan dua kali per semester). BEDA sifatnya dari Haf Surat:
+   ini daftar TARGET KURIKULUM (rencana materi kelas itu SEPANJANG
+   TAHUN AJARAN), BUKAN hitungan berapa kali benar2 diulang klasikal --
+   krn data pengulangan Hafalan Do'a memang belum ada (fase 1 fitur
+   Pengulangan cuma Hafalan Surat). Makanya tidak ada angka "N×" di
+   baris Haf Do'a spt Haf Surat. */
 
 export type LaporanBaris = {
   nama: string;
@@ -49,13 +61,16 @@ export type LaporanBaris = {
    desc lalu nama, lihat migrasi 20260902150000). */
 export type PengulanganSuratBaris = { namaSurat: string; jumlah: number };
 
-/* `hafSurat` = rincian per surat (kosong = belum ada materi Klasikal
-   Hafalan Surat yang disampaikan pada periode ini, BUKAN error).
-   `hafDoaPengulangan` SELALU null utk sekarang -- belum ada data model
-   Hafalan Do'a (fase 1 fitur Pengulangan cuma Hafalan Surat). */
+/* `hafSurat` = rincian per surat yang BENAR2 diulang klasikal pada
+   periode laporan (kosong = belum ada yang disampaikan, BUKAN error).
+   `hafDoa` = daftar TARGET KURIKULUM Hafalan Do'a kelas itu utk satu
+   tahun ajaran (gabungan Semester 1+2, lib/materiHafalanDoa.ts) --
+   BUKAN hitungan pengulangan spt hafSurat, krn datanya memang beda
+   sifat (rencana materi, bukan realisasi). Kosong = kelas ini belum
+   punya baris Prota kategori "Hafalan Do'a-Do'a Harian" utk tahun itu. */
 export type MateriKlasikal = {
   hafSurat: PengulanganSuratBaris[];
-  hafDoaPengulangan: number | null;
+  hafDoa: string[];
 };
 
 export type LaporanPerkembangan = {
@@ -193,10 +208,21 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             Hafalan Do&rsquo;a
           </div>
-          <div className="rounded-[var(--radius)] border border-border px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
-            {laporan.materiKlasikal.hafDoaPengulangan !== null
-              ? `${laporan.materiKlasikal.hafDoaPengulangan}× pengulangan`
-              : 'Belum ada data.'}
+          <div className="overflow-hidden rounded-[var(--radius)] border border-border">
+            {laporan.materiKlasikal.hafDoa.length === 0 ? (
+              <div className="px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
+                Belum ada kurikulum Hafalan Do&rsquo;a utk kelas ini.
+              </div>
+            ) : (
+              laporan.materiKlasikal.hafDoa.map((item) => (
+                <div
+                  key={item}
+                  className="border-b border-border px-4 py-2 text-[12.5px] text-text last:border-b-0 sm:py-2.5 sm:text-[13px]"
+                >
+                  {item}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}
