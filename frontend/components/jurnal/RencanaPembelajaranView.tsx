@@ -381,7 +381,21 @@ export default function RencanaPembelajaranView() {
         const nama = (v: Baris['kategori_kbm']) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
         const labelKelas = (k: string | null) => (k === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${k}`);
         const peta = new Map<string, OpsiSelect>();
-        for (const b of (data ?? []) as Baris[]) {
+        /* Urutkan menurut kelas (PAUD/TK, 1, 2, ... 12) lalu semester --
+           diminta owner 2026-09-02. Hasil dari PostgREST datang tanpa
+           urutan yang dijamin, jadi dulu daftarnya tampak teracak
+           (mis. Kelas 4 lalu Kelas 8). `kelasTarget` sudah tersusun
+           menurut KELAS_KURIKULUM_URUT, jadi cukup ikuti indeksnya --
+           `.order('kelas')` di sisi server TIDAK bisa dipakai: kolomnya
+           teks, "10" akan mendahului "2". */
+        const urutKelas = (k: string | null) => {
+          const i = kelasTarget.indexOf(k ?? '');
+          return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+        };
+        const barisTerurut = [...((data ?? []) as Baris[])].sort(
+          (a, b) => urutKelas(a.kelas) - urutKelas(b.kelas)
+        );
+        for (const b of barisTerurut) {
           if (nama(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
           for (const [teks, semester] of [
             [b.target, 1],
