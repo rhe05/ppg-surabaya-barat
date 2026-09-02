@@ -11,9 +11,9 @@
    jurnal_kbm lama) per minggu dalam sebulan; Pelaksanaan nanti menandai
    materi minggu berjalan sbg disampaikan/belum + catatan; Riwayat
    menampilkan progres. Pembagian minggu: rentangMinggu (lib/
-   mingguBulan.ts) -- rentang tanggal tetap 1-7/8-14/dst, BUKAN dari hari
-   KBM sungguhan di jadwal_kbm (disederhanakan sengaja, level perencanaan
-   bulanan kasar).
+   mingguBulan.ts) -- SEJAK 2026-09-02 mengikuti hari Senin (Senin selalu
+   membuka minggu baru), bukan lagi blok tetap 1-7/8-14/dst. Tetap BUKAN
+   diturunkan dari hari KBM sungguhan di jadwal_kbm.
 
    PUTARAN KEDUA: form "Tambah Materi" diperkaya jadi bottom-sheet penuh
    (screenshot owner) -- Topik/Tanggal Rencana/Pertemuan ke-/Tujuan
@@ -83,9 +83,9 @@ const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu
 
 /* Hari sekolah (Senin-Jumat, TANPA Sabtu/Minggu) dlm satu rentang Minggu
    N -- diminta owner 2026-08-23 utk kartu Klasikal per hari. Rentang
-   Minggu N sendiri (rentangMinggu, lib/mingguBulan.ts) masih blok
-   kalender kasar 7 hari (bisa mulai Sabtu/Minggu), jadi baris yg
-   ditampilkan cuma yg jatuh di hari kerja. */
+   Minggu N sendiri (rentangMinggu, lib/mingguBulan.ts) blok 7 hari yang
+   dimulai hari Senin (Minggu 1 boleh lebih pendek, mengikuti kepala
+   bulan), jadi baris yg ditampilkan cuma yg jatuh di hari kerja. */
 function hariSekolahDalamMinggu(tahun: number, bulan: number, rentang: { awal: number; akhir: number }) {
   const hasil: { tgl: Date; iso: string }[] = [];
   for (let d = rentang.awal; d <= rentang.akhir; d++) {
