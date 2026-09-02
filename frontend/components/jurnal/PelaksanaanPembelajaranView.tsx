@@ -59,6 +59,7 @@ import { useToast } from '@/components/ui/useToast';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
+import { muatTanggalAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 const NAMA_BULAN = [
@@ -253,6 +254,21 @@ export default function PelaksanaanPembelajaranView() {
       setKelasId(list.length === 1 ? list[0].id : '');
     });
   }, [guruId]);
+
+  /* Tanggal Pencak Silat ASAD se-kelompok (2026-09-03) -- di layar ini
+     HANYA pemberitahuan pasif: kalau ada tanggal ASAD (biasanya Jumat)
+     di minggu itu, muncul baris "Pencak Silat ASAD - tidak ada
+     klasikal" di kartu minggu. TIDAK ada cek-list utk ditandai
+     (diminta owner). Kelas Remaja/SMA dikecualikan. */
+  const [tanggalAsad, setTanggalAsad] = useState<Set<string>>(new Set());
+  const muatAsad = useCallback(async () => {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId) return;
+    setTanggalAsad(await muatTanggalAsad(kelompokId));
+  }, [profile?.scope_kelompok_id]);
+  useEffect(() => {
+    void muatAsad();
+  }, [muatAsad]);
 
   const muat = useCallback(async () => {
     if (kelasId === '') {
@@ -540,6 +556,7 @@ export default function PelaksanaanPembelajaranView() {
 
   const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
   const jamMulaiKelas = kelasAktif?.jam_mulai ? kelasAktif.jam_mulai.slice(0, 5) : null;
+  const kelasIniIkutAsad = kelasAktif != null && kelasIkutAsad(kelasAktif.nama);
 
   function alasanTerkunci(b: Baris): string | null {
     const hariIni = todayStr();
@@ -591,7 +608,7 @@ export default function PelaksanaanPembelajaranView() {
      satu-satunya cara memuat ulang adalah menutup app. */
   async function segarkan() {
     buangSemuaSinggahan();
-    await muat();
+    await Promise.all([muat(), muatAsad()]);
   }
 
   return (
@@ -781,6 +798,18 @@ export default function PelaksanaanPembelajaranView() {
               mingguDipakai.map((grup) => {
               const terbukaMinggu = mingguTerbuka.has(grup.mingguKe);
               const sudah = grup.isi.filter((b) => b.status === 'disampaikan').length;
+              /* Tanggal ASAD (biasanya Jumat) yang jatuh di rentang
+                 minggu ini -- pemberitahuan pasif saja, bukan cek-list. */
+              const asadMingguIni: string[] =
+                kelasIniIkutAsad && grup.rentang
+                  ? Array.from(
+                      { length: grup.rentang.akhir - grup.rentang.awal + 1 },
+                      (_, i) =>
+                        `${tahun}-${String(bulan).padStart(2, '0')}-${String(
+                          grup.rentang!.awal + i,
+                        ).padStart(2, '0')}`,
+                    ).filter((iso) => tanggalAsad.has(iso))
+                  : [];
               return (
               /* SATU kartu per MINGGU, isinya baris berpemisah -- bukan
                  setumpuk kartu berbingkai (2026-09-02, diminta owner).
@@ -819,6 +848,19 @@ export default function PelaksanaanPembelajaranView() {
                   </span>
                 </button>
 
+                {asadMingguIni.map((iso) => (
+                  <div
+                    key={`asad-${iso}`}
+                    className="border-t border-[rgba(220,38,38,0.25)] bg-[rgba(220,38,38,0.05)] px-3.5 py-2.5"
+                  >
+                    <span className="block text-[12px] font-bold text-red">
+                      {tanggalPanjang(iso)}
+                    </span>
+                    <span className="block text-[12px] text-text-dim">
+                      Pencak Silat ASAD — tidak ada klasikal hari ini.
+                    </span>
+                  </div>
+                ))}
                 {terbukaMinggu && grup.isi.length === 0 && (
                   <p className="border-t border-border px-3.5 py-3.5 text-[13px] text-text-dim">
                     Belum ada materi direncanakan minggu ini.
