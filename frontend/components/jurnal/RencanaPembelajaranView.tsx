@@ -61,7 +61,7 @@ import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
-import { uraikanTargetDoa } from '@/lib/materiHafalanDoa';
+import { uraikanTargetDoa, adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 import { pesanGalatDb } from '@/lib/pesanGalatDb';
 import {
   muatKelasGuru,
@@ -224,7 +224,6 @@ function FieldTambah({
   label,
   wajib,
   info,
-  sembunyikanPenanda,
   children,
 }: {
   label: string;
@@ -232,18 +231,13 @@ function FieldTambah({
   /* Opsional: teks tooltip info singkat, muncul lewat ikon (i) di
      samping label -- lihat LabelInfo di atas. */
   info?: string;
-  /* Sembunyikan tanda wajib(*)/(Opsional) bawaan -- dipakai kalau
-     labelnya SUDAH membawa makna itu sendiri (mis. "(Hafalan Do'a-Do'a
-     Harian)", diminta owner 2026-09-02: tag "(Opsional)" terpisah jadi
-     berlebihan krn labelnya sendiri sudah dalam tanda kurung). */
-  sembunyikanPenanda?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="mb-3.5">
       <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text-dim">
-        {label} {!sembunyikanPenanda && wajib && <span className="text-red">*</span>}
-        {!sembunyikanPenanda && !wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
+        {label} {wajib && <span className="text-red">*</span>}
+        {!wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
         {info && <LabelInfo teks={info} />}
       </label>
       {children}
@@ -439,7 +433,18 @@ export default function RencanaPembelajaranView() {
      justru perlu tahu PERSIS semester berapa tiap materi berasal
      (diminta owner: "berikan keterangan kelas di bawah haf doa dan sem
      berapa 1 atau 2"), jadi Asmaul Husna Sem 1 & Sem 2 sengaja tetap
-     dua baris terpisah dgn sublabel semesternya masing-masing. */
+     dua baris terpisah dgn sublabel semesternya masing-masing.
+
+     "Menerampilkan hafalan do'a pada jenjang sebelumnya" DIBUANG dari
+     daftar (2026-09-02, diminta owner: "hapus setiap kelas yang ada
+     materi ... cukup hapus di fitur ini saja") -- bukan materi baru
+     utk dipilih guru, cuma instruksi "ulangi materi jenjang sebelumnya"
+     yg selalu ikut nempel di tiap baris Prota. Predikatnya di lib/
+     materiHafalanDoa.ts, DIPAKAI BARENG dgn LaporanPerkembanganCetak.tsx
+     yg justru TETAP menampilkannya (diminta owner eksplisit: jangan
+     dihapus di laporan) -- makanya bukan cuma dilewati manual di sini,
+     tapi predikat yg SAMA supaya kedua tempat tidak diam-diam
+     ngedrift soal baris mana yg dianggap "instruksi", bukan "materi". */
   const opsiHafalanDoa = useMemo<OpsiSelect[]>(() => {
     if (kelasId === '' || protaKelompok.length === 0) return [];
     const namaRuang = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
@@ -459,6 +464,7 @@ export default function RencanaPembelajaranView() {
         [b.target2, 2],
       ] as const) {
         for (const item of uraikanTargetDoa(teks)) {
+          if (adalahMenerampilkanJenjangSebelumnya(item)) continue;
           if (!peta.has(item)) {
             peta.set(item, {
               value: item,
@@ -1490,7 +1496,7 @@ export default function RencanaPembelajaranView() {
                   )}
                 </FieldTambah>
 
-                <FieldTambah label="(Hafalan Do&rsquo;a-Do&rsquo;a Harian)" sembunyikanPenanda>
+                <FieldTambah label="Hafalan Do&rsquo;a-Do&rsquo;a Harian">
                   {opsiHafalanDoa.length === 0 ? (
                     <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
                   ) : (

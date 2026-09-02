@@ -97,7 +97,20 @@
    menampung angka kalau `hafDoa` suatu saat berubah py hitungan;
    `MateriKlasikal.hafDoa: string[]` TIDAK diubah dulu krn belum ada
    data modelnya -- kalau nanti ada, tinggal ganti tipe & tambah
-   kolom angka spt Hafalan Surat, bukan rombak ulang tata letaknya). */
+   kolom angka spt Hafalan Surat, bukan rombak ulang tata letaknya).
+
+   PUTARAN KEDUA BELAS (2026-09-02, diminta owner): predikat "Menerampilkan
+   hafalan do'a pada jenjang sebelumnya" DIPINDAH ke lib/materiHafalanDoa.ts
+   (`adalahMenerampilkanJenjangSebelumnya`) supaya dipakai bareng dgn
+   RencanaPembelajaranView.tsx (Tambah Materi Klasikal) TANPA menyalin
+   regex-nya dua kali -- kedua tempat sekarang butuh predikat yg SAMA
+   PERSIS (di sini utk menariknya jadi teks pengantar terpisah, di sana
+   utk MEMBUANGNYA dari daftar cek-list sepenuhnya, diminta owner
+   "cukup hapus di fitur ini saja jangan hapus ... yang di laporan
+   perkembangan santri" -- makanya laporan ini TETAP menampilkannya,
+   cuma bedanya sekarang predikatnya dari satu sumber). */
+
+import { adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 
 export type LaporanBaris = {
   nama: string;
@@ -147,11 +160,6 @@ export type LaporanPerkembangan = {
   materiKlasikal?: MateriKlasikal;
 };
 
-/* "Menerampilkan hafalan do'a pada jenjang sebelumnya" -- toleran thd
-   varian tanda kutip apostrof ("do'a" vs "do’a"), lihat PUTARAN
-   KESEMBILAN di kepala berkas. */
-const RE_MENERAMPILKAN = /^menerampilkan\s+hafalan\s+do.?a\s+pada\s+jenjang\s+sebelumnya$/i;
-
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
   return (
     <div className="rounded-card border border-border bg-panel p-3.5 shadow-[var(--shadow-card)]">
@@ -168,8 +176,8 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
   const pct = (n: number) => (laporan.totalSantri ? Math.round((n / laporan.totalSantri) * 100) : 0);
 
   const hafDoaSemua = laporan.materiKlasikal?.hafDoa ?? [];
-  const menerampilkan = hafDoaSemua.find((item) => RE_MENERAMPILKAN.test(item)) ?? null;
-  const rincianDoa = hafDoaSemua.filter((item) => !RE_MENERAMPILKAN.test(item));
+  const menerampilkan = hafDoaSemua.find((item) => adalahMenerampilkanJenjangSebelumnya(item)) ?? null;
+  const rincianDoa = hafDoaSemua.filter((item) => !adalahMenerampilkanJenjangSebelumnya(item));
 
   return (
     <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)] sm:p-6">

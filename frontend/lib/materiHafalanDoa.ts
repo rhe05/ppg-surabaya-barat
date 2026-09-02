@@ -24,6 +24,17 @@
 
 const RE_ASMAUL_HUSNA = /^Asmaul\s+Husna\s*\(\s*(\d+)\s*(?:sampai|s\/d|-|–)\s*(\d+)\s*\)$/i;
 
+/* "Menerampilkan hafalan do'a pada jenjang sebelumnya" -- toleran thd
+   varian tanda kutip apostrof ("do'a" vs "do'a"). Dipakai di LEBIH DARI
+   SATU tempat (Laporan Perkembangan Santri & Tambah Materi Klasikal,
+   2026-09-02) -- SATU regex di sini supaya keduanya tidak diam-diam
+   ngedrift kalau baris Prota-nya berubah bentuk. */
+const RE_MENERAMPILKAN = /^menerampilkan\s+hafalan\s+do.?a\s+pada\s+jenjang\s+sebelumnya$/i;
+
+export function adalahMenerampilkanJenjangSebelumnya(teks: string): boolean {
+  return RE_MENERAMPILKAN.test(teks);
+}
+
 /** Satu baris Prota "1. Teks \n2. Teks lain" -> ["Teks", "Teks lain"]. */
 export function uraikanTargetDoa(teks: string | null): string[] {
   if (!teks) return [];
