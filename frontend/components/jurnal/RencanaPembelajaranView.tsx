@@ -45,7 +45,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  BookOpen, Tag, Calendar, Hash, Target, FileText, Link2, Bell,
+  BookOpen, Tag, Calendar, Hash, FileText, Bell,
   X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
@@ -537,9 +537,7 @@ export default function RencanaPembelajaranView() {
   const [posisiTanggalPicker, setPosisiTanggalPicker] = useState<PosisiPicker | null>(null);
   const tanggalBtnRef = useRef<HTMLButtonElement>(null);
   const [pertemuanKeBaru, setPertemuanKeBaru] = useState('');
-  const [tujuanBaru, setTujuanBaru] = useState('');
   const [catatanBaru, setCatatanBaru] = useState('');
-  const [referensiBaru, setReferensiBaru] = useState('');
   const [pengingatBaru, setPengingatBaru] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
 
@@ -548,9 +546,7 @@ export default function RencanaPembelajaranView() {
     setTopikBaru('');
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
     setPertemuanKeBaru('');
-    setTujuanBaru('');
     setCatatanBaru('');
-    setReferensiBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
   }
@@ -865,9 +861,7 @@ export default function RencanaPembelajaranView() {
         topik: topikBaru.trim() === '' ? null : topikBaru.trim(),
         tanggal_rencana: tanggalRencanaBaru,
         pertemuan_ke: pertemuanKeBaru.trim() === '' ? null : pertemuanKeBaru.trim(),
-        tujuan_pembelajaran: tujuanBaru.trim() === '' ? null : tujuanBaru.trim(),
         catatan: catatanBaru.trim() === '' ? null : catatanBaru.trim(),
-        referensi: referensiBaru.trim() === '' ? null : referensiBaru.trim(),
         pengingat_aktif: pengingatBaru,
       });
       if (err) throw new Error(err.message);
@@ -1430,15 +1424,6 @@ export default function RencanaPembelajaranView() {
                   />
                 </FieldTambah>
 
-                <FieldTambah label="Tujuan Pembelajaran">
-                  <InputIkon
-                    value={tujuanBaru}
-                    onChange={setTujuanBaru}
-                    placeholder="Apa yang ingin dicapai dari materi ini?"
-                    ikon={<Target size={16} />}
-                  />
-                </FieldTambah>
-
                 <FieldTambah label="Catatan">
                   <div className="relative">
                     <textarea
@@ -1456,15 +1441,6 @@ export default function RencanaPembelajaranView() {
                   <div className="mt-1 text-right text-[11px] text-text-faint">{catatanBaru.length}/200</div>
                 </FieldTambah>
 
-                <FieldTambah label="Referensi / Sumber">
-                  <InputIkon
-                    value={referensiBaru}
-                    onChange={setReferensiBaru}
-                    placeholder="Buku, ayat, hadits, atau sumber lain"
-                    ikon={<Link2 size={16} />}
-                  />
-                </FieldTambah>
-
                 <div className="mb-1 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3.5 py-3">
                   <div className="flex items-center gap-2.5">
                     <span className="text-text-dim">
@@ -1475,19 +1451,22 @@ export default function RencanaPembelajaranView() {
                       <div className="text-[11px] text-text-dim">Ingatkan saya sebelum tanggal rencana</div>
                     </div>
                   </div>
+                  {/* Sakelar: knob dipusatkan lewat flex + geser lewat
+                      inline-style translateX (bukan kelas arbitrer
+                      Tailwind yang bisa diam-diam gagal ter-generate di
+                      v4) -- perbaikan owner 2026-09-03 "bulatnya keluar
+                      jalur". */}
                   <button
                     type="button"
                     role="switch"
                     aria-checked={pengingatBaru}
                     onClick={() => setPengingatBaru((v) => !v)}
-                    className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-none transition-colors duration-150 ${
-                      pengingatBaru ? 'bg-indigo' : 'bg-border'
-                    }`}
+                    className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-none p-0 transition-colors duration-150"
+                    style={{ background: pengingatBaru ? 'var(--indigo)' : 'var(--border)' }}
                   >
                     <span
-                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-150 ${
-                        pengingatBaru ? 'translate-x-[22px]' : 'translate-x-0.5'
-                      }`}
+                      className="block h-5 w-5 rounded-full bg-white shadow transition-transform duration-150"
+                      style={{ transform: pengingatBaru ? 'translateX(22px)' : 'translateX(2px)' }}
                     />
                   </button>
                 </div>
