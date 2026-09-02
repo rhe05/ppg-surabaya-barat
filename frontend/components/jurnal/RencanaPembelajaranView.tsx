@@ -57,7 +57,7 @@ import SelectKustom, { type OpsiSelect } from '@/components/ui/SelectKustom';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
-import { namaMateriTampil } from '@/lib/kategori';
+import { namaMateriTampil, KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
@@ -550,11 +550,22 @@ export default function RencanaPembelajaranView() {
   const [catatanBaru, setCatatanBaru] = useState('');
   const [pengingatBaru, setPengingatBaru] = useState(false);
   const [menyimpan, setMenyimpan] = useState(false);
+  /* Peraga Tilawati (halaman) -- muncul OTOMATIS di borang Materi Ngaji
+     KHUSUS saat: ruang jenjang PAUD-TK s.d. 3 DAN materi terpilih
+     "Baca Huruf Al-Qur'an" (diminta owner 2026-09-03). Disimpan sbg
+     bagian `judul`: "Baca Huruf Al-Qur'an: Peraga Tilawati hal X-Y". */
+  const [peragaTilawatiDari, setPeragaTilawatiDari] = useState('');
+  const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
+  const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
+  const tampilPeragaTilawati =
+    judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
 
   function bukaFormTambah() {
     setJudulBaru('');
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
     setPertemuanKeBaru('');
+    setPeragaTilawatiDari('');
+    setPeragaTilawatiSampai('');
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
@@ -822,7 +833,16 @@ export default function RencanaPembelajaranView() {
 
   async function simpanMateriBaru() {
     if (kelasId === '' || judulBaru.trim().length === 0 || tanggalRencanaBaru === '') return;
-    const judul = judulBaru.trim();
+    let judul = judulBaru.trim();
+    /* Peraga Tilawati (kondisi khusus di atas): rentang halaman jadi
+       bagian judul supaya tampil di kartu Rencana & Pelaksanaan tanpa
+       kolom DB baru. "Pertemuan ke" pakai field pertemuan_ke biasa. */
+    if (tampilPeragaTilawati) {
+      const d = peragaTilawatiDari.trim();
+      const s = peragaTilawatiSampai.trim();
+      const rentang = d && s ? `${d}–${s}` : d || s;
+      if (rentang) judul = `Baca Huruf Al-Qur'an: Peraga Tilawati hal ${rentang}`;
+    }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
        Klasikal (dropdown "Masukkan ke" dihapus 2026-09-03, diminta
        owner). */
@@ -1414,14 +1434,71 @@ export default function RencanaPembelajaranView() {
                   </datalist>
                 </FieldTambah>
 
-                <FieldTambah label="Pertemuan ke-">
-                  <InputIkon
-                    value={pertemuanKeBaru}
-                    onChange={setPertemuanKeBaru}
-                    placeholder="Contoh: Pertemuan ke-1"
-                    ikon={<Hash size={16} />}
-                  />
-                </FieldTambah>
+                {/* KHUSUS: ruang jenjang PAUD-TK s.d. 3 + materi "Baca
+                    Huruf Al-Qur'an" -> Peraga Tilawati (rentang halaman)
+                    + Pertemuan ke, sebaris (diminta owner 2026-09-03).
+                    Menggantikan field "Pertemuan ke-" biasa selama
+                    kondisi ini aktif. */}
+                {tampilPeragaTilawati ? (
+                  <div className="mb-3.5 flex items-start gap-3">
+                    <div className="min-w-0 flex-1">
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                        Peraga Tilawati
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <div className="relative flex-1">
+                          <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[11px] font-semibold text-text-faint">
+                            hal
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            value={peragaTilawatiDari}
+                            onChange={(e) => setPeragaTilawatiDari(e.target.value)}
+                            className="w-full rounded-[var(--radius)] border border-border bg-panel py-2 pr-1.5 pl-8 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                          />
+                        </div>
+                        <span className="shrink-0 text-[11px] text-text-faint">s/d</span>
+                        <div className="relative flex-1">
+                          <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[11px] font-semibold text-text-faint">
+                            hal
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            value={peragaTilawatiSampai}
+                            onChange={(e) => setPeragaTilawatiSampai(e.target.value)}
+                            className="w-full rounded-[var(--radius)] border border-border bg-panel py-2 pr-1.5 pl-8 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="w-[84px] shrink-0">
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                        Pertemuan ke
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        value={pertemuanKeBaru}
+                        onChange={(e) => setPertemuanKeBaru(e.target.value)}
+                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <FieldTambah label="Pertemuan ke-">
+                    <InputIkon
+                      value={pertemuanKeBaru}
+                      onChange={setPertemuanKeBaru}
+                      placeholder="Contoh: Pertemuan ke-1"
+                      ikon={<Hash size={16} />}
+                    />
+                  </FieldTambah>
+                )}
 
                 <FieldTambah label="Catatan">
                   <div className="relative">
