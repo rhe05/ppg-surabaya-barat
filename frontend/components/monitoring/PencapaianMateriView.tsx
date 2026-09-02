@@ -50,14 +50,25 @@
    fetch-nya (`muatPengulanganSantri`, RPC 4-table join) ikut dilewati
    utk guru, bukan cuma UI-nya. Admin TETAP melihat kedua sisi seperti
    sebelumnya. "Sementara" -- jangan hapus kodenya, tinggal balikkan
-   syarat `!adalahGuru` kalau owner minta ditampilkan lagi. */
+   syarat `!adalahGuru` kalau owner minta ditampilkan lagi.
+
+   PUTARAN KEENAM (2026-09-02 malam, diminta owner): pemilih periode
+   Bulan/Semester/Tahun Ajaran DISEDERHANAKAN jadi Bulan+Tahun saja
+   ("filter kalender cukup tampilkan bulan sama tahun saja, samakan dgn
+   fitur yang lain, tidak usah semester dan tidak usah tahun ajaran") --
+   panelnya sekarang dua SelectKustom (Bulan, Tahun), pola SAMA PERSIS
+   RiwayatPembelajaranView, bukan lagi 3 pil KunciPeriode. `PenyaringPeriode.tsx`
+   & `rentangSemester`/`rentangTahunAjaran`/`rentangPeriode`/`KunciPeriode`
+   di lib/periodeAkademik.ts jadi tidak terpakai lagi di mana pun --
+   DIHAPUS (bukan cuma disembunyikan; tidak ada sisa pemanggil lain,
+   sudah dicek grep sebelum menghapus). `rentangBulan` TETAP dipakai. */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import Skeleton from '@/components/ui/Skeleton';
-import PenyaringPeriode from '@/components/jurnal/PenyaringPeriode';
+import SelectKustom from '@/components/ui/SelectKustom';
 import {
   muatKelasGuru,
   muatPengulanganKelas,
@@ -66,10 +77,15 @@ import {
   type PengulanganSantri,
   type KelasJurnal,
 } from '@/lib/dataGuru';
-import { rentangPeriode, type KunciPeriode } from '@/lib/periodeAkademik';
+import { rentangBulan } from '@/lib/periodeAkademik';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
+
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
@@ -126,22 +142,20 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       .then(({ data }) => setKelasAdmin(data ?? []));
   }, [adalahGuru, kelompokId]);
 
-  /* ── Periode: acuan "sekarang" dihitung sekali -- layar ini SELALU
-     periode BERJALAN, bukan bisa ditengok ke bulan lampau (perluasan
-     terpisah kalau nanti dibutuhkan). SATU pemilih periode utk KEDUA
-     sisi (per kelas & per santri) -- dulu masing-masing punya pemilih
-     sendiri di dua layar berbeda, sekarang satu layar wajib satu sumber
-     kebenaran, kalau tidak keduanya bisa menampilkan periode yang
-     berbeda tanpa guru sadar. */
-  const [kunciPeriode, setKunciPeriode] = useState<KunciPeriode>('bulan');
-  const [acuan] = useState(() => {
-    const d = new Date();
-    return { tahun: d.getFullYear(), bulan: d.getMonth() + 1 };
-  });
-  const periode = useMemo(
-    () => rentangPeriode(kunciPeriode, acuan.tahun, acuan.bulan),
-    [kunciPeriode, acuan]
-  );
+  /* ── Periode: Bulan+Tahun yang bisa diganti, pola SAMA PERSIS Riwayat
+     Pembelajaran -- bawaannya bulan berjalan, tapi guru/admin bebas
+     menengok bulan lain (bukan lagi terkunci ke "sekarang" spt saat
+     masih ada opsi Semester/Tahun Ajaran). SATU pemilih utk KEDUA sisi
+     (per kelas & per santri) -- satu layar wajib satu sumber kebenaran,
+     kalau tidak keduanya bisa menampilkan bulan yang berbeda tanpa
+     guru sadar. */
+  const sekarang = new Date();
+  const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
+  const [tahun, setTahun] = useState(sekarang.getFullYear());
+  const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
+  const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
+  const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
+  const periode = useMemo(() => rentangBulan(tahun, bulan), [tahun, bulan]);
 
   /* Ikon kalender + panel melayang, pola SAMA PERSIS Riwayat Pembelajaran
      (RiwayatPembelajaranView.tsx) -- diminta owner 2026-09-02 sore, spy
@@ -362,16 +376,13 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
         <>
           <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihPeriodeTerbuka(false)} />
           <div
-            className="fixed z-[1100] w-[230px] rounded-[var(--radius-lg)] border border-border bg-panel p-3.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
             style={{ top: posisiPemilihPeriode.top, right: posisiPemilihPeriode.right }}
           >
-            <PenyaringPeriode
-              kunci={kunciPeriode}
-              onUbah={(k) => {
-                setKunciPeriode(k);
-                setPemilihPeriodeTerbuka(false);
-              }}
-            />
+            <div className="flex gap-2">
+              <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+              <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
+            </div>
           </div>
         </>
       )}

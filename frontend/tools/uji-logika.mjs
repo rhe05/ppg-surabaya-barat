@@ -18,7 +18,7 @@ import { barisHafalanDariTeks, uraikanBarisHafalan } from '../lib/hafalanSurat.t
 import { pecahJudulMateri } from '../lib/judulMateri.ts';
 import { rentangMinggu, mingguKeDariTanggal, labelRentangMinggu } from '../lib/mingguBulan.ts';
 import { pesanGalatDb } from '../lib/pesanGalatDb.ts';
-import { rentangBulan, rentangSemester, rentangTahunAjaran } from '../lib/periodeAkademik.ts';
+import { rentangBulan } from '../lib/periodeAkademik.ts';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -160,28 +160,9 @@ periksa(
   'Gagal menyimpan.'
 );
 
-/* ── periodeAkademik: rentang Bulan/Semester/Tahun Ajaran ─────────── */
-
-periksa(
-  'September (bulan 9) -> Semester 1, sesuai kartu Klasikal Kurikulum',
-  rentangSemester(2026, 9),
-  { awal: '2026-07-01', akhir: '2026-12-31', label: 'Semester 1 · 2026/2027' }
-);
-
-periksa(
-  'Maret (bulan 3) -> Semester 2, tahun ajaran yg SAMA dgn Semester 1 sebelumnya',
-  rentangSemester(2027, 3),
-  { awal: '2027-01-01', akhir: '2027-06-30', label: 'Semester 2 · 2026/2027' }
-);
-
-periksa(
-  'Tahun Ajaran selalu 1 Juli s/d 30 Juni, apa pun bulan yg dipilih di dalamnya',
-  [rentangTahunAjaran(2026, 9), rentangTahunAjaran(2027, 3)],
-  [
-    { awal: '2026-07-01', akhir: '2027-06-30', label: 'Tahun Ajaran 2026/2027' },
-    { awal: '2026-07-01', akhir: '2027-06-30', label: 'Tahun Ajaran 2026/2027' },
-  ]
-);
+/* ── periodeAkademik: rentang Bulan ──────────────────────────────────
+   (Semester/Tahun Ajaran DIHAPUS 2026-09-02 malam, lihat komentar
+   kepala lib/periodeAkademik.ts) */
 
 periksa(
   'rentangBulan menghitung hari terakhir yg benar (Februari kabisat)',
