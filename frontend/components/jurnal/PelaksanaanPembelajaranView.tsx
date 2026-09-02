@@ -25,6 +25,15 @@
    penulisannya berbentuk satu sesi absensi ber-versi (cek konflik
    lost-update), bukan baris-baris berdiri sendiri seperti di sini.
 
+   PENGUNCIAN MENURUT TANGGAL (2026-09-02, diminta owner "hampir sama
+   seperti input kehadiran"): materi menampilkan tanggal rencananya, dan
+   baru boleh ditandai kalau harinya sudah berjalan -- materi yang
+   dijadwalkan besok terkunci, materi hari ini terkunci sampai jam mulai
+   kelas lewat, materi hari-hari yang sudah lewat bebas disusulkan. Lihat
+   alasanTerkunci(). Tanggal yang TERCATAT saat guru mencentang adalah
+   tanggal rencananya (bukan "hari ini" seperti dulu), dan guru bisa
+   mengubahnya lewat "Disampaikan pada" di baris yang terbuka.
+
    PUTARAN KEDUA (diminta owner, "standar produk SaaS profesional"): ikon
    lucide-react, <select> Kelas -> SelectKustom, "Memuat..." -> Skeleton,
    pesan/error inline -> toast. Hero TETAP ADA di layar ini (beda dari
@@ -39,7 +48,7 @@ import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
 import TinggiHalus from '@/components/ui/TinggiHalus';
-import { type PosisiPicker } from '@/components/ui/TanggalPicker';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 
@@ -48,7 +57,7 @@ const NAMA_BULAN = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-type Kelas = { id: number; nama: string };
+type Kelas = { id: number; nama: string; jam_mulai: string | null };
 type Baris = {
   /* Kunci LOKAL yang tidak pernah berubah selama baris hidup di layar --
      `id` DB belum ada saat materi tambahan baru dibuat, dan sejak
@@ -64,12 +73,51 @@ type Baris = {
      baris mana yang masih tertinggal saat penyimpanan gagal. */
   statusAsli: 'belum' | 'disampaikan';
   catatanAsli: string;
+  /* Tanggal RENCANA (disusun di layar Rencana Pembelajaran). Dipakai dua
+     hal sekaligus (2026-09-02, diminta owner): ditampilkan di baris, dan
+     jadi dasar penguncian -- materi yang dijadwalkan besok tidak boleh
+     ditandai hari ini. */
+  tanggalRencana: string | null;
+  /* Tanggal materi itu BENAR-BENAR disampaikan. Dulu selalu diisi
+     otomatis "hari ini"; sekarang bisa diatur guru (mis. Rabu ini
+     menandai materi Senin lalu -- yang tercatat harus Senin, bukan
+     Rabu). Null saat status 'belum'. */
+  tanggalDisampaikan: string | null;
+  tanggalDisampaikanAsli: string | null;
 };
 
 type StatusSimpan = 'diam' | 'menyimpan' | 'tersimpan' | 'gagal';
 
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  const d = new Date();
+  const dua = (n: number) => String(n).padStart(2, '0');
+  /* JANGAN toISOString(): itu UTC, dan di WIB (UTC+7) tanggal 1 pukul
+     00.30 akan terbaca sbg tanggal 31 bulan sebelumnya -- persis bug #31
+     di ERROR_LOG. Sejak layar ini mengunci baris berdasarkan tanggal,
+     salah satu hari berarti materi hari ini ikut terkunci. */
+  return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
+}
+
+function jamSekarangStr() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+function tanggalPanjang(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+function tanggalPendek(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
 }
 
 /* Judul materi disusun bertingkat, bukan satu kalimat panjang yang
@@ -150,6 +198,21 @@ export default function PelaksanaanPembelajaranView() {
 
   const [baris, setBaris] = useState<Baris[]>([]);
   const [terbukaUid, setTerbukaUid] = useState<string | null>(null); // baris yg catatannya sedang diperluas
+  /* Jam berjalan, disegarkan tiap menit. Penguncian "sesi belum mulai"
+     bergantung jam, dan tanpa denyut ini baris tetap terkunci sampai
+     guru menyentuh layar -- guru yang membuka aplikasi 5 menit sebelum
+     KBM akan mengira aplikasinya rusak. */
+  /* Kalender "Disampaikan pada" -- satu instans dipakai bergantian oleh
+     baris mana pun yang sedang membukanya (uid-nya disimpan di sini),
+     bukan satu kalender per baris. */
+  const [tanggalPickerUid, setTanggalPickerUid] = useState<string | null>(null);
+  const [posisiTanggalBaris, setPosisiTanggalBaris] = useState<PosisiPicker | null>(null);
+  const tombolTanggalRef = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [jamKini, setJamKini] = useState(jamSekarangStr());
+  useEffect(() => {
+    const t = setInterval(() => setJamKini(jamSekarangStr()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const [loading, setLoading] = useState(false);
   const [statusSimpan, setStatusSimpan] = useState<StatusSimpan>('diam');
   const [jamTersimpan, setJamTersimpan] = useState<string | null>(null);
@@ -179,7 +242,7 @@ export default function PelaksanaanPembelajaranView() {
     if (guruId == null) return;
     supabase
       .from('kelas')
-      .select('id, nama')
+      .select('id, nama, jam_mulai')
       .eq('guru_id', guruId)
       .is('deleted_at', null)
       .order('nama')
@@ -199,7 +262,7 @@ export default function PelaksanaanPembelajaranView() {
     try {
       const { data, error: err } = await supabase
         .from('jurnal_materi')
-        .select('id, judul, status, catatan')
+        .select('id, judul, status, catatan, tanggal_rencana, tanggal_disampaikan')
         .eq('kelas_id', kelasId)
         .eq('tahun', tahun)
         .eq('bulan', bulan)
@@ -216,6 +279,9 @@ export default function PelaksanaanPembelajaranView() {
           catatan: m.catatan ?? '',
           statusAsli: m.status as 'belum' | 'disampaikan',
           catatanAsli: m.catatan ?? '',
+          tanggalRencana: m.tanggal_rencana ?? null,
+          tanggalDisampaikan: m.tanggal_disampaikan ?? null,
+          tanggalDisampaikanAsli: m.tanggal_disampaikan ?? null,
         })),
       );
     } catch (e) {
@@ -251,7 +317,9 @@ export default function PelaksanaanPembelajaranView() {
       const status = b.status;
       const catatan = b.catatan;
       const catatanDb = catatan.trim() === '' ? null : catatan.trim();
-      const tanggal = status === 'disampaikan' ? todayStr() : null;
+      /* Bukan lagi "selalu hari ini": yang tercatat adalah tanggal yang
+         dipegang baris ini (baku dari tanggal rencana, bisa diubah guru). */
+      const tanggal = status === 'disampaikan' ? (b.tanggalDisampaikan ?? todayStr()) : null;
       setStatusSimpan('menyimpan');
       try {
         if (b.id === null) {
@@ -271,7 +339,7 @@ export default function PelaksanaanPembelajaranView() {
             .single();
           if (err) throw new Error(err.message);
           setBaris((prev) =>
-            prev.map((x) => (x.uid === uid ? { ...x, id: data.id, statusAsli: status, catatanAsli: catatan } : x)),
+            prev.map((x) => (x.uid === uid ? { ...x, id: data.id, statusAsli: status, catatanAsli: catatan, tanggalDisampaikanAsli: tanggal } : x)),
           );
         } else {
           const { error: err } = await supabase
@@ -280,7 +348,7 @@ export default function PelaksanaanPembelajaranView() {
             .eq('id', b.id);
           if (err) throw new Error(err.message);
           setBaris((prev) =>
-            prev.map((x) => (x.uid === uid ? { ...x, statusAsli: status, catatanAsli: catatan } : x)),
+            prev.map((x) => (x.uid === uid ? { ...x, statusAsli: status, catatanAsli: catatan, tanggalDisampaikanAsli: tanggal } : x)),
           );
         }
         setJamTersimpan(
@@ -321,11 +389,27 @@ export default function PelaksanaanPembelajaranView() {
   }
 
   function toggleStatus(idx: number) {
-    const uid = baris[idx].uid;
+    const asal = baris[idx];
+    const uid = asal.uid;
+    /* Penahan kedua, di samping kotak centang yang memang sudah
+       dinonaktifkan: baris terkunci tidak boleh berubah lewat jalan lain
+       mana pun (mis. jam mulai terlewati saat baris sedang terbuka). */
+    const terkunci = alasanTerkunci(asal);
+    if (terkunci) {
+      push(terkunci, 'info');
+      return;
+    }
     setBaris((prev) =>
-      prev.map((b) =>
-        b.uid === uid ? { ...b, status: b.status === 'disampaikan' ? 'belum' : 'disampaikan' } : b,
-      ),
+      prev.map((b) => {
+        if (b.uid !== uid) return b;
+        const status = b.status === 'disampaikan' ? 'belum' : 'disampaikan';
+        return {
+          ...b,
+          status,
+          tanggalDisampaikan:
+            status === 'disampaikan' ? (b.tanggalDisampaikan ?? tanggalDisampaikanBaku(b)) : null,
+        };
+      }),
     );
     setTerbukaUid((prev) => (prev === uid ? prev : uid));
     /* Jeda 0: tetap lewat setTimeout supaya simpanBaris membaca barisRef
@@ -337,6 +421,14 @@ export default function PelaksanaanPembelajaranView() {
     const uid = baris[idx].uid;
     setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, catatan } : b)));
     jadwalkanSimpan(uid, 900);
+  }
+
+  /* Guru mengubah "materi ini tersampaikan hari apa" lewat kalender di
+     baris yang terbuka. Tanggal masa depan tidak bisa dipilih (kalender
+     mematikannya), jadi di sini cukup menyimpan. */
+  function ubahTanggalDisampaikan(uid: string, iso: string) {
+    setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, tanggalDisampaikan: iso } : b)));
+    jadwalkanSimpan(uid, 0);
   }
 
   function tambahMateriTambahan() {
@@ -352,6 +444,11 @@ export default function PelaksanaanPembelajaranView() {
         catatan: '',
         statusAsli: 'belum',
         catatanAsli: '',
+        /* Materi tambahan tidak punya rencana -- ia memang materi yang
+           baru saja disampaikan, jadi tercatat hari ini. */
+        tanggalRencana: null,
+        tanggalDisampaikan: todayStr(),
+        tanggalDisampaikanAsli: null,
       },
     ]);
     setJudulTambahan('');
@@ -363,7 +460,12 @@ export default function PelaksanaanPembelajaranView() {
      masih beda dari server, satu per satu. */
   async function simpanUlangYangTertinggal() {
     for (const b of barisRef.current) {
-      if (b.id === null || b.status !== b.statusAsli || b.catatan !== b.catatanAsli) {
+      if (
+        b.id === null ||
+        b.status !== b.statusAsli ||
+        b.catatan !== b.catatanAsli ||
+        b.tanggalDisampaikan !== b.tanggalDisampaikanAsli
+      ) {
         await simpanBaris(b.uid);
       }
     }
@@ -373,11 +475,55 @@ export default function PelaksanaanPembelajaranView() {
   const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
   const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
 
+  /* ── Penguncian menurut tanggal (2026-09-02, diminta owner) ─────────
+     Meniru tiga penahan Input Kehadiran, seperlunya untuk layar ini:
+
+     1. Materi yang tanggal rencananya MASIH DI DEPAN tidak boleh
+        ditandai sama sekali -- menandai materi besok sbg "sudah
+        disampaikan" hari ini itu laporan palsu, bukan sekadar salah
+        ketik.
+     2. Materi HARI INI baru boleh ditandai setelah jam mulai kelasnya
+        lewat (kolom kelas.jam_mulai, sumber yang sama dipakai penahan
+        "Sesi Belum Dimulai" di app/absensi/page.tsx).
+     3. Materi yang tanggalnya SUDAH LEWAT bebas ditandai kapan saja --
+        justru itu gunanya layar ini (hari Rabu menyusulkan materi Senin).
+
+     Materi tanpa tanggal rencana (materi tambahan yang diketik guru saat
+     itu juga) diperlakukan sbg materi hari ini: ikut aturan nomor 2. */
+  const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
+  const jamMulaiKelas = kelasAktif?.jam_mulai ? kelasAktif.jam_mulai.slice(0, 5) : null;
+
+  function alasanTerkunci(b: Baris): string | null {
+    const hariIni = todayStr();
+    const tgl = b.tanggalRencana;
+    if (tgl && tgl > hariIni) {
+      return `Baru bisa ditandai ${tanggalPanjang(tgl)}.`;
+    }
+    if ((!tgl || tgl === hariIni) && jamMulaiKelas && jamKini < jamMulaiKelas) {
+      return `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`;
+    }
+    return null;
+  }
+
+  /* Tanggal yang dicatat saat guru mencentang: tanggal RENCANA-nya
+     (itulah hari materi ini semestinya disampaikan), kecuali kalau
+     rencananya belum lewat -- pakai hari ini. Guru tetap bisa
+     mengubahnya sendiri lewat pemilih tanggal di baris yang terbuka. */
+  function tanggalDisampaikanBaku(b: Baris): string {
+    const hariIni = todayStr();
+    if (b.tanggalRencana && b.tanggalRencana <= hariIni) return b.tanggalRencana;
+    return hariIni;
+  }
+
   /* Masih ada yang belum sampai ke server? Sumber kebenarannya sama
      dengan yang dipakai simpanUlangYangTertinggal, jadi bilah bawah dan
      tombol Coba Lagi tidak mungkin berbeda pendapat. */
   const adaTertinggal = baris.some(
-    (b) => b.id === null || b.status !== b.statusAsli || b.catatan !== b.catatanAsli
+    (b) =>
+      b.id === null ||
+      b.status !== b.statusAsli ||
+      b.catatan !== b.catatanAsli ||
+      b.tanggalDisampaikan !== b.tanggalDisampaikanAsli
   );
 
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
@@ -567,6 +713,7 @@ export default function PelaksanaanPembelajaranView() {
                 {baris.map((b, idx) => {
                   const dicentang = b.status === 'disampaikan';
                   const diperluas = terbukaUid === b.uid;
+                  const terkunci = alasanTerkunci(b);
                   const { kategori, utama, rincian } = pecahJudulMateri(b.judul);
                   return (
                     <div
@@ -581,30 +728,87 @@ export default function PelaksanaanPembelajaranView() {
                       <button
                         type="button"
                         onClick={() => toggleStatus(idx)}
-                        className="flex w-full cursor-pointer items-start gap-3 border-none bg-transparent p-0 text-left"
+                        aria-disabled={terkunci !== null}
+                        className={`flex w-full items-start gap-3 border-none bg-transparent p-0 text-left ${
+                          terkunci ? 'cursor-default' : 'cursor-pointer'
+                        }`}
                       >
                         <span
                           className={`mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-150 ${
-                            dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
+                            dicentang
+                              ? 'border-sage bg-sage'
+                              : terkunci
+                                ? 'border-border bg-panel-2'
+                                : 'border-border bg-panel'
                           }`}
                         >
                           {dicentang && <Check size={13} strokeWidth={3} color="#fff" />}
                         </span>
                         <span className="min-w-0 flex-1">
-                          {kategori && <span className="label-mikro block">{kategori}</span>}
+                          {/* Baris label: kategori + TANGGAL RENCANA
+                              (tanggal-bulan-tahun, diminta owner
+                              2026-09-02) -- sebelumnya layar ini tidak
+                              pernah menampilkan materi ini untuk hari
+                              apa, padahal satu minggu bisa berisi
+                              beberapa hari KBM. */}
+                          {(kategori || b.tanggalRencana) && (
+                            <span className="label-mikro block">
+                              {[kategori, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
+                                .filter(Boolean)
+                                .join(' · ')}
+                            </span>
+                          )}
                           <span
-                            className={`block text-[15px] font-bold ${dicentang ? 'text-text-dim' : 'text-text'}`}
+                            className={`block text-[15px] font-bold ${
+                              dicentang || terkunci ? 'text-text-dim' : 'text-text'
+                            }`}
                           >
                             {utama}
                           </span>
                           {rincian && (
                             <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
                           )}
+                          {terkunci && (
+                            <span className="mt-1 block text-[12px] leading-snug text-text-faint">{terkunci}</span>
+                          )}
                         </span>
                       </button>
 
-                      {diperluas && (
+                      {diperluas && !terkunci && (
                         <div className="mt-2.5 pl-[34px]">
+                          {/* "Materi ini tersampaikan hari apa" (diminta
+                              owner 2026-09-02). Bakunya tanggal rencana,
+                              jadi menyusulkan materi Senin di hari Rabu
+                              tetap tercatat Senin -- bukan Rabu. */}
+                          {dicentang && (
+                            <div className="mb-2.5">
+                              <label className="label-mikro mb-1 block">Disampaikan pada</label>
+                              <button
+                                type="button"
+                                ref={(el) => {
+                                  tombolTanggalRef.current[b.uid] = el;
+                                }}
+                                onClick={() => {
+                                  const rect = tombolTanggalRef.current[b.uid]?.getBoundingClientRect();
+                                  if (rect) {
+                                    setPosisiTanggalBaris({
+                                      top: rect.bottom + 6,
+                                      right: window.innerWidth - rect.right,
+                                    });
+                                  }
+                                  setTanggalPickerUid((v) => (v === b.uid ? null : b.uid));
+                                }}
+                                className="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[13px] text-text"
+                              >
+                                <span>
+                                  {b.tanggalDisampaikan
+                                    ? tanggalPanjang(b.tanggalDisampaikan)
+                                    : 'Pilih tanggal'}
+                                </span>
+                                <Calendar size={15} className="text-text-faint" />
+                              </button>
+                            </div>
+                          )}
                           <label className="label-mikro mb-1 block">Catatan</label>
                           <textarea
                             value={b.catatan}
@@ -677,6 +881,23 @@ export default function PelaksanaanPembelajaranView() {
           </TinggiHalus>
         )}
       </div>
+
+      {/* Kalender "Disampaikan pada". Tanggal yang akan datang dimatikan
+          -- aturan yang sama dengan penguncian baris: pelaksanaan hanya
+          bisa dicatat untuk hari yang sudah berjalan. */}
+      <TanggalPicker
+        terbuka={tanggalPickerUid !== null}
+        posisi={posisiTanggalBaris}
+        nilai={baris.find((b) => b.uid === tanggalPickerUid)?.tanggalDisampaikan ?? todayStr()}
+        onPilih={(v) => {
+          if (tanggalPickerUid) ubahTanggalDisampaikan(tanggalPickerUid, v);
+          setTanggalPickerUid(null);
+        }}
+        onTutup={() => setTanggalPickerUid(null)}
+        tanggalNonaktif={(tglStr) =>
+          tglStr > todayStr() ? { alasan: 'Belum terjadi' } : null
+        }
+      />
 
       {/* Bilah aksi menempel di bawah (2026-09-02, diminta owner).
           Sebelumnya tombol ini ikut menggulung di ujung halaman dgn
