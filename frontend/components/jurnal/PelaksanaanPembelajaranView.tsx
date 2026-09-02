@@ -52,6 +52,33 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+/* Judul materi disusun bertingkat, bukan satu kalimat panjang yang
+   membungkus dua baris (2026-09-02, diminta owner). Bentuk yang ditulis
+   RencanaPembelajaranView saat guru memilih dari Kurikulum adalah
+   "Klasikal — Hafalan Surat: Al-Lahab, An-Nasr, Al-Kafirun": bagian
+   sebelum "—" adalah KATEGORI, sebelum ":" judul sesungguhnya, sisanya
+   rincian. Judul bebas (materi tambahan yg diketik guru) tidak punya
+   pemisah itu dan dikembalikan apa adanya sbg `utama` -- fungsi ini
+   tidak boleh memotong apa pun yang tidak dikenalinya. */
+function pecahJudulMateri(judul: string): { kategori: string | null; utama: string; rincian: string | null } {
+  let sisa = judul.trim();
+  let kategori: string | null = null;
+  const pisahKategori = sisa.split(/\s+[—–]\s+/);
+  if (pisahKategori.length === 2) {
+    kategori = pisahKategori[0].trim();
+    sisa = pisahKategori[1].trim();
+  }
+  const pisahRincian = sisa.indexOf(': ');
+  if (pisahRincian > 0) {
+    return {
+      kategori,
+      utama: sisa.slice(0, pisahRincian).trim(),
+      rincian: sisa.slice(pisahRincian + 2).trim(),
+    };
+  }
+  return { kategori, utama: sisa, rincian: null };
+}
+
 export default function PelaksanaanPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
@@ -268,6 +295,17 @@ export default function PelaksanaanPembelajaranView() {
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="pt-1.5 text-[17px] font-extrabold text-text">Pelaksanaan Pembelajaran</div>
+            {/* Konteks waktu dinyatakan SEKALI, di sini (2026-09-02,
+                diminta owner). Sebelumnya disebut empat kali dalam satu
+                layar: pil bulan, kartu tanggal hijau, judul "Pertemuan
+                Hari Ini", judul "Materi Hari Ini" -- kartu hijaunya
+                dihapus dan kedua judul di bawah tidak lagi mengulang
+                "Hari Ini". */}
+            <div className="text-[12px] text-text-dim">
+              {apakahMingguIni ? tanggalLabel : labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+              {' · '}
+              Minggu {mingguKe}
+            </div>
             {kelasList.length > 1 && (
               <div className="flex gap-2 overflow-x-auto">
                 {kelasList.map((k) => {
@@ -327,22 +365,11 @@ export default function PelaksanaanPembelajaranView() {
           </>
         )}
 
-        {/* Pil tanggal, tema hijau muda — persis screenshot owner. Isinya
-            ikut minggu yg dipilih (bukan selalu "hari ini" lagi): kalau
-            minggu yg sedang dilihat memang minggu berjalan sekarang,
-            tetap tampil tanggal hari ini spt semula; kalau bukan, tampil
-            rentang tanggal minggu itu + label "Minggu N". */}
-        <div className="mb-4 flex items-center gap-3 rounded-card border border-[#A7F3D0] bg-[#ECFDF5] px-4 py-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-sage">
-            <Calendar size={18} />
-          </span>
-          <div>
-            <div className="text-[13.5px] font-bold text-sage">
-              {apakahMingguIni ? tanggalLabel : labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
-            </div>
-            <div className="text-[11px] text-text-dim">{apakahMingguIni ? 'Hari ini' : `Minggu ${mingguKe}`}</div>
-          </div>
-        </div>
+        {/* Kartu tanggal hijau muda DIHAPUS 2026-09-02 (diminta owner):
+            isinya sudah pindah jadi baris keterangan di bawah judul.
+            Selain mengulang, warnanya jg salah kaprah -- hijau/--sage di
+            app ini berarti POSITIF/berhasil, dipakai utk info netral
+            (tanggal) warnanya jadi kehilangan arti. */}
 
         {kelasId === '' ? (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat pelaksanaan minggu ini.</p>
@@ -362,50 +389,30 @@ export default function PelaksanaanPembelajaranView() {
              thd data krn `baris` dkk hidup di state komponen induk. */
           <TinggiHalus>
             <div key={kelasId} className="animasi-konten-muncul">
-            {/* Pertemuan Hari Ini/Minggu N */}
-            <div className="mb-5 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-              <div className="mb-3 flex items-center justify-between">
-                <div className="text-[13px] font-bold text-text">
-                  {apakahMingguIni ? 'Pertemuan Hari Ini' : `Pertemuan Minggu ${mingguKe}`}
+            {/* Kemajuan pertemuan: SATU baris + bilah tipis (2026-09-02,
+                diminta owner). Sebelumnya kartu ini menyatakan fakta yang
+                sama tiga kali -- angka Direncanakan, angka Disampaikan,
+                dan cincin donat persen. Utk satu-dua materi (kasus lazim
+                di layar ini) donat 0% cuma dekorasi. Donat tetap dipakai
+                di Riwayat, tempat angkanya besar & perbandingannya
+                bermakna. */}
+            <div className="kartu-premium mb-5 px-4 py-3.5">
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="text-[13px] text-text-dim">
+                  <span className="angka-metrik text-[15px] text-text">{disampaikan}</span> dari{' '}
+                  <span className="angka-metrik text-[15px] text-text">{direncanakan}</span> materi disampaikan
                 </div>
-                <div className="text-[11.5px] text-text-dim">
-                  {disampaikan} dari {direncanakan} selesai
-                </div>
+                <div className="angka-metrik shrink-0 text-[12px] text-text-dim">{persen}%</div>
               </div>
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex gap-6">
-                  <div>
-                    <div className="text-[24px] leading-none font-extrabold text-text">{direncanakan}</div>
-                    <div className="text-[11px] text-text-dim">Direncanakan</div>
-                  </div>
-                  <div>
-                    <div className="text-[24px] leading-none font-extrabold text-sage">{disampaikan}</div>
-                    <div className="text-[11px] text-text-dim">Disampaikan</div>
-                  </div>
-                </div>
-                <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
-                  <svg viewBox="0 0 36 36" width="64" height="64">
-                    <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" strokeWidth="4" />
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.5"
-                      fill="none"
-                      stroke="var(--sage)"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeDasharray={`${(persen / 100) * 97.4} 97.4`}
-                      transform="rotate(-90 18 18)"
-                    />
-                  </svg>
-                  <span className="absolute text-[13px] font-extrabold text-text">{persen}%</span>
-                </div>
+              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
+                <div
+                  className="h-full rounded-full bg-sage transition-[width] duration-300"
+                  style={{ width: `${persen}%` }}
+                />
               </div>
             </div>
 
-            <div className="mb-3 text-[15px] font-bold text-text">
-              {apakahMingguIni ? 'Materi Hari Ini' : `Materi Minggu ${mingguKe}`}
-            </div>
+            <div className="label-mikro mb-2">{apakahMingguIni ? 'Materi' : `Materi Minggu ${mingguKe}`}</div>
 
             {/* Skeleton HANYA di pemuatan pertama (belum ada baris sama
                 sekali) -- diminta owner 2026-08-24: pindah chip kelas
@@ -433,52 +440,63 @@ export default function PelaksanaanPembelajaranView() {
             )}
 
             {baris.length > 0 && (
+              /* SATU kartu berisi baris-baris berpemisah, bukan setumpuk
+                 kartu masing2 berbingkai (2026-09-02, diminta owner).
+                 Sebelumnya ada empat lapis kotak bersarang: latar
+                 halaman > kartu > kartu materi > kotak catatan. */
               <div
-                className={`mb-4 flex flex-col gap-2.5 transition-opacity duration-200 ${
+                className={`kartu-premium mb-4 overflow-hidden transition-opacity duration-200 ${
                   loading ? 'pointer-events-none opacity-40' : 'opacity-100'
                 }`}
               >
                 {baris.map((b, idx) => {
                   const dicentang = b.status === 'disampaikan';
                   const diperluas = terbukaId === b.id || (b.id === null && dicentang);
+                  const { kategori, utama, rincian } = pecahJudulMateri(b.judul);
                   return (
                     <div
                       key={b.id ?? `baru-${idx}`}
-                      className={`rounded-card border p-3.5 transition-colors duration-150 ${
-                        dicentang ? 'border-[#A7F3D0] bg-[#ECFDF5]' : 'border-border bg-panel'
-                      }`}
+                      className="border-b border-border px-3.5 py-3 last:border-b-0"
                     >
+                      {/* Status dinyatakan SEKALI, lewat kotak centang.
+                          Lencana "Belum disampaikan"/"Disampaikan" di
+                          kanan dihapus: itu pengulangan, dan warna brass-
+                          nya membuat keadaan yang sepenuhnya normal
+                          (belum diajar jam segini) terbaca sbg peringatan. */}
                       <button
                         type="button"
                         onClick={() => toggleStatus(idx)}
-                        className="flex w-full cursor-pointer items-center gap-3 border-none bg-transparent p-0 text-left"
+                        className="flex w-full cursor-pointer items-start gap-3 border-none bg-transparent p-0 text-left"
                       >
                         <span
-                          className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 ${
+                          className={`mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-150 ${
                             dicentang ? 'border-sage bg-sage' : 'border-border bg-panel'
                           }`}
                         >
-                          {dicentang && <Check size={14} strokeWidth={3} color="#fff" />}
+                          {dicentang && <Check size={13} strokeWidth={3} color="#fff" />}
                         </span>
-                        <span className="min-w-0 flex-1 text-[14px] font-bold text-text">{b.judul}</span>
-                        <span
-                          className={`shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold ${
-                            dicentang ? 'bg-sage text-white' : 'bg-panel-2 text-brass'
-                          }`}
-                        >
-                          {dicentang ? 'Disampaikan' : 'Belum disampaikan'}
+                        <span className="min-w-0 flex-1">
+                          {kategori && <span className="label-mikro block">{kategori}</span>}
+                          <span
+                            className={`block text-[14px] font-bold ${dicentang ? 'text-text-dim' : 'text-text'}`}
+                          >
+                            {utama}
+                          </span>
+                          {rincian && (
+                            <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
+                          )}
                         </span>
                       </button>
 
                       {diperluas && (
-                        <div className="mt-2.5 pl-9">
-                          <label className="mb-1 block text-[11px] font-semibold text-text-dim">Catatan</label>
+                        <div className="mt-2.5 pl-[34px]">
+                          <label className="label-mikro mb-1 block">Catatan</label>
                           <textarea
                             value={b.catatan}
                             onChange={(e) => ubahCatatan(idx, e.target.value)}
                             placeholder="Catatan pelaksanaan (opsional)"
                             rows={2}
-                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12.5px] text-text"
+                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[12.5px] text-text"
                           />
                         </div>
                       )}
