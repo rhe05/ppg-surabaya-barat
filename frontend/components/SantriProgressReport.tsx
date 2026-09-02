@@ -74,7 +74,13 @@ import {
   muatProtaKelompok,
   namaKategori,
 } from '@/lib/dataGuru';
-import { targetAsmaulHusnaDari, ringkasPengulanganDoa } from '@/lib/materiHafalanDoa';
+import {
+  targetAsmaulHusnaDari,
+  ringkasPengulanganDoa,
+  uraikanTargetDoa,
+  adalahAsmaulHusna,
+} from '@/lib/materiHafalanDoa';
+import { suratDariTargetProta, normalisasiNamaSurat } from '@/lib/hafalanSurat';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
@@ -285,22 +291,53 @@ export default function SantriProgressReport() {
           muatPengulanganKelasDoa(kelasId, awal, akhir),
         ]);
 
-        /* Asmaul Husna: butuh target Prota kelas ini utk memutuskan
-           rentang mana yang dihitung "capai penuh" (diminta owner
-           2026-09-03, SAMA dgn Monitoring Pencapaian Materi). */
-        let targetAH: { dari: number; sampai: number } | null = null;
+        /* HANYA materi milik grade kelas ini (diminta owner 2026-09-03,
+           "seumpama ngajinya kelas 3 maka cukup tampilkan hasil materi
+           klasikal di kelas 3 saja"). RPC mengembalikan realisasi
+           klasikal RUANG ini apa adanya -- bisa memuat surat/doa jenjang
+           di bawahnya krn cek-list Klasikal di Rencana bersifat kumulatif
+           PAUD-TK s.d. kelas ruang. Saring ke daftar target Prota grade
+           kelas itu sendiri (kelasProtaDari -> satu grade, BUKAN
+           kumulatif). KHUSUS layar ini -- fitur lain tidak disentuh. */
         const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
-        if (kelasProta) {
-          const prota = await muatProtaKelompok(KELOMPOK_KURIKULUM_BERSAMA_ID, tahun);
-          const baris = prota.find(
-            (p) => p.kelas === kelasProta && namaKategori(p.kategori_kbm) === "Hafalan Do'a-Do'a Harian"
+        const prota = kelasProta
+          ? await muatProtaKelompok(KELOMPOK_KURIKULUM_BERSAMA_ID, tahun)
+          : [];
+        const cocokKategori = (p: (typeof prota)[number], bagian: string) =>
+          p.kelas === kelasProta && (namaKategori(p.kategori_kbm) ?? '').toLowerCase().includes(bagian);
+        const barisSuratProta = prota.find((p) => cocokKategori(p, 'hafalan surat'));
+        const barisDoaProta = prota.find(
+          (p) => cocokKategori(p, 'hafalan do') && (namaKategori(p.kategori_kbm) ?? '').toLowerCase().includes('harian'),
+        );
+        const targetAH = barisDoaProta
+          ? targetAsmaulHusnaDari(barisDoaProta.target, barisDoaProta.target2)
+          : null;
+
+        let barisSuratDipakai = barisKlasikal;
+        let barisDoaDipakai = barisDoa;
+        if (kelasProta && (barisSuratProta || barisDoaProta)) {
+          const suratKelas = new Set(
+            [barisSuratProta?.target ?? null, barisSuratProta?.target2 ?? null]
+              .flatMap((t) => suratDariTargetProta(t))
+              .map(normalisasiNamaSurat),
           );
-          if (baris) targetAH = targetAsmaulHusnaDari(baris.target, baris.target2);
+          barisSuratDipakai = barisKlasikal.filter((b) =>
+            suratKelas.has(normalisasiNamaSurat(b.nama_surat)),
+          );
+
+          const doaKelas = new Set(
+            [barisDoaProta?.target ?? null, barisDoaProta?.target2 ?? null]
+              .flatMap((t) => uraikanTargetDoa(t))
+              .map((s) => s.trim().toLowerCase()),
+          );
+          barisDoaDipakai = barisDoa.filter(
+            (b) => adalahAsmaulHusna(b.nama_doa) || doaKelas.has(b.nama_doa.trim().toLowerCase()),
+          );
         }
 
         materiKlasikal = {
-          hafSurat: barisKlasikal.map((b) => ({ namaSurat: b.nama_surat, jumlah: b.jumlah })),
-          hafDoa: ringkasPengulanganDoa(barisDoa, targetAH).map((b) => ({
+          hafSurat: barisSuratDipakai.map((b) => ({ namaSurat: b.nama_surat, jumlah: b.jumlah })),
+          hafDoa: ringkasPengulanganDoa(barisDoaDipakai, targetAH).map((b) => ({
             namaDoa: b.nama_doa,
             jumlah: b.jumlah,
           })),
