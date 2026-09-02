@@ -245,6 +245,9 @@ export default function PelaksanaanPembelajaranView() {
      tidak ada). Dulu cuma boolean krn layar ini hanya menampilkan satu
      minggu. */
   const [tambahanMinggu, setTambahanMinggu] = useState<number | null>(null);
+  /* Kartu bulan (pembungkus semua kartu minggu) -- lihat komentar di
+     JSX-nya utk kenapa bawaannya terbuka, beda dgn Rencana. */
+  const [bulanTerbuka, setBulanTerbuka] = useState(true);
   /* Minggu yang kartunya terbentang. Bawaannya minggu berjalan saja. */
   const [mingguTerbuka, setMingguTerbuka] = useState<Set<number>>(
     () => new Set([mingguKeDariTanggal(new Date())])
@@ -729,7 +732,30 @@ export default function PelaksanaanPembelajaranView() {
               </div>
             </div>
 
-            <div className="label-mikro mb-2">Materi {NAMA_BULAN[bulan - 1]} {tahun}</div>
+            {/* Semua kartu Minggu dibungkus SATU kartu bulan (diminta
+                owner 2026-09-02), pola yang sama dgn kartu "Materi
+                Klasikal <Bulan>" di Rencana Pembelajaran: judul bulan +
+                lencana ringkas di kanan, isinya kartu per minggu.
+                BEDANYA cuma satu, sengaja: di sini bawaannya TERBUKA.
+                Rencana adalah layar menyusun (sesekali dibuka), sedangkan
+                Pelaksanaan dipakai tiap hari untuk mencentang materi hari
+                itu -- menutupnya bawaan berarti menambah satu ketukan
+                sebelum pekerjaan pokoknya bisa dimulai. */}
+            <div className="kartu-premium mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setBulanTerbuka((v) => !v)}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+              >
+                <span className="text-[15px] font-bold text-text">
+                  Materi {NAMA_BULAN[bulan - 1]} {tahun}
+                </span>
+                <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                  {disampaikan}/{direncanakan} Materi
+                </span>
+              </button>
+              {bulanTerbuka && (
+                <div className="flex flex-col gap-3 border-t border-border p-3">
 
             {/* Skeleton HANYA di pemuatan pertama (belum ada baris sama
                 sekali) -- diminta owner 2026-08-24: pindah chip kelas
@@ -743,7 +769,7 @@ export default function PelaksanaanPembelajaranView() {
                 data baru siap lalu crossfade -- satu kali transisi halus,
                 bukan dua kali lompat. */}
             {loading && baris.length === 0 && (
-              <div className="mb-4 flex flex-col gap-2.5">
+              <div className="flex flex-col gap-2.5">
                 <Skeleton className="h-[52px] w-full" />
                 <Skeleton className="h-[52px] w-full" />
                 <Skeleton className="h-[52px] w-full" />
@@ -761,7 +787,10 @@ export default function PelaksanaanPembelajaranView() {
                  semuanya sekaligus mengubur minggu yang sedang dikerjakan. */
               <div
                 key={grup.mingguKe}
-                className={`kartu-premium mb-3 overflow-hidden transition-opacity duration-200 ${
+                /* Kartu minggu DI DALAM kartu bulan: cukup bingkai tipis
+                   tanpa bayangan sendiri -- bayangan bertumpuk di dalam
+                   kartu lain persis yang bikin tampilan terasa bersarang. */
+                className={`overflow-hidden rounded-[var(--radius)] border border-border bg-panel transition-opacity duration-200 ${
                   loading ? 'pointer-events-none opacity-40' : 'opacity-100'
                 }`}
               >
@@ -993,6 +1022,9 @@ export default function PelaksanaanPembelajaranView() {
               </div>
               );
             })}
+                </div>
+              )}
+            </div>
             </div>
           </TinggiHalus>
         )}
