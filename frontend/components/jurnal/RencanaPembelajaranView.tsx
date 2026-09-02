@@ -225,6 +225,7 @@ function FieldTambah({
   wajib,
   info,
   sembunyikanPenanda,
+  labelGelap,
   children,
 }: {
   label: string;
@@ -237,11 +238,21 @@ function FieldTambah({
      "(Opsional)" ikut tampil sama sekali (diminta owner 2026-09-02
      utk field Hafalan Do'a-Do'a Harian: "hapus tulisan opsional"). */
   sembunyikanPenanda?: boolean;
+  /* Label `text-text` (hitam pekat, --text: #0F172A) drpd `text-text-dim`
+     bawaan (abu-abu) -- dipakai KHUSUS 3 field Tambah Materi Klasikal
+     (diminta owner 2026-09-02: "ubah warna font dari abu abu menjadi
+     hitam pekat ... Tanggal, Hafalan Surat-Surat Al-Qur'an, Hafalan
+     Do'a-Do'a Harian", tujuannya keterbacaan di rekaman layar). Token
+     yg SUDAH ADA (dipakai jg utk teks isi/heading di seluruh app),
+     bukan warna baru -- tetap satu bahasa desain. */
+  labelGelap?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="mb-3.5">
-      <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text-dim">
+      <label
+        className={`mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold ${labelGelap ? 'text-text' : 'text-text-dim'}`}
+      >
         {label} {!sembunyikanPenanda && wajib && <span className="text-red">*</span>}
         {!sembunyikanPenanda && !wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
         {info && <LabelInfo teks={info} />}
@@ -1408,7 +1419,7 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex-1 overflow-y-auto px-6 pb-4">
-                <FieldTambah label="Tanggal" wajib>
+                <FieldTambah label="Tanggal" wajib labelGelap>
                   <button
                     ref={tanggalKlasikalBtnRef}
                     type="button"
@@ -1459,6 +1470,7 @@ export default function RencanaPembelajaranView() {
                 <FieldTambah
                   label="Hafalan Surat-Surat Al-Qur'an"
                   wajib
+                  labelGelap
                   info="Batas maksimal: satu halaman Al-Qur'an Pojok. Toleransi tambah satu surat jika diperlukan."
                 >
                   {opsiHafalanSurat.length === 0 ? (
@@ -1502,7 +1514,7 @@ export default function RencanaPembelajaranView() {
                   )}
                 </FieldTambah>
 
-                <FieldTambah label="Hafalan Do&rsquo;a-Do&rsquo;a Harian" sembunyikanPenanda>
+                <FieldTambah label="Hafalan Do&rsquo;a-Do&rsquo;a Harian" sembunyikanPenanda labelGelap>
                   {opsiHafalanDoa.length === 0 ? (
                     <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
                   ) : (
