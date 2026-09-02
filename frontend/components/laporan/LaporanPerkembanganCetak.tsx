@@ -75,11 +75,29 @@
    pengulangan sungguhan) -- owner pilih TANPA angka utk Do'a, hanya
    nama materinya. Bentuknya: bukan pil terpisah-pisah (renggang) &
    bukan tabel bergaris kaku -- SATU kartu tergabung per bagian
-   (`divide-x divide-y divide-border` di atas `flex flex-wrap`),
-   `rounded-xl` + `overflow-hidden` di kartu pembungkusnya SAJA (bukan
-   tiap item) -- garis antar-item lurus/kaku spt tabel, tapi UJUNG
-   kartunya (4 sudut luar) melengkung. Hafalan Surat TETAP py angka
-   "N×" (realisasi pengulangan sungguhan, beda sifat dgn Do'a). */
+   (`divide-x divide-y divide-border`), `rounded-xl` + `overflow-hidden`
+   di kartu pembungkusnya SAJA (bukan tiap item) -- garis antar-item
+   lurus/kaku spt tabel, tapi UJUNG kartunya (4 sudut luar) melengkung.
+   Hafalan Surat TETAP py angka "N×" (realisasi pengulangan sungguhan,
+   beda sifat dgn Do'a).
+
+   PUTARAN KESEBELAS (2026-09-02, diminta owner): dasarnya masih `flex
+   flex-wrap` (2026-09-02 putaran ke-8/10) -- baris ke-2 dst TIDAK
+   sejajar kolomnya dgn baris pertama krn lebar tiap item beda-beda
+   (mengikuti panjang teksnya sendiri). Owner: "buat yang rapi seperti
+   contoh yang saya kirim tapi tidak kaku antara kolom atas dan kolom
+   bawah, mungkin terdiri dari 5 kolom" -- diganti `grid grid-cols-2
+   sm:grid-cols-5` (persis pola 5 kartu metrik kehadiran di atasnya)
+   supaya kolom ATAS & BAWAH benar2 sejajar (lebar tiap kolom otomatis
+   seragam, isinya bisa membungkus ke baris kedua DI DALAM selnya
+   sendiri kalau teksnya panjang -- `whitespace-nowrap` dicabut,
+   pengulangan owner: "1x [di gambar] itu contoh, nanti kalau sudah
+   jalan kemungkinan ada data pengulangan sungguhan spt Hafalan Surat"
+   -- artinya STRUKTUR field-nya (bukan cuma tampilan) sudah harus siap
+   menampung angka kalau `hafDoa` suatu saat berubah py hitungan;
+   `MateriKlasikal.hafDoa: string[]` TIDAK diubah dulu krn belum ada
+   data modelnya -- kalau nanti ada, tinggal ganti tipe & tambah
+   kolom angka spt Hafalan Surat, bukan rombak ulang tata letaknya). */
 
 export type LaporanBaris = {
   nama: string;
@@ -237,14 +255,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
               Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
             </div>
           ) : (
-            <div className="mb-4 flex flex-wrap divide-x divide-y divide-border overflow-hidden rounded-xl border border-border">
+            <div className="mb-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5">
               {laporan.materiKlasikal.hafSurat.map((b) => (
-                <span
-                  key={b.namaSurat}
-                  className="flex shrink-0 items-center gap-2 bg-panel px-3 py-1.5 text-[11px] whitespace-nowrap text-text"
-                >
-                  {b.namaSurat}
-                  <span className="font-extrabold" style={{ color: 'var(--violet)' }}>
+                <span key={b.namaSurat} className="flex items-center justify-between gap-2 bg-panel px-3 py-1.5 text-[11px] text-text">
+                  <span className="truncate">{b.namaSurat}</span>
+                  <span className="shrink-0 font-extrabold" style={{ color: 'var(--violet)' }}>
                     {b.jumlah}×
                   </span>
                 </span>
@@ -265,12 +280,9 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                   materi spesifik. Lihat PUTARAN KESEMBILAN. */}
               {menerampilkan && <div className="mb-1.5 text-[11px] text-text">{menerampilkan}</div>}
               {rincianDoa.length > 0 && (
-                <div className="flex flex-wrap divide-x divide-y divide-border overflow-hidden rounded-xl border border-border">
+                <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5">
                   {rincianDoa.map((item) => (
-                    <span
-                      key={item}
-                      className="shrink-0 bg-panel px-3 py-1.5 text-[11px] whitespace-nowrap text-text"
-                    >
+                    <span key={item} className="bg-panel px-3 py-1.5 text-[11px] text-text">
                       {item}
                     </span>
                   ))}
