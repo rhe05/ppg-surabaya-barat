@@ -395,8 +395,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
 
       {kelasId !== '' && (
         <>
-          {/* ── Sisi PER KELAS ── */}
-          <div className="label-mikro mb-2">Per Kelas</div>
+          {/* ── Sisi PER KELAS -- label "Klasikal - Hafalan Surat"
+              (diminta owner 2026-09-02 malam), bukan lagi "Per Kelas":
+              fase 1 fitur ini memang KHUSUS Klasikal Hafalan Surat
+              (Hafalan Do'a belum ikut, lihat catatan kepala berkas). */}
+          <div className="label-mikro mb-2">Klasikal - Hafalan Surat</div>
           {loadingKelas && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorKelas && <p className="mb-5 text-[13px] text-red">{errorKelas}</p>}
           {!loadingKelas && !errorKelas && (
