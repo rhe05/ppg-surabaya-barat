@@ -60,6 +60,7 @@ import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mi
 import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
 import { uraikanTargetDoa, adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 import { pesanGalatDb } from '@/lib/pesanGalatDb';
@@ -386,6 +387,24 @@ export default function RencanaPembelajaranView() {
   }, [profile?.scope_kelompok_id]);
   const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
 
+  /* Tanggal Pencak Silat ASAD se-kelompok (2026-09-03) -- pada tanggal
+     ini tidak ada klasikal, KECUALI kelas Remaja/SMA (kelasIkutAsad).
+     Se-kelompok: satu guru menandai, semua ikut. Guru mana pun bisa
+     batalkan. `muatAsad` dipanggil ulang tiap kali ada tanda/batal. */
+  const [tanggalAsad, setTanggalAsad] = useState<Set<string>>(new Set());
+  const muatAsad = useCallback(async () => {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId) return;
+    setTanggalAsad(await muatTanggalAsad(kelompokId));
+  }, [profile?.scope_kelompok_id]);
+  useEffect(() => {
+    void muatAsad();
+  }, [muatAsad]);
+
+  const namaRuangAktif = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
+  const kelasIniIkutAsad = namaRuangAktif !== '' && kelasIkutAsad(namaRuangAktif);
+  const [prosesAsad, setProsesAsad] = useState(false);
+
   /* Opsi "Hafalan Surat-Surat Al-Qur'an" utk borang Materi Klasikal --
      diminta owner 2026-08-23, kumulatif: kelas ruang guru "N" menampilkan
      materi PAUD-TK s.d. kelas N (tidak boleh lebih tinggi). Ruang & kelas
@@ -650,8 +669,49 @@ export default function RencanaPembelajaranView() {
     return 'Asmaul Husna';
   }
 
+  const tanggalKlasikalAdalahAsad =
+    kelasIniIkutAsad && tanggalKlasikalBaru !== '' && tanggalAsad.has(tanggalKlasikalBaru);
+
+  async function tandaiTanggalAsad() {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId || tanggalKlasikalBaru === '') return;
+    setProsesAsad(true);
+    try {
+      await tandaiAsad(kelompokId, tanggalKlasikalBaru, profile?.id ?? null);
+      await muatAsad();
+      setKlasikalTerbuka(false);
+      push(
+        'Tanggal ditandai Pencak Silat ASAD — klasikal dilewati untuk semua kelas (kecuali Remaja/SMA).',
+        'sukses',
+      );
+    } catch (e) {
+      push(pesanGalatDb(e, 'Gagal menandai Pencak Silat ASAD.'), 'error');
+    } finally {
+      setProsesAsad(false);
+    }
+  }
+
+  async function batalkanTanggalAsad(tanggal: string) {
+    const kelompokId = profile?.scope_kelompok_id;
+    if (!kelompokId) return;
+    setProsesAsad(true);
+    try {
+      await batalkanAsad(kelompokId, tanggal);
+      await muatAsad();
+      push('Penanda Pencak Silat ASAD dibatalkan.', 'sukses');
+    } catch (e) {
+      push(pesanGalatDb(e, 'Gagal membatalkan Pencak Silat ASAD.'), 'error');
+    } finally {
+      setProsesAsad(false);
+    }
+  }
+
   async function simpanKlasikalBaru() {
     if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0) return;
+    if (tanggalKlasikalAdalahAsad) {
+      push('Tanggal ini Pencak Silat ASAD — tidak ada klasikal. Batalkan dulu penandanya bila keliru.', 'info');
+      return;
+    }
     const suratTerpilih = hafalanSuratBaru.join(', ');
     const judul = 'Klasikal — Hafalan Surat: ' + suratTerpilih;
     const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
@@ -1177,6 +1237,7 @@ export default function RencanaPembelajaranView() {
                            ada libur di hari itu), nama liburnya ikut
                            ditampilkan spy jelas kenapa merah. */
                         const namaLibur = LIBUR_NASIONAL_2026[iso];
+                        const hariIniAsad = kelasIniIkutAsad && tanggalAsad.has(iso);
                         return (
                           <div key={iso} className="border-t border-border pt-2.5 first:border-t-0 first:pt-0">
                             <div className="flex items-start justify-between gap-2">
@@ -1186,12 +1247,30 @@ export default function RencanaPembelajaranView() {
                               </div>
                               {indeks === 0 && <KebabMenu item={itemUbahMinggu} />}
                             </div>
-                            <div className="mt-1 text-[12px] text-text-dim">
-                              Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
-                            </div>
-                            <div className="text-[12px] text-text-dim">
-                              Haf Doa: {entri?.klasikal_hafalan_doa ?? ''}
-                            </div>
+                            {hariIniAsad ? (
+                              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="text-[12px] font-bold text-red">
+                                  Pencak Silat ASAD — tidak ada klasikal
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={prosesAsad}
+                                  onClick={() => batalkanTanggalAsad(iso)}
+                                  className="cursor-pointer rounded-full border border-border bg-panel px-2 py-0.5 text-[11px] font-semibold text-text-dim disabled:opacity-50"
+                                >
+                                  Batalkan
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="mt-1 text-[12px] text-text-dim">
+                                  Haf Surat: {entri?.klasikal_hafalan_surat ?? ''}
+                                </div>
+                                <div className="text-[12px] text-text-dim">
+                                  Haf Doa: {entri?.klasikal_hafalan_doa ?? ''}
+                                </div>
+                              </>
+                            )}
                           </div>
                         );
                       })}
@@ -1532,6 +1611,43 @@ export default function RencanaPembelajaranView() {
                   />
                 </FieldTambah>
 
+                {/* Pencak Silat ASAD (2026-09-03) -- Jumat minggu ke-1/2
+                    (Kelp Petemon; kelp lain waktunya beda) seluruh
+                    kelompok latihan Pencak Silat ASAD, TIDAK ADA
+                    klasikal hari itu. Tombol ini menandai tanggal
+                    terpilih SE-KELOMPOK: begitu satu guru menekan,
+                    semua guru kelompok itu ikut. Tidak muncul utk kelas
+                    Remaja/SMA (kelasIkutAsad = false). */}
+                {kelasIniIkutAsad && tanggalKlasikalBaru !== '' && (
+                  tanggalKlasikalAdalahAsad ? (
+                    <div className="mb-3.5 rounded-[var(--radius)] border border-[rgba(220,38,38,0.4)] bg-[rgba(220,38,38,0.06)] p-3">
+                      <div className="text-[12px] font-semibold text-text">
+                        Tanggal ini ditandai Pencak Silat ASAD
+                      </div>
+                      <div className="mt-0.5 text-[11px] text-text-dim">
+                        Tidak ada klasikal hari ini untuk semua kelas kelompok (kecuali Remaja/SMA).
+                      </div>
+                      <button
+                        type="button"
+                        disabled={prosesAsad}
+                        onClick={() => batalkanTanggalAsad(tanggalKlasikalBaru)}
+                        className="mt-2 cursor-pointer rounded-[var(--radius-button)] border border-border bg-panel px-3 py-1.5 text-[12px] font-semibold text-text disabled:opacity-50"
+                      >
+                        Batalkan penanda ASAD
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={prosesAsad}
+                      onClick={tandaiTanggalAsad}
+                      className="mb-3.5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border border-dashed border-[rgba(220,38,38,0.45)] bg-[rgba(220,38,38,0.04)] py-2.5 text-[13px] font-bold text-red disabled:opacity-50"
+                    >
+                      Tandai Pencak Silat ASAD (tidak ada klasikal)
+                    </button>
+                  )
+                )}
+
                 <FieldTambah
                   label="Hafalan Surat-Surat Al-Qur'an"
                   wajib
@@ -1665,7 +1781,7 @@ export default function RencanaPembelajaranView() {
                 <button
                   type="button"
                   disabled={
-                    tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0 || menyimpanKlasikal
+                    tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0 || menyimpanKlasikal || tanggalKlasikalAdalahAsad
                   }
                   onClick={simpanKlasikalBaru}
                   className="flex flex-[1.4] cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none py-3 text-[15px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
