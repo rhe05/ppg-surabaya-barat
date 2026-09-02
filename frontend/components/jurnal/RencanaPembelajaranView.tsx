@@ -556,6 +556,7 @@ export default function RencanaPembelajaranView() {
      bagian `judul`: "Baca Huruf Al-Qur'an: Peraga Tilawati hal X-Y". */
   const [peragaTilawatiDari, setPeragaTilawatiDari] = useState('');
   const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
+  const [peragaJudulBaru, setPeragaJudulBaru] = useState('');
   const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
   const tampilPeragaTilawati =
     judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
@@ -566,6 +567,7 @@ export default function RencanaPembelajaranView() {
     setPertemuanKeBaru('');
     setPeragaTilawatiDari('');
     setPeragaTilawatiSampai('');
+    setPeragaJudulBaru('');
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
@@ -841,7 +843,10 @@ export default function RencanaPembelajaranView() {
       const d = peragaTilawatiDari.trim();
       const s = peragaTilawatiSampai.trim();
       const rentang = d && s ? `${d}–${s}` : d || s;
-      if (rentang) judul = `Baca Huruf Al-Qur'an: Peraga Tilawati hal ${rentang}`;
+      const j = peragaJudulBaru.trim();
+      let inti = "Baca Huruf Al-Qur'an";
+      if (j) inti += ` — ${j}`;
+      judul = rentang ? `${inti}: Peraga Tilawati hal ${rentang}` : inti;
     }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
        Klasikal (dropdown "Masukkan ke" dihapus 2026-09-03, diminta
@@ -1442,53 +1447,63 @@ export default function RencanaPembelajaranView() {
                 {tampilPeragaTilawati ? (
                   <div className="mb-3.5">
                    <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">
+                    <div className="shrink-0">
                       <label className="mb-1.5 block text-[12px] font-semibold text-text">
                         Peraga Tilawati
                       </label>
-                      <div className="flex items-center gap-1.5">
-                        <div className="relative flex-1">
-                          <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[11px] font-semibold text-text-faint">
-                            hal
-                          </span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            value={peragaTilawatiDari}
-                            onChange={(e) => setPeragaTilawatiDari(e.target.value)}
-                            className="w-full rounded-[var(--radius)] border border-border bg-panel py-2 pr-1.5 pl-8 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                          />
-                        </div>
-                        <span className="shrink-0 text-[11px] text-text-faint">s/d</span>
-                        <div className="relative flex-1">
-                          <span className="pointer-events-none absolute top-1/2 left-2 -translate-y-1/2 text-[11px] font-semibold text-text-faint">
-                            hal
-                          </span>
-                          <input
-                            type="number"
-                            inputMode="numeric"
-                            min={1}
-                            value={peragaTilawatiSampai}
-                            onChange={(e) => setPeragaTilawatiSampai(e.target.value)}
-                            className="w-full rounded-[var(--radius)] border border-border bg-panel py-2 pr-1.5 pl-8 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                          />
-                        </div>
+                      <div className="flex items-center gap-1">
+                        {[
+                          [peragaTilawatiDari, setPeragaTilawatiDari] as const,
+                          [peragaTilawatiSampai, setPeragaTilawatiSampai] as const,
+                        ].map(([nilai, set], i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            {i === 1 && <span className="text-[11px] text-text-faint">s/d</span>}
+                            <div className="relative w-[52px]">
+                              {/* "hal" hilang begitu halaman sungguhan
+                                  diketik (diminta owner 2026-09-03). */}
+                              {!nilai && (
+                                <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 text-[10px] font-semibold text-text-faint">
+                                  hal
+                                </span>
+                              )}
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                value={nilai}
+                                onChange={(e) => set(e.target.value)}
+                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none ${
+                                  nilai ? 'px-1' : 'pr-1 pl-6'
+                                }`}
+                              />
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <div className="w-[84px] shrink-0">
-                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                        Pertemuan ke
-                      </label>
+                    <div className="min-w-0 flex-1">
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">Judul</label>
                       <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={pertemuanKeBaru}
-                        onChange={(e) => setPertemuanKeBaru(e.target.value)}
-                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                        type="text"
+                        value={peragaJudulBaru}
+                        onChange={(e) => setPeragaJudulBaru(e.target.value)}
+                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
                       />
                     </div>
+                   </div>
+
+                   <div className="mt-3 w-[110px]">
+                     <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                       Pertemuan ke
+                     </label>
+                     <input
+                       type="number"
+                       inputMode="numeric"
+                       min={1}
+                       value={pertemuanKeBaru}
+                       onChange={(e) => setPertemuanKeBaru(e.target.value)}
+                       className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                     />
                    </div>
 
                    {/* Jilid buku tiap santri beda-beda -> bukan input,
