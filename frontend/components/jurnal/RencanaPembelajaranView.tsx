@@ -61,6 +61,14 @@ import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
+import {
+  muatKelasGuru,
+  muatMateriBulan,
+  muatProtaKelompok,
+  tandaiMateriBerubah,
+  namaKategori,
+  type ProtaBaris,
+} from '@/lib/dataJurnal';
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -289,28 +297,35 @@ export default function RencanaPembelajaranView() {
      terpisah tanpa kolom penghubung (lihat komentar panjang di
      kurikulum/page.tsx), jadi union semua kategori kelompok ini lebih
      aman drpd menebak pemetaannya & salah menyaring. */
-  const [opsiMateriKurikulum, setOpsiMateriKurikulum] = useState<string[]>([]);
+  /* SATU pengambilan kurikulum untuk seluruh layar (audit 2026-09-02).
+     Dulu tabel yang sama ditembak DUA KALI lewat dua efek terpisah --
+     sekali utk saran "Materi Ngaji", sekali utk daftar Hafalan Surat --
+     dan yang kedua ikut `kelasId` sehingga menembak ulang tiap kali guru
+     mengetuk chip kelas. Sekarang: ambil sekali (disinggahkan di
+     lib/dataJurnal.ts), saring di aplikasi. */
+  const [protaKelompok, setProtaKelompok] = useState<ProtaBaris[]>([]);
 
   useEffect(() => {
     const kelompokId = profile?.scope_kelompok_id;
     if (!kelompokId) return;
-    supabase
-      .from('kurikulum_prota')
-      .select('kelas, kategori_kbm(nama)')
-      .eq('kelompok_id', kelompokId)
-      .eq('tahun', tahun)
-      .then(({ data }) => {
-        type Baris = { kelas: string | null; kategori_kbm: { nama: string } | { nama: string }[] | null };
-        const nama = (v: Baris['kategori_kbm']) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
-        const daftar = ((data ?? []) as Baris[])
-          .map((b) => {
-            const namaAsli = nama(b.kategori_kbm);
-            return namaAsli ? namaMateriTampil(namaAsli, b.kelas) : null;
-          })
-          .filter((v): v is string => v !== null);
-        setOpsiMateriKurikulum([...new Set(daftar)].sort());
-      });
+    let batal = false;
+    muatProtaKelompok(kelompokId, tahun).then((data) => {
+      if (!batal) setProtaKelompok(data);
+    });
+    return () => {
+      batal = true;
+    };
   }, [profile?.scope_kelompok_id, tahun]);
+
+  const opsiMateriKurikulum = useMemo(() => {
+    const daftar = protaKelompok
+      .map((b) => {
+        const namaAsli = namaKategori(b.kategori_kbm);
+        return namaAsli ? namaMateriTampil(namaAsli, b.kelas) : null;
+      })
+      .filter((v): v is string => v !== null);
+    return [...new Set(daftar)].sort();
+  }, [protaKelompok]);
 
   /* Pengecualian kalender per kelompok (kalender_kelompok, 2026-08-24) --
      kelp yang tetap masuk di tanggal merah ('aktif') atau libur mendadak
@@ -343,14 +358,8 @@ export default function RencanaPembelajaranView() {
      angka) dikunci PAUD-TK saja; ruang "Pra Remaja"/"Remaja"/SMP/SMA
      (jg tanpa angka, tapi jenjangnya di ATAS kelas 9) dianggap sudah
      lulus semua jenjang SD -- tampilkan kumulatif penuh PAUD-TK s.d. 9. */
-  const [opsiHafalanSurat, setOpsiHafalanSurat] = useState<OpsiSelect[]>([]);
-
-  useEffect(() => {
-    const kelompokId = profile?.scope_kelompok_id;
-    if (!kelompokId || kelasId === '') {
-      setOpsiHafalanSurat([]);
-      return;
-    }
+  const opsiHafalanSurat = useMemo<OpsiSelect[]>(() => {
+    if (kelasId === '' || protaKelompok.length === 0) return [];
     const namaRuang = (kelasList.find((k) => k.id === kelasId)?.nama ?? '').toLowerCase();
     let kelasTarget: string[];
     if (namaRuang.includes('paud')) {
@@ -365,20 +374,11 @@ export default function RencanaPembelajaranView() {
       kelasTarget = KELAS_KURIKULUM_URUT.slice(0, batasAtas + 1);
     }
 
-    supabase
-      .from('kurikulum_prota')
-      .select('kelas, target, target2, kategori_kbm(nama)')
-      .eq('kelompok_id', kelompokId)
-      .eq('tahun', tahun)
-      .in('kelas', kelasTarget)
-      .then(({ data }) => {
-        type Baris = {
-          kelas: string | null;
-          target: string | null;
-          target2: string | null;
-          kategori_kbm: { nama: string } | { nama: string }[] | null;
-        };
-        const nama = (v: Baris['kategori_kbm']) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
+    /* Penyaringan kelas yang dulu dilakukan server lewat .in('kelas', ...)
+       kini dilakukan di sini -- datanya sudah ada di memori. */
+    const data = protaKelompok.filter((b) => kelasTarget.includes(b.kelas ?? ''));
+    {
+      {
         const labelKelas = (k: string | null) => (k === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${k}`);
         const peta = new Map<string, OpsiSelect>();
         /* Urutkan menurut kelas (PAUD/TK, 1, 2, ... 12) lalu semester --
@@ -392,11 +392,9 @@ export default function RencanaPembelajaranView() {
           const i = kelasTarget.indexOf(k ?? '');
           return i === -1 ? Number.MAX_SAFE_INTEGER : i;
         };
-        const barisTerurut = [...((data ?? []) as Baris[])].sort(
-          (a, b) => urutKelas(a.kelas) - urutKelas(b.kelas)
-        );
+        const barisTerurut = [...data].sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
         for (const b of barisTerurut) {
-          if (nama(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
+          if (namaKategori(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
           for (const [teks, semester] of [
             [b.target, 1],
             [b.target2, 2],
@@ -414,9 +412,10 @@ export default function RencanaPembelajaranView() {
             }
           }
         }
-        setOpsiHafalanSurat([...peta.values()]);
-      });
-  }, [profile?.scope_kelompok_id, kelasId, kelasList, tahun]);
+        return [...peta.values()];
+      }
+    }
+  }, [protaKelompok, kelasId, kelasList]);
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
@@ -544,6 +543,7 @@ export default function RencanaPembelajaranView() {
         : await supabase.from('jurnal_materi').insert(payload);
       if (err) throw new Error(err.message);
       push(idDiubah ? 'Materi klasikal diperbarui.' : 'Materi klasikal tersimpan.', 'sukses');
+      tandaiMateriBerubah(kelasId, tahun, bulan);
       await muatMateri();
     } catch (e) {
       setMateriList(materiListSebelum);
@@ -555,17 +555,10 @@ export default function RencanaPembelajaranView() {
 
   useEffect(() => {
     if (guruId == null) return;
-    supabase
-      .from('kelas')
-      .select('id, nama')
-      .eq('guru_id', guruId)
-      .is('deleted_at', null)
-      .order('nama')
-      .then(({ data }) => {
-        const list = (data ?? []) as Kelas[];
-        setKelasList(list);
-        setKelasId(list.length === 1 ? list[0].id : '');
-      });
+    muatKelasGuru(guruId).then((list) => {
+      setKelasList(list);
+      setKelasId(list.length === 1 ? list[0].id : '');
+    });
   }, [guruId]);
 
   const muatMateri = useCallback(async () => {
@@ -577,17 +570,7 @@ export default function RencanaPembelajaranView() {
     }
     setLoading(true);
     try {
-      const { data, error: err } = await supabase
-        .from('jurnal_materi')
-        .select('id, minggu_ke, judul, status, jenis, tanggal_rencana, klasikal_hafalan_surat, klasikal_hafalan_doa')
-        .eq('kelas_id', kelasId)
-        .eq('tahun', tahun)
-        .eq('bulan', bulan)
-        .is('deleted_at', null)
-        .order('minggu_ke', { ascending: true })
-        .order('id', { ascending: true });
-      if (err) throw new Error(err.message);
-      setMateriList((data ?? []) as Materi[]);
+      setMateriList(await muatMateriBulan(kelasId, tahun, bulan));
       setKunciMateriSiap(kunci);
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat rencana.', 'error');
@@ -638,6 +621,7 @@ export default function RencanaPembelajaranView() {
       });
       if (err) throw new Error(err.message);
       push('Materi rencana tersimpan.', 'sukses');
+      tandaiMateriBerubah(kelasId, tahun, bulan);
       await muatMateri();
     } catch (e) {
       // Gagal -> tarik lagi baris sementara.

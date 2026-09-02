@@ -40,7 +40,7 @@
    RencanaPembelajaranView.tsx yang hero-nya dihapus khusus) -- diminta
    owner cuma utk Rencana Pembelajaran. */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Plus, Check } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -52,13 +52,14 @@ import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker'
 import { useToast } from '@/components/ui/useToast';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
+import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal } from '@/lib/dataJurnal';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
 
-type Kelas = { id: number; nama: string; jam_mulai: string | null };
+type Kelas = KelasJurnal;
 type Baris = {
   /* Kunci LOKAL yang tidak pernah berubah selama baris hidup di layar --
      `id` DB belum ada saat materi tambahan baru dibuat, dan sejak
@@ -238,17 +239,10 @@ export default function PelaksanaanPembelajaranView() {
 
   useEffect(() => {
     if (guruId == null) return;
-    supabase
-      .from('kelas')
-      .select('id, nama, jam_mulai')
-      .eq('guru_id', guruId)
-      .is('deleted_at', null)
-      .order('nama')
-      .then(({ data }) => {
-        const list = (data ?? []) as Kelas[];
-        setKelasList(list);
-        setKelasId(list.length === 1 ? list[0].id : '');
-      });
+    muatKelasGuru(guruId).then((list) => {
+      setKelasList(list);
+      setKelasId(list.length === 1 ? list[0].id : '');
+    });
   }, [guruId]);
 
   const muat = useCallback(async () => {
@@ -258,17 +252,9 @@ export default function PelaksanaanPembelajaranView() {
     }
     setLoading(true);
     try {
-      const { data, error: err } = await supabase
-        .from('jurnal_materi')
-        .select('id, judul, status, catatan, tanggal_rencana, tanggal_disampaikan, minggu_ke, jenis, klasikal_hafalan_surat, klasikal_hafalan_doa')
-        .eq('kelas_id', kelasId)
-        .eq('tahun', tahun)
-        .eq('bulan', bulan)
-        .is('deleted_at', null)
-        .order('id', { ascending: true });
-      if (err) throw new Error(err.message);
+      const data = await muatMateriBulan(kelasId, tahun, bulan);
       setBaris(
-        (data ?? []).map((m) => ({
+        data.map((m) => ({
           uid: `db-${m.id}`,
           id: m.id,
           judul: m.judul,
@@ -356,6 +342,10 @@ export default function PelaksanaanPembelajaranView() {
             prev.map((x) => (x.uid === uid ? { ...x, statusAsli: status, catatanAsli: catatan, tanggalDisampaikanAsli: tanggal } : x)),
           );
         }
+        /* Singgahan bersama dibuang supaya Rencana & Riwayat tidak
+           menampilkan keadaan sebelum centang ini saat dibuka sebentar
+           lagi (lib/dataJurnal.ts). */
+        tandaiMateriBerubah(kelasId, tahun, bulan);
         setJamTersimpan(
           new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         );
@@ -508,19 +498,26 @@ export default function PelaksanaanPembelajaranView() {
      Urutan di dalam minggu: KLASIKAL DULU (hafalan surat + hafalan doa),
      baru materi KBM -- urutan yang sama dgn Rencana Pembelajaran, dan
      memang urutan mengajarnya. */
-  const mingguDipakai = [1, 2, 3, 4, 5]
-    .map((mk) => ({
-      mingguKe: mk,
-      rentang: rentangMinggu(tahun, bulan, mk),
-      isi: baris
-        .filter((b) => b.mingguKe === mk)
-        .sort((a, b) => {
-          const bobot = (x: Baris) => (x.jenis === 'klasikal' ? 0 : 1);
-          if (bobot(a) !== bobot(b)) return bobot(a) - bobot(b);
-          return (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER);
-        }),
-    }))
-    .filter((m) => m.rentang !== null);
+  /* Dibungkus useMemo (audit 2026-09-02): pengelompokan + pengurutan ini
+     dulu dihitung ulang di SETIAP render, termasuk tiap denyut jam per
+     menit dan tiap ketikan catatan. */
+  const mingguDipakai = useMemo(
+    () =>
+      [1, 2, 3, 4, 5]
+        .map((mk) => ({
+          mingguKe: mk,
+          rentang: rentangMinggu(tahun, bulan, mk),
+          isi: baris
+            .filter((b) => b.mingguKe === mk)
+            .sort((a, b) => {
+              const bobot = (x: Baris) => (x.jenis === 'klasikal' ? 0 : 1);
+              if (bobot(a) !== bobot(b)) return bobot(a) - bobot(b);
+              return (a.id ?? Number.MAX_SAFE_INTEGER) - (b.id ?? Number.MAX_SAFE_INTEGER);
+            }),
+        }))
+        .filter((m) => m.rentang !== null),
+    [baris, tahun, bulan]
+  );
 
   const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
   const jamMulaiKelas = kelasAktif?.jam_mulai ? kelasAktif.jam_mulai.slice(0, 5) : null;

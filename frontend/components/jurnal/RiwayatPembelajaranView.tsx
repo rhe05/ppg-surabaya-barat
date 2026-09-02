@@ -15,9 +15,8 @@
    -> Skeleton, error inline -> toast. Hero TETAP ADA di layar ini (beda
    dari RencanaPembelajaranView.tsx). */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Search, CheckCircle2, Clock, X } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
@@ -26,16 +25,13 @@ import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
+import { muatKelasGuru, muatMateriBulan, type MateriJurnal } from '@/lib/dataJurnal';
 
 type Kelas = { id: number; nama: string };
-type Materi = {
-  id: number;
-  minggu_ke: number;
-  judul: string;
-  status: 'belum' | 'disampaikan';
-  tanggal_disampaikan: string | null;
-  tanggal_rencana: string | null;
-};
+/* Tipe barisnya ikut sumber bersama (lib/dataJurnal.ts) -- layar ini cuma
+   memakai sebagian kolomnya, dan itu tidak apa-apa: satu query gemuk yang
+   dipakai tiga layar lebih murah drpd tiga query ramping yang mengulang. */
+type Materi = MateriJurnal;
 
 type Filter = 'semua' | 'disampaikan' | 'belum';
 
@@ -72,17 +68,10 @@ export default function RiwayatPembelajaranView() {
 
   useEffect(() => {
     if (guruId == null) return;
-    supabase
-      .from('kelas')
-      .select('id, nama')
-      .eq('guru_id', guruId)
-      .is('deleted_at', null)
-      .order('nama')
-      .then(({ data }) => {
-        const list = (data ?? []) as Kelas[];
-        setKelasList(list);
-        setKelasId(list.length === 1 ? list[0].id : '');
-      });
+    muatKelasGuru(guruId).then((list) => {
+      setKelasList(list);
+      setKelasId(list.length === 1 ? list[0].id : '');
+    });
   }, [guruId]);
 
   const muat = useCallback(async () => {
@@ -92,17 +81,7 @@ export default function RiwayatPembelajaranView() {
     }
     setLoading(true);
     try {
-      const { data, error: err } = await supabase
-        .from('jurnal_materi')
-        .select('id, minggu_ke, judul, status, tanggal_disampaikan, tanggal_rencana')
-        .eq('kelas_id', kelasId)
-        .eq('tahun', tahun)
-        .eq('bulan', bulan)
-        .is('deleted_at', null)
-        .order('minggu_ke', { ascending: true })
-        .order('id', { ascending: true });
-      if (err) throw new Error(err.message);
-      setMateriList((data ?? []) as Materi[]);
+      setMateriList(await muatMateriBulan(kelasId, tahun, bulan));
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat riwayat.', 'error');
     } finally {
@@ -121,21 +100,28 @@ export default function RiwayatPembelajaranView() {
   const belum = total - disampaikan;
   const persen = total > 0 ? Math.round((disampaikan / total) * 100) : 0;
 
-  const baris = materiList
-    .map((m) => {
-      const tanggal =
-        m.tanggal_disampaikan ??
-        m.tanggal_rencana ??
-        (() => {
-          const r = rentangMinggu(tahun, bulan, m.minggu_ke);
-          if (!r) return null;
-          return `${tahun}-${String(bulan).padStart(2, '0')}-${String(r.awal).padStart(2, '0')}`;
-        })();
-      return { ...m, tanggal };
-    })
-    .filter((m) => (filter === 'semua' ? true : m.status === filter))
-    .filter((m) => m.judul.toLowerCase().includes(cari.trim().toLowerCase()))
-    .sort((a, b) => (a.tanggal ?? '').localeCompare(b.tanggal ?? ''));
+  /* Disaring & diurutkan di dalam useMemo (audit 2026-09-02): tanpa ini
+     seluruh daftar dihitung ulang tiap render — termasuk pada SETIAP
+     ketikan di kotak cari, karena tiap ketikan mengubah state `cari`. */
+  const baris = useMemo(
+    () =>
+      materiList
+        .map((m) => {
+          const tanggal =
+            m.tanggal_disampaikan ??
+            m.tanggal_rencana ??
+            (() => {
+              const r = rentangMinggu(tahun, bulan, m.minggu_ke);
+              if (!r) return null;
+              return `${tahun}-${String(bulan).padStart(2, '0')}-${String(r.awal).padStart(2, '0')}`;
+            })();
+          return { ...m, tanggal };
+        })
+        .filter((m) => (filter === 'semua' ? true : m.status === filter))
+        .filter((m) => m.judul.toLowerCase().includes(cari.trim().toLowerCase()))
+        .sort((a, b) => (a.tanggal ?? '').localeCompare(b.tanggal ?? '')),
+    [materiList, tahun, bulan, filter, cari]
+  );
 
   const FILTER_TAB: { nilai: Filter; label: string }[] = [
     { nilai: 'semua', label: 'Semua' },
