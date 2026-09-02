@@ -34,7 +34,15 @@
    di kepala layar dihapus (sudah jelas dari label "Pencapaian Materi" +
    header layar), dan pemilih periode (dulu 3 pil Bulan/Semester/Tahun
    Ajaran selalu terlihat) diganti ikon kalender + panel melayang, pola
-   SAMA PERSIS Riwayat Pembelajaran -- satu bahasa filter di seluruh app. */
+   SAMA PERSIS Riwayat Pembelajaran -- satu bahasa filter di seluruh app.
+
+   PUTARAN KEEMPAT (2026-09-02 malam, diminta owner): utk guru, ikon
+   kalender + label periode dipindah SEJAJAR dgn judul "Monitoring"
+   (bukan lagi baris sendiri di bawah chip kelas) -- prop `judul`
+   dioper dari page.tsx KHUSUS guru, satu baris judul+chip di kiri &
+   ikon+label di kanan, pola SAMA PERSIS Riwayat Pembelajaran. Admin
+   TIDAK ikut berubah (judulnya tetap di page.tsx, ikon kalendernya
+   tetap baris sendiri di bawah dropdown Kelompok/Kelas). */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
@@ -68,7 +76,7 @@ function tanggalPendek(iso: string) {
   });
 }
 
-export default function PencapaianMateriView() {
+export default function PencapaianMateriView({ judul }: { judul?: string } = {}) {
   const { profile } = useAuth();
   const adalahGuru = profile?.role === 'guru';
 
@@ -248,35 +256,74 @@ export default function PencapaianMateriView() {
         </div>
       )}
 
-      {adalahGuru && kelasGuru.length > 1 && (
-        <div className="mb-4 flex gap-2 overflow-x-auto">
-          {kelasGuru.map((k) => {
-            const aktif = k.id === kelasId;
-            return (
-              <button
-                key={k.id}
-                type="button"
-                onClick={() => setKelasId(k.id)}
-                className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
-                  aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
-                }`}
-                style={
-                  aktif
-                    ? {
-                        background:
-                          'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)',
+      {/* Guru: judul + chip kelas SEJAJAR dgn ikon kalender + label
+          periode, satu baris -- pola SAMA PERSIS Riwayat Pembelajaran
+          (diminta owner 2026-09-02 malam: "letakan ikon kalender dan
+          info waktu ... sejajar dengan judul"). `judul` cuma dioper dari
+          page.tsx utk guru; admin tetap pola lama (dropdown Kelompok/
+          Kelas di atas, tanpa judul di sini -- judulnya di page.tsx). */}
+      {adalahGuru && judul && (
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="pt-1.5 text-[17px] font-extrabold text-text">{judul}</div>
+            {kelasGuru.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {kelasGuru.map((k) => {
+                  const aktif = k.id === kelasId;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => setKelasId(k.id)}
+                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                        aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                      }`}
+                      style={
+                        aktif
+                          ? {
+                              background:
+                                'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)',
+                            }
+                          : undefined
                       }
-                    : undefined
-                }
+                    >
+                      {k.nama}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          {kelasId !== '' && (
+            <div className="flex shrink-0 flex-col items-end gap-1">
+              <button
+                ref={ikonKalenderRef}
+                type="button"
+                aria-label="Pilih Periode"
+                onClick={() => {
+                  const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                  if (rect) {
+                    setPosisiPemilihPeriode({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                  }
+                  setPemilihPeriodeTerbuka((v) => !v);
+                }}
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-indigo-lembut text-indigo transition-all duration-150 active:scale-[0.92]"
               >
-                {k.nama}
+                <Calendar size={19} />
               </button>
-            );
-          })}
+              <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
+                {periode.label}
+              </span>
+            </div>
+          )}
         </div>
       )}
 
-      {kelasId !== '' && (
+      {/* Admin: pola lama dipertahankan apa adanya (di luar cakupan
+          permintaan owner kali ini) -- ikon kalender sendiri di bawah
+          dropdown Kelompok/Kelas, tanpa judul (judulnya ada di
+          page.tsx, terpisah dari tab). */}
+      {!adalahGuru && kelasId !== '' && (
         <div className="mb-5 flex items-center justify-between gap-3">
           <div className="label-mikro">{periode.label}</div>
           <button

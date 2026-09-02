@@ -275,15 +275,13 @@ function MonitoringContent() {
           layarnya masih dibungkus AdminSidebar apa adanya). */}
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
       <div className={adalahGuru ? 'px-[18px] pt-4 pb-10' : 'mx-auto max-w-5xl p-6'}>
-      <h1
-        className={
-          adalahGuru
-            ? 'mb-4 pt-1.5 text-[17px] font-extrabold text-text'
-            : 'mb-2 text-[24px] font-bold text-text'
-        }
-      >
-        Monitoring
-      </h1>
+      {/* Judul guru DIPINDAH ke dalam PencapaianMateriView (2026-09-02
+          malam, diminta owner): "letakan ikon kalender ... sejajar dgn
+          judul", pola SAMA PERSIS Riwayat Pembelajaran (judul+chip kelas
+          di kiri, ikon kalender+label periode di kanan, SATU baris).
+          Admin TIDAK ikut berubah -- judulnya tetap di sini, terpisah
+          dari tab. */}
+      {!adalahGuru && <h1 className="mb-2 text-[24px] font-bold text-text">Monitoring</h1>}
 
       {/* Tab hanya utk admin -- guru langsung "materi" tanpa pilihan
           (tab Kehadiran tidak pernah ada baginya, bukan cuma disembunyikan). */}
@@ -309,7 +307,7 @@ function MonitoringContent() {
         </div>
       )}
 
-      {tab === 'materi' && <PencapaianMateriView />}
+      {tab === 'materi' && <PencapaianMateriView judul={adalahGuru ? 'Monitoring' : undefined} />}
 
       {tab === 'kehadiran' && (
         <>
