@@ -60,6 +60,7 @@ import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mi
 import { namaMateriTampil } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -145,99 +146,17 @@ function jumlahHariAktifMinggu(tahun: number, bulan: number, rentang: { awal: nu
    Kode ini beda namespace dari `kelas.nama` (ruang guru, "1A") -- lihat
    komentar KATEGORI_TARGET_SEMESTER_GANDA / opsiMateriKurikulum di
    bawah utk masalah tanpa-kolom-penghubungnya. */
-const KELAS_KURIKULUM_URUT = ['PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
-
-/* Pecah target/target2 Prota (bisa multi-baris bernomor, mis. "1. A\n2.
-   B") jadi baris lepas, buang nomor "1." di depan, buang baris yg
-   mengandung "menjaga hafalan" (case-insensitive) -- itu materi
-   PENGULANGAN, bukan materi baru, diminta owner dikecualikan dari
-   pilihan klasikal. */
-function barisHafalanDariTeks(teks: string | null): string[] {
-  if (!teks) return [];
-  return teks
-    .split('\n')
-    .map((b) => b.trim())
-    .filter((b) => b !== '')
-    .map((b) => b.replace(/^\d+[.)]\s*/, '').trim())
-    .filter((b) => b !== '' && !b.toLowerCase().includes('menjaga hafalan'));
-}
-
-/* Urutan Juz 'Amma standar (surah 78-114), urutan Mushaf MENAIK
-   (An-Naba' dulu, An-Nas terakhir) -- dipakai menguraikan baris rentang
-   "X s/d Y" jadi surat satu per satu (diminta owner 2026-08-23). Rentang
-   di kurikulum ini SELALU ditulis MUNDUR dari nomor surat besar ke kecil
-   (dicek persis ke semua baris "Hafalan Surat-Surat Al-Qur'an" yg ada di
-   produksi -- bukan tebakan, mis. "Al-Kautsar(108) s/d Quraisy(106)",
-   "Al-Fiil(105) s/d Al-'Asr(103)", dst -- semuanya kontinu tanpa
-   lompatan). Ejaan baku dipakai sbg OUTPUT (bukan ejaan mentah di data,
-   yg kadang typo -- lihat ALIAS_SURAT). */
-const JUZ_AMMA_URUT = [
-  "An-Naba'", "An-Nazi'at", "'Abasa", 'At-Takwir', 'Al-Infitar', 'Al-Mutaffifin',
-  'Al-Insyiqaq', 'Al-Buruj', 'At-Tariq', "Al-A'la", 'Al-Ghasyiyah', 'Al-Fajr',
-  'Al-Balad', 'Asy-Syams', 'Al-Lail', 'Ad-Dhuha', 'Al-Insyirah', 'At-Tin',
-  "Al-'Alaq", 'Al-Qadr', 'Al-Bayyinah', 'Az-Zalzalah', "Al-'Adiyat", "Al-Qari'ah",
-  'At-Takatsur', "Al-'Asr", 'Al-Humazah', 'Al-Fiil', 'Quraisy', "Al-Ma'un",
-  'Al-Kautsar', 'Al-Kafirun', 'An-Nasr', 'Al-Lahab', 'Al-Ikhlas', 'Al-Falaq', 'An-Nas',
+const KELAS_KURIKULUM_URUT = [
+  'PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
 ];
+/* Ruang "Pra Remaja"/SMP berhenti di kelas 9, ruang SMA melanjutkan ke
+   10-12 (diminta owner 2026-09-02). Dulu keduanya sama2 mentok di 9
+   karena kelas 10-12 memang belum ada di Kurikulum. */
+const BATAS_SMP = KELAS_KURIKULUM_URUT.indexOf('9') + 1;
 
-/* Ejaan yg PERSIS muncul di data produksi tapi beda dari ejaan baku di
-   atas (dicek langsung, bukan tebakan) -- dipetakan ke ejaan baku spy
-   tetap kena walau sumbernya typo/variasi lama. Key SUDAH dinormalisasi
-   lewat normalisasiNamaSurat(). */
-const ALIAS_SURAT: Record<string, string> = {
-  quraisyh: 'Quraisy',
-  alasyr: "Al-'Asr",
-  alqoriah: "Al-Qari'ah",
-  alzalzalah: 'Az-Zalzalah',
-};
-
-function normalisasiNamaSurat(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
-const INDEKS_JUZ_AMMA = new Map<string, number>(
-  JUZ_AMMA_URUT.map((nama, i) => [normalisasiNamaSurat(nama), i])
-);
-
-function cariIndeksSurat(namaMentah: string): number | null {
-  const bersih = namaMentah.trim().replace(/^surat\s+|^surah\s+/i, '');
-  const kunci = normalisasiNamaSurat(bersih);
-  const alias = ALIAS_SURAT[kunci];
-  if (alias) return INDEKS_JUZ_AMMA.get(normalisasiNamaSurat(alias)) ?? null;
-  return INDEKS_JUZ_AMMA.get(kunci) ?? null;
-}
-
-/* Uraikan satu baris "X s/d Y" jadi surat satu per satu (diminta owner
-   2026-08-23, contoh dari owner: "Al-Fatihah s/d Al-Ikhlas" -> Al-
-   Fatihah, An-Nas, Al-Falaq, Al-Ikhlas). Kasus khusus "Al-Fatihah s/d
-   Y": Al-Fatihah bukan bagian Juz 'Amma & selalu diajarkan terpisah di
-   awal, jadi diuraikan jadi [Al-Fatihah, ...An-Nas s.d. Y] (An-Nas =
-   awal urutan hafalan juz 'amma, sesuai contoh owner). Baris tanpa
-   "s/d" (satu surat saja) dikembalikan apa adanya. Kalau salah satu
-   ujungnya TIDAK dikenali (typo baru yg belum ada di ALIAS_SURAT),
-   baris dikembalikan utuh apa adanya -- tidak didiamkan hilang. */
-function uraikanBarisHafalan(barisAsli: string): string[] {
-  const bagian = barisAsli.split(/\s+s\/d\s+/i);
-  const bersihkan = (s: string) => s.trim().replace(/^surat\s+|^surah\s+/i, '');
-  if (bagian.length !== 2) return [bersihkan(barisAsli)];
-
-  const namaA = bersihkan(bagian[0]);
-  const namaB = bersihkan(bagian[1]);
-
-  if (normalisasiNamaSurat(namaA) === 'alfatihah') {
-    const idxNas = INDEKS_JUZ_AMMA.get(normalisasiNamaSurat('An-Nas'))!;
-    const idxB = cariIndeksSurat(namaB);
-    if (idxB === null) return [barisAsli];
-    const rentang =
-      idxNas <= idxB ? JUZ_AMMA_URUT.slice(idxNas, idxB + 1) : JUZ_AMMA_URUT.slice(idxB, idxNas + 1).reverse();
-    return ['Al-Fatihah', ...rentang];
-  }
-
-  const idxA = cariIndeksSurat(namaA);
-  const idxB = cariIndeksSurat(namaB);
-  if (idxA === null || idxB === null) return [barisAsli];
-  return idxA <= idxB ? JUZ_AMMA_URUT.slice(idxA, idxB + 1) : JUZ_AMMA_URUT.slice(idxB, idxA + 1).reverse();
-}
+/* Penguraian teks Prota Hafalan Surat jadi surat satu per satu dipindah
+   ke lib/hafalanSurat.ts (2026-09-02) supaya bisa diuji langsung ke data
+   produksi lewat tools/uji-hafalan-surat.mjs -- lihat berkas itu. */
 
 let idSementara = -1;
 
@@ -436,8 +355,10 @@ export default function RencanaPembelajaranView() {
     let kelasTarget: string[];
     if (namaRuang.includes('paud')) {
       kelasTarget = ['PAUD-TK'];
-    } else if (/remaja|smp|sma/.test(namaRuang)) {
+    } else if (namaRuang.includes('sma')) {
       kelasTarget = KELAS_KURIKULUM_URUT;
+    } else if (/remaja|smp/.test(namaRuang)) {
+      kelasTarget = KELAS_KURIKULUM_URUT.slice(0, BATAS_SMP);
     } else {
       const angka = [...namaRuang.matchAll(/\d+/g)].map((m) => Number(m[0]));
       const batasAtas = angka.length > 0 ? Math.max(...angka) : 0;

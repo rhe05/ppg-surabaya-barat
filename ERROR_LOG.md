@@ -1185,6 +1185,38 @@ Sheza Banafsha (1A s.d. 2026-08-31, 2 A sejak 2026-09-01).
 
 ---
 
+## #33 — Pilihan "Hafalan Surat-Surat Al-Qur'an" di Tambah Materi Klasikal tidak terurai per surat untuk kelas 1 ke atas (2026-09-02)
+
+**Gejala** (tangkapan layar owner): di borang Tambah Materi Klasikal
+(Rencana Pembelajaran, guru mobile), pilihan kelas PAUD/TK tampil rapi per
+surat ("An-Nasr", "Al-Kafirun"), tapi kelas 1 ke atas tampil sebagai
+satu kalimat panjang: "Menambah hafalan Surat Al Kautsar s/d Surat
+Quraisy..." — tidak bisa dicentang per surat.
+
+**Akar masalah**: `uraikanBarisHafalan` memecah baris di "s/d" lalu
+mencari kedua ujungnya di daftar Juz 'Amma. Pada PAUD/TK barisnya memang
+"Surat A s/d Surat B", jadi kena. Mulai kelas 1 barisnya berawalan kata
+kerja — "Menambah hafalan Surat A s/d Surat B" — sehingga ujung kirinya
+tidak pernah dikenali dan fungsi itu mengembalikan baris utuh (perilaku
+cadangan yang benar, tapi menyembunyikan bahwa 9 dari 13 kelas tidak
+pernah terurai). Ejaan produksi yang menyimpang (Al-Qodr, At-Thiin,
+As-Sharh, Asy-Syamsi, Al-Ghosiyah, Ath-Thoriq, Al-Insyiqoq,
+Al-Muthofifin) juga baru ketahuan setelah awalan itu dibuang.
+
+**Penanganan**: logika penguraian dipindah ke `frontend/lib/hafalanSurat.ts`
++ fungsi baru `bersihkanAwalanMateri()` (buang "Menambah/Menghafal/hafalan",
+ambil isi kurung utk "surat-surat pilihan (…)"), 10 alias ejaan baru, dan
+butir "-" kini mewarisi pengecualian "menjaga hafalan" dari baris induknya
+(kelas 10). `KELAS_KURIKULUM_URUT` diperpanjang ke kelas 12; ruang SMA
+mendapat kelas 10-12, ruang SMP tetap berhenti di 9.
+
+**Kenapa tidak ketahuan lebih awal**: tidak ada cara menjalankan logika ini
+di luar komponen klien, jadi hasilnya cuma bisa dilihat dgn mata di HP.
+Sekarang ada `frontend/tools/uji-hafalan-surat.mjs` yang menjalankannya
+atas teks Prota SUNGGUHAN dari produksi dan mencetak hasil per kelas.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
