@@ -35,6 +35,38 @@ export function adalahMenerampilkanJenjangSebelumnya(teks: string): boolean {
   return RE_MENERAMPILKAN.test(teks);
 }
 
+export function adalahAsmaulHusna(teks: string): boolean {
+  return /^Asmaul\s+Husna\b/i.test(teks.trim());
+}
+
+/** "Asmaul Husna (1 sampai 99)" -> {dari:1, sampai:99}; null kalau tanpa
+ *  rentang angka (mis. cuma "Asmaul Husna"). Dipakai Monitoring
+ *  Pencapaian Materi utk memutuskan apakah satu klasikal MENCAPAI target
+ *  penuh (diminta owner 2026-09-03: rentang parsial tidak dihitung). */
+export function uraikanRentangAsmaulHusna(teks: string): { dari: number; sampai: number } | null {
+  const m = teks.trim().match(RE_ASMAUL_HUSNA);
+  return m ? { dari: Number(m[1]), sampai: Number(m[2]) } : null;
+}
+
+/* Nama ruang guru ("2 & 3A", "Pra Remaja") -> kode kelas Kurikulum
+   PAUD-TK s.d. kelas tertinggi ruang itu. SALINAN ringkas dari
+   kelasTargetKumulatif di RencanaPembelajaranView.tsx (tidak diekspor
+   dari sana; menyalin 8 baris pure lebih aman drpd merombak berkas
+   1700-baris itu). Dipakai Monitoring utk menemukan baris Prota Asmaul
+   Husna milik kelas tsb. */
+const KELAS_KURIKULUM_URUT = [
+  'PAUD-TK', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12',
+];
+export function kelasKurikulumSampai(namaRuang: string): string[] {
+  const n = namaRuang.toLowerCase();
+  if (n.includes('paud')) return ['PAUD-TK'];
+  if (n.includes('sma')) return [...KELAS_KURIKULUM_URUT];
+  if (/remaja|smp/.test(n)) return KELAS_KURIKULUM_URUT.slice(0, KELAS_KURIKULUM_URUT.indexOf('9') + 1);
+  const angka = [...n.matchAll(/\d+/g)].map((x) => Number(x[0]));
+  const batas = angka.length > 0 ? Math.max(...angka) : 0;
+  return KELAS_KURIKULUM_URUT.slice(0, batas + 1);
+}
+
 /** Satu baris Prota "1. Teks \n2. Teks lain" -> ["Teks", "Teks lain"]. */
 export function uraikanTargetDoa(teks: string | null): string[] {
   if (!teks) return [];

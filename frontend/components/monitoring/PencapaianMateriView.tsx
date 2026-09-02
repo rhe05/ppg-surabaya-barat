@@ -74,12 +74,21 @@ import {
   muatPengulanganKelas,
   muatPengulanganKelasDoa,
   muatPengulanganSantri,
+  muatProtaKelompok,
+  namaKategori,
   type PengulanganKelas,
   type PengulanganKelasDoa,
   type PengulanganSantri,
   type KelasJurnal,
+  type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
+import {
+  gabungkanDoaDuaSemester,
+  adalahAsmaulHusna,
+  uraikanRentangAsmaulHusna,
+  kelasKurikulumSampai,
+} from '@/lib/materiHafalanDoa';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -227,6 +236,89 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       batal = true;
     };
   }, [kelasId, periode.awal, periode.akhir]);
+
+  /* ── Target Asmaul Husna dari Kurikulum (Prota) kelas ini ──
+     Diminta owner 2026-09-03: Asmaul Husna DIGABUNG jadi satu baris di
+     Monitoring, dan satu klasikal cuma dihitung 1× kalau rentang yang
+     disampaikan MENCAPAI target penuh kelas itu (mis. target 1-99,
+     guru menyampaikan 1-99 -> 1×; guru cuma 1-20 -> tidak dihitung). */
+  const [protaDoa, setProtaDoa] = useState<ProtaBaris[]>([]);
+  useEffect(() => {
+    if (!kelompokId) {
+      setProtaDoa([]);
+      return;
+    }
+    let batal = false;
+    muatProtaKelompok(kelompokId, tahun)
+      .then((rows) => {
+        if (batal) return;
+        setProtaDoa(
+          rows.filter((r) => {
+            const nm = (namaKategori(r.kategori_kbm) ?? '').toLowerCase();
+            return nm.includes('hafalan do') && nm.includes('harian');
+          }),
+        );
+      })
+      .catch(() => {
+        if (!batal) setProtaDoa([]);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId, tahun]);
+
+  const namaKelasAktif = useMemo(() => {
+    if (kelasId === '') return '';
+    const dariGuru = kelasGuru.find((k) => k.id === kelasId)?.nama;
+    const dariAdmin = kelasAdmin.find((k) => k.id === kelasId)?.nama;
+    return dariGuru ?? dariAdmin ?? '';
+  }, [kelasId, kelasGuru, kelasAdmin]);
+
+  /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
+     Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
+     ruang ini yang PUNYA baris Asmaul Husna, gabung 2 semesternya. */
+  const targetAsmaulHusna = useMemo<{ dari: number; sampai: number } | null>(() => {
+    if (namaKelasAktif === '' || protaDoa.length === 0) return null;
+    const urut = kelasKurikulumSampai(namaKelasAktif);
+    const relevan = protaDoa
+      .filter((b) => urut.includes(b.kelas ?? ''))
+      .sort((a, b) => urut.indexOf(b.kelas ?? '') - urut.indexOf(a.kelas ?? '')); // tertinggi dulu
+    for (const b of relevan) {
+      const gabung = gabungkanDoaDuaSemester(b.target, b.target2);
+      for (const item of gabung) {
+        const r = uraikanRentangAsmaulHusna(item);
+        if (r) return r;
+      }
+    }
+    return null;
+  }, [namaKelasAktif, protaDoa]);
+
+  /* Baris Hafalan Do'a yang ditampilkan: item non-Asmaul-Husna apa
+     adanya; SEMUA baris Asmaul Husna diringkas jadi SATU -- jumlahnya =
+     banyaknya klasikal yang rentangnya menutupi target penuh. */
+  const barisKelasDoaTampil = useMemo<PengulanganKelasDoa[]>(() => {
+    const nonAH = barisKelasDoa.filter((b) => !adalahAsmaulHusna(b.nama_doa));
+    if (!targetAsmaulHusna) return nonAH;
+    let jumlah = 0;
+    let terakhir = '';
+    for (const b of barisKelasDoa) {
+      if (!adalahAsmaulHusna(b.nama_doa)) continue;
+      const r = uraikanRentangAsmaulHusna(b.nama_doa);
+      if (r && r.dari <= targetAsmaulHusna.dari && r.sampai >= targetAsmaulHusna.sampai) {
+        jumlah += b.jumlah;
+        if (b.terakhir > terakhir) terakhir = b.terakhir;
+      }
+    }
+    if (jumlah === 0) return nonAH;
+    return [
+      ...nonAH,
+      {
+        nama_doa: `Asmaul Husna (${targetAsmaulHusna.dari} sampai ${targetAsmaulHusna.sampai})`,
+        jumlah,
+        terakhir,
+      },
+    ];
+  }, [barisKelasDoa, targetAsmaulHusna]);
 
   /* ── Data per SANTRI ── */
   const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
@@ -470,12 +562,12 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           {errorKelasDoa && <p className="mb-5 text-[13px] text-red">{errorKelasDoa}</p>}
           {!loadingKelasDoa && !errorKelasDoa && (
             <div className="kartu-premium mb-5 overflow-hidden">
-              {barisKelasDoa.length === 0 ? (
+              {barisKelasDoaTampil.length === 0 ? (
                 <p className="px-4 py-3 text-[13px] text-text-dim">
                   Belum ada Hafalan Do&rsquo;a Klasikal yang disampaikan pada periode ini.
                 </p>
               ) : (
-                barisKelasDoa.map((b) => (
+                barisKelasDoaTampil.map((b) => (
                   <div
                     key={b.nama_doa}
                     className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
