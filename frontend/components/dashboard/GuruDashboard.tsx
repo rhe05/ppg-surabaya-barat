@@ -9,7 +9,8 @@ import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
 import PesanGalat from '@/components/ui/PesanGalat';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
-import { muatOverrideKelompok, tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
+import { tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
+import { muatKelasGuru, muatKalenderKelompok, buangSemuaSinggahan } from '@/lib/dataGuru';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
 
@@ -215,7 +216,7 @@ export default function GuruDashboard() {
          Sabtu/Minggu (diminta owner 2026-08-27) -- konsisten dgn Riwayat
          Kehadiran & kartu Ringkasan Kehadiran admin_kelp. */
       const liburKelp = kelompokId
-        ? tanggalLiburKelompok(await muatOverrideKelompok(kelompokId))
+        ? tanggalLiburKelompok(await muatKalenderKelompok(kelompokId))
         : new Set<string>();
       kelasIds.forEach((id) => {
         hasil[id].hariAktif = [...tanggalPerKelas[id]].filter(
@@ -236,14 +237,13 @@ export default function GuruDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: queryError } = await supabase
-        .from('kelas')
-        .select('id, nama, jam_mulai, jam_selesai, ruangan, santri_count, kategori_kbm(nama)')
-        .eq('guru_id', guruId)
-        .is('deleted_at', null)
-        .order('jam_mulai');
-      if (queryError) throw new Error(queryError.message);
-      const daftarKelas = data ?? [];
+      /* Lewat singgahan bersama (lib/dataGuru.ts): daftar kelas guru ini
+         identik dgn yang dipakai Input/Riwayat Kehadiran & layar jurnal,
+         dan TIDAK bergantung bulan -- padahal load() ikut berjalan ulang
+         tiap kali guru mengganti bulan (audit dashboard 2026-09-02). */
+      const daftarKelas = [...(await muatKelasGuru(guruId))].sort((a, b) =>
+        (a.jam_mulai ?? '').localeCompare(b.jam_mulai ?? '')
+      ) as unknown as Kelas[];
       setKelas(daftarKelas);
       await muatStatistik(
         daftarKelas.map((k) => k.id),
@@ -309,19 +309,19 @@ export default function GuruDashboard() {
       {/* .ia-header — Style_Main.html:4859-4865 */}
       <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(5,150,105,0.22)]">
         {/* .ia-header-hero — :4903-4910 */}
-        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-5">
+        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,var(--sage)_0%,var(--brand-green)_100%)] px-[18px] pt-4 pb-5">
           {/* .ia-greeting — :5026-5044 */}
           <div className="min-w-0 flex-1">
-            <div className="text-[20px] leading-[1.2] font-bold text-white">
+            <div className="text-[17px] leading-[1.2] font-bold text-white">
               {profile?.display_name ?? '-'}
             </div>
             {barisRole && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {barisRole}
               </div>
             )}
             {namaKelompok && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {namaKelompok}
               </div>
             )}
@@ -430,13 +430,13 @@ export default function GuruDashboard() {
         )}
 
         {!loading && !error && guruId == null && (
-          <div className="rounded-card border border-border bg-panel p-4 text-[12.5px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          <div className="rounded-card border border-border bg-panel p-4 text-[12px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             Akun ini belum terhubung ke data guru, sehingga daftar kelas belum bisa ditampilkan.
           </div>
         )}
 
         {!loading && !error && guruId != null && kelas.length === 0 && (
-          <div className="rounded-card border border-border bg-panel p-4 text-[12.5px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+          <div className="rounded-card border border-border bg-panel p-4 text-[12px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             Belum ada kelas yang terdaftar atas nama Anda.
           </div>
         )}
@@ -479,7 +479,7 @@ export default function GuruDashboard() {
                 </div>
 
                 {/* .ia-dash-card-info — :5387-5392 */}
-                <div className="mb-1 text-[12.5px] font-semibold text-text">{info.join(' · ')}</div>
+                <div className="mb-1 text-[12px] font-semibold text-text">{info.join(' · ')}</div>
                 {/* Lima kotak statistik — .ia-dash-stat-row (:5407-5471).
                     Hari Aktif sengaja beda sendiri (kartu gradient teal, tanpa
                     pill persentase): itu info STRUKTURAL (berapa sesi kelas
@@ -491,13 +491,13 @@ export default function GuruDashboard() {
                       background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)',
                     }}
                   >
-                    <span className="text-[18px] leading-none font-extrabold text-white tabular-nums">
+                    <span className="text-[17px] leading-none font-extrabold text-white tabular-nums">
                       {angka ? angka.hariAktif : '—'}
                     </span>
-                    <span className="mt-px text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                    <span className="mt-px text-[11px] font-bold tracking-[0.02em] text-white/85 uppercase">
                       Hari
                     </span>
-                    <span className="text-[10.5px] font-bold tracking-[0.02em] text-white/85 uppercase">
+                    <span className="text-[11px] font-bold tracking-[0.02em] text-white/85 uppercase">
                       Aktif
                     </span>
                   </div>
@@ -514,20 +514,20 @@ export default function GuruDashboard() {
                         className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
                       >
                         <span
-                          className="text-[18px] leading-none font-extrabold tabular-nums"
+                          className="text-[17px] leading-none font-extrabold tabular-nums"
                           style={{ color: nilai === null ? undefined : st.warna }}
                         >
                           {nilai === null ? '—' : nilai}
                         </span>
                         {persen !== null && (
                           <span
-                            className="rounded-full px-[7px] py-0.5 text-[10px] leading-none font-bold tabular-nums"
+                            className="rounded-full px-[7px] py-0.5 text-[11px] leading-none font-bold tabular-nums"
                             style={{ background: st.pill, color: st.warna }}
                           >
                             {persen}%
                           </span>
                         )}
-                        <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+                        <span className="mt-px text-center text-[11px] font-bold tracking-[0.02em] text-text-dim uppercase">
                           {st.label}
                         </span>
                       </div>

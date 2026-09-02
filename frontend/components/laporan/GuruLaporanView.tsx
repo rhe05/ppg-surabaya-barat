@@ -75,11 +75,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import {
-  muatOverrideKelompok,
-  saringAbsensiHariKerja,
-  type OverrideKelompok,
-} from '@/lib/kalenderKelompok';
+import { saringAbsensiHariKerja, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatKelasGuru, muatKalenderKelompok } from '@/lib/dataGuru';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
@@ -164,14 +161,12 @@ export default function GuruLaporanView() {
 
   useEffect(() => {
     if (guruId == null) return;
-    supabase
-      .from('kelas')
-      .select('id, nama, jam_mulai, jam_selesai, ruangan')
-      .eq('guru_id', guruId)
-      .is('deleted_at', null)
-      .order('nama')
-      .then(({ data }) => {
-        const list = (data ?? []) as Kelas[];
+    /* Lewat singgahan bersama (lib/dataGuru.ts) -- daftar yang sama
+       dipakai Dashboard, Input & Riwayat Kehadiran, dan tiga layar
+       jurnal; dulu tiap layar menembaknya sendiri (audit 2026-09-02). */
+    muatKelasGuru(guruId)
+      .then((data) => {
+        const list = data as unknown as Kelas[];
         setKelasList(list);
         // Pegang 1 kelas -> otomatis terpilih (bukan pilihan, cuma satu
         // kemungkinan). Pegang >1 kelas -> WAJIB dipilih manual (diminta
@@ -265,7 +260,7 @@ export default function GuruLaporanView() {
     /* Buang sesi Sabtu/Minggu & tanggal libur kelompok -- "Hari Aktif" &
        persentase kehadiran ikut definisi baru (2026-08-27). */
     const override = profile?.scope_kelompok_id
-      ? await muatOverrideKelompok(profile.scope_kelompok_id)
+      ? await muatKalenderKelompok(profile.scope_kelompok_id)
       : new Map<string, OverrideKelompok>();
     return { santri, absensi: saringAbsensiHariKerja(absensi, override) };
   }, [kelasId, kelasList, bulan, tahun, profile?.scope_kelompok_id]);
@@ -386,18 +381,18 @@ export default function GuruLaporanView() {
             Tahun di bawahnya, persis GuruDashboard.tsx/riwayat/page.tsx
             (diminta owner). Pil tanggal-hari-ini terpisah yang dulu ada di
             bawah header DIHAPUS -- digantikan caption ini. */}
-        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,#059669_0%,#6B9975_100%)] px-[18px] pt-4 pb-8">
+        <div className="flex items-start justify-between gap-2.5 bg-[linear-gradient(135deg,var(--sage)_0%,var(--brand-green)_100%)] px-[18px] pt-4 pb-8">
           <div className="min-w-0 flex-1">
-            <div className="text-[20px] leading-[1.2] font-bold text-white">
+            <div className="text-[17px] leading-[1.2] font-bold text-white">
               {profile?.display_name ?? '-'}
             </div>
             {barisRole && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {barisRole}
               </div>
             )}
             {namaKelompok && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
+              <div className="mt-[3px] text-[12px] font-semibold tracking-[0.01em] text-white/[0.88]">
                 {namaKelompok}
               </div>
             )}
@@ -480,7 +475,7 @@ export default function GuruLaporanView() {
             </svg>
           </div>
 
-          <div className="mb-1 text-[16px] font-bold text-text">Laporan Perkembangan Santri</div>
+          <div className="mb-1 text-[17px] font-bold text-text">Laporan Perkembangan Santri</div>
           <p className="mb-5 text-[13px] text-sage">
             Unduh laporan kehadiran &amp; perkembangan santri kelas {kelasLabel} dalam bentuk PDF.
           </p>
@@ -504,19 +499,19 @@ export default function GuruLaporanView() {
           {/* Bulan/Tahun pindah ke ikon kalender di header (diminta owner,
               lebih ringkas) -- periode yang sedang dipilih tetap terlihat
               lewat caption di bawah ikon itu. */}
-          <p className="mb-4 text-[11.5px] text-text-faint">
+          <p className="mb-4 text-[11px] text-text-faint">
             Periode: <span className="font-semibold text-text">{NAMA_BULAN[bulan - 1]} {tahun}</span> (ubah lewat ikon kalender di atas)
           </p>
 
           {!eligible && (
-            <div className="mb-4 rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-left text-[12.5px] text-[#92400E]">
+            <div className="mb-4 rounded-[var(--radius)] border border-brass-lembut-2 bg-brass-lembut px-4 py-3 text-left text-[12px] text-[#92400E]">
               ⏳ Laporan {NAMA_BULAN[bulan - 1]} {tahun} baru bisa diunduh mulai tanggal {lastDay - 1}{' '}
               atau {lastDay} {NAMA_BULAN[bulan - 1]} (H-1 sebelum akhir bulan).
             </div>
           )}
 
           {errorMuat && (
-            <p className="mb-4 text-left text-[12.5px] text-red">{errorMuat}</p>
+            <p className="mb-4 text-left text-[12px] text-red">{errorMuat}</p>
           )}
 
           <button

@@ -28,6 +28,7 @@
    dibutuhkan — bukan pengganti basis data lokal. */
 
 import { supabase } from '@/lib/supabase';
+import { muatOverrideKelompok } from '@/lib/kalenderKelompok';
 
 const UMUR_MS = 60_000;
 
@@ -139,6 +140,19 @@ export function tandaiMateriBerubah(kelasId: number, tahun: number, bulan: numbe
    cuma materi bulan yang sedang dilihat. */
 export function buangSemuaSinggahan() {
   singgahan.clear();
+}
+
+/* Kalender pengecualian kelompok (libur mendadak / tetap masuk di tanggal
+   merah). Tabelnya MUNGIL — 3 baris saat audit — tapi dulu ditembak ulang
+   tiap kali guru mengganti bulan di Dashboard, tiap kali membuat Laporan,
+   dan sekali lagi di Riwayat Kehadiran. Isinya nyaris tidak pernah
+   berubah, jadi paling pas disinggahkan.
+
+   Sengaja membungkus muatOverrideKelompok dari lib/kalenderKelompok.ts,
+   bukan menyalin querynya: layar admin memakai fungsi asli itu dan tidak
+   ikut berubah. */
+export function muatKalenderKelompok(kelompokId: number) {
+  return ambil(`kalender:${kelompokId}`, () => muatOverrideKelompok(kelompokId));
 }
 
 export type ProtaBaris = {

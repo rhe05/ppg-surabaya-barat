@@ -18,6 +18,7 @@
   /* Latar lembut merah & hijau utk pesan galat/berhasil sebaris.
      Ditambah 2026-09-02 saat merapikan layar kehadiran. */
   --red-lembut: #FEF2F2;
+  --brass-lembut-2: #FDE68A;
   --sage-lembut-2: #D1FAE5;
   --indigo: #4F46E5;
   /* Dua nada indigo LEMBUT utk permukaan (latar pil bulan, tombol ikon
@@ -97,6 +98,7 @@
   --color-sage-lembut: var(--sage-lembut);
   --color-sage-lembut-2: var(--sage-lembut-2);
   --color-red-lembut: var(--red-lembut);
+  --color-brass-lembut-2: var(--brass-lembut-2);
   --color-violet: var(--violet);
   --color-indigo-lembut: var(--indigo-lembut);
   --color-indigo-lembut-2: var(--indigo-lembut-2);
