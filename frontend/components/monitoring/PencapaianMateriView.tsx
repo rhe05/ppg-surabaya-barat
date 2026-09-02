@@ -42,7 +42,15 @@
    dioper dari page.tsx KHUSUS guru, satu baris judul+chip di kiri &
    ikon+label di kanan, pola SAMA PERSIS Riwayat Pembelajaran. Admin
    TIDAK ikut berubah (judulnya tetap di page.tsx, ikon kalendernya
-   tetap baris sendiri di bawah dropdown Kelompok/Kelas). */
+   tetap baris sendiri di bawah dropdown Kelompok/Kelas).
+
+   PUTARAN KELIMA (2026-09-02 malam, diminta owner): sisi PER SANTRI
+   SEMENTARA disembunyikan dari guru ("cukup tampilkan monitoring per
+   kelas utk per santri sementara ini jangan di tampilkan di guru") --
+   fetch-nya (`muatPengulanganSantri`, RPC 4-table join) ikut dilewati
+   utk guru, bukan cuma UI-nya. Admin TETAP melihat kedua sisi seperti
+   sebelumnya. "Sementara" -- jangan hapus kodenya, tinggal balikkan
+   syarat `!adalahGuru` kalau owner minta ditampilkan lagi. */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar } from 'lucide-react';
@@ -180,7 +188,13 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
   const [errorSantri, setErrorSantri] = useState<string | null>(null);
 
   useEffect(() => {
-    if (kelasId === '') {
+    /* SEMENTARA disembunyikan dari guru (diminta owner 2026-09-02
+       malam: "cukup tampilkan monitoring per kelas utk per santri
+       sementara ini jangan di tampilkan di guru") -- fetch-nya ikut
+       dilewati, bukan cuma UI-nya, supaya guru tidak diam-diam
+       menanggung 4-table join RPC (jurnal_pengulangan_santri) utk data
+       yang tidak pernah ia lihat. Admin TIDAK ikut disembunyikan. */
+    if (adalahGuru || kelasId === '') {
       setBarisSantri([]);
       return;
     }
@@ -200,7 +214,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir]);
+  }, [adalahGuru, kelasId, periode.awal, periode.akhir]);
 
   /* RPC sudah mengurutkan per (nama_santri, nama_surat) -- dikelompokkan
      ulang di sini murni utk tampilan (satu kartu per santri). */
@@ -401,39 +415,45 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          {/* ── Sisi PER SANTRI ── */}
-          <div className="label-mikro mb-2">Per Santri</div>
-          {loadingSantri && (
-            <div className="flex flex-col gap-2.5">
-              <Skeleton className="h-[68px] w-full" />
-              <Skeleton className="h-[68px] w-full" />
-            </div>
-          )}
-          {errorSantri && <p className="text-[13px] text-red">{errorSantri}</p>}
-          {!loadingSantri && !errorSantri && perSantri.length === 0 && (
-            <p className="text-[13px] text-text-dim">
-              Belum ada materi Klasikal yang disampaikan pada periode ini.
-            </p>
-          )}
-          {!loadingSantri &&
-            perSantri.map((s) => (
-              <div key={s.santriId} className="kartu-premium mb-3 overflow-hidden">
-                <div className="border-b border-border px-3.5 py-2.5">
-                  <span className="text-[15px] font-bold text-text">{s.nama}</span>
+          {/* ── Sisi PER SANTRI -- SEMENTARA admin-only (2026-09-02
+              malam, diminta owner), lihat catatan di useEffect
+              barisSantri di atas utk alasannya. ── */}
+          {!adalahGuru && (
+            <>
+              <div className="label-mikro mb-2">Per Santri</div>
+              {loadingSantri && (
+                <div className="flex flex-col gap-2.5">
+                  <Skeleton className="h-[68px] w-full" />
+                  <Skeleton className="h-[68px] w-full" />
                 </div>
-                {s.baris.map((b) => (
-                  <div
-                    key={b.nama_surat}
-                    className="flex items-center justify-between border-b border-border px-3.5 py-2.5 last:border-b-0"
-                  >
-                    <span className="text-[13px] text-text">{b.nama_surat}</span>
-                    <span className="angka-metrik text-[13px] text-text-dim">
-                      {b.jumlah_efektif}/{b.jumlah_kelas}
-                    </span>
+              )}
+              {errorSantri && <p className="text-[13px] text-red">{errorSantri}</p>}
+              {!loadingSantri && !errorSantri && perSantri.length === 0 && (
+                <p className="text-[13px] text-text-dim">
+                  Belum ada materi Klasikal yang disampaikan pada periode ini.
+                </p>
+              )}
+              {!loadingSantri &&
+                perSantri.map((s) => (
+                  <div key={s.santriId} className="kartu-premium mb-3 overflow-hidden">
+                    <div className="border-b border-border px-3.5 py-2.5">
+                      <span className="text-[15px] font-bold text-text">{s.nama}</span>
+                    </div>
+                    {s.baris.map((b) => (
+                      <div
+                        key={b.nama_surat}
+                        className="flex items-center justify-between border-b border-border px-3.5 py-2.5 last:border-b-0"
+                      >
+                        <span className="text-[13px] text-text">{b.nama_surat}</span>
+                        <span className="angka-metrik text-[13px] text-text-dim">
+                          {b.jumlah_efektif}/{b.jumlah_kelas}
+                        </span>
+                      </div>
+                    ))}
                   </div>
                 ))}
-              </div>
-            ))}
+            </>
+          )}
         </>
       )}
     </div>
