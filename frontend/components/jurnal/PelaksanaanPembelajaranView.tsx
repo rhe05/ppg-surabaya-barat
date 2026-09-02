@@ -87,6 +87,10 @@ type Baris = {
      Rabu). Null saat status 'belum'. */
   tanggalDisampaikan: string | null;
   tanggalDisampaikanAsli: string | null;
+  /* Versi baris yang TERAKHIR dilihat layar ini. Dikirim balik sbg
+     penjaga saat menyimpan; null utk materi tambahan yang belum pernah
+     tersimpan. */
+  updatedAt: string | null;
   mingguKe: number;
   /* jenis 'klasikal' = materi Klasikal, yang isinya DUA materi
      sekaligus (hafalan surat + hafalan doa) di kolomnya sendiri. */
@@ -266,6 +270,7 @@ export default function PelaksanaanPembelajaranView() {
           tanggalRencana: m.tanggal_rencana ?? null,
           tanggalDisampaikan: m.tanggal_disampaikan ?? null,
           tanggalDisampaikanAsli: m.tanggal_disampaikan ?? null,
+          updatedAt: m.updated_at,
           mingguKe: m.minggu_ke,
           jenis: m.jenis,
           hafalanSurat: m.klasikal_hafalan_surat ?? null,
@@ -327,20 +332,62 @@ export default function PelaksanaanPembelajaranView() {
               tanggal_disampaikan: tanggal,
               catatan: catatanDb,
             })
-            .select('id')
+            .select('id, updated_at')
             .single();
           if (err) throw new Error(err.message);
           setBaris((prev) =>
-            prev.map((x) => (x.uid === uid ? { ...x, id: data.id, statusAsli: status, catatanAsli: catatan, tanggalDisampaikanAsli: tanggal } : x)),
+            prev.map((x) =>
+              x.uid === uid
+                ? {
+                    ...x,
+                    id: data.id,
+                    updatedAt: data.updated_at,
+                    statusAsli: status,
+                    catatanAsli: catatan,
+                    tanggalDisampaikanAsli: tanggal,
+                  }
+                : x
+            ),
           );
         } else {
-          const { error: err } = await supabase
+          /* PENJAGA VERSI (2026-09-02). Sebelumnya penulisan ini cuma
+             `.eq('id', ...)`: dua guru yang berbagi satu kelas lewat
+             "kelas pinjam" bisa saling menimpa catatan tanpa peringatan,
+             dan yang kalah tidak akan pernah tahu -- datanya hilang tanpa
+             jejak, jenis bug yang tidak pernah dilaporkan siapa pun.
+             Sekarang penulisan HARUS cocok dgn versi baris yang dilihat
+             layar ini; kalau tidak cocok, 0 baris terpengaruh. Pola sama
+             persis dgn absensi (simpan_absensi_kelas & Riwayat Kehadiran). */
+          const { data, error: err } = await supabase
             .from('jurnal_materi')
             .update({ status, tanggal_disampaikan: tanggal, catatan: catatanDb })
-            .eq('id', b.id);
+            .eq('id', b.id)
+            .eq('updated_at', b.updatedAt ?? '')
+            .select('updated_at');
           if (err) throw new Error(err.message);
+          if (!data || data.length === 0) {
+            /* Bentrok: baris sudah diubah sesi lain. Muat ulang dari
+               server -- JANGAN menimpa diam-diam, dan jangan pula membuang
+               kabar ini ke dalam status "gagal" biasa yang menyarankan
+               Coba Lagi (mencoba lagi hanya akan menimpa pekerjaan orang). */
+            tandaiMateriBerubah(kelasId, tahun, bulan);
+            push('Materi ini baru diubah dari perangkat lain. Layar dimuat ulang.', 'info');
+            setStatusSimpan('diam');
+            await muat();
+            return;
+          }
           setBaris((prev) =>
-            prev.map((x) => (x.uid === uid ? { ...x, statusAsli: status, catatanAsli: catatan, tanggalDisampaikanAsli: tanggal } : x)),
+            prev.map((x) =>
+              x.uid === uid
+                ? {
+                    ...x,
+                    updatedAt: data[0].updated_at,
+                    statusAsli: status,
+                    catatanAsli: catatan,
+                    tanggalDisampaikanAsli: tanggal,
+                  }
+                : x
+            ),
           );
         }
         /* Singgahan bersama dibuang supaya Rencana & Riwayat tidak
@@ -444,6 +491,7 @@ export default function PelaksanaanPembelajaranView() {
         tanggalRencana: null,
         tanggalDisampaikan: todayStr(),
         tanggalDisampaikanAsli: null,
+        updatedAt: null,
         mingguKe: mingguKeBaris,
         jenis: 'ngaji',
         hafalanSurat: null,

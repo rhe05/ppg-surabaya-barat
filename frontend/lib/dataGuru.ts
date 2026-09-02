@@ -99,6 +99,14 @@ export function muatQuoteHarian(): Promise<string[]> {
 
 export type MateriJurnal = {
   id: number;
+  /* Penanda versi baris. Dikirim balik saat menyimpan supaya Postgres
+     menolak penulisan kalau baris ini sudah diubah sesi lain sejak layar
+     memuatnya -- pola yang sama dengan absensi (lihat AbsensiRow di
+     app/absensi/page.tsx). Ditambahkan 2026-09-02: sebelumnya materi
+     jurnal SATU-SATUNYA tulisan guru yang bisa saling menimpa diam-diam,
+     dan itu terjadi persis saat dua guru berbagi kelas lewat kelas
+     pinjam. */
+  updated_at: string;
   minggu_ke: number;
   judul: string;
   status: 'belum' | 'disampaikan';
@@ -116,7 +124,7 @@ export function muatMateriBulan(kelasId: number, tahun: number, bulan: number): 
     const { data, error } = await supabase
       .from('jurnal_materi')
       .select(
-        'id, minggu_ke, judul, status, jenis, catatan, tanggal_rencana, tanggal_disampaikan, klasikal_hafalan_surat, klasikal_hafalan_doa'
+        'id, minggu_ke, judul, status, jenis, catatan, tanggal_rencana, tanggal_disampaikan, klasikal_hafalan_surat, klasikal_hafalan_doa, updated_at'
       )
       .eq('kelas_id', kelasId)
       .eq('tahun', tahun)

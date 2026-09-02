@@ -1,0 +1,82 @@
+# Gerbang mutu frontend "Ruang Ngaji".
+#
+# Kenapa ada: sampai 2026-09-02 TIDAK ADA satu pun pemeriksaan otomatis
+# antara `git push` dan aplikasi yang dipakai guru. Vercel memasang apa
+# pun yang masuk ke main; tsc hanya jalan kalau kebetulan diingat.
+# Satu berkas ini menutup celah itu: kode yang tidak lolos berhenti di
+# sini, bukan di HP guru.
+#
+# Tiga langkahnya sengaja diurutkan dari yang paling cepat gagal ke yang
+# paling lambat, supaya umpan baliknya datang secepat mungkin:
+#   1. tipe (tsc)        — salah tipe/nama kolom ketahuan tanpa merender
+#   2. uji logika murni  — aturan bisnis: minggu, penguraian surat, judul
+#   3. build             — yang paling mahal, terakhir
+#
+# TIDAK ADA langkah lint: proyek ini memang belum memasang ESLint sama
+# sekali (tidak ada eslint.config maupun dependensinya). Menambahkannya
+# adalah keputusan tersendiri — di basis kode sebesar ini ia akan
+# memuntahkan banyak temuan sekaligus, dan itu tidak boleh menahan
+# gerbang mutu yang baru berdiri ini.
+#
+# uji-hafalan-surat.mjs SENGAJA TIDAK dipanggil di sini: ia menembak data
+# PRODUKSI (justru itu gunanya — ejaan asli yang menyimpang baru ketahuan
+# di sana), jadi butuh kunci rahasia dan tidak boleh jadi syarat merge.
+# Jalankan manual saat mengubah penguraian kurikulum.
+
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-ci.yml'
+
+# Push beruntun ke branch yang sama: batalkan yang lama, jalankan yang
+# terbaru saja. Hemat waktu antre, dan hasil yang ditampilkan selalu
+# mencerminkan kode terakhir.
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  periksa:
+    name: Tipe, uji, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Pasang dependensi
+        run: npm ci
+
+      - name: 1 · Periksa tipe
+        run: npx tsc --noEmit
+
+      - name: 2 · Uji logika murni
+        run: |
+          node tools/uji-logika.mjs
+          node tools/uji-minggu-bulan.mjs
+
+      # Build memakai variabel Supabase publik. Kalau rahasianya belum
+      # dipasang di repo, nilai contoh dipakai supaya build tetap bisa
+      # diperiksa — yang diuji di sini kompilasi, bukan koneksi.
+      - name: 3 · Build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL || 'https://contoh.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'kunci-contoh-untuk-build' }}
+        run: npm run build
