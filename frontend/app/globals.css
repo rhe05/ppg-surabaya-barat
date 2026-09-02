@@ -5,7 +5,13 @@
    rujukan lengkap ada di design-tokens-lama.md bagian 1. */
 :root {
   --brass: #D97706;
+  /* Nada lembut brass & sage utk permukaan lencana/ikon status (mis.
+     bulatan ikon di Riwayat Pembelajaran). Ditambahkan 2026-09-02 bersama
+     --indigo-lembut supaya #FFFBEB/#ECFDF5 yang dulu ditulis mentah punya
+     satu sumber. */
+  --brass-lembut: #FFFBEB;
   --sage: #059669;
+  --sage-lembut: #ECFDF5;
   --brand-green: #6B9975;
   --volt: #FBBF24;
   --red: #DC2626;
@@ -80,6 +86,8 @@
   --color-volt: var(--volt);
   --color-red: var(--red);
   --color-indigo: var(--indigo);
+  --color-brass-lembut: var(--brass-lembut);
+  --color-sage-lembut: var(--sage-lembut);
   --color-indigo-lembut: var(--indigo-lembut);
   --color-indigo-lembut-2: var(--indigo-lembut-2);
   --color-teal: var(--teal);

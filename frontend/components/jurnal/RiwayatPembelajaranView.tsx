@@ -15,15 +15,17 @@
    -> Skeleton, error inline -> toast. Hero TETAP ADA di layar ini (beda
    dari RencanaPembelajaranView.tsx). */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Calendar, Search, CheckCircle2, Clock } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
+import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
+import { pecahJudulMateri } from '@/lib/judulMateri';
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -60,6 +62,8 @@ export default function RiwayatPembelajaranView() {
   const [tahun, setTahun] = useState(sekarang.getFullYear());
   const tahunPilihan = [sekarang.getFullYear() - 1, sekarang.getFullYear()];
   const [pemilihBulanTerbuka, setPemilihBulanTerbuka] = useState(false);
+  const [posisiPemilihBulan, setPosisiPemilihBulan] = useState<PosisiPicker | null>(null);
+  const ikonKalenderRef = useRef<HTMLButtonElement>(null);
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
@@ -139,66 +143,112 @@ export default function RiwayatPembelajaranView() {
     { nilai: 'belum', label: 'Belum' },
   ];
 
-  const opsiKelas = kelasList.map((k) => ({ value: String(k.id), label: k.nama }));
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
 
   return (
     <main className="flex min-h-screen flex-col bg-bg">
-      <JurnalHeaderChrome />
+      {/* Hero hijau DIHAPUS (diminta owner 2026-09-02) -- menyusul
+          keputusan yang sama di Rencana & Pelaksanaan Pembelajaran. Top
+          bar putih (hamburger + brand + lonceng) TETAP: itu satu-satunya
+          jalan guru kembali ke menu. */}
+      <JurnalHeaderChrome tampilkanHero={false} />
 
       <div className="flex-1 overflow-y-auto px-[18px] pt-4 pb-10">
-        <div className="mb-4 text-[17px] font-extrabold text-text">Riwayat Pembelajaran</div>
-
-        {kelasList.length > 1 && (
-          <div className="mb-3">
-            <SelectKustom
-              value={kelasId === '' ? '' : String(kelasId)}
-              onChange={(v) => setKelasId(v === '' ? '' : Number(v))}
-              opsi={opsiKelas}
-              placeholder="-- Pilih Kelas --"
-            />
+        {/* Kepala layar SAMA PERSIS Rencana & Pelaksanaan (diminta owner):
+            judul + chip kelas di kiri, ikon kalender + pil Bulan/Tahun di
+            kanan. Sebelumnya di layar ini kelas dipilih lewat dropdown
+            selebar layar dan bulan lewat pil selebar layar juga -- dua
+            baris penuh yang tidak ada di dua layar saudaranya. */}
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div className="pt-1.5 text-[17px] font-extrabold text-text">Riwayat Pembelajaran</div>
+            {kelasList.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto">
+                {kelasList.map((k) => {
+                  const aktif = k.id === kelasId;
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => setKelasId(k.id)}
+                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                        aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                      }`}
+                      style={
+                        aktif
+                          ? {
+                              background:
+                                'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)',
+                            }
+                          : undefined
+                      }
+                    >
+                      {k.nama}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Pil Bulan/Tahun — sama persis RencanaPembelajaranView.tsx. */}
-        <div className="relative mb-4">
-          <button
-            type="button"
-            onClick={() => setPemilihBulanTerbuka((v) => !v)}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-border bg-panel px-4 py-3 text-left text-[14px] font-semibold text-text shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
-          >
-            <Calendar size={18} className="text-sage" />
-            <span className="flex-1">
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <button
+              ref={ikonKalenderRef}
+              type="button"
+              aria-label="Pilih Bulan dan Tahun"
+              onClick={() => {
+                const rect = ikonKalenderRef.current?.getBoundingClientRect();
+                if (rect) {
+                  setPosisiPemilihBulan({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                }
+                setPemilihBulanTerbuka((v) => !v);
+              }}
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-indigo-lembut text-indigo transition-all duration-150 active:scale-[0.92]"
+            >
+              <Calendar size={19} />
+            </button>
+            <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
               {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="var(--text-faint)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="m6 9 6 6 6-6" />
-            </svg>
-          </button>
-
-          {pemilihBulanTerbuka && (
-            <>
-              <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
-              <div className="absolute z-[1100] mt-2 w-full rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
-                <div className="flex gap-2">
-                  <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
-                  <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
-                </div>
-              </div>
-            </>
-          )}
+          </div>
         </div>
+
+        {pemilihBulanTerbuka && posisiPemilihBulan && (
+          <>
+            <div className="fixed inset-0 z-[1090]" onClick={() => setPemilihBulanTerbuka(false)} />
+            <div
+              className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+              style={{ top: posisiPemilihBulan.top, right: posisiPemilihBulan.right }}
+            >
+              <div className="flex gap-2">
+                <SelectKustom value={String(bulan)} onChange={(v) => setBulan(Number(v))} opsi={opsiBulan} />
+                <SelectKustom value={String(tahun)} onChange={(v) => setTahun(Number(v))} opsi={opsiTahun} />
+              </div>
+            </div>
+          </>
+        )}
 
         {kelasId === '' ? (
           <p className="text-[13px] text-text-dim">Pilih kelas dulu utk melihat riwayat.</p>
         ) : (
           <>
-            {/* Progres Pembelajaran */}
-            <div className="mb-5 rounded-card border border-border bg-[#EEF2FF] p-4">
-              <div className="mb-1 text-[12px] font-bold text-text">Progres Pembelajaran</div>
-              <div className="flex items-center justify-between">
-                <div className="text-[30px] leading-none font-extrabold text-indigo">{persen}%</div>
+            {/* Progres bulan ini. Donat DIPERTAHANKAN di layar ini (beda
+                dgn Pelaksanaan yang donatnya dicabut): di sini angkanya
+                memang perbandingan sebulan penuh, bukan 1-3 materi hari
+                itu. Yang dirapikan: latar heksa mentah #EEF2FF -> kartu
+                premium biasa + tiga angka memakai tangga huruf baku. */}
+            <div className="kartu-premium mb-5 p-4">
+              <div className="label-mikro mb-2">Progres {NAMA_BULAN[bulan - 1]} {tahun}</div>
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="angka-metrik text-[24px] leading-none text-text">{persen}%</div>
+                  <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
+                    <div
+                      className="h-full rounded-full bg-sage transition-[width] duration-500"
+                      style={{ width: `${persen}%` }}
+                    />
+                  </div>
+                </div>
                 <div className="relative flex h-16 w-16 shrink-0 items-center justify-center">
                   <svg viewBox="0 0 36 36" width="64" height="64">
                     <circle cx="18" cy="18" r="15.5" fill="none" stroke="var(--border)" strokeWidth="4" />
@@ -207,7 +257,7 @@ export default function RiwayatPembelajaranView() {
                       cy="18"
                       r="15.5"
                       fill="none"
-                      stroke="var(--indigo)"
+                      stroke="var(--sage)"
                       strokeWidth="4"
                       strokeLinecap="round"
                       strokeDasharray={`${(persen / 100) * 97.4} 97.4`}
@@ -216,37 +266,45 @@ export default function RiwayatPembelajaranView() {
                   </svg>
                 </div>
               </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white">
-                <div className="h-full rounded-full bg-indigo transition-[width] duration-500" style={{ width: `${persen}%` }} />
-              </div>
-              <div className="mt-3 flex justify-between text-center">
+              <div className="mt-3 flex justify-between border-t border-border pt-3 text-center">
                 <div>
-                  <div className="text-[16px] font-extrabold text-text">{total}</div>
-                  <div className="text-[10.5px] text-text-dim">Direncanakan</div>
+                  <div className="angka-metrik text-[15px] text-text">{total}</div>
+                  <div className="text-[11px] text-text-dim">Direncanakan</div>
                 </div>
                 <div>
-                  <div className="text-[16px] font-extrabold text-sage">{disampaikan}</div>
-                  <div className="text-[10.5px] text-text-dim">Disampaikan</div>
+                  <div className="angka-metrik text-[15px] text-sage">{disampaikan}</div>
+                  <div className="text-[11px] text-text-dim">Disampaikan</div>
                 </div>
                 <div>
-                  <div className="text-[16px] font-extrabold text-brass">{belum}</div>
-                  <div className="text-[10.5px] text-text-dim">Belum Disampaikan</div>
+                  <div className="angka-metrik text-[15px] text-brass">{belum}</div>
+                  <div className="text-[11px] text-text-dim">Belum</div>
                 </div>
               </div>
             </div>
 
-            {/* Filter tab */}
+            {/* Saringan status: chip, satu bahasa dgn chip kelas di atas
+                -- sebelumnya tiga tombol kotak selebar layar dgn isian
+                indigo penuh, yang membuatnya terbaca sbg aksi utama
+                halaman padahal cuma penyaring. */}
             <div className="mb-3 flex gap-2">
               {FILTER_TAB.map((f) => (
                 <button
                   key={f.nilai}
                   type="button"
                   onClick={() => setFilter(f.nilai)}
-                  className={`flex-1 cursor-pointer rounded-[var(--radius)] border py-2 text-[12.5px] font-semibold transition-all duration-150 ${
+                  className={`cursor-pointer rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.96] ${
                     filter === f.nilai
-                      ? 'border-indigo bg-indigo text-white'
+                      ? 'border-indigo text-indigo'
                       : 'border-border bg-panel text-text-dim'
                   }`}
+                  style={
+                    filter === f.nilai
+                      ? {
+                          background:
+                            'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)',
+                        }
+                      : undefined
+                  }
                 >
                   {f.label}
                 </button>
@@ -275,20 +333,34 @@ export default function RiwayatPembelajaranView() {
               <p className="text-[13px] text-text-dim">Tidak ada materi yang cocok.</p>
             )}
 
-            {!loading && (
-              <div className="flex flex-col gap-2.5">
+            {/* SATU kartu berisi baris berpemisah -- bentuk yang sama dgn
+                daftar materi di Pelaksanaan, bukan setumpuk kartu
+                berbayang masing-masing. */}
+            {!loading && baris.length > 0 && (
+              <div className="kartu-premium overflow-hidden">
                 {baris.map((m) => {
                   const sudah = m.status === 'disampaikan';
+                  const { kategori, utama, rincian } = pecahJudulMateri(m.judul);
                   return (
-                    <div key={m.id} className="flex items-center gap-3 rounded-card border border-border bg-panel p-3.5 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-                      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${sudah ? 'bg-[#ECFDF5] text-sage' : 'bg-[#FFFBEB] text-brass'}`}>
-                        {sudah ? <CheckCircle2 size={18} /> : <Clock size={18} />}
+                    <div key={m.id} className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
+                      <span
+                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+                          sudah ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+                        }`}
+                      >
+                        {sudah ? <CheckCircle2 size={17} /> : <Clock size={17} />}
                       </span>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[11.5px] text-text-dim">{m.tanggal ? formatTanggal(m.tanggal) : '—'}</div>
-                        <div className="text-[14px] font-bold text-text">{m.judul}</div>
-                        <div className={`text-[11px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
-                          {sudah ? 'Disampaikan' : 'Belum Disampaikan'}
+                        <div className="label-mikro">
+                          {[kategori, m.tanggal ? formatTanggal(m.tanggal) : null].filter(Boolean).join(' · ') ||
+                            '—'}
+                        </div>
+                        <div className="text-[15px] font-bold text-text">{utama}</div>
+                        {rincian && (
+                          <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>
+                        )}
+                        <div className={`mt-0.5 text-[12px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
+                          {sudah ? 'Disampaikan' : 'Belum disampaikan'}
                         </div>
                       </div>
                     </div>
