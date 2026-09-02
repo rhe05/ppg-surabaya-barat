@@ -72,8 +72,10 @@ import SelectKustom from '@/components/ui/SelectKustom';
 import {
   muatKelasGuru,
   muatPengulanganKelas,
+  muatPengulanganKelasDoa,
   muatPengulanganSantri,
   type PengulanganKelas,
+  type PengulanganKelasDoa,
   type PengulanganSantri,
   type KelasJurnal,
 } from '@/lib/dataGuru';
@@ -190,6 +192,36 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       })
       .finally(() => {
         if (!batal) setLoadingKelas(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, periode.awal, periode.akhir]);
+
+  /* ── Data per KELAS -- Hafalan Do'a (diminta owner 2026-09-03,
+     ditampilkan DI BAWAH Hafalan Surat). Pola & rentang periode SAMA
+     PERSIS sisi surat di atas. ── */
+  const [barisKelasDoa, setBarisKelasDoa] = useState<PengulanganKelasDoa[]>([]);
+  const [loadingKelasDoa, setLoadingKelasDoa] = useState(false);
+  const [errorKelasDoa, setErrorKelasDoa] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (kelasId === '') {
+      setBarisKelasDoa([]);
+      return;
+    }
+    let batal = false;
+    setLoadingKelasDoa(true);
+    setErrorKelasDoa(null);
+    muatPengulanganKelasDoa(kelasId, periode.awal, periode.akhir)
+      .then((d) => {
+        if (!batal) setBarisKelasDoa(d);
+      })
+      .catch((e) => {
+        if (!batal) setErrorKelasDoa(e instanceof Error ? e.message : 'Gagal memuat data.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingKelasDoa(false);
       });
     return () => {
       batal = true;
@@ -416,6 +448,40 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                   >
                     <span className="min-w-0 truncate text-[13px] font-semibold text-text">
                       {b.nama_surat}
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-1.5">
+                      <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
+                      <span className="text-[11px] whitespace-nowrap text-text-faint">
+                        terakhir {tanggalPendek(b.terakhir)}
+                      </span>
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* ── Sisi PER KELAS -- Hafalan Do'a (diminta owner 2026-09-03,
+              DI BAWAH Hafalan Surat). Kartu & format baris sama persis,
+              cuma "×" hijau -> tetap sage, label "Klasikal - Hafalan
+              Do'a". ── */}
+          <div className="label-mikro mb-2">Klasikal - Hafalan Do&rsquo;a</div>
+          {loadingKelasDoa && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {errorKelasDoa && <p className="mb-5 text-[13px] text-red">{errorKelasDoa}</p>}
+          {!loadingKelasDoa && !errorKelasDoa && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {barisKelasDoa.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada Hafalan Do&rsquo;a Klasikal yang disampaikan pada periode ini.
+                </p>
+              ) : (
+                barisKelasDoa.map((b) => (
+                  <div
+                    key={b.nama_doa}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-text">
+                      {b.nama_doa}
                     </span>
                     <span className="flex shrink-0 items-baseline gap-1.5">
                       <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>

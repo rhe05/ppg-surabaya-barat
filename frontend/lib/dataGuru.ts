@@ -218,6 +218,24 @@ export async function muatPengulanganKelas(
   return (data ?? []) as PengulanganKelas[];
 }
 
+export type PengulanganKelasDoa = { nama_doa: string; jumlah: number; terakhir: string };
+
+/** "Do'a ini sudah diulang berapa kali" utk satu kelas, satu rentang --
+ *  kembar dari muatPengulanganKelas (surat). Migrasi 20260903110000. */
+export async function muatPengulanganKelasDoa(
+  kelasId: number,
+  awal: string,
+  akhir: string
+): Promise<PengulanganKelasDoa[]> {
+  const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas_doa', {
+    p_kelas_id: kelasId,
+    p_awal: awal,
+    p_akhir: akhir,
+  });
+  if (error) throw new Error(error.message);
+  return (data ?? []) as PengulanganKelasDoa[];
+}
+
 export type PengulanganSantri = {
   santri_id: number;
   nama_santri: string;
