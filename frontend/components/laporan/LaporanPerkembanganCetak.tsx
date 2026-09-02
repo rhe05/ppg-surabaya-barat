@@ -12,16 +12,24 @@
    ngedrift lagi.
 
    PUTARAN KELIMA (2026-09-02, diminta owner, admin desktop SAJA):
-   section "Materi Klasikal" -- 2 kartu (Haf Surat & Haf Do'a), tiap
-   kartu menunjukkan total pengulangan pada periode laporan yang sama.
-   Field `materiKlasikal` SENGAJA opsional & section-nya HANYA dirender
-   kalau field itu ADA -- SantriProgressReport.tsx (admin) mengisinya
-   dari RPC `jurnal_pengulangan_kelas` yang sudah ada (lib/dataGuru.ts,
+   section "Materi Klasikal" di paling bawah laporan. Field
+   `materiKlasikal` SENGAJA opsional & section-nya HANYA dirender kalau
+   field itu ADA -- SantriProgressReport.tsx (admin) mengisinya dari
+   RPC `jurnal_pengulangan_kelas` yang sudah ada (lib/dataGuru.ts,
    fitur Monitoring guru), GuruLaporanView.tsx (mobile) SENGAJA TIDAK
    diubah/tidak mengisinya, jadi tampilan guru mobile 100% tidak
-   berubah. Haf Do'a masih "—" (belum ada data model, sama seperti fase
-   1 Monitoring guru -- lihat lib/periodeAkademik.ts & catatan di
-   components/monitoring/PencapaianMateriView.tsx). */
+   berubah.
+
+   PUTARAN KEENAM (2026-09-02, diminta owner): "Haf Surat" bukan lagi
+   satu angka total, tapi RINCIAN per surat (nama + berapa kali
+   diulang) -- pola SAMA PERSIS daftar "Per Kelas" di Monitoring guru
+   (components/monitoring/PencapaianMateriView.tsx), krn RPC-nya SATU-
+   SATUNYA sumber & memang sudah mengembalikan per-surat. Rincian ini
+   OTOMATIS cuma milik kelas yang dipilih di laporan (RPC-nya menerima
+   `p_kelas_id`) -- kelas 1 hanya menampilkan surat yang PERNAH benar2
+   diulang klasikal di kelas 1 pada periode itu, bukan daftar baku
+   kurikulum kelas 1. Haf Do'a TETAP satu placeholder "—" (belum ada
+   data model). */
 
 export type LaporanBaris = {
   nama: string;
@@ -36,14 +44,17 @@ export type LaporanBaris = {
   persen: number | null;
 };
 
-/* Total pengulangan Materi Klasikal pada periode laporan yang sama --
-   `hafSuratPengulangan` = jumlah surat "kali" dijumlahkan dari RPC
-   jurnal_pengulangan_kelas (satu materi Klasikal bisa memuat >1 surat
-   sekaligus, jadi ini total repetisi-surat, bukan total sesi).
+/* Satu surat + berapa kali diulang klasikal pada periode laporan --
+   langsung dari RPC jurnal_pengulangan_kelas (sudah terurut jumlah
+   desc lalu nama, lihat migrasi 20260902150000). */
+export type PengulanganSuratBaris = { namaSurat: string; jumlah: number };
+
+/* `hafSurat` = rincian per surat (kosong = belum ada materi Klasikal
+   Hafalan Surat yang disampaikan pada periode ini, BUKAN error).
    `hafDoaPengulangan` SELALU null utk sekarang -- belum ada data model
    Hafalan Do'a (fase 1 fitur Pengulangan cuma Hafalan Surat). */
 export type MateriKlasikal = {
-  hafSuratPengulangan: number;
+  hafSurat: PengulanganSuratBaris[];
   hafDoaPengulangan: number | null;
 };
 
@@ -155,19 +166,37 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
             Materi Klasikal
           </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-            <KartuMetrik
-              label="Haf Surat"
-              nilai={String(laporan.materiKlasikal.hafSuratPengulangan)}
-              warna="var(--violet)"
-              catatan="Pengulangan"
-            />
-            <KartuMetrik
-              label="Haf Do'a"
-              nilai={laporan.materiKlasikal.hafDoaPengulangan !== null ? String(laporan.materiKlasikal.hafDoaPengulangan) : '—'}
-              warna="var(--text-faint)"
-              catatan="Pengulangan"
-            />
+
+          <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
+            Hafalan Surat
+          </div>
+          <div className="mb-4 overflow-hidden rounded-[var(--radius)] border border-border">
+            {laporan.materiKlasikal.hafSurat.length === 0 ? (
+              <div className="px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
+                Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
+              </div>
+            ) : (
+              laporan.materiKlasikal.hafSurat.map((b) => (
+                <div
+                  key={b.namaSurat}
+                  className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 text-[12.5px] last:border-b-0 sm:py-2.5 sm:text-[13px]"
+                >
+                  <span className="text-text">{b.namaSurat}</span>
+                  <span className="font-extrabold" style={{ color: 'var(--violet)' }}>
+                    {b.jumlah}×
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
+            Hafalan Do&rsquo;a
+          </div>
+          <div className="rounded-[var(--radius)] border border-border px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
+            {laporan.materiKlasikal.hafDoaPengulangan !== null
+              ? `${laporan.materiKlasikal.hafDoaPengulangan}× pengulangan`
+              : 'Belum ada data.'}
           </div>
         </div>
       )}

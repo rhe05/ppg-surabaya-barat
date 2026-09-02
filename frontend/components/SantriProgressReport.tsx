@@ -232,7 +232,10 @@ export default function SantriProgressReport() {
       /* Materi Klasikal (2026-09-02, diminta owner, admin desktop) --
          pakai RPC yang sama dgn fitur Monitoring guru (lib/dataGuru.ts),
          periode SAMA PERSIS dgn laporan ini (bulan+tahun yg sudah
-         dipilih di atas). kelasId sudah dijamin number di sini (dicek
+         dipilih di atas), kelas SAMA PERSIS jg (`p_kelas_id: kelasId`)
+         -- rincian per-surat OTOMATIS cuma milik kelas ini, bukan
+         daftar baku kurikulum (diminta owner: "cukup materi sesuai
+         kelas tersebut"). kelasId sudah dijamin number di sini (dicek
          di awal fungsi). Kalau RPC-nya gagal, laporan tetap tampil --
          section "Materi Klasikal" cukup dilewati (lihat catatan try/
          catch di bawah), jangan sampai satu fitur tambahan menggagalkan
@@ -241,7 +244,7 @@ export default function SantriProgressReport() {
       try {
         const barisKlasikal = await muatPengulanganKelas(kelasId, awal, akhir);
         materiKlasikal = {
-          hafSuratPengulangan: barisKlasikal.reduce((s, b) => s + b.jumlah, 0),
+          hafSurat: barisKlasikal.map((b) => ({ namaSurat: b.nama_surat, jumlah: b.jumlah })),
           hafDoaPengulangan: null,
         };
       } catch {
