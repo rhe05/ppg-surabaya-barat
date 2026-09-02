@@ -920,6 +920,19 @@ export default function RencanaPembelajaranView() {
   );
   const [klasikalBulanTerbuka, setKlasikalBulanTerbuka] = useState(false);
 
+  /* Ada tanggal Pencak Silat ASAD di bulan+kelas yg sedang dilihat --
+     dipakai utk badge merah di kepala kartu "Materi Klasikal <bulan>"
+     DAN membuka kartunya otomatis (owner 2026-09-03: label harus
+     kelihatan tanpa perlu buka-buka kartu). */
+  const adaAsadBulanIni =
+    kelasIniIkutAsad &&
+    [...tanggalAsad].some(
+      (t) => Number(t.slice(0, 4)) === tahun && Number(t.slice(5, 7)) === bulan,
+    );
+  useEffect(() => {
+    if (adaAsadBulanIni) setKlasikalBulanTerbuka(true);
+  }, [adaAsadBulanIni]);
+
   /* Kartu Klasikal bisa dibuka/tutup per minggu (diminta owner 2026-08-23)
      -- rincian hariannya TERSEMBUNYI bawaan, klik header (Minggu N +
      tanggal + badge Klasikal) utk buka, klik lagi utk tutup. */
@@ -1149,8 +1162,15 @@ export default function RencanaPembelajaranView() {
                 <span className="text-[15px] font-bold text-text">
                   Materi Klasikal {NAMA_BULAN[bulan - 1]} {tahun}
                 </span>
-                <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
-                  {totalHariAktifBulan} Hari Aktif
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {adaAsadBulanIni && (
+                    <span className="rounded-full bg-[rgba(220,38,38,0.1)] px-2.5 py-1 text-[11px] font-bold text-red">
+                      Ada ASAD
+                    </span>
+                  )}
+                  <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                    {totalHariAktifBulan} Hari Aktif
+                  </span>
                 </span>
               </button>
               {klasikalBulanTerbuka && (
@@ -1227,6 +1247,38 @@ export default function RencanaPembelajaranView() {
                       Klasikal
                     </span>
                   </div>
+                  {/* Label ASAD selalu tampil di kartu minggu (tanpa perlu
+                      dibuka) begitu ada tanggal ASAD di minggu itu -- owner
+                      2026-09-03: "khusus di hari jumat akan tampil pencak
+                      silat asad". */}
+                  {(() => {
+                    const asadHari = hariSekolahDalamMinggu(tahun, bulan, rentang!).filter(
+                      ({ iso }) => kelasIniIkutAsad && tanggalAsad.has(iso),
+                    );
+                    if (asadHari.length === 0) return null;
+                    return (
+                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-[rgba(220,38,38,0.25)] bg-[rgba(220,38,38,0.05)] px-4 py-2 text-[12px] font-bold text-red">
+                        <span>
+                          Pencak Silat ASAD — tidak ada klasikal
+                          <span className="font-semibold">
+                            {' '}
+                            ({asadHari.map(({ tgl }) => `${NAMA_HARI[tgl.getDay()]} ${tgl.getDate()}`).join(', ')})
+                          </span>
+                        </span>
+                        {asadHari.map(({ iso }) => (
+                          <button
+                            key={iso}
+                            type="button"
+                            disabled={prosesAsad}
+                            onClick={() => batalkanTanggalAsad(iso)}
+                            className="cursor-pointer rounded-full border border-border bg-panel px-2 py-0.5 text-[11px] font-semibold text-text-dim disabled:opacity-50"
+                          >
+                            Batalkan
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                   {dibuka && (
                     <div className="flex flex-col gap-2.5 border-t border-border px-4 pt-3 pb-4">
                       {hariSekolahDalamMinggu(tahun, bulan, rentang!).map(({ tgl, iso }, indeks) => {

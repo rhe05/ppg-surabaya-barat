@@ -31,6 +31,14 @@ const TERJEMAHAN: { cocok: RegExp; pesan: string }[] = [
     cocok: /uq_absensi_santri_tanggal/,
     pesan: 'Kehadiran santri ini pada tanggal tersebut sudah tercatat.',
   },
+  {
+    /* PostgREST PGRST205 — tabel/kolom fitur baru belum ada di server
+       (migrasi belum dijalankan). Bahasa Inggris & tidak bisa ditindak
+       guru; ganti jadi kalimat Indonesia yang mengarahkan ke admin. */
+    cocok: /Could not find the table|schema cache|PGRST205/i,
+    pesan:
+      'Fitur ini belum aktif di server. Hubungi admin untuk mengaktifkannya, lalu coba lagi.',
+  },
 ];
 
 export function pesanGalatDb(galat: unknown, cadangan: string): string {
