@@ -307,7 +307,9 @@ function MonitoringContent() {
         </div>
       )}
 
-      {tab === 'materi' && <PencapaianMateriView judul={adalahGuru ? 'Monitoring' : undefined} />}
+      {tab === 'materi' && (
+        <PencapaianMateriView judul={adalahGuru ? 'Monitoring Pencapaian Materi' : undefined} />
+      )}
 
       {tab === 'kehadiran' && (
         <>
