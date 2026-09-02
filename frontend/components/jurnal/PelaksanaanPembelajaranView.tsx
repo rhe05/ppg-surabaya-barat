@@ -7,13 +7,23 @@
    Selalu "hari ini": minggu_ke dihitung dari tanggal hari ini
    (mingguKeDariTanggal), materi yang tampil = seluruh baris jurnal_materi
    milik kelas pada minggu berjalan (baik yang sudah maupun belum
-   disampaikan) -- guru mencentang satu-satu, isi catatan opsional, lalu
-   "Simpan Pelaksanaan" sekali jalan (batch: UPDATE baris yang berubah +
-   INSERT materi tambahan yang ditambahkan di sesi ini). Toggle checkbox
-   TIDAK langsung menulis ke DB -- sengaja menunggu tombol Simpan, supaya
-   guru bisa mencentang berkali-kali/ralat dulu sebelum benar-benar
-   tersimpan (pola sama dgn app/absensi/page.tsx: toggle status di form,
-   satu tombol Simpan di akhir).
+   disampaikan) -- guru mencentang satu-satu dan mengisi catatan opsional.
+
+   PENYIMPANAN OTOMATIS sejak 2026-09-02 (diminta owner): tombol "Simpan
+   Pelaksanaan" DIHAPUS. Tiap centang langsung ditulis ke DB, catatan
+   ditulis 900ms setelah guru berhenti mengetik, dan bilah bawah cuma
+   melaporkan keadaannya ("Tersimpan · 11.14" / "Ada yang belum
+   tersimpan" + Coba Lagi). Sebelumnya semua perubahan ditahan di state
+   sampai tombol Simpan ditekan -- alasan lamanya "biar guru bisa ralat
+   dulu" kalah oleh risiko nyatanya: guru mencentang di tengah KBM sambil
+   memegang HP, sekali layar terkunci/telepon masuk sebelum Simpan
+   ditekan, seluruh centang hilang tanpa jejak. Ralat tetap bisa: centang
+   ulang saja, tulisan berikutnya menimpa yang sebelumnya.
+
+   ⚠️ Layar Input Kehadiran (app/absensi/page.tsx) SENGAJA tidak ikut
+   berubah -- di sana satu tombol Simpan masih dipertahankan karena
+   penulisannya berbentuk satu sesi absensi ber-versi (cek konflik
+   lost-update), bukan baris-baris berdiri sendiri seperti di sini.
 
    PUTARAN KEDUA (diminta owner, "standar produk SaaS profesional"): ikon
    lucide-react, <select> Kelas -> SelectKustom, "Memuat..." -> Skeleton,
@@ -40,13 +50,23 @@ const NAMA_BULAN = [
 
 type Kelas = { id: number; nama: string };
 type Baris = {
+  /* Kunci LOKAL yang tidak pernah berubah selama baris hidup di layar --
+     `id` DB belum ada saat materi tambahan baru dibuat, dan sejak
+     penyimpanan jadi otomatis (2026-09-02) baris bisa berpindah dari
+     "belum py id" ke "py id" di tengah pengetikan. Semua penjadwalan
+     simpan & penanda baris terbuka dikunci ke uid ini, bukan ke id. */
+  uid: string;
   id: number | null; // null = materi tambahan baru, belum tersimpan
   judul: string;
   status: 'belum' | 'disampaikan';
   catatan: string;
+  /* Nilai yang TERAKHIR benar-benar ada di server. Dipakai utk tahu
+     baris mana yang masih tertinggal saat penyimpanan gagal. */
   statusAsli: 'belum' | 'disampaikan';
   catatanAsli: string;
 };
+
+type StatusSimpan = 'diam' | 'menyimpan' | 'tersimpan' | 'gagal';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -129,10 +149,28 @@ export default function PelaksanaanPembelajaranView() {
     mingguKe === mingguKeDariTanggal(sekarang);
 
   const [baris, setBaris] = useState<Baris[]>([]);
-  const [terbukaId, setTerbukaId] = useState<number | null>(null); // baris yg catatannya sedang diperluas
+  const [terbukaUid, setTerbukaUid] = useState<string | null>(null); // baris yg catatannya sedang diperluas
   const [loading, setLoading] = useState(false);
-  const [menyimpan, setMenyimpan] = useState(false);
-  const [baruTersimpan, setBaruTersimpan] = useState(false);
+  const [statusSimpan, setStatusSimpan] = useState<StatusSimpan>('diam');
+  const [jamTersimpan, setJamTersimpan] = useState<string | null>(null);
+  /* Salinan `baris` terbaru utk dipakai penyimpanan tertunda (catatan
+     diketik -> tunggu 900ms). Tanpa ref, timeout akan menyimpan nilai
+     yang sudah basi -- itu tepat kelas bug yang paling berbahaya di
+     penyimpanan otomatis: yang tersimpan bukan yang terlihat. */
+  const barisRef = useRef<Baris[]>([]);
+  barisRef.current = baris;
+  const tundaRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const rantaiRef = useRef<Map<string, Promise<void>>>(new Map());
+  /* Bersihkan timer tertunda saat komponen dilepas -- kalau tidak, ganti
+     kelas/bulan sambil mengetik catatan bisa menulis catatan itu ke
+     baris minggu yang sudah tidak ditampilkan. */
+  useEffect(() => {
+    const timer = tundaRef.current;
+    return () => {
+      timer.forEach((t) => clearTimeout(t));
+      timer.clear();
+    };
+  }, []);
 
   const [tambahanTerbuka, setTambahanTerbuka] = useState(false);
   const [judulTambahan, setJudulTambahan] = useState('');
@@ -171,6 +209,7 @@ export default function PelaksanaanPembelajaranView() {
       if (err) throw new Error(err.message);
       setBaris(
         (data ?? []).map((m) => ({
+          uid: `db-${m.id}`,
           id: m.id,
           judul: m.judul,
           status: m.status as 'belum' | 'disampaikan',
@@ -192,24 +231,121 @@ export default function PelaksanaanPembelajaranView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan, mingguKe]);
 
+  /* ── Penyimpanan OTOMATIS (2026-09-02, diminta owner) ──────────────
+     Tombol "Simpan Pelaksanaan" dihapus: tiap centang langsung ditulis,
+     catatan ditulis 900ms setelah guru berhenti mengetik. Alasannya
+     praktis, bukan gaya-gayaan -- guru mencentang di tengah KBM sambil
+     memegang HP; sekali layar terkunci/telepon masuk sebelum tombol
+     Simpan ditekan, seluruh centangnya hilang tanpa jejak.
+
+     Yang disimpan adalah SATU BARIS per panggilan (bukan batch semua
+     baris spt dulu), supaya satu baris gagal tidak menyeret baris lain
+     dan bisa dicoba ulang sendiri. `statusAsli`/`catatanAsli` sekarang
+     berperan sbg "nilai terakhir yang sudah ada di server" -- itu yang
+     membuat bilah bawah tahu masih ada yang tertinggal. */
+  const simpanBaris = useCallback(
+    async (uid: string) => {
+      if (kelasId === '') return;
+      const b = barisRef.current.find((x) => x.uid === uid);
+      if (!b) return;
+      const status = b.status;
+      const catatan = b.catatan;
+      const catatanDb = catatan.trim() === '' ? null : catatan.trim();
+      const tanggal = status === 'disampaikan' ? todayStr() : null;
+      setStatusSimpan('menyimpan');
+      try {
+        if (b.id === null) {
+          const { data, error: err } = await supabase
+            .from('jurnal_materi')
+            .insert({
+              kelas_id: kelasId,
+              tahun,
+              bulan,
+              minggu_ke: mingguKe,
+              judul: b.judul,
+              status,
+              tanggal_disampaikan: tanggal,
+              catatan: catatanDb,
+            })
+            .select('id')
+            .single();
+          if (err) throw new Error(err.message);
+          setBaris((prev) =>
+            prev.map((x) => (x.uid === uid ? { ...x, id: data.id, statusAsli: status, catatanAsli: catatan } : x)),
+          );
+        } else {
+          const { error: err } = await supabase
+            .from('jurnal_materi')
+            .update({ status, tanggal_disampaikan: tanggal, catatan: catatanDb })
+            .eq('id', b.id);
+          if (err) throw new Error(err.message);
+          setBaris((prev) =>
+            prev.map((x) => (x.uid === uid ? { ...x, statusAsli: status, catatanAsli: catatan } : x)),
+          );
+        }
+        setJamTersimpan(
+          new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+        );
+        setStatusSimpan('tersimpan');
+      } catch (e) {
+        /* Nilai lokal SENGAJA tidak dikembalikan ke nilai server: yang
+           terlihat di layar tetap apa yang guru pilih, dan bilah bawah
+           menyatakan bahwa itu belum tersimpan + menyediakan Coba Lagi.
+           Membatalkan centang guru diam-diam jauh lebih membingungkan. */
+        setStatusSimpan('gagal');
+        push(e instanceof Error ? e.message : 'Gagal menyimpan.', 'error');
+      }
+    },
+    [kelasId, tahun, bulan, mingguKe, push],
+  );
+
+  function jadwalkanSimpan(uid: string, jeda: number) {
+    const timer = tundaRef.current;
+    const lama = timer.get(uid);
+    if (lama) clearTimeout(lama);
+    timer.set(
+      uid,
+      setTimeout(() => {
+        timer.delete(uid);
+        /* Penulisan untuk SATU baris diserialkan lewat rantai janji:
+           centang-batal-centang cepat bisa membuat dua permintaan
+           bersamaan, dan tanpa rantai ini urutan tibanya di server tidak
+           dijamin -- yang tersimpan bisa jadi centang yang LEBIH LAMA.
+           simpanBaris tidak pernah melempar (galatnya ditangkap di
+           dalam), jadi rantainya tidak bisa putus. */
+        const rantai = rantaiRef.current;
+        const berikut = (rantai.get(uid) ?? Promise.resolve()).then(() => simpanBaris(uid));
+        rantai.set(uid, berikut);
+      }, jeda),
+    );
+  }
+
   function toggleStatus(idx: number) {
+    const uid = baris[idx].uid;
     setBaris((prev) =>
-      prev.map((b, i) =>
-        i === idx ? { ...b, status: b.status === 'disampaikan' ? 'belum' : 'disampaikan' } : b,
+      prev.map((b) =>
+        b.uid === uid ? { ...b, status: b.status === 'disampaikan' ? 'belum' : 'disampaikan' } : b,
       ),
     );
-    setTerbukaId((prev) => (baris[idx].id === prev ? prev : baris[idx].id));
+    setTerbukaUid((prev) => (prev === uid ? prev : uid));
+    /* Jeda 0: tetap lewat setTimeout supaya simpanBaris membaca barisRef
+       SESUDAH setBaris di atas terpasang, bukan nilai sebelum toggle. */
+    jadwalkanSimpan(uid, 0);
   }
 
   function ubahCatatan(idx: number, catatan: string) {
-    setBaris((prev) => prev.map((b, i) => (i === idx ? { ...b, catatan } : b)));
+    const uid = baris[idx].uid;
+    setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, catatan } : b)));
+    jadwalkanSimpan(uid, 900);
   }
 
   function tambahMateriTambahan() {
     if (judulTambahan.trim().length === 0) return;
+    const uid = `baru-${Date.now()}`;
     setBaris((prev) => [
       ...prev,
       {
+        uid,
         id: null,
         judul: judulTambahan.trim(),
         status: 'disampaikan',
@@ -220,46 +356,16 @@ export default function PelaksanaanPembelajaranView() {
     ]);
     setJudulTambahan('');
     setTambahanTerbuka(false);
+    jadwalkanSimpan(uid, 0);
   }
 
-  async function simpanPelaksanaan() {
-    if (kelasId === '') return;
-    setMenyimpan(true);
-    try {
-      const hariIni = todayStr();
-      for (const b of baris) {
-        const berubah = b.status !== b.statusAsli || b.catatan !== b.catatanAsli;
-        if (b.id === null) {
-          const { error: err } = await supabase.from('jurnal_materi').insert({
-            kelas_id: kelasId,
-            tahun,
-            bulan,
-            minggu_ke: mingguKe,
-            judul: b.judul,
-            status: b.status,
-            tanggal_disampaikan: b.status === 'disampaikan' ? hariIni : null,
-            catatan: b.catatan.trim() === '' ? null : b.catatan.trim(),
-          });
-          if (err) throw new Error(err.message);
-        } else if (berubah) {
-          const { error: err } = await supabase
-            .from('jurnal_materi')
-            .update({
-              status: b.status,
-              tanggal_disampaikan: b.status === 'disampaikan' ? hariIni : null,
-              catatan: b.catatan.trim() === '' ? null : b.catatan.trim(),
-            })
-            .eq('id', b.id);
-          if (err) throw new Error(err.message);
-        }
+  /* "Coba Lagi" di bilah bawah: simpan ulang SEMUA baris yang nilainya
+     masih beda dari server, satu per satu. */
+  async function simpanUlangYangTertinggal() {
+    for (const b of barisRef.current) {
+      if (b.id === null || b.status !== b.statusAsli || b.catatan !== b.catatanAsli) {
+        await simpanBaris(b.uid);
       }
-      push('Pelaksanaan tersimpan.', 'sukses');
-      setBaruTersimpan(true);
-      await muat();
-    } catch (e) {
-      push(e instanceof Error ? e.message : 'Gagal menyimpan pelaksanaan.', 'error');
-    } finally {
-      setMenyimpan(false);
     }
   }
 
@@ -267,25 +373,12 @@ export default function PelaksanaanPembelajaranView() {
   const disampaikan = baris.filter((b) => b.status === 'disampaikan').length;
   const persen = direncanakan > 0 ? Math.round((disampaikan / direncanakan) * 100) : 0;
 
-  /* Tombol Simpan mati sampai benar2 ADA yang berubah (2026-09-02,
-     diminta owner). statusAsli/catatanAsli sudah dipegang tiap baris utk
-     keperluan batch UPDATE, jadi perbandingannya tidak butuh state baru
-     -- materi tambahan (id null) selalu dihitung sbg perubahan krn belum
-     pernah tersimpan. */
-  const adaPerubahan = baris.some(
+  /* Masih ada yang belum sampai ke server? Sumber kebenarannya sama
+     dengan yang dipakai simpanUlangYangTertinggal, jadi bilah bawah dan
+     tombol Coba Lagi tidak mungkin berbeda pendapat. */
+  const adaTertinggal = baris.some(
     (b) => b.id === null || b.status !== b.statusAsli || b.catatan !== b.catatanAsli
   );
-  /* Label "Tersimpan" sesaat setelah berhasil -- umpan balik yang tinggal
-     di tempat tombolnya, bukan cuma toast yang lewat. Hilang sendiri
-     begitu guru menyentuh sesuatu lagi. */
-  useEffect(() => {
-    if (adaPerubahan) setBaruTersimpan(false);
-  }, [adaPerubahan]);
-  useEffect(() => {
-    if (!baruTersimpan) return;
-    const t = setTimeout(() => setBaruTersimpan(false), 2600);
-    return () => clearTimeout(t);
-  }, [baruTersimpan]);
 
   const opsiBulan = NAMA_BULAN.map((nm, idx) => ({ value: String(idx + 1), label: nm }));
   const opsiTahun = tahunPilihan.map((y) => ({ value: String(y), label: String(y) }));
@@ -473,11 +566,11 @@ export default function PelaksanaanPembelajaranView() {
                 )}
                 {baris.map((b, idx) => {
                   const dicentang = b.status === 'disampaikan';
-                  const diperluas = terbukaId === b.id || (b.id === null && dicentang);
+                  const diperluas = terbukaUid === b.uid;
                   const { kategori, utama, rincian } = pecahJudulMateri(b.judul);
                   return (
                     <div
-                      key={b.id ?? `baru-${idx}`}
+                      key={b.uid}
                       className="border-b border-border px-3.5 py-3 last:border-b-0"
                     >
                       {/* Status dinyatakan SEKALI, lewat kotak centang.
@@ -594,16 +687,30 @@ export default function PelaksanaanPembelajaranView() {
           berubah supaya tidak mengundang tekan-tekan tanpa guna. */}
       {kelasId !== '' && (
         <div className="bilah-aksi-bawah">
-          <div className="mx-auto w-full max-w-[430px] px-[18px] py-3">
-            <button
-              type="button"
-              disabled={menyimpan || !adaPerubahan}
-              onClick={simpanPelaksanaan}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none bg-sage py-[14px] text-[15px] font-bold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-150 active:scale-[0.99] disabled:cursor-default disabled:bg-panel-2 disabled:text-text-faint disabled:shadow-none"
-            >
-              {!menyimpan && (baruTersimpan || adaPerubahan) && <Check size={17} strokeWidth={2.4} />}
-              {menyimpan ? 'Menyimpan...' : baruTersimpan ? 'Tersimpan' : 'Simpan Pelaksanaan'}
-            </button>
+          <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 px-[18px] py-3">
+            {statusSimpan === 'menyimpan' ? (
+              <span className="text-[13px] text-text-dim">Menyimpan...</span>
+            ) : adaTertinggal || statusSimpan === 'gagal' ? (
+              <span className="text-[13px] font-semibold text-red">Ada yang belum tersimpan</span>
+            ) : statusSimpan === 'tersimpan' ? (
+              <span className="flex items-center gap-1.5 text-[13px] text-text-dim">
+                <Check size={15} strokeWidth={2.6} className="text-sage" />
+                Tersimpan{jamTersimpan ? ` · ${jamTersimpan}` : ''}
+              </span>
+            ) : (
+              /* Keadaan istirahat: sekalian memberi tahu guru bahwa
+                 memang TIDAK ADA tombol simpan yang harus ia cari. */
+              <span className="text-[13px] text-text-faint">Perubahan tersimpan otomatis</span>
+            )}
+            {(adaTertinggal || statusSimpan === 'gagal') && statusSimpan !== 'menyimpan' && (
+              <button
+                type="button"
+                onClick={simpanUlangYangTertinggal}
+                className="shrink-0 cursor-pointer rounded-[var(--radius-button)] border-none bg-sage px-4 py-2 text-[13px] font-bold text-white active:scale-[0.98]"
+              >
+                Coba Lagi
+              </button>
+            )}
           </div>
         </div>
       )}
