@@ -68,8 +68,13 @@ import {
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
-import { muatPengulanganKelas, muatProtaKelompok, namaKategori } from '@/lib/dataGuru';
-import { gabungkanDoaDuaSemester } from '@/lib/materiHafalanDoa';
+import {
+  muatPengulanganKelas,
+  muatPengulanganKelasDoa,
+  muatProtaKelompok,
+  namaKategori,
+} from '@/lib/dataGuru';
+import { targetAsmaulHusnaDari, ringkasPengulanganDoa } from '@/lib/materiHafalanDoa';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
@@ -275,21 +280,30 @@ export default function SantriProgressReport() {
          seluruh laporan kehadiran yang sudah jadi kebutuhan utama. */
       let materiKlasikal: LaporanPerkembangan['materiKlasikal'];
       try {
-        const barisKlasikal = await muatPengulanganKelas(kelasId, awal, akhir);
+        const [barisKlasikal, barisDoa] = await Promise.all([
+          muatPengulanganKelas(kelasId, awal, akhir),
+          muatPengulanganKelasDoa(kelasId, awal, akhir),
+        ]);
 
-        let hafDoa: string[] = [];
+        /* Asmaul Husna: butuh target Prota kelas ini utk memutuskan
+           rentang mana yang dihitung "capai penuh" (diminta owner
+           2026-09-03, SAMA dgn Monitoring Pencapaian Materi). */
+        let targetAH: { dari: number; sampai: number } | null = null;
         const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
         if (kelasProta) {
           const prota = await muatProtaKelompok(KELOMPOK_KURIKULUM_BERSAMA_ID, tahun);
           const baris = prota.find(
             (p) => p.kelas === kelasProta && namaKategori(p.kategori_kbm) === "Hafalan Do'a-Do'a Harian"
           );
-          if (baris) hafDoa = gabungkanDoaDuaSemester(baris.target, baris.target2);
+          if (baris) targetAH = targetAsmaulHusnaDari(baris.target, baris.target2);
         }
 
         materiKlasikal = {
           hafSurat: barisKlasikal.map((b) => ({ namaSurat: b.nama_surat, jumlah: b.jumlah })),
-          hafDoa,
+          hafDoa: ringkasPengulanganDoa(barisDoa, targetAH).map((b) => ({
+            namaDoa: b.nama_doa,
+            jumlah: b.jumlah,
+          })),
         };
       } catch {
         materiKlasikal = undefined;

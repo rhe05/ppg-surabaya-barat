@@ -48,6 +48,55 @@ export function uraikanRentangAsmaulHusna(teks: string): { dari: number; sampai:
   return m ? { dari: Number(m[1]), sampai: Number(m[2]) } : null;
 }
 
+/** Rentang target Asmaul Husna tahunan dari sepasang teks Prota
+ *  (Semester 1 + 2 digabung). null kalau tidak ada baris Asmaul Husna. */
+export function targetAsmaulHusnaDari(
+  target1: string | null,
+  target2: string | null,
+): { dari: number; sampai: number } | null {
+  for (const item of gabungkanDoaDuaSemester(target1, target2)) {
+    const r = uraikanRentangAsmaulHusna(item);
+    if (r) return r;
+  }
+  return null;
+}
+
+/** Ringkas hasil RPC pengulangan Hafalan Do'a untuk DITAMPILKAN (diminta
+ *  owner 2026-09-03): item non-Asmaul-Husna apa adanya; SEMUA baris
+ *  "Asmaul Husna (X sampai Y)" digabung jadi SATU, dan cuma dihitung
+ *  kalau rentang yang disampaikan MENUTUPI target penuh kelas
+ *  (`dari<=targetMin && sampai>=targetMax`) -- rentang parsial dibuang.
+ *  Kalau target tidak diketahui, Asmaul Husna disembunyikan seluruhnya. */
+export function ringkasPengulanganDoa<
+  T extends { nama_doa: string; jumlah: number; terakhir?: string },
+>(
+  baris: T[],
+  target: { dari: number; sampai: number } | null,
+): { nama_doa: string; jumlah: number; terakhir: string }[] {
+  const hasil = baris
+    .filter((b) => !adalahAsmaulHusna(b.nama_doa))
+    .map((b) => ({ nama_doa: b.nama_doa, jumlah: b.jumlah, terakhir: b.terakhir ?? '' }));
+  if (!target) return hasil;
+  let jumlah = 0;
+  let terakhir = '';
+  for (const b of baris) {
+    if (!adalahAsmaulHusna(b.nama_doa)) continue;
+    const r = uraikanRentangAsmaulHusna(b.nama_doa);
+    if (r && r.dari <= target.dari && r.sampai >= target.sampai) {
+      jumlah += b.jumlah;
+      if ((b.terakhir ?? '') > terakhir) terakhir = b.terakhir ?? '';
+    }
+  }
+  if (jumlah > 0) {
+    hasil.push({
+      nama_doa: `Asmaul Husna (${target.dari} sampai ${target.sampai})`,
+      jumlah,
+      terakhir,
+    });
+  }
+  return hasil;
+}
+
 /* Nama ruang guru ("2 & 3A", "Pra Remaja") -> kode kelas Kurikulum
    PAUD-TK s.d. kelas tertinggi ruang itu. SALINAN ringkas dari
    kelasTargetKumulatif di RencanaPembelajaranView.tsx (tidak diekspor

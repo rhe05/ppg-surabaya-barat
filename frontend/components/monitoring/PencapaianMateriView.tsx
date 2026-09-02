@@ -84,9 +84,8 @@ import {
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
 import {
-  gabungkanDoaDuaSemester,
-  adalahAsmaulHusna,
-  uraikanRentangAsmaulHusna,
+  targetAsmaulHusnaDari,
+  ringkasPengulanganDoa,
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 
@@ -284,11 +283,8 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       .filter((b) => urut.includes(b.kelas ?? ''))
       .sort((a, b) => urut.indexOf(b.kelas ?? '') - urut.indexOf(a.kelas ?? '')); // tertinggi dulu
     for (const b of relevan) {
-      const gabung = gabungkanDoaDuaSemester(b.target, b.target2);
-      for (const item of gabung) {
-        const r = uraikanRentangAsmaulHusna(item);
-        if (r) return r;
-      }
+      const t = targetAsmaulHusnaDari(b.target, b.target2);
+      if (t) return t;
     }
     return null;
   }, [namaKelasAktif, protaDoa]);
@@ -296,29 +292,15 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
   /* Baris Hafalan Do'a yang ditampilkan: item non-Asmaul-Husna apa
      adanya; SEMUA baris Asmaul Husna diringkas jadi SATU -- jumlahnya =
      banyaknya klasikal yang rentangnya menutupi target penuh. */
-  const barisKelasDoaTampil = useMemo<PengulanganKelasDoa[]>(() => {
-    const nonAH = barisKelasDoa.filter((b) => !adalahAsmaulHusna(b.nama_doa));
-    if (!targetAsmaulHusna) return nonAH;
-    let jumlah = 0;
-    let terakhir = '';
-    for (const b of barisKelasDoa) {
-      if (!adalahAsmaulHusna(b.nama_doa)) continue;
-      const r = uraikanRentangAsmaulHusna(b.nama_doa);
-      if (r && r.dari <= targetAsmaulHusna.dari && r.sampai >= targetAsmaulHusna.sampai) {
-        jumlah += b.jumlah;
-        if (b.terakhir > terakhir) terakhir = b.terakhir;
-      }
-    }
-    if (jumlah === 0) return nonAH;
-    return [
-      ...nonAH,
-      {
-        nama_doa: `Asmaul Husna (${targetAsmaulHusna.dari} sampai ${targetAsmaulHusna.sampai})`,
-        jumlah,
-        terakhir,
-      },
-    ];
-  }, [barisKelasDoa, targetAsmaulHusna]);
+  const barisKelasDoaTampil = useMemo<PengulanganKelasDoa[]>(
+    () =>
+      ringkasPengulanganDoa(barisKelasDoa, targetAsmaulHusna).map((b) => ({
+        nama_doa: b.nama_doa,
+        jumlah: b.jumlah,
+        terakhir: b.terakhir,
+      })),
+    [barisKelasDoa, targetAsmaulHusna],
+  );
 
   /* ── Data per SANTRI ── */
   const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
@@ -543,9 +525,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                     </span>
                     <span className="flex shrink-0 items-baseline gap-1.5">
                       <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
-                      <span className="text-[11px] whitespace-nowrap text-text-faint">
-                        terakhir {tanggalPendek(b.terakhir)}
-                      </span>
+                      {b.terakhir && (
+                        <span className="text-[11px] whitespace-nowrap text-text-faint">
+                          terakhir {tanggalPendek(b.terakhir)}
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))
@@ -577,9 +561,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                     </span>
                     <span className="flex shrink-0 items-baseline gap-1.5">
                       <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
-                      <span className="text-[11px] whitespace-nowrap text-text-faint">
-                        terakhir {tanggalPendek(b.terakhir)}
-                      </span>
+                      {b.terakhir && (
+                        <span className="text-[11px] whitespace-nowrap text-text-faint">
+                          terakhir {tanggalPendek(b.terakhir)}
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))

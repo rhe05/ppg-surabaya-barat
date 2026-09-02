@@ -110,7 +110,6 @@
    perkembangan santri" -- makanya laporan ini TETAP menampilkannya,
    cuma bedanya sekarang predikatnya dari satu sumber). */
 
-import { adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 
 export type LaporanBaris = {
   nama: string;
@@ -130,16 +129,17 @@ export type LaporanBaris = {
    desc lalu nama, lihat migrasi 20260902150000). */
 export type PengulanganSuratBaris = { namaSurat: string; jumlah: number };
 
-/* `hafSurat` = rincian per surat yang BENAR2 diulang klasikal pada
-   periode laporan (kosong = belum ada yang disampaikan, BUKAN error).
-   `hafDoa` = daftar TARGET KURIKULUM Hafalan Do'a kelas itu utk satu
-   tahun ajaran (gabungan Semester 1+2, lib/materiHafalanDoa.ts) --
-   BUKAN hitungan pengulangan spt hafSurat, krn datanya memang beda
-   sifat (rencana materi, bukan realisasi). Kosong = kelas ini belum
-   punya baris Prota kategori "Hafalan Do'a-Do'a Harian" utk tahun itu. */
+/* `hafSurat` & `hafDoa` sama sifatnya sejak 2026-09-03 (diminta owner:
+   "materi klasikal hafalan doa munculkan seperti hafalan surat sudah
+   pengulangan berapa kali"): RINCIAN per materi + berapa kali BENAR2
+   diulang klasikal pada periode laporan (RPC jurnal_pengulangan_kelas /
+   jurnal_pengulangan_kelas_doa). Asmaul Husna sudah diringkas jadi satu
+   baris di sisi pemanggil (lib/materiHafalanDoa ringkasPengulanganDoa).
+   Kosong = belum ada yang disampaikan pada periode itu, BUKAN error. */
+export type PengulanganDoaBaris = { namaDoa: string; jumlah: number };
 export type MateriKlasikal = {
   hafSurat: PengulanganSuratBaris[];
-  hafDoa: string[];
+  hafDoa: PengulanganDoaBaris[];
 };
 
 export type LaporanPerkembangan = {
@@ -175,9 +175,7 @@ function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: s
 export default function LaporanPerkembanganCetak({ laporan }: { laporan: LaporanPerkembangan }) {
   const pct = (n: number) => (laporan.totalSantri ? Math.round((n / laporan.totalSantri) * 100) : 0);
 
-  const hafDoaSemua = laporan.materiKlasikal?.hafDoa ?? [];
-  const menerampilkan = hafDoaSemua.find((item) => adalahMenerampilkanJenjangSebelumnya(item)) ?? null;
-  const rincianDoa = hafDoaSemua.filter((item) => !adalahMenerampilkanJenjangSebelumnya(item));
+  const hafDoa = laporan.materiKlasikal?.hafDoa ?? [];
 
   return (
     <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)] sm:p-6">
@@ -278,25 +276,24 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             Hafalan Do&rsquo;a
           </div>
-          {hafDoaSemua.length === 0 ? (
+          {hafDoa.length === 0 ? (
             <div className="text-[11px] text-text-faint">
-              Belum ada kurikulum Hafalan Do&rsquo;a utk kelas ini.
+              Belum ada materi Klasikal Hafalan Do&rsquo;a yang disampaikan pada periode ini.
             </div>
           ) : (
-            <>
-              {/* Teks polos TANPA pil -- catatan pengantar, bukan satu
-                  materi spesifik. Lihat PUTARAN KESEMBILAN. */}
-              {menerampilkan && <div className="mb-1.5 text-[11px] text-text">{menerampilkan}</div>}
-              {rincianDoa.length > 0 && (
-                <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5">
-                  {rincianDoa.map((item) => (
-                    <span key={item} className="bg-panel px-3 py-1.5 text-[11px] text-text">
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </>
+            <div className="grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5">
+              {hafDoa.map((b) => (
+                <span
+                  key={b.namaDoa}
+                  className="flex items-center justify-between gap-2 bg-panel px-3 py-1.5 text-[11px] text-text"
+                >
+                  <span className="truncate">{b.namaDoa}</span>
+                  <span className="shrink-0 font-extrabold" style={{ color: 'var(--violet)' }}>
+                    {b.jumlah}×
+                  </span>
+                </span>
+              ))}
+            </div>
           )}
         </div>
       )}
