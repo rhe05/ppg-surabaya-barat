@@ -461,7 +461,19 @@ export default function RencanaPembelajaranView() {
      yg justru TETAP menampilkannya (diminta owner eksplisit: jangan
      dihapus di laporan) -- makanya bukan cuma dilewati manual di sini,
      tapi predikat yg SAMA supaya kedua tempat tidak diam-diam
-     ngedrift soal baris mana yg dianggap "instruksi", bukan "materi". */
+     ngedrift soal baris mana yg dianggap "instruksi", bukan "materi".
+
+     Asmaul Husna PENGKHUSUSAN, khusus fitur ini saja (2026-09-02,
+     diminta owner): label cukup "Asmaul Husna" (rentang "(1 sampai
+     20)" dari Prota TIDAK ditampilkan -- itu target SATU SEMESTER
+     penuh, bukan yg benar2 disampaikan hari itu). `value`-nya SENGAJA
+     bukan lagi teks aslinya (yg memuat angka & jadi beda2 per
+     kelas/semester), tapi kunci STABIL `asmaul-husna:<kelas>:<semester>`
+     -- supaya toggle/pencocokan tidak bergantung pada angka yg
+     nantinya diketik ULANG oleh guru sendiri (lihat asmaulHusnaRentang
+     & simpanKlasikalBaru di bawah: dua kolom angka muncul saat item
+     ini dicentang, guru isi rentang yg BENAR2 diajarkan hari itu,
+     bukan target semester penuh dari Prota). */
   const opsiHafalanDoa = useMemo<OpsiSelect[]>(() => {
     if (kelasId === '' || protaKelompok.length === 0) return [];
     const namaRuang = kelasList.find((k) => k.id === kelasId)?.nama ?? '';
@@ -482,10 +494,13 @@ export default function RencanaPembelajaranView() {
       ] as const) {
         for (const item of uraikanTargetDoa(teks)) {
           if (adalahMenerampilkanJenjangSebelumnya(item)) continue;
-          if (!peta.has(item)) {
-            peta.set(item, {
-              value: item,
-              label: item,
+          const asmaulHusna = /^Asmaul\s+Husna/i.test(item);
+          const value = asmaulHusna ? `asmaul-husna:${b.kelas}:${semester}` : item;
+          const label = asmaulHusna ? 'Asmaul Husna' : item;
+          if (!peta.has(value)) {
+            peta.set(value, {
+              value,
+              label,
               sublabel: `${labelKelasKurikulum(b.kelas)} · Sem ${semester}`,
             });
           }
@@ -547,6 +562,15 @@ export default function RencanaPembelajaranView() {
      yg wajib -- satu Klasikal tetap sah kalau cuma Hafalan Surat tanpa
      Do'a. */
   const [hafalanDoaBaru, setHafalanDoaBaru] = useState<string[]>([]);
+  /* Rentang Asmaul Husna yg BENAR2 diajarkan hari itu, diketik guru
+     sendiri -- kunci = value opsi ("asmaul-husna:<kelas>:<semester>"),
+     dua kolom angka MUNCUL OTOMATIS di bawah baris itu begitu
+     dicentang (diminta owner 2026-09-02, khusus fitur ini). Lihat
+     komentar panjang di opsiHafalanDoa utk kenapa `value`-nya bukan
+     teks aslinya lagi. */
+  const [asmaulHusnaRentang, setAsmaulHusnaRentang] = useState<
+    Record<string, { dari: string; sampai: string }>
+  >({});
   const [menyimpanKlasikal, setMenyimpanKlasikal] = useState(false);
   /* null = mode Tambah (INSERT baris baru). Angka = mode Ubah (UPDATE
      baris itu) -- diminta owner 2026-08-23, dibuka lewat titik-tiga di
@@ -558,6 +582,7 @@ export default function RencanaPembelajaranView() {
     setTanggalKlasikalBaru(new Date().toISOString().slice(0, 10));
     setHafalanSuratBaru([]);
     setHafalanDoaBaru([]);
+    setAsmaulHusnaRentang({});
     setKlasikalTerbuka(true);
   }
 
@@ -569,11 +594,30 @@ export default function RencanaPembelajaranView() {
         ? m.klasikal_hafalan_surat.split(',').map((s) => s.trim()).filter((s) => s !== '')
         : []
     );
-    setHafalanDoaBaru(
-      m.klasikal_hafalan_doa
-        ? m.klasikal_hafalan_doa.split(',').map((s) => s.trim()).filter((s) => s !== '')
-        : []
-    );
+    const segmenDoa = m.klasikal_hafalan_doa
+      ? m.klasikal_hafalan_doa.split(',').map((s) => s.trim()).filter((s) => s !== '')
+      : [];
+    /* "Asmaul Husna (X sampai Y)" tersimpan dgn ANGKA guru sendiri, jadi
+       tidak bisa dicocokkan balik ke value opsi apa adanya (value opsi
+       sekarang kunci stabil tanpa angka). Terbaik-usaha: pasangkan
+       URUT ke opsi Asmaul Husna yg tersedia utk kelas ini -- biasanya
+       cuma 1 relevan (guru jarang mengajar 2 semester sekaligus),
+       kalau kebetulan ada 2 baris tersimpan & 2 opsi tersedia jg tetap
+       terpasang benar selama urutannya konsisten. */
+    const segmenAsmaulHusna = segmenDoa.filter((s) => /^Asmaul\s+Husna/i.test(s));
+    const segmenLain = segmenDoa.filter((s) => !/^Asmaul\s+Husna/i.test(s));
+    const opsiAsmaulHusna = opsiHafalanDoa.filter((o) => o.value.startsWith('asmaul-husna:'));
+    const rentangBaru: Record<string, { dari: string; sampai: string }> = {};
+    const nilaiDoa = [...segmenLain];
+    segmenAsmaulHusna.forEach((s, i) => {
+      const opsi = opsiAsmaulHusna[i];
+      if (!opsi) return;
+      nilaiDoa.push(opsi.value);
+      const cocok = s.match(/(\d+)\s*(?:sampai|s\/d|-|–)\s*(\d+)/i);
+      if (cocok) rentangBaru[opsi.value] = { dari: cocok[1], sampai: cocok[2] };
+    });
+    setHafalanDoaBaru(nilaiDoa);
+    setAsmaulHusnaRentang(rentangBaru);
     setKlasikalTerbuka(true);
   }
 
@@ -585,6 +629,27 @@ export default function RencanaPembelajaranView() {
     setHafalanDoaBaru((prev) => (prev.includes(nilai) ? prev.filter((v) => v !== nilai) : [...prev, nilai]));
   }
 
+  function ubahRentangAsmaulHusna(value: string, field: 'dari' | 'sampai', teks: string) {
+    setAsmaulHusnaRentang((prev) => ({
+      ...prev,
+      [value]: { dari: prev[value]?.dari ?? '', sampai: prev[value]?.sampai ?? '', [field]: teks },
+    }));
+  }
+
+  /* Teks yg BENAR2 tersimpan ke DB utk satu opsi Do'a terpilih -- opsi
+     biasa apa adanya, opsi Asmaul Husna dibangun dari rentang yg
+     diketik guru (BUKAN target semester penuh dari Prota). Dipakai jg
+     di ringkasan "Dipilih (N): ..." spy tidak menampilkan kunci
+     internal mentah ("asmaul-husna:1:1"). */
+  function teksDoaTersimpan(value: string): string {
+    if (!value.startsWith('asmaul-husna:')) return value;
+    const r = asmaulHusnaRentang[value];
+    if (r && r.dari.trim() !== '' && r.sampai.trim() !== '') {
+      return `Asmaul Husna (${r.dari.trim()} sampai ${r.sampai.trim()})`;
+    }
+    return 'Asmaul Husna';
+  }
+
   async function simpanKlasikalBaru() {
     if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0) return;
     const suratTerpilih = hafalanSuratBaru.join(', ');
@@ -592,7 +657,7 @@ export default function RencanaPembelajaranView() {
     const mingguKe = mingguKeDariTanggal(new Date(tanggalKlasikalBaru + 'T00:00:00'));
     const bulanKlasikal = Number(tanggalKlasikalBaru.slice(5, 7));
     const tahunKlasikal = Number(tanggalKlasikalBaru.slice(0, 4));
-    const doaTerpilih = hafalanDoaBaru.join(', ');
+    const doaTerpilih = hafalanDoaBaru.map(teksDoaTersimpan).join(', ');
     const doa = doaTerpilih === '' ? null : doaTerpilih;
     const idDiubah = editKlasikalId;
 
@@ -1518,40 +1583,72 @@ export default function RencanaPembelajaranView() {
                   {opsiHafalanDoa.length === 0 ? (
                     <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
                   ) : (
-                    <div className="max-h-[260px] overflow-y-auto rounded-[var(--radius)] border border-border">
+                    <div className="max-h-[320px] overflow-y-auto rounded-[var(--radius)] border border-border">
                       {opsiHafalanDoa.map((o) => {
                         const dipilih = hafalanDoaBaru.includes(o.value);
+                        const asmaulHusna = o.value.startsWith('asmaul-husna:');
                         return (
-                          <button
-                            key={o.value}
-                            type="button"
-                            onClick={() => toggleHafalanDoa(o.value)}
-                            aria-pressed={dipilih}
-                            className={`flex w-full cursor-pointer items-center gap-2.5 border-b border-border px-3 py-2.5 text-left transition-colors duration-150 last:border-b-0 hover:bg-panel-2 ${
-                              dipilih ? 'bg-[rgba(79,70,229,0.06)]' : ''
-                            }`}
-                          >
-                            <span
-                              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
-                                dipilih ? 'border-indigo bg-indigo' : 'border-border bg-panel'
+                          <div key={o.value} className="border-b border-border last:border-b-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleHafalanDoa(o.value)}
+                              aria-pressed={dipilih}
+                              className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-panel-2 ${
+                                dipilih ? 'bg-[rgba(79,70,229,0.06)]' : ''
                               }`}
                             >
-                              {dipilih && <Check size={13} strokeWidth={3} className="text-white" />}
-                            </span>
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[13px] font-semibold text-text">{o.label}</span>
-                              {o.sublabel && (
-                                <span className="block truncate text-[11px] text-text-faint">{o.sublabel}</span>
-                              )}
-                            </span>
-                          </button>
+                              <span
+                                className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border ${
+                                  dipilih ? 'border-indigo bg-indigo' : 'border-border bg-panel'
+                                }`}
+                              >
+                                {dipilih && <Check size={13} strokeWidth={3} className="text-white" />}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[13px] font-semibold text-text">{o.label}</span>
+                                {o.sublabel && (
+                                  <span className="block truncate text-[11px] text-text-faint">{o.sublabel}</span>
+                                )}
+                              </span>
+                            </button>
+
+                            {/* Asmaul Husna dicentang -> dua kolom angka rentang
+                                muncul otomatis (diminta owner 2026-09-02, KHUSUS
+                                fitur ini): "No X s/d X" -- guru mengisi rentang
+                                yg BENAR2 diajarkan hari itu, bukan target satu
+                                semester penuh dari Prota. */}
+                            {asmaulHusna && dipilih && (
+                              <div className="flex items-center gap-2 bg-panel-2 px-3 py-2.5 pl-[38px]">
+                                <span className="shrink-0 text-[11px] font-semibold text-text-dim">No.</span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  value={asmaulHusnaRentang[o.value]?.dari ?? ''}
+                                  onChange={(e) => ubahRentangAsmaulHusna(o.value, 'dari', e.target.value)}
+                                  placeholder="dari"
+                                  className="w-16 rounded-[var(--radius)] border border-border bg-panel px-2 py-1.5 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                                />
+                                <span className="shrink-0 text-[11px] font-semibold text-text-dim">s/d</span>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  value={asmaulHusnaRentang[o.value]?.sampai ?? ''}
+                                  onChange={(e) => ubahRentangAsmaulHusna(o.value, 'sampai', e.target.value)}
+                                  placeholder="sampai"
+                                  className="w-16 rounded-[var(--radius)] border border-border bg-panel px-2 py-1.5 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                                />
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
                     </div>
                   )}
                   {hafalanDoaBaru.length > 0 && (
                     <div className="mt-1.5 text-[11px] text-text-dim">
-                      Dipilih ({hafalanDoaBaru.length}): {hafalanDoaBaru.join(', ')}
+                      Dipilih ({hafalanDoaBaru.length}): {hafalanDoaBaru.map(teksDoaTersimpan).join(', ')}
                     </div>
                   )}
                 </FieldTambah>
