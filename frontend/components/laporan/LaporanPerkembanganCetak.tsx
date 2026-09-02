@@ -110,28 +110,6 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         <KartuMetrik label="Sakit" nilai={String(laporan.totalSakit)} warna="var(--teal)" catatan={`${pct(laporan.totalSakit)}% santri`} />
       </div>
 
-      {laporan.materiKlasikal && (
-        <div className="cetak-jaga-utuh mb-5 sm:mb-6">
-          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            Materi Klasikal
-          </div>
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-            <KartuMetrik
-              label="Haf Surat"
-              nilai={String(laporan.materiKlasikal.hafSuratPengulangan)}
-              warna="var(--violet)"
-              catatan="Pengulangan"
-            />
-            <KartuMetrik
-              label="Haf Do'a"
-              nilai={laporan.materiKlasikal.hafDoaPengulangan !== null ? String(laporan.materiKlasikal.hafDoaPengulangan) : '—'}
-              warna="var(--text-faint)"
-              catatan="Pengulangan"
-            />
-          </div>
-        </div>
-      )}
-
       <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
         <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
           <thead className="border-b border-border bg-panel-2">
@@ -167,6 +145,32 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           </tbody>
         </table>
       </div>
+
+      {/* Materi Klasikal DIPINDAH ke paling bawah (2026-09-02, diminta
+          owner: "letakan materi klasikal di bawah kolom nama kehadiran
+          santri, letakan paling bawah") -- sebelumnya di antara 5 kartu
+          metrik kehadiran & tabel santri. */}
+      {laporan.materiKlasikal && (
+        <div className="cetak-jaga-utuh mt-5 sm:mt-6">
+          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
+            Materi Klasikal
+          </div>
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+            <KartuMetrik
+              label="Haf Surat"
+              nilai={String(laporan.materiKlasikal.hafSuratPengulangan)}
+              warna="var(--violet)"
+              catatan="Pengulangan"
+            />
+            <KartuMetrik
+              label="Haf Do'a"
+              nilai={laporan.materiKlasikal.hafDoaPengulangan !== null ? String(laporan.materiKlasikal.hafDoaPengulangan) : '—'}
+              warna="var(--text-faint)"
+              catatan="Pengulangan"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
