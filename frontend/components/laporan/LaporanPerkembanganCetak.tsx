@@ -41,7 +41,19 @@
    TAHUN AJARAN), BUKAN hitungan berapa kali benar2 diulang klasikal --
    krn data pengulangan Hafalan Do'a memang belum ada (fase 1 fitur
    Pengulangan cuma Hafalan Surat). Makanya tidak ada angka "N×" di
-   baris Haf Do'a spt Haf Surat. */
+   baris Haf Do'a spt Haf Surat.
+
+   PUTARAN KEDELAPAN (2026-09-02, diminta owner: "atur agar tampilannya
+   horizontal saja" + "font nya jangan terlalu besar, cukup horizontal
+   cukup utk satu baris saja"): rincian Hafalan Surat & Hafalan Do'a
+   yang tadinya kartu bertumpuk VERTIKAL (satu baris per surat/do'a,
+   selebar penuh) diganti CHIP/PIL horizontal ber-`flex-wrap` -- tiap
+   surat/do'a jadi satu pil pendek (`whitespace-nowrap`, teksnya SATU
+   baris, tidak pernah membungkus ke baris kedua di dalam pil itu
+   sendiri), berjajar ke samping, baru turun ke baris berikutnya kalau
+   lebarnya sudah penuh. Ukuran font diturunkan ke 11px (dari 12.5-13px)
+   -- padat tanpa terasa sesak, krn tiap pil sudah punya jarak (gap)
+   sendiri dari pil sebelahnya. */
 
 export type LaporanBaris = {
   nama: string;
@@ -185,45 +197,45 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             Hafalan Surat
           </div>
-          <div className="mb-4 overflow-hidden rounded-[var(--radius)] border border-border">
-            {laporan.materiKlasikal.hafSurat.length === 0 ? (
-              <div className="px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
-                Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
-              </div>
-            ) : (
-              laporan.materiKlasikal.hafSurat.map((b) => (
-                <div
+          {laporan.materiKlasikal.hafSurat.length === 0 ? (
+            <div className="mb-4 text-[11px] text-text-faint">
+              Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
+            </div>
+          ) : (
+            <div className="mb-4 flex flex-wrap gap-1.5 sm:gap-2">
+              {laporan.materiKlasikal.hafSurat.map((b) => (
+                <span
                   key={b.namaSurat}
-                  className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 text-[12.5px] last:border-b-0 sm:py-2.5 sm:text-[13px]"
+                  className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
                 >
-                  <span className="text-text">{b.namaSurat}</span>
+                  {b.namaSurat}
                   <span className="font-extrabold" style={{ color: 'var(--violet)' }}>
                     {b.jumlah}×
                   </span>
-                </div>
-              ))
-            )}
-          </div>
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             Hafalan Do&rsquo;a
           </div>
-          <div className="overflow-hidden rounded-[var(--radius)] border border-border">
-            {laporan.materiKlasikal.hafDoa.length === 0 ? (
-              <div className="px-4 py-3 text-[12px] text-text-faint sm:text-[12.5px]">
-                Belum ada kurikulum Hafalan Do&rsquo;a utk kelas ini.
-              </div>
-            ) : (
-              laporan.materiKlasikal.hafDoa.map((item) => (
-                <div
+          {laporan.materiKlasikal.hafDoa.length === 0 ? (
+            <div className="text-[11px] text-text-faint">
+              Belum ada kurikulum Hafalan Do&rsquo;a utk kelas ini.
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+              {laporan.materiKlasikal.hafDoa.map((item) => (
+                <span
                   key={item}
-                  className="border-b border-border px-4 py-2 text-[12.5px] text-text last:border-b-0 sm:py-2.5 sm:text-[13px]"
+                  className="shrink-0 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] whitespace-nowrap text-text"
                 >
                   {item}
-                </div>
-              ))
-            )}
-          </div>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
