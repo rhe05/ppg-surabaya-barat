@@ -339,10 +339,10 @@ export default function PelaksanaanPembelajaranView() {
                       key={k.id}
                       type="button"
                       onClick={() => setKelasId(k.id)}
-                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                      className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
                         aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
                       }`}
-                      style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                      style={aktif ? { background: 'linear-gradient(135deg, var(--indigo-lembut) 0%, var(--indigo-lembut-2) 100%)' } : undefined}
                     >
                       {k.nama}
                     </button>
@@ -363,11 +363,11 @@ export default function PelaksanaanPembelajaranView() {
                 }
                 setPemilihBulanTerbuka((v) => !v);
               }}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-indigo-lembut text-indigo transition-all duration-150 active:scale-[0.92]"
             >
               <Calendar size={19} />
             </button>
-            <span className="rounded-full bg-[#EEF2FF] px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
+            <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap text-indigo">
               {NAMA_BULAN[bulan - 1]} {tahun}
             </span>
           </div>
@@ -500,7 +500,7 @@ export default function PelaksanaanPembelajaranView() {
                         <span className="min-w-0 flex-1">
                           {kategori && <span className="label-mikro block">{kategori}</span>}
                           <span
-                            className={`block text-[14px] font-bold ${dicentang ? 'text-text-dim' : 'text-text'}`}
+                            className={`block text-[15px] font-bold ${dicentang ? 'text-text-dim' : 'text-text'}`}
                           >
                             {utama}
                           </span>
@@ -518,7 +518,7 @@ export default function PelaksanaanPembelajaranView() {
                             onChange={(e) => ubahCatatan(idx, e.target.value)}
                             placeholder="Catatan pelaksanaan (opsional)"
                             rows={2}
-                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[12.5px] text-text"
+                            className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2 text-[12px] text-text"
                           />
                         </div>
                       )}
@@ -561,7 +561,7 @@ export default function PelaksanaanPembelajaranView() {
                         type="button"
                         onClick={tambahMateriTambahan}
                         disabled={judulTambahan.trim().length === 0}
-                        className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                        className="flex-1 cursor-pointer rounded-[var(--radius)] border-none bg-sage py-2 text-[12px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
                       >
                         Tambahkan
                       </button>
@@ -571,7 +571,7 @@ export default function PelaksanaanPembelajaranView() {
                           setTambahanTerbuka(false);
                           setJudulTambahan('');
                         }}
-                        className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12.5px] font-semibold text-text"
+                        className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2 text-[12px] font-semibold text-text"
                       >
                         Batal
                       </button>
@@ -599,7 +599,7 @@ export default function PelaksanaanPembelajaranView() {
               type="button"
               disabled={menyimpan || !adaPerubahan}
               onClick={simpanPelaksanaan}
-              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none bg-sage py-[14px] text-[14.5px] font-bold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-150 active:scale-[0.99] disabled:cursor-default disabled:bg-panel-2 disabled:text-text-faint disabled:shadow-none"
+              className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border-none bg-sage py-[14px] text-[15px] font-bold text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-all duration-150 active:scale-[0.99] disabled:cursor-default disabled:bg-panel-2 disabled:text-text-faint disabled:shadow-none"
             >
               {!menyimpan && (baruTersimpan || adaPerubahan) && <Check size={17} strokeWidth={2.4} />}
               {menyimpan ? 'Menyimpan...' : baruTersimpan ? 'Tersimpan' : 'Simpan Pelaksanaan'}

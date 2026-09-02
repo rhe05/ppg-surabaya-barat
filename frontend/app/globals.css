@@ -10,6 +10,13 @@
   --volt: #FBBF24;
   --red: #DC2626;
   --indigo: #4F46E5;
+  /* Dua nada indigo LEMBUT utk permukaan (latar pil bulan, tombol ikon
+     kalender, chip kelas terpilih). Sebelumnya #EEF2FF/#E0E7FF ditulis
+     mentah berulang kali di Pelaksanaan & Rencana Pembelajaran --
+     dijadikan token 2026-09-02 supaya nada indigonya satu sumber dan
+     mode gelap nanti cukup menimpa di sini. */
+  --indigo-lembut: #EEF2FF;
+  --indigo-lembut-2: #E0E7FF;
   --teal: #0D9488;
   --panel: #FFFFFF;
   --panel-2: #F9FAFB;
@@ -73,6 +80,8 @@
   --color-volt: var(--volt);
   --color-red: var(--red);
   --color-indigo: var(--indigo);
+  --color-indigo-lembut: var(--indigo-lembut);
+  --color-indigo-lembut-2: var(--indigo-lembut-2);
   --color-teal: var(--teal);
   --color-panel: var(--panel);
   --color-panel-2: var(--panel-2);
