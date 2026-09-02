@@ -224,6 +224,7 @@ function FieldTambah({
   label,
   wajib,
   info,
+  sembunyikanPenanda,
   children,
 }: {
   label: string;
@@ -231,13 +232,18 @@ function FieldTambah({
   /* Opsional: teks tooltip info singkat, muncul lewat ikon (i) di
      samping label -- lihat LabelInfo di atas. */
   info?: string;
+  /* Sembunyikan tanda wajib(*)/(Opsional) bawaan sepenuhnya -- dipakai
+     kalau field itu memang opsional tapi ownernya tidak mau tag
+     "(Opsional)" ikut tampil sama sekali (diminta owner 2026-09-02
+     utk field Hafalan Do'a-Do'a Harian: "hapus tulisan opsional"). */
+  sembunyikanPenanda?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className="mb-3.5">
       <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-semibold text-text-dim">
-        {label} {wajib && <span className="text-red">*</span>}
-        {!wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
+        {label} {!sembunyikanPenanda && wajib && <span className="text-red">*</span>}
+        {!sembunyikanPenanda && !wajib && <span className="font-normal text-text-faint"> (Opsional)</span>}
         {info && <LabelInfo teks={info} />}
       </label>
       {children}
@@ -1496,7 +1502,7 @@ export default function RencanaPembelajaranView() {
                   )}
                 </FieldTambah>
 
-                <FieldTambah label="Hafalan Do&rsquo;a-Do&rsquo;a Harian">
+                <FieldTambah label="Hafalan Do&rsquo;a-Do&rsquo;a Harian" sembunyikanPenanda>
                   {opsiHafalanDoa.length === 0 ? (
                     <div className={`${INPUT_STYLE} text-text-faint`}>Belum ada materi di Kurikulum</div>
                   ) : (
