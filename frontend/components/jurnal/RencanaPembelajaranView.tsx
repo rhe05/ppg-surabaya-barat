@@ -1440,7 +1440,8 @@ export default function RencanaPembelajaranView() {
                     Menggantikan field "Pertemuan ke-" biasa selama
                     kondisi ini aktif. */}
                 {tampilPeragaTilawati ? (
-                  <div className="mb-3.5 flex items-start gap-3">
+                  <div className="mb-3.5">
+                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <label className="mb-1.5 block text-[12px] font-semibold text-text">
                         Peraga Tilawati
@@ -1488,6 +1489,18 @@ export default function RencanaPembelajaranView() {
                         className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                       />
                     </div>
+                   </div>
+
+                   {/* Jilid buku tiap santri beda-beda -> bukan input,
+                       cuma pengingat tetap (diminta owner 2026-09-03). */}
+                   <div className="mt-3">
+                     <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                       Buku Tilawati Jilid
+                     </label>
+                     <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
+                       Sesuai Kondisi Setiap Santri
+                     </div>
+                   </div>
                   </div>
                 ) : (
                   <FieldTambah label="Pertemuan ke-">
