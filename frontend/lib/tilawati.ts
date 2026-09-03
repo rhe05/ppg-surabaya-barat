@@ -119,7 +119,7 @@ export async function muatBukuJilidKelas(
   const [sRes, tRes] = await Promise.all([
     supabase
       .from('santri')
-      .select('id, nama')
+      .select('id, nama, nama_panggilan')
       .eq('kelas_id', kelasId)
       .is('deleted_at', null)
       .order('nama'),
@@ -149,8 +149,13 @@ export async function muatBukuJilidKelas(
     perSantri.set(r.santri_id, arr);
   }
 
-  return ((sRes.data ?? []) as { id: number; nama: string }[]).map((s) => {
+  return (
+    (sRes.data ?? []) as { id: number; nama: string; nama_panggilan: string | null }[]
+  ).map((s) => {
     const arr = perSantri.get(s.id) ?? [];
+    /* Nama panggilan biar tidak kepanjangan (diminta owner 2026-09-03);
+       fallback ke kata pertama nama lengkap, lalu nama lengkap. */
+    const panggilan = s.nama_panggilan?.trim() || s.nama.trim().split(/\s+/)[0] || s.nama;
     let naik = 0;
     let tetap = 0;
     for (const r of arr) {
@@ -165,7 +170,7 @@ export async function muatBukuJilidKelas(
     const last = arr.length > 0 ? arr[arr.length - 1] : null;
     return {
       santriId: s.id,
-      nama: s.nama,
+      nama: panggilan,
       naik,
       tetap,
       halProgres,
