@@ -1576,44 +1576,11 @@ export default function RencanaPembelajaranView() {
                 {tampilPeragaTilawati ? (
                   /* Blok khusus "Baca Huruf Al-Qur'an" jenjang bawah
                      (diminta owner 2026-09-03, beberapa putaran rapi):
-                     Peraga Tilawati (rentang halaman) di baris sendiri,
-                     lalu Jilid / Pertemuan ke / Teknik ke sejajar 3
-                     kolom, lalu pengingat "Buku Tilawati Jilid". */
+                     Jilid / Pertemuan ke / Teknik ke sejajar 3 kolom,
+                     LALU Peraga Tilawati (rentang halaman) di baris
+                     sendiri, lalu pengingat "Buku Tilawati Jilid"
+                     (urutan diminta owner 2026-09-03). */
                   <div className="mb-3.5 space-y-3">
-                    <div>
-                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                        Peraga Tilawati
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {([
-                          [peragaTilawatiDari, setPeragaTilawatiDari] as const,
-                          [peragaTilawatiSampai, setPeragaTilawatiSampai] as const,
-                        ]).map(([nilai, set], i) => (
-                          <Fragment key={i}>
-                            {i === 1 && <span className="shrink-0 text-[12px] text-text-faint">s/d</span>}
-                            <div className="relative flex-1">
-                              {/* "hal" hilang begitu halaman diketik. */}
-                              {!nilai && (
-                                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[12px] text-text-faint">
-                                  hal
-                                </span>
-                              )}
-                              <input
-                                type="number"
-                                inputMode="numeric"
-                                min={1}
-                                value={nilai}
-                                onChange={(e) => set(e.target.value)}
-                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 text-[13px] text-text focus:border-brass focus:outline-none ${
-                                  nilai ? 'px-3 text-center' : 'pr-3 pl-9'
-                                }`}
-                              />
-                            </div>
-                          </Fragment>
-                        ))}
-                      </div>
-                    </div>
-
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
@@ -1666,6 +1633,40 @@ export default function RencanaPembelajaranView() {
                             );
                           })}
                         </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                        Peraga Tilawati
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {([
+                          [peragaTilawatiDari, setPeragaTilawatiDari] as const,
+                          [peragaTilawatiSampai, setPeragaTilawatiSampai] as const,
+                        ]).map(([nilai, set], i) => (
+                          <Fragment key={i}>
+                            {i === 1 && <span className="shrink-0 text-[12px] text-text-faint">s/d</span>}
+                            <div className="relative flex-1">
+                              {/* "hal" hilang begitu halaman diketik. */}
+                              {!nilai && (
+                                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[12px] text-text-faint">
+                                  hal
+                                </span>
+                              )}
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                value={nilai}
+                                onChange={(e) => set(e.target.value)}
+                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 text-[13px] text-text focus:border-brass focus:outline-none ${
+                                  nilai ? 'px-3 text-center' : 'pr-3 pl-9'
+                                }`}
+                              />
+                            </div>
+                          </Fragment>
+                        ))}
                       </div>
                     </div>
 
