@@ -167,7 +167,8 @@ export type TargetTilawatiPeriode = {
   /** Bulan ke-N dalam semester (kelas 1-3: 1-6) / tahun (PAUD: 1-12). */
   bulanKe: number;
   bulan: TargetBulan;
-  /** Halaman terakhir yang ditargetkan bulan ini. "Evaluasi" → 44. */
+  /** Halaman awal & akhir yang ditargetkan bulan ini. "Evaluasi" → 44. */
+  halAwal: number;
   halAkhir: number;
 };
 
@@ -197,7 +198,14 @@ export function targetTilawatiPeriode(
   if (kodeKelas === 'PAUD-TK') {
     const bulan = POLA_PAUD.find((b) => b.bulan === m);
     if (!bulan) return null;
-    return { jilid: 'Paud', semester: m <= 6 ? 1 : 2, bulanKe: m, bulan, halAkhir: halAkhirDariTarget(bulan.target) };
+    return {
+      jilid: 'Paud',
+      semester: m <= 6 ? 1 : 2,
+      bulanKe: m,
+      bulan,
+      halAwal: halAwalDariTarget(bulan.target),
+      halAkhir: halAkhirDariTarget(bulan.target),
+    };
   }
 
   const semester: 1 | 2 = m <= 6 ? 1 : 2;
@@ -209,6 +217,7 @@ export function targetTilawatiPeriode(
     semester,
     bulanKe,
     bulan,
+    halAwal: halAwalDariTarget(bulan.target),
     halAkhir: halAkhirDariTarget(bulan.target),
   };
 }
@@ -228,7 +237,9 @@ export function posisiTilawati(
 /** Label singkat target periode, mis. "Jilid 1 · Hal 28-36". */
 export function labelTargetPeriode(t: TargetTilawatiPeriode): string {
   const j = t.jilid === 'Paud' ? 'Tilawati Paud' : `Jilid ${t.jilid}`;
-  return `${j} · ${t.bulan.target}`;
+  const total = t.halAkhir - t.halAwal;
+  const suffix = total > 0 ? ` (Total ${total} Halaman)` : '';
+  return `${j} · ${t.bulan.target}${suffix}`;
 }
 
 /* ── Rubrik pencapaian (4 tingkat, diminta owner 2026-09-03) ────────── */
@@ -262,7 +273,7 @@ export function statusPencapaianTilawati(
   if (!t) return null;
 
   const basis = jilidKeAngka(t.jilid) * HAL_PER_JILID;
-  const tAwal = basis + halAwalDariTarget(t.bulan.target);
+  const tAwal = basis + t.halAwal;
   const tAkhir = basis + t.halAkhir;
 
   const prev = bulanKalender > 1 ? targetTilawatiPeriode(kodeKelas, bulanKalender - 1) : null;

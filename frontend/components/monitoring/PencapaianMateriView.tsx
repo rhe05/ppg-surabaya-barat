@@ -740,7 +740,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid</div>
+          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid Tilawati</div>
           {targetTilawati && (
             <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
               Target {NAMA_BULAN[bulan - 1]}: {labelTargetPeriode(targetTilawati)}
