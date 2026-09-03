@@ -821,8 +821,18 @@ export default function PelaksanaanPembelajaranView() {
 
   /* ── Dua kartu "Materi Klasikal" / "Materi Ngaji" (2026-09-03, diminta
      owner, pola sama Rencana Pembelajaran) ──────────────────────────── */
+  /* Materi "Peraga Tilawati" (Baca Huruf Al-Qur'an, disusun di Rencana)
+     DIPINDAH dari kartu Materi Ngaji ke kartu Tilawati (diminta owner
+     2026-09-03, pola sama Riwayat Pembelajaran). */
+  const esPeragaTilawati = (judul: string) =>
+    /peraga tilawati/i.test(judul) || /^baca huruf al-?qur/i.test(judul.trim());
+  const barisPeraga = baris.filter(
+    (b) => b.jenis !== 'klasikal' && esPeragaTilawati(b.judul),
+  );
   const hitungJenis = (kl: boolean) => {
-    const rel = baris.filter((b) => (kl ? b.jenis === 'klasikal' : b.jenis !== 'klasikal'));
+    const rel = baris.filter((b) =>
+      kl ? b.jenis === 'klasikal' : b.jenis !== 'klasikal' && !esPeragaTilawati(b.judul),
+    );
     return { total: rel.length, sudah: rel.filter((b) => b.status === 'disampaikan').length };
   };
   const nKlasikal = hitungJenis(true);
@@ -945,7 +955,9 @@ export default function PelaksanaanPembelajaranView() {
     const kartu = mingguDipakai
       .map((grup) => {
         const isi = grup.isi.filter((b) =>
-          adalahKlasikal ? b.jenis === 'klasikal' : b.jenis !== 'klasikal',
+          adalahKlasikal
+            ? b.jenis === 'klasikal'
+            : b.jenis !== 'klasikal' && !esPeragaTilawati(b.judul),
         );
         const asadMingguIni: string[] =
           adalahKlasikal && kelasIniIkutAsad && grup.rentang
@@ -1243,7 +1255,27 @@ export default function PelaksanaanPembelajaranView() {
                 tanggalNonaktif={(tglStr) => (tglStr > todayStr() ? { alasan: 'Belum terjadi' } : null)}
               />
               {tilawatiCardTerbuka && (
-                <div className="border-t border-border p-3">
+                <div className="border-t border-border">
+                  {/* Dua tampilan (diminta owner 2026-09-03, pola sama
+                      Riwayat Pembelajaran):
+                      1. Peraga Tilawati -- materi "Baca Huruf Al-Qur'an"
+                         yg disusun guru di Rencana, DIPINDAH ke sini dari
+                         kartu Materi Ngaji. */}
+                  <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
+                    Peraga Tilawati
+                  </div>
+                  {barisPeraga.length === 0 ? (
+                    <p className="px-4 py-3 text-[13px] text-text-dim">
+                      Belum ada Peraga Tilawati untuk periode ini.
+                    </p>
+                  ) : (
+                    barisPeraga.map((b) => barisMateri(b))
+                  )}
+                  {/* 2. Buku Jilid -- catatan per santri (Naik/Tetap). */}
+                  <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
+                    Buku Jilid
+                  </div>
+                  <div className="p-3">
                   {loadingTilawati && tilawatiSantri.length === 0 ? (
                     <div className="flex flex-col gap-2.5">
                       <Skeleton className="h-[92px] w-full" />
@@ -1333,6 +1365,7 @@ export default function PelaksanaanPembelajaranView() {
                       })}
                     </div>
                   )}
+                  </div>
                 </div>
               )}
             </div>
