@@ -1000,7 +1000,6 @@ export default function RencanaPembelajaranView() {
   /* Kartu "Materi Ngaji" -- membungkus kartu Minggu N Ngaji, pola sama
      dgn kartu "Materi Klasikal" (diminta owner 2026-09-03). */
   const [ngajiTerbuka, setNgajiTerbuka] = useState(false);
-  const jumlahMateriNgaji = materiList.filter((m) => m.jenis !== 'klasikal').length;
 
   /* Ada tanggal Pencak Silat ASAD di bulan+kelas yg sedang dilihat --
      dipakai utk badge merah di kepala kartu "Materi Klasikal <bulan>"
@@ -1181,61 +1180,6 @@ export default function RencanaPembelajaranView() {
 
         {kelasId !== '' && (
           <div className="mb-5 flex flex-col gap-3">
-            {/* Kartu "Materi Ngaji" -- membungkus kartu Minggu N, pola
-                SAMA dgn kartu "Materi Klasikal" di bawah (diminta owner
-                2026-09-03). Digerbang sama spt Klasikal supaya tidak
-                lompat saat ganti kelas. */}
-            {(dataSiapUntukKelasIni || materiList.length > 0) && (
-            <div className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-              <button
-                type="button"
-                onClick={() => setNgajiTerbuka((v) => !v)}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
-              >
-                <span className="text-[15px] font-bold text-text">Materi Ngaji</span>
-                <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                  {jumlahMateriNgaji} Materi
-                </span>
-              </button>
-              {ngajiTerbuka && (
-                <div className="flex flex-col gap-3 border-t border-border p-4">
-                  {mingguDipakai.length === 0 ? (
-                    <p className="text-[13px] text-text-dim">
-                      Belum ada Materi Ngaji direncanakan bulan ini.
-                    </p>
-                  ) : (
-                    mingguDipakai.map(({ mingguKe, materi }) => (
-                      <div
-                        key={mingguKe}
-                        className="rounded-[var(--radius)] border border-border bg-panel p-4"
-                      >
-                        <div className="mb-2 flex items-start justify-between gap-2">
-                          <div>
-                            <div className="text-[15px] font-bold text-text">Minggu {mingguKe}</div>
-                            <div className="text-[11px] text-text-dim">
-                              {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
-                            </div>
-                          </div>
-                          <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                            {materi.length} Materi
-                          </span>
-                        </div>
-                        <ul className="flex flex-col gap-1.5">
-                          {materi.map((m) => (
-                            <li key={m.id} className="flex items-center gap-2 text-[13px] text-text">
-                              <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-text-faint" />
-                              {m.judul}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-            )}
-
             {/* Kartu bulan Klasikal -- membungkus SEMUA kartu Minggu N
                 Klasikal di bawah jadi satu. Tersembunyi bawaan, ketuk
                 header ("Materi Klasikal Agustus 2026 . 19 Hari Aktif")
@@ -1435,6 +1379,68 @@ export default function RencanaPembelajaranView() {
                 </div>
               );
             })}
+                </div>
+              )}
+            </div>
+            )}
+
+            {/* Kartu "Materi Ngaji" -- DI BAWAH kartu Materi Klasikal
+                (diminta owner 2026-09-03), badge sama persis Klasikal
+                ("Ada ASAD" + "N Hari Aktif"). Digerbang sama supaya
+                tidak lompat saat ganti kelas. */}
+            {(dataSiapUntukKelasIni || materiList.length > 0) && (
+            <div className="rounded-card border border-border bg-panel shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+              <button
+                type="button"
+                onClick={() => setNgajiTerbuka((v) => !v)}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+              >
+                <span className="text-[15px] font-bold text-text">Materi Ngaji</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  {adaAsadBulanIni && (
+                    <span className="rounded-full bg-[rgba(220,38,38,0.1)] px-2.5 py-1 text-[11px] font-bold text-red">
+                      Ada ASAD
+                    </span>
+                  )}
+                  <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                    {totalHariAktifBulan} Hari Aktif
+                  </span>
+                </span>
+              </button>
+              {ngajiTerbuka && (
+                <div className="flex flex-col gap-3 border-t border-border p-4">
+                  {mingguDipakai.length === 0 ? (
+                    <p className="text-[13px] text-text-dim">
+                      Belum ada Materi Ngaji direncanakan bulan ini.
+                    </p>
+                  ) : (
+                    mingguDipakai.map(({ mingguKe, materi }) => (
+                      <div
+                        key={mingguKe}
+                        className="rounded-[var(--radius)] border border-border bg-panel p-4"
+                      >
+                        <div className="mb-2 flex items-start justify-between gap-2">
+                          <div>
+                            <div className="text-[15px] font-bold text-text">Minggu {mingguKe}</div>
+                            <div className="text-[11px] text-text-dim">
+                              {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+                            </div>
+                          </div>
+                          <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                            {materi.length} Materi
+                          </span>
+                        </div>
+                        <ul className="flex flex-col gap-1.5">
+                          {materi.map((m) => (
+                            <li key={m.id} className="flex items-center gap-2 text-[13px] text-text">
+                              <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-text-faint" />
+                              {m.judul}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
