@@ -304,9 +304,10 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
   /* Dikelompokkan per JILID, angkanya = berapa kali jilid itu KHATAM
      (diminta owner 2026-09-03: "5x adalah pengulangan khatamnya", bukan
      jumlah pertemuan). Satu khatam = ada pertemuan peraga jilid itu yg
-     halamannya menyentuh halaman terakhir (44). Jilid yg sudah ada
-     pertemuan tapi belum khatam tetap ditampilkan ("sedang berjalan"). */
-  const PERAGA_HAL_AKHIR = 44;
+     halamannya mencapai halaman terakhir peraga (20 -- batas "Halaman
+     Peraga Tilawati" di borang Rencana, PERAGA_HAL_MAKS). Jilid yg sudah
+     ada pertemuan tapi belum khatam tetap ditampilkan ("sedang berjalan"). */
+  const PERAGA_HAL_AKHIR = 20;
   const peragaTampil = useMemo(() => {
     const peta = new Map<
       string,
