@@ -95,6 +95,9 @@ import {
   targetTilawatiPeriode,
   labelTargetPeriode,
   posisiTilawati,
+  statusPencapaianTilawati,
+  LABEL_STATUS_PENCAPAIAN,
+  type StatusPencapaian,
 } from '@/lib/pedomanTilawati';
 import {
   targetAsmaulHusnaDari,
@@ -766,18 +769,12 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                           .filter(Boolean)
                           .join(' ')
                       : null;
-                  /* Capaian vs pedoman: posisi absolut santri (jilid×44+hal)
-                     dibanding halaman terakhir yang ditargetkan bulan ini. */
+                  /* Rubrik 4 tingkat BB/MB/BSH/BSB terhadap pedoman
+                     (diminta owner 2026-09-03). */
                   const sPos = posisiTilawati(s.terakhirJilid, s.terakhirHalaman);
-                  const tPos = targetTilawati
-                    ? posisiTilawati(targetTilawati.jilid, targetTilawati.halAkhir)
+                  const status: StatusPencapaian | null = s.adaCatatan
+                    ? statusPencapaianTilawati(kodeKelasTilawati, bulan, sPos)
                     : null;
-                  const status =
-                    !s.adaCatatan || sPos == null || tPos == null
-                      ? null
-                      : sPos >= tPos
-                        ? 'capai'
-                        : 'kurang';
                   return (
                     <div
                       key={s.santriId}
@@ -792,14 +789,20 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                         </span>
                       </span>
                       <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                        {status === 'capai' && (
-                          <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                            Sesuai target
-                          </span>
-                        )}
-                        {status === 'kurang' && (
-                          <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                            Di bawah target
+                        {status && (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                              status === 'BB'
+                                ? 'bg-red-lembut text-red'
+                                : status === 'MB'
+                                  ? 'bg-brass-lembut text-brass'
+                                  : status === 'BSH'
+                                    ? 'bg-sage-lembut text-sage'
+                                    : 'bg-indigo-lembut text-indigo'
+                            }`}
+                            title={LABEL_STATUS_PENCAPAIAN[status].panjang}
+                          >
+                            {status}
                           </span>
                         )}
                         {s.adaCatatan && (
@@ -824,6 +827,19 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                   );
                 })
               )}
+            </div>
+          )}
+          {targetTilawati && !loadingTilawati && !errorTilawati && (
+            <div className="mb-5 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2.5">
+              <div className="label-mikro mb-1.5">Keterangan</div>
+              <ul className="space-y-0.5 text-[11px] leading-snug text-text-dim">
+                {(['BB', 'MB', 'BSH', 'BSB'] as StatusPencapaian[]).map((k) => (
+                  <li key={k}>
+                    <span className="font-bold text-text">{LABEL_STATUS_PENCAPAIAN[k].singkat}</span>{' '}
+                    : {LABEL_STATUS_PENCAPAIAN[k].panjang} ({LABEL_STATUS_PENCAPAIAN[k].arti})
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 

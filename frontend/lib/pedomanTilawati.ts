@@ -175,6 +175,13 @@ function halAkhirDariTarget(t: string): number {
   const nums = [...t.matchAll(/\d+/g)].map((x) => Number(x[0]));
   return nums.length > 0 ? Math.max(...nums) : HAL_PER_JILID;
 }
+function halAwalDariTarget(t: string): number {
+  const nums = [...t.matchAll(/\d+/g)].map((x) => Number(x[0]));
+  return nums.length > 0 ? Math.min(...nums) : HAL_PER_JILID;
+}
+function jilidKeAngka(jilid: string): number {
+  return /paud/i.test(jilid) ? 0 : Number(jilid) || 0;
+}
 
 /** Target Buku Jilid Tilawati untuk kelas + BULAN KALENDER (1-12).
     Asumsi tahun ajaran (dari data kurikulum_probul): Januari–Juni =
@@ -222,4 +229,47 @@ export function posisiTilawati(
 export function labelTargetPeriode(t: TargetTilawatiPeriode): string {
   const j = t.jilid === 'Paud' ? 'Tilawati Paud' : `Jilid ${t.jilid}`;
   return `${j} · ${t.bulan.target}`;
+}
+
+/* ── Rubrik pencapaian (4 tingkat, diminta owner 2026-09-03) ────────── */
+
+export type StatusPencapaian = 'BB' | 'MB' | 'BSH' | 'BSB';
+
+export const LABEL_STATUS_PENCAPAIAN: Record<
+  StatusPencapaian,
+  { singkat: string; panjang: string; arti: string }
+> = {
+  BB: { singkat: 'BB', panjang: 'Belum Berkembang', arti: 'kurang dari target' },
+  MB: { singkat: 'MB', panjang: 'Mulai Berkembang', arti: 'mendekati target' },
+  BSH: { singkat: 'BSH', panjang: 'Berkembang Sesuai Harapan', arti: 'sesuai target' },
+  BSB: { singkat: 'BSB', panjang: 'Berkembang Sangat Baik', arti: 'melebihi target' },
+};
+
+/** Status pencapaian Buku Jilid Tilawati seorang generus terhadap
+    pedoman, untuk bulan kalender terpilih:
+      BSB  posisi > halaman target akhir bulan ini
+      BSH  posisi di dalam rentang target bulan ini
+      MB   di bawah target bulan ini, tapi ≥ target bulan lalu
+      BB   di bawah target bulan lalu
+    null kalau tak ada capaian / kelas di luar pedoman. */
+export function statusPencapaianTilawati(
+  kodeKelas: string,
+  bulanKalender: number,
+  posisiSantri: number | null,
+): StatusPencapaian | null {
+  if (posisiSantri == null) return null;
+  const t = targetTilawatiPeriode(kodeKelas, bulanKalender);
+  if (!t) return null;
+
+  const basis = jilidKeAngka(t.jilid) * HAL_PER_JILID;
+  const tAwal = basis + halAwalDariTarget(t.bulan.target);
+  const tAkhir = basis + t.halAkhir;
+
+  const prev = bulanKalender > 1 ? targetTilawatiPeriode(kodeKelas, bulanKalender - 1) : null;
+  const posPrev = prev ? jilidKeAngka(prev.jilid) * HAL_PER_JILID + prev.halAkhir : 0;
+
+  if (posisiSantri > tAkhir) return 'BSB';
+  if (posisiSantri >= tAwal) return 'BSH';
+  if (posisiSantri >= posPrev) return 'MB';
+  return 'BB';
 }
