@@ -789,22 +789,6 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                         </span>
                       </span>
                       <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                        {status && (
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                              status === 'BB'
-                                ? 'bg-red-lembut text-red'
-                                : status === 'MB'
-                                  ? 'bg-brass-lembut text-brass'
-                                  : status === 'BSH'
-                                    ? 'bg-sage-lembut text-sage'
-                                    : 'bg-indigo-lembut text-indigo'
-                            }`}
-                            title={LABEL_STATUS_PENCAPAIAN[status].panjang}
-                          >
-                            {status}
-                          </span>
-                        )}
                         {s.adaCatatan && (
                           <>
                             {s.naik > 0 && (
@@ -821,6 +805,22 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                               {s.halProgres} Hal
                             </span>
                           </>
+                        )}
+                        {status && (
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                              status === 'BB'
+                                ? 'bg-red-lembut text-red'
+                                : status === 'MB'
+                                  ? 'bg-brass-lembut text-brass'
+                                  : status === 'BSH'
+                                    ? 'bg-sage-lembut text-sage'
+                                    : 'bg-indigo-lembut text-indigo'
+                            }`}
+                            title={LABEL_STATUS_PENCAPAIAN[status].panjang}
+                          >
+                            {status}
+                          </span>
                         )}
                       </span>
                     </div>
