@@ -435,16 +435,20 @@ export default function PelaksanaanPembelajaranView() {
       const peta: Record<number, BarisTilawati> = {};
       for (const [sid, arr] of perSantri) {
         const todayRow = arr.find((x) => x.tanggal === hariIni);
-        if (todayRow) {
-          peta[sid] = {
-            jilid: todayRow.jilid,
-            halaman: todayRow.halaman,
-            status: (todayRow.status as '' | 'naik' | 'tetap') || '',
-          };
-          continue;
-        }
         const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
-        if (last) peta[sid] = lanjutkanTilawati(last);
+        const stTgl = (todayRow?.status as '' | 'naik' | 'tetap') || '';
+        const adaIsiTgl =
+          !!todayRow && (todayRow.jilid !== '' || todayRow.halaman !== '' || stTgl !== '');
+        if (adaIsiTgl) {
+          peta[sid] = { jilid: todayRow!.jilid, halaman: todayRow!.halaman, status: stTgl };
+        } else if (last) {
+          /* Buku jilid & halaman IKUT dari catatan terakhir (diminta
+             owner 2026-09-03: "jika sudah pernah di input maka hari
+             berikutnya otomatis sudah muncul"). Kalau terakhir "naik",
+             halaman maju satu (lanjutkanTilawati). Status hari ini
+             dikosongkan -- guru yang memutuskan. */
+          peta[sid] = lanjutkanTilawati(last);
+        }
       }
       setTilawati(peta);
     } catch (e) {
@@ -762,6 +766,17 @@ export default function PelaksanaanPembelajaranView() {
     }
     return null;
   }
+
+  /* Kunci input Tilawati -- konsep SAMA dgn Input Kehadiran & baris
+     materi di atas (diminta owner 2026-09-03): tanggal yang dipilih
+     baru bisa diisi kalau jam mulai KBM-nya sudah lewat; tanggal
+     lampau bebas. */
+  const alasanTilawatiTerkunci: string | null =
+    tilawatiTanggal === todayStr() && jamMulaiKelas && jamKini < jamMulaiKelas
+      ? `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`
+      : tilawatiTanggal > todayStr()
+        ? `Baru bisa diisi ${tanggalPanjang(tilawatiTanggal)}.`
+        : null;
 
   /* Tanggal yang dicatat saat guru mencentang: tanggal RENCANA-nya
      (itulah hari materi ini semestinya disampaikan), kecuali kalau
@@ -1238,8 +1253,14 @@ export default function PelaksanaanPembelajaranView() {
                     <p className="text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
                   ) : (
                     <div className="flex flex-col gap-2.5">
+                      {alasanTilawatiTerkunci && (
+                        <p className="rounded-[var(--radius)] bg-panel-2 px-3 py-2 text-[12px] leading-snug text-text-dim">
+                          {alasanTilawatiTerkunci}
+                        </p>
+                      )}
                       {tilawatiSantri.map((s) => {
                         const t = tilawati[s.id] ?? { jilid: '', halaman: '', status: '' as const };
+                        const terkunci = alasanTilawatiTerkunci !== null;
                         return (
                           <div
                             key={s.id}
@@ -1254,11 +1275,12 @@ export default function PelaksanaanPembelajaranView() {
                                   inputMode="numeric"
                                   min={1}
                                   max={TILAWATI_MAKS_JILID}
+                                  disabled={terkunci}
                                   value={t.jilid}
                                   onChange={(e) =>
                                     ubahTilawati(s.id, { jilid: jepitTilawati(e.target.value, TILAWATI_MAKS_JILID) }, false)
                                   }
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
                                 />
                               </div>
                               <div>
@@ -1268,11 +1290,12 @@ export default function PelaksanaanPembelajaranView() {
                                   inputMode="numeric"
                                   min={1}
                                   max={TILAWATI_MAKS_HALAMAN}
+                                  disabled={terkunci}
                                   value={t.halaman}
                                   onChange={(e) =>
                                     ubahTilawati(s.id, { halaman: jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN) }, false)
                                   }
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
                                 />
                               </div>
                             </div>
@@ -1290,8 +1313,9 @@ export default function PelaksanaanPembelajaranView() {
                                   <button
                                     key={opt}
                                     type="button"
+                                    disabled={terkunci}
                                     onClick={() => ubahTilawati(s.id, { status: aktif ? '' : opt }, true)}
-                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] ${
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
                                       aktif
                                         ? 'text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
                                         : 'bg-transparent text-text-dim'
