@@ -43,7 +43,7 @@
      tertutup -- tidak menunggu round-trip Supabase. Kalau INSERT gagal,
      baris sementara itu ditarik lagi + toast error. */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen, Calendar, Hash, FileText, Bell,
   X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
@@ -1450,26 +1450,27 @@ export default function RencanaPembelajaranView() {
                     Menggantikan field "Pertemuan ke-" biasa selama
                     kondisi ini aktif. */}
                 {tampilPeragaTilawati ? (
-                  <div className="mb-3.5">
-                  {/* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke —
-                      Teknik ke (diminta owner 2026-09-03). Kolom kecil
-                      semua; membungkus ke baris kedua kalau layar sempit. */}
-                  <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
-                    <div className="shrink-0">
-                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
+                  /* Blok khusus "Baca Huruf Al-Qur'an" jenjang bawah
+                     (diminta owner 2026-09-03, beberapa putaran rapi):
+                     Peraga Tilawati (rentang halaman) di baris sendiri,
+                     lalu Jilid / Pertemuan ke / Teknik ke sejajar 3
+                     kolom, lalu pengingat "Buku Tilawati Jilid". */
+                  <div className="mb-3.5 space-y-3">
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
                         Peraga Tilawati
                       </label>
-                      <div className="flex items-center gap-1">
-                        {[
+                      <div className="flex items-center gap-2">
+                        {([
                           [peragaTilawatiDari, setPeragaTilawatiDari] as const,
                           [peragaTilawatiSampai, setPeragaTilawatiSampai] as const,
-                        ].map(([nilai, set], i) => (
-                          <div key={i} className="flex items-center gap-1">
-                            {i === 1 && <span className="text-[11px] text-text-faint">s/d</span>}
-                            <div className="relative w-[44px]">
+                        ]).map(([nilai, set], i) => (
+                          <Fragment key={i}>
+                            {i === 1 && <span className="shrink-0 text-[12px] text-text-faint">s/d</span>}
+                            <div className="relative flex-1">
                               {/* "hal" hilang begitu halaman diketik. */}
                               {!nilai && (
-                                <span className="pointer-events-none absolute top-1/2 left-1.5 -translate-y-1/2 text-[10px] font-semibold text-text-faint">
+                                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[12px] text-text-faint">
                                   hal
                                 </span>
                               )}
@@ -1479,67 +1480,80 @@ export default function RencanaPembelajaranView() {
                                 min={1}
                                 value={nilai}
                                 onChange={(e) => set(e.target.value)}
-                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none ${
-                                  nilai ? 'px-1' : 'pr-1 pl-5'
+                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 text-[13px] text-text focus:border-brass focus:outline-none ${
+                                  nilai ? 'px-3 text-center' : 'pr-3 pl-9'
                                 }`}
                               />
                             </div>
-                          </div>
+                          </Fragment>
                         ))}
                       </div>
                     </div>
-                    <div className="w-[52px] shrink-0">
-                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">Jilid</label>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={peragaJilidBaru}
-                        onChange={(e) => setPeragaJilidBaru(e.target.value)}
-                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                      />
-                    </div>
-                    <div className="w-[64px] shrink-0">
-                      <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
-                        Pertemuan ke
-                      </label>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        value={pertemuanKeBaru}
-                        onChange={(e) => setPertemuanKeBaru(e.target.value)}
-                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                      />
-                    </div>
-                    <div className="w-[70px] shrink-0">
-                      <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-text leading-tight">
-                        Teknik ke
-                        <LabelInfo teks="Teknik membaca klasikal peraga" />
-                      </label>
-                      <select
-                        value={peragaTeknikBaru}
-                        onChange={(e) => setPeragaTeknikBaru(e.target.value)}
-                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
-                      >
-                        <option value="">–</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                      </select>
-                    </div>
-                  </div>
 
-                  {/* Pengingat tetap di bawah baris (diminta owner
-                      2026-09-03) — jilid yg dipakai tiap santri beda. */}
-                  <div className="mt-3">
-                    <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                      Buku Tilawati Jilid
-                    </label>
-                    <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
-                      Sesuai Kondisi Setiap Santri
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
+                          Jilid
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={peragaJilidBaru}
+                          onChange={(e) => setPeragaJilidBaru(e.target.value)}
+                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2.5 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
+                          Pertemuan ke
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={1}
+                          value={pertemuanKeBaru}
+                          onChange={(e) => setPertemuanKeBaru(e.target.value)}
+                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2.5 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 flex items-center gap-1 text-[12px] font-semibold whitespace-nowrap text-text">
+                          Teknik ke
+                          <LabelInfo teks="Teknik membaca klasikal peraga" />
+                        </label>
+                        {/* Segmented 1/2/3 -- elegan, bukan <select>
+                            bawaan browser (diminta owner 2026-09-03).
+                            Ketuk lagi utk batal pilih. */}
+                        <div className="flex overflow-hidden rounded-[var(--radius)] border border-border">
+                          {['1', '2', '3'].map((t) => {
+                            const aktif = peragaTeknikBaru === t;
+                            return (
+                              <button
+                                key={t}
+                                type="button"
+                                onClick={() => setPeragaTeknikBaru((v) => (v === t ? '' : t))}
+                                className={`flex-1 py-2.5 text-[13px] font-bold transition-colors duration-100 ${
+                                  t !== '1' ? 'border-l border-border' : ''
+                                } ${aktif ? 'bg-indigo text-white' : 'bg-panel text-text-dim active:bg-panel-2'}`}
+                              >
+                                {t}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Jilid buku tiap santri beda -> pengingat, bukan input. */}
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                        Buku Tilawati Jilid
+                      </label>
+                      <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
+                        Sesuai Kondisi Setiap Santri
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   <FieldTambah label="Pertemuan ke-">
