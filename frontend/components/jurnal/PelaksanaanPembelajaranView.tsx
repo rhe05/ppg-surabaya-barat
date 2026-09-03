@@ -371,6 +371,13 @@ export default function PelaksanaanPembelajaranView() {
   const [tilawatiSantri, setTilawatiSantri] = useState<{ id: number; nama: string }[]>([]);
   const [tilawati, setTilawati] = useState<Record<number, BarisTilawati>>({});
   const [loadingTilawati, setLoadingTilawati] = useState(false);
+  /* Tanggal yang dipakai kartu Tilawati -- bisa diganti guru lewat
+     kalender di kanan atas kartu (diminta owner 2026-09-03). Bawaan
+     hari ini. */
+  const [tilawatiTanggal, setTilawatiTanggal] = useState(todayStr());
+  const [tilawatiPickerTerbuka, setTilawatiPickerTerbuka] = useState(false);
+  const [posisiTilawatiPicker, setPosisiTilawatiPicker] = useState<PosisiPicker | null>(null);
+  const tilawatiTanggalBtnRef = useRef<HTMLButtonElement>(null);
   const tilawatiRef = useRef<Record<number, BarisTilawati>>({});
   tilawatiRef.current = tilawati;
   const tundaTilawatiRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
@@ -390,7 +397,7 @@ export default function PelaksanaanPembelajaranView() {
     }
     setLoadingTilawati(true);
     try {
-      const hariIni = todayStr();
+      const hariIni = tilawatiTanggal;
       const [sRes, tRes] = await Promise.all([
         supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
         supabase
@@ -446,7 +453,7 @@ export default function PelaksanaanPembelajaranView() {
       setLoadingTilawati(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId]);
+  }, [kelasId, tilawatiTanggal]);
   useEffect(() => {
     muatTilawati();
   }, [muatTilawati]);
@@ -460,7 +467,7 @@ export default function PelaksanaanPembelajaranView() {
           {
             kelas_id: kelasId,
             santri_id: santriId,
-            tanggal: todayStr(),
+            tanggal: tilawatiTanggal,
             buku_jilid: b.jilid.trim() === '' ? null : b.jilid.trim(),
             halaman: b.halaman.trim() === '' ? null : b.halaman.trim(),
             status: b.status === '' ? null : b.status,
@@ -473,7 +480,7 @@ export default function PelaksanaanPembelajaranView() {
         push(e instanceof Error ? e.message : 'Gagal menyimpan Tilawati.', 'error');
       }
     },
-    [kelasId, profile?.id, push],
+    [kelasId, tilawatiTanggal, profile?.id, push],
   );
 
   function ubahTilawati(santriId: number, patch: Partial<BarisTilawati>, langsung: boolean) {
@@ -1177,16 +1184,49 @@ export default function PelaksanaanPembelajaranView() {
                 di kelas: Buku Jilid / Halaman / Naik|Tetap, simpan
                 otomatis. */}
             <div className="kartu-premium mb-4 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setTilawatiCardTerbuka((v) => !v)}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
-              >
-                <span className="text-[15px] font-bold text-text">Tilawati</span>
-                <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                  {tilawatiSantri.length} Santri
-                </span>
-              </button>
+              <div className="flex items-center justify-between gap-2 p-4">
+                <button
+                  type="button"
+                  onClick={() => setTilawatiCardTerbuka((v) => !v)}
+                  className="flex min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                >
+                  <span className="text-[15px] font-bold text-text">Tilawati</span>
+                  <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                    {tilawatiSantri.length} Santri
+                  </span>
+                </button>
+                {/* Tanggal input Tilawati -- diklik utk buka kalender
+                    (diminta owner 2026-09-03). */}
+                <button
+                  ref={tilawatiTanggalBtnRef}
+                  type="button"
+                  onClick={() => {
+                    const rect = tilawatiTanggalBtnRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setPosisiTilawatiPicker({
+                        top: rect.bottom + 6,
+                        right: window.innerWidth - rect.right,
+                      });
+                    }
+                    setTilawatiPickerTerbuka((v) => !v);
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-semibold text-text active:scale-[0.97]"
+                >
+                  {tanggalPanjang(tilawatiTanggal)}
+                  <Calendar size={13} className="text-text-faint" />
+                </button>
+              </div>
+              <TanggalPicker
+                terbuka={tilawatiPickerTerbuka}
+                posisi={posisiTilawatiPicker}
+                nilai={tilawatiTanggal}
+                onPilih={(v) => {
+                  setTilawatiTanggal(v);
+                  setTilawatiPickerTerbuka(false);
+                }}
+                onTutup={() => setTilawatiPickerTerbuka(false)}
+                tanggalNonaktif={(tglStr) => (tglStr > todayStr() ? { alasan: 'Belum terjadi' } : null)}
+              />
               {tilawatiCardTerbuka && (
                 <div className="border-t border-border p-3">
                   {loadingTilawati && tilawatiSantri.length === 0 ? (
