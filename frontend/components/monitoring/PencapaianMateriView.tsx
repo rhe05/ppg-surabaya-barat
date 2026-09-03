@@ -85,6 +85,11 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
+
+/* Halaman terakhir Peraga Tilawati = batas "Halaman Peraga Tilawati"
+   (1-20) di borang Rencana Pembelajaran. Peraga jilid dinyatakan KHATAM
+   sekali kalau ada pertemuan yg halamannya mencapai angka ini. */
+const PERAGA_HAL_AKHIR = 20;
 import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import {
   targetAsmaulHusnaDari,
@@ -307,7 +312,6 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      halamannya mencapai halaman terakhir peraga (20 -- batas "Halaman
      Peraga Tilawati" di borang Rencana, PERAGA_HAL_MAKS). Jilid yg sudah
      ada pertemuan tapi belum khatam tetap ditampilkan ("sedang berjalan"). */
-  const PERAGA_HAL_AKHIR = 20;
   const peragaTampil = useMemo(() => {
     const peta = new Map<
       string,
