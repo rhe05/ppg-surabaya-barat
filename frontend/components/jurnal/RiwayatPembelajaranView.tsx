@@ -154,15 +154,30 @@ export default function RiwayatPembelajaranView() {
   );
 
   /* Tiga kartu terpisah "Materi Klasikal" / "Materi Ngaji" / "Tilawati"
-     (2026-09-03, diminta owner, pola sama Pelaksanaan). */
+     (2026-09-03, diminta owner, pola sama Pelaksanaan). Materi "Peraga
+     Tilawati" (Baca Huruf Al-Qur'an, disusun di Rencana) DIPINDAH dari
+     kartu Materi Ngaji ke kartu Tilawati (diminta owner 2026-09-03). */
+  const esPeragaTilawati = (judul: string) =>
+    /peraga tilawati/i.test(judul) || /^baca huruf al-?qur/i.test(judul.trim());
   const barisKlasikal = useMemo(() => baris.filter((m) => m.jenis === 'klasikal'), [baris]);
-  const barisNgaji = useMemo(() => baris.filter((m) => m.jenis !== 'klasikal'), [baris]);
-  const hitungJenis = (kl: boolean) => {
-    const rel = materiList.filter((m) => (kl ? m.jenis === 'klasikal' : m.jenis !== 'klasikal'));
+  const barisPeraga = useMemo(
+    () => baris.filter((m) => m.jenis !== 'klasikal' && esPeragaTilawati(m.judul)),
+    [baris],
+  );
+  const barisNgaji = useMemo(
+    () => baris.filter((m) => m.jenis !== 'klasikal' && !esPeragaTilawati(m.judul)),
+    [baris],
+  );
+  const hitungJenis = (jenis: 'klasikal' | 'ngaji') => {
+    const rel = materiList.filter((m) =>
+      jenis === 'klasikal'
+        ? m.jenis === 'klasikal'
+        : m.jenis !== 'klasikal' && !esPeragaTilawati(m.judul),
+    );
     return { total: rel.length, sudah: rel.filter((m) => m.status === 'disampaikan').length };
   };
-  const nKlasikal = hitungJenis(true);
-  const nNgaji = hitungJenis(false);
+  const nKlasikal = hitungJenis('klasikal');
+  const nNgaji = hitungJenis('ngaji');
   const [klasikalTerbuka, setKlasikalTerbuka] = useState(true);
   const [ngajiTerbuka, setNgajiTerbuka] = useState(true);
 
@@ -515,13 +530,33 @@ export default function RiwayatPembelajaranView() {
                   </button>
                   {tilawatiTerbuka && (
                     <div className="border-t border-border">
+                      {/* 1. Peraga Tilawati -- materi "Baca Huruf
+                          Al-Qur'an" yg disusun guru di Rencana; DIPINDAH
+                          ke sini dari kartu Materi Ngaji (diminta owner
+                          2026-09-03). */}
+                      <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
+                        Peraga Tilawati
+                      </div>
+                      {barisPeraga.length === 0 ? (
+                        <p className="px-4 py-3 text-[13px] text-text-dim">
+                          Tidak ada Peraga Tilawati yang cocok.
+                        </p>
+                      ) : (
+                        barisPeraga.map((m) => barisRiwayat(m))
+                      )}
+
+                      {/* 2. Buku Jilid -- catatan per santri (Naik/Tetap)
+                          dari kartu "Tilawati" di Pelaksanaan. */}
+                      <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
+                        Buku Jilid
+                      </div>
                       {loadingTilawati ? (
                         <div className="p-3">
                           <Skeleton className="h-[44px] w-full" />
                         </div>
                       ) : tilawatiRingkas.length === 0 ? (
                         <p className="px-4 py-3 text-[13px] text-text-dim">
-                          Belum ada catatan Tilawati pada {NAMA_BULAN[bulan - 1]} {tahun}.
+                          Belum ada catatan Buku Jilid pada {NAMA_BULAN[bulan - 1]} {tahun}.
                         </p>
                       ) : (
                         tilawatiRingkas.map((s) => (
