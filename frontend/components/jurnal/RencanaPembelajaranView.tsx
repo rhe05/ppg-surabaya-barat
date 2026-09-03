@@ -46,7 +46,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   BookOpen, Calendar, Hash, FileText, Bell,
-  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, Info,
+  X, Plus, Check, CalendarDays, ClipboardList, Users, ChevronRight, ChevronDown, Info,
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -190,34 +190,57 @@ function labelKelasKurikulum(k: string | null) {
 
 let idSementara = -1;
 
-/* Ikon info + tooltip ketuk-utk-buka (BUKAN hover -- form ini dipakai di
-   HP, hover tidak ada) -- diminta owner 2026-08-23 utk panduan batas
-   maks surat Hafalan Surat klasikal. Overlay transparan spy tutup lagi
-   saat ketuk di luar, sama pola dgn KebabMenu.tsx di kurikulum/page.tsx. */
+/* Ikon info + tooltip ketuk-utk-tampil (BUKAN hover -- form ini dipakai
+   di HP). Diperbarui 2026-09-03 (diminta owner "lebih canggih & modern,
+   muncul sebentar lalu hilang"): gaya toast gelap, muncul via fade lalu
+   MENGHILANG SENDIRI setelah ~2,6 dtk. Diposisikan `fixed` dari
+   getBoundingClientRect + di-clamp ke tepi layar supaya tidak terpotong
+   walau ikonnya di kolom paling kanan. */
 function LabelInfo({ teks }: { teks: string }) {
-  const [terbuka, setTerbuka] = useState(false);
+  const [tampil, setTampil] = useState(false);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    [],
+  );
+  function munculkan(e: React.MouseEvent) {
+    e.stopPropagation();
+    e.preventDefault();
+    const r = btnRef.current?.getBoundingClientRect();
+    if (r) {
+      const left = Math.min(Math.max(r.left + r.width / 2, 118), window.innerWidth - 118);
+      setPos({ top: r.top - 8, left });
+    }
+    setTampil(true);
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => setTampil(false), 2600);
+  }
   return (
-    <span className="relative inline-flex align-middle">
+    <>
       <button
+        ref={btnRef}
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          setTerbuka((v) => !v);
-        }}
+        onClick={munculkan}
         aria-label="Info"
-        className="flex h-4 w-4 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 text-text-faint"
+        className="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent p-0 align-middle text-text-faint"
       >
         <Info size={14} strokeWidth={2} />
       </button>
-      {terbuka && (
-        <>
-          <div className="fixed inset-0 z-[700]" onClick={() => setTerbuka(false)} />
-          <div className="absolute top-full left-0 z-[701] mt-1.5 w-[230px] rounded-[var(--radius)] border border-border bg-panel p-2.5 text-[11px] leading-snug font-normal text-text shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
-            {teks}
-          </div>
-        </>
+      {pos && (
+        <div
+          className={`pointer-events-none fixed z-[1200] w-[220px] max-w-[calc(100vw-24px)] -translate-x-1/2 -translate-y-full rounded-lg bg-[#0F172A] px-3 py-2 text-[11px] leading-snug font-normal text-white shadow-[0_12px_32px_rgba(0,0,0,0.4)] transition-opacity duration-200 ${
+            tampil ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{ top: pos.top, left: pos.left }}
+        >
+          {teks}
+        </div>
       )}
-    </span>
+    </>
   );
 }
 
@@ -542,6 +565,25 @@ export default function RencanaPembelajaranView() {
 
   const [tambahTerbuka, setTambahTerbuka] = useState(false);
   const [judulBaru, setJudulBaru] = useState('');
+
+  /* Combobox "Materi Ngaji" -- dropdown kustom (bukan <datalist> bawaan
+     browser, diminta owner 2026-09-03) TAPI tetap boleh ketik sendiri. */
+  const [materiDropdownTerbuka, setMateriDropdownTerbuka] = useState(false);
+  const materiWrapRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!materiDropdownTerbuka) return;
+    function tutupJikaDiluar(e: MouseEvent) {
+      if (materiWrapRef.current && !materiWrapRef.current.contains(e.target as Node)) {
+        setMateriDropdownTerbuka(false);
+      }
+    }
+    document.addEventListener('mousedown', tutupJikaDiluar);
+    return () => document.removeEventListener('mousedown', tutupJikaDiluar);
+  }, [materiDropdownTerbuka]);
+  const opsiMateriTersaring = useMemo(() => {
+    const q = judulBaru.trim().toLowerCase();
+    return q ? opsiMateriKurikulum.filter((n) => n.toLowerCase().includes(q)) : opsiMateriKurikulum;
+  }, [opsiMateriKurikulum, judulBaru]);
   const [tanggalRencanaBaru, setTanggalRencanaBaru] = useState('');
   const [tanggalPickerTerbuka, setTanggalPickerTerbuka] = useState(false);
   const [posisiTanggalPicker, setPosisiTanggalPicker] = useState<PosisiPicker | null>(null);
@@ -564,6 +606,7 @@ export default function RencanaPembelajaranView() {
 
   function bukaFormTambah() {
     setJudulBaru('');
+    setMateriDropdownTerbuka(false);
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
     setPertemuanKeBaru('');
     setPeragaTilawatiDari('');
@@ -1430,18 +1473,60 @@ export default function RencanaPembelajaranView() {
                 </FieldTambah>
 
                 <FieldTambah label="Materi Ngaji" wajib>
-                  <InputIkon
-                    value={judulBaru}
-                    onChange={setJudulBaru}
-                    placeholder="Pilih dari Kurikulum atau tulis sendiri"
-                    ikon={<BookOpen size={16} />}
-                    list="opsi-materi-ngaji"
-                  />
-                  <datalist id="opsi-materi-ngaji">
-                    {opsiMateriKurikulum.map((nama) => (
-                      <option key={nama} value={nama} />
-                    ))}
-                  </datalist>
+                  {/* Combobox kustom: boleh pilih dari daftar Kurikulum
+                      (dropdown sendiri, bukan <datalist> OS) ATAU ketik
+                      sendiri. Diminta owner 2026-09-03. */}
+                  <div ref={materiWrapRef} className="relative">
+                    <input
+                      type="text"
+                      value={judulBaru}
+                      onChange={(e) => {
+                        setJudulBaru(e.target.value);
+                        setMateriDropdownTerbuka(true);
+                      }}
+                      onFocus={() => setMateriDropdownTerbuka(true)}
+                      placeholder="Pilih dari Kurikulum atau tulis sendiri"
+                      className={`${INPUT_STYLE} pr-9`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      aria-label="Buka daftar materi"
+                      onClick={() => setMateriDropdownTerbuka((v) => !v)}
+                      className="absolute top-1/2 right-2.5 -translate-y-1/2 border-none bg-transparent p-0 text-text-faint"
+                    >
+                      <ChevronDown
+                        size={16}
+                        className={`transition-transform duration-150 ${materiDropdownTerbuka ? 'rotate-180' : ''}`}
+                      />
+                    </button>
+                    {materiDropdownTerbuka && opsiMateriKurikulum.length > 0 && (
+                      <div className="absolute z-[1100] mt-1.5 max-h-[220px] w-full overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
+                        {opsiMateriTersaring.length === 0 ? (
+                          <div className="px-3 py-2.5 text-[12px] text-text-faint">
+                            Tak ada yang cocok — lanjut ketik materi sendiri.
+                          </div>
+                        ) : (
+                          opsiMateriTersaring.map((nama) => (
+                            <button
+                              key={nama}
+                              type="button"
+                              onClick={() => {
+                                setJudulBaru(nama);
+                                setMateriDropdownTerbuka(false);
+                              }}
+                              className={`flex w-full items-center justify-between gap-2 rounded-[var(--radius)] px-3 py-2.5 text-left text-[13px] transition-colors duration-150 hover:bg-panel-2 ${
+                                judulBaru === nama ? 'font-semibold text-brass' : 'text-text'
+                              }`}
+                            >
+                              <span className="min-w-0 truncate">{nama}</span>
+                              {judulBaru === nama && <Check size={15} className="shrink-0" />}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </FieldTambah>
 
                 {/* KHUSUS: ruang jenjang PAUD-TK s.d. 3 + materi "Baca
