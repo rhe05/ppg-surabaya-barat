@@ -157,3 +157,69 @@ export function targetMingguTilawati(
 ): string | null {
   return targetBulanTilawati(kodeKelas, bulanKe)?.minggu.find((m) => m.minggu === mingguKe)?.target ?? null;
 }
+
+/* ── Perbandingan capaian vs target (dipakai Monitoring) ────────────── */
+
+export type TargetTilawatiPeriode = {
+  /** 'Paud' | '1'..'6' */
+  jilid: string;
+  semester: 1 | 2;
+  /** Bulan ke-N dalam semester (kelas 1-3: 1-6) / tahun (PAUD: 1-12). */
+  bulanKe: number;
+  bulan: TargetBulan;
+  /** Halaman terakhir yang ditargetkan bulan ini. "Evaluasi" → 44. */
+  halAkhir: number;
+};
+
+function halAkhirDariTarget(t: string): number {
+  const nums = [...t.matchAll(/\d+/g)].map((x) => Number(x[0]));
+  return nums.length > 0 ? Math.max(...nums) : HAL_PER_JILID;
+}
+
+/** Target Buku Jilid Tilawati untuk kelas + BULAN KALENDER (1-12).
+    Asumsi tahun ajaran (dari data kurikulum_probul): Januari–Juni =
+    Semester 1, Juli–Desember = Semester 2. null kalau kelas di luar
+    pedoman (kelas 4+ sudah baca Al-Qur'an per juz). */
+export function targetTilawatiPeriode(
+  kodeKelas: string,
+  bulanKalender: number,
+): TargetTilawatiPeriode | null {
+  if (!(kodeKelas in JILID_TARGET_KELAS)) return null;
+  const m = Math.min(Math.max(Math.trunc(bulanKalender), 1), 12);
+
+  if (kodeKelas === 'PAUD-TK') {
+    const bulan = POLA_PAUD.find((b) => b.bulan === m);
+    if (!bulan) return null;
+    return { jilid: 'Paud', semester: m <= 6 ? 1 : 2, bulanKe: m, bulan, halAkhir: halAkhirDariTarget(bulan.target) };
+  }
+
+  const semester: 1 | 2 = m <= 6 ? 1 : 2;
+  const bulanKe = m <= 6 ? m : m - 6;
+  const bulan = POLA_JILID_STANDAR.find((b) => b.bulan === bulanKe);
+  if (!bulan) return null;
+  return {
+    jilid: jilidTargetKelas(kodeKelas, semester) ?? '',
+    semester,
+    bulanKe,
+    bulan,
+    halAkhir: halAkhirDariTarget(bulan.target),
+  };
+}
+
+/** Posisi absolut sebuah capaian untuk dibandingkan: jilid × 44 + halaman.
+    "Paud" dihitung jilid 0. null kalau jilid & halaman dua-duanya kosong. */
+export function posisiTilawati(
+  jilid: string | null | undefined,
+  halaman: string | number | null | undefined,
+): number | null {
+  if ((jilid == null || jilid === '') && (halaman == null || halaman === '')) return null;
+  const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : Number(jilid) || 0;
+  const h = typeof halaman === 'number' ? halaman : Number(halaman) || 0;
+  return j * HAL_PER_JILID + h;
+}
+
+/** Label singkat target periode, mis. "Jilid 1 · Hal 28-36". */
+export function labelTargetPeriode(t: TargetTilawatiPeriode): string {
+  const j = t.jilid === 'Paud' ? 'Tilawati Paud' : `Jilid ${t.jilid}`;
+  return `${j} · ${t.bulan.target}`;
+}

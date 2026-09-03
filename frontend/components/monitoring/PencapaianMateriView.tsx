@@ -92,6 +92,11 @@ import { rentangBulan } from '@/lib/periodeAkademik';
 const PERAGA_HAL_AKHIR = 20;
 import { muatBukuJilidKelas, type BukuJilidSantri } from '@/lib/tilawati';
 import {
+  targetTilawatiPeriode,
+  labelTargetPeriode,
+  posisiTilawati,
+} from '@/lib/pedomanTilawati';
+import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
@@ -377,6 +382,17 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     const dariAdmin = kelasAdmin.find((k) => k.id === kelasId)?.nama;
     return dariGuru ?? dariAdmin ?? '';
   }, [kelasId, kelasGuru, kelasAdmin]);
+
+  /* Target Buku Jilid Tilawati bulan ini utk kelas terpilih (pedoman
+     lib/pedomanTilawati.ts). null kalau kelas di luar pedoman (kelas 4+). */
+  const kodeKelasTilawati = useMemo(
+    () => kelasKurikulumSampai(namaKelasAktif).at(-1) ?? '',
+    [namaKelasAktif],
+  );
+  const targetTilawati = useMemo(
+    () => targetTilawatiPeriode(kodeKelasTilawati, bulan),
+    [kodeKelasTilawati, bulan],
+  );
 
   /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
      Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
@@ -722,6 +738,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           )}
 
           <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid</div>
+          {targetTilawati && (
+            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+              Target {NAMA_BULAN[bulan - 1]}: {labelTargetPeriode(targetTilawati)}
+            </div>
+          )}
           {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorTilawati && <p className="mb-5 text-[13px] text-red">{errorTilawati}</p>}
           {!loadingTilawati && !errorTilawati && (
@@ -745,6 +766,18 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                           .filter(Boolean)
                           .join(' ')
                       : null;
+                  /* Capaian vs pedoman: posisi absolut santri (jilid×44+hal)
+                     dibanding halaman terakhir yang ditargetkan bulan ini. */
+                  const sPos = posisiTilawati(s.terakhirJilid, s.terakhirHalaman);
+                  const tPos = targetTilawati
+                    ? posisiTilawati(targetTilawati.jilid, targetTilawati.halAkhir)
+                    : null;
+                  const status =
+                    !s.adaCatatan || sPos == null || tPos == null
+                      ? null
+                      : sPos >= tPos
+                        ? 'capai'
+                        : 'kurang';
                   return (
                     <div
                       key={s.santriId}
@@ -758,23 +791,35 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                           {s.adaCatatan ? (posisi ?? '—') : 'Belum ada catatan bulan ini'}
                         </span>
                       </span>
-                      {s.adaCatatan && (
-                        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                          {s.naik > 0 && (
-                            <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                              {s.naik}× Naik
-                            </span>
-                          )}
-                          {s.tetap > 0 && (
-                            <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                              {s.tetap}× Tetap
-                            </span>
-                          )}
-                          <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                            {s.halProgres} Hal
+                      <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                        {status === 'capai' && (
+                          <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                            Sesuai target
                           </span>
-                        </span>
-                      )}
+                        )}
+                        {status === 'kurang' && (
+                          <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                            Di bawah target
+                          </span>
+                        )}
+                        {s.adaCatatan && (
+                          <>
+                            {s.naik > 0 && (
+                              <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                                {s.naik}× Naik
+                              </span>
+                            )}
+                            {s.tetap > 0 && (
+                              <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                                {s.tetap}× Tetap
+                              </span>
+                            )}
+                            <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                              {s.halProgres} Hal
+                            </span>
+                          </>
+                        )}
+                      </span>
                     </div>
                   );
                 })

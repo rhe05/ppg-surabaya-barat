@@ -5,6 +5,7 @@
    membatasi ke kelas milik guru / scope admin. */
 
 import { supabase } from './supabase';
+import { posisiTilawati } from './pedomanTilawati';
 
 export type TilawatiStatus = 'naik' | 'tetap';
 
@@ -91,14 +92,6 @@ export async function muatTilawatiRingkas(
    (termasuk yg belum ada catatan), plus "halaman yg dicapai bulan itu"
    = selisih posisi terakhir dgn posisi pertama pada rentang. Satu jilid
    Tilawati (buku santri) = 44 halaman. "Paud" dihitung jilid 0. */
-const HAL_PER_JILID = 44;
-function posisiTilawati(jilid: string | null, halaman: string | null): number | null {
-  if (!jilid && !halaman) return null;
-  const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : Number(jilid) || 0;
-  const h = Number(halaman) || 0;
-  return j * HAL_PER_JILID + h;
-}
-
 export type BukuJilidSantri = {
   santriId: number;
   nama: string;
