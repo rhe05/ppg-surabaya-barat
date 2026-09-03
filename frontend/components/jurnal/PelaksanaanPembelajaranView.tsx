@@ -327,6 +327,117 @@ export default function PelaksanaanPembelajaranView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan]);
 
+  /* ── Kartu "Tilawati" (2026-09-03, diminta owner) ──────────────────
+     Per santri di kelas: Buku Jilid / Halaman / Naik|Tetap, dicatat
+     guru "hari ini". Tabel tilawati_pelaksanaan (migrasi 20260903120000),
+     UNIQUE (santri_id, tanggal) -> upsert. Auto-save 700ms setelah
+     berhenti mengetik; langsung utk pilihan Naik/Tetap. */
+  type BarisTilawati = { jilid: string; halaman: string; status: '' | 'naik' | 'tetap' };
+  const [tilawatiCardTerbuka, setTilawatiCardTerbuka] = useState(false);
+  const [tilawatiSantri, setTilawatiSantri] = useState<{ id: number; nama: string }[]>([]);
+  const [tilawati, setTilawati] = useState<Record<number, BarisTilawati>>({});
+  const [loadingTilawati, setLoadingTilawati] = useState(false);
+  const tilawatiRef = useRef<Record<number, BarisTilawati>>({});
+  tilawatiRef.current = tilawati;
+  const tundaTilawatiRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const timers = tundaTilawatiRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  const muatTilawati = useCallback(async () => {
+    if (kelasId === '') {
+      setTilawatiSantri([]);
+      setTilawati({});
+      return;
+    }
+    setLoadingTilawati(true);
+    try {
+      const hariIni = todayStr();
+      const [sRes, tRes] = await Promise.all([
+        supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
+        supabase
+          .from('tilawati_pelaksanaan')
+          .select('santri_id, buku_jilid, halaman, status')
+          .eq('kelas_id', kelasId)
+          .eq('tanggal', hariIni),
+      ]);
+      if (sRes.error) throw new Error(sRes.error.message);
+      if (tRes.error) throw new Error(tRes.error.message);
+      setTilawatiSantri((sRes.data ?? []) as { id: number; nama: string }[]);
+      const peta: Record<number, BarisTilawati> = {};
+      for (const r of (tRes.data ?? []) as {
+        santri_id: number;
+        buku_jilid: string | null;
+        halaman: string | null;
+        status: string | null;
+      }[]) {
+        peta[r.santri_id] = {
+          jilid: r.buku_jilid ?? '',
+          halaman: r.halaman ?? '',
+          status: (r.status as '' | 'naik' | 'tetap') ?? '',
+        };
+      }
+      setTilawati(peta);
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal memuat Tilawati.', 'error');
+    } finally {
+      setLoadingTilawati(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId]);
+  useEffect(() => {
+    muatTilawati();
+  }, [muatTilawati]);
+
+  const simpanTilawati = useCallback(
+    async (santriId: number) => {
+      if (kelasId === '') return;
+      const b = tilawatiRef.current[santriId] ?? { jilid: '', halaman: '', status: '' as const };
+      try {
+        const { error } = await supabase.from('tilawati_pelaksanaan').upsert(
+          {
+            kelas_id: kelasId,
+            santri_id: santriId,
+            tanggal: todayStr(),
+            buku_jilid: b.jilid.trim() === '' ? null : b.jilid.trim(),
+            halaman: b.halaman.trim() === '' ? null : b.halaman.trim(),
+            status: b.status === '' ? null : b.status,
+            dibuat_oleh: profile?.id ?? null,
+          },
+          { onConflict: 'santri_id,tanggal' },
+        );
+        if (error) throw new Error(error.message);
+      } catch (e) {
+        push(e instanceof Error ? e.message : 'Gagal menyimpan Tilawati.', 'error');
+      }
+    },
+    [kelasId, profile?.id, push],
+  );
+
+  function ubahTilawati(santriId: number, patch: Partial<BarisTilawati>, langsung: boolean) {
+    setTilawati((prev) => {
+      const cur: BarisTilawati = prev[santriId] ?? { jilid: '', halaman: '', status: '' };
+      return { ...prev, [santriId]: { ...cur, ...patch } };
+    });
+    const timers = tundaTilawatiRef.current;
+    const lama = timers.get(santriId);
+    if (lama) clearTimeout(lama);
+    timers.set(
+      santriId,
+      setTimeout(
+        () => {
+          timers.delete(santriId);
+          void simpanTilawati(santriId);
+        },
+        langsung ? 0 : 700,
+      ),
+    );
+  }
+
   /* ── Penyimpanan OTOMATIS (2026-09-02, diminta owner) ──────────────
      Tombol "Simpan Pelaksanaan" dihapus: tiap centang langsung ditulis,
      catatan ditulis 900ms setelah guru berhenti mengetik. Alasannya
@@ -625,7 +736,7 @@ export default function PelaksanaanPembelajaranView() {
      satu-satunya cara memuat ulang adalah menutup app. */
   async function segarkan() {
     buangSemuaSinggahan();
-    await Promise.all([muat(), muatAsad()]);
+    await Promise.all([muat(), muatAsad(), muatTilawati()]);
   }
 
   /* ── Dua kartu "Materi Klasikal" / "Materi Ngaji" (2026-09-03, diminta
@@ -1000,6 +1111,94 @@ export default function PelaksanaanPembelajaranView() {
               {ngajiCardTerbuka && (
                 <div className="flex flex-col gap-3 border-t border-border p-3">
                   {daftarMinggu('ngaji')}
+                </div>
+              )}
+            </div>
+
+            {/* Kartu "Tilawati" (2026-09-03, diminta owner) -- per santri
+                di kelas: Buku Jilid / Halaman / Naik|Tetap, simpan
+                otomatis. */}
+            <div className="kartu-premium mb-4 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setTilawatiCardTerbuka((v) => !v)}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+              >
+                <span className="text-[15px] font-bold text-text">Tilawati</span>
+                <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                  {tilawatiSantri.length} Santri
+                </span>
+              </button>
+              {tilawatiCardTerbuka && (
+                <div className="border-t border-border p-3">
+                  {loadingTilawati && tilawatiSantri.length === 0 ? (
+                    <div className="flex flex-col gap-2.5">
+                      <Skeleton className="h-[92px] w-full" />
+                      <Skeleton className="h-[92px] w-full" />
+                    </div>
+                  ) : tilawatiSantri.length === 0 ? (
+                    <p className="text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
+                  ) : (
+                    <div className="flex flex-col gap-2.5">
+                      {tilawatiSantri.map((s) => {
+                        const t = tilawati[s.id] ?? { jilid: '', halaman: '', status: '' as const };
+                        return (
+                          <div
+                            key={s.id}
+                            className="rounded-[var(--radius)] border border-border bg-panel p-3"
+                          >
+                            <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="label-mikro mb-1 block">Buku Jilid</label>
+                                <input
+                                  type="text"
+                                  value={t.jilid}
+                                  onChange={(e) => ubahTilawati(s.id, { jilid: e.target.value }, false)}
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+                                />
+                              </div>
+                              <div>
+                                <label className="label-mikro mb-1 block">Halaman</label>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  value={t.halaman}
+                                  onChange={(e) => ubahTilawati(s.id, { halaman: e.target.value }, false)}
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                            <div className="mt-2 flex overflow-hidden rounded-[var(--radius)] border border-border">
+                              {(['naik', 'tetap'] as const).map((opt) => {
+                                const aktif = t.status === opt;
+                                return (
+                                  <button
+                                    key={opt}
+                                    type="button"
+                                    onClick={() =>
+                                      ubahTilawati(s.id, { status: aktif ? '' : opt }, true)
+                                    }
+                                    className={`flex-1 py-2 text-[13px] font-bold transition-colors duration-100 ${
+                                      opt === 'tetap' ? 'border-l border-border' : ''
+                                    } ${
+                                      aktif
+                                        ? opt === 'naik'
+                                          ? 'bg-sage text-white'
+                                          : 'bg-indigo text-white'
+                                        : 'bg-panel text-text-dim active:bg-panel-2'
+                                    }`}
+                                  >
+                                    {opt === 'naik' ? 'Naik' : 'Tetap'}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
