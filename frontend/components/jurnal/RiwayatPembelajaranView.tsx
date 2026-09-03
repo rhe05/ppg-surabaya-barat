@@ -153,6 +153,48 @@ export default function RiwayatPembelajaranView() {
     [materiList, tahun, bulan, filter, cari]
   );
 
+  /* Tiga kartu terpisah "Materi Klasikal" / "Materi Ngaji" / "Tilawati"
+     (2026-09-03, diminta owner, pola sama Pelaksanaan). */
+  const barisKlasikal = useMemo(() => baris.filter((m) => m.jenis === 'klasikal'), [baris]);
+  const barisNgaji = useMemo(() => baris.filter((m) => m.jenis !== 'klasikal'), [baris]);
+  const hitungJenis = (kl: boolean) => {
+    const rel = materiList.filter((m) => (kl ? m.jenis === 'klasikal' : m.jenis !== 'klasikal'));
+    return { total: rel.length, sudah: rel.filter((m) => m.status === 'disampaikan').length };
+  };
+  const nKlasikal = hitungJenis(true);
+  const nNgaji = hitungJenis(false);
+  const [klasikalTerbuka, setKlasikalTerbuka] = useState(true);
+  const [ngajiTerbuka, setNgajiTerbuka] = useState(true);
+
+  function barisRiwayat(m: (typeof baris)[number]) {
+    const sudah = m.status === 'disampaikan';
+    const { kategori, utama, rincian } = pecahJudulMateri(m.judul);
+    return (
+      <div
+        key={m.id}
+        className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0"
+      >
+        <span
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
+            sudah ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+          }`}
+        >
+          {sudah ? <CheckCircle2 size={17} /> : <Clock size={17} />}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="label-mikro">
+            {[kategori, m.tanggal ? formatTanggal(m.tanggal) : null].filter(Boolean).join(' · ') || '—'}
+          </div>
+          <div className="text-[15px] font-bold text-text">{utama}</div>
+          {rincian && <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>}
+          <div className={`mt-0.5 text-[12px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
+            {sudah ? 'Disampaikan' : 'Belum disampaikan'}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const FILTER_TAB: { nilai: Filter; label: string }[] = [
     { nilai: 'semua', label: 'Semua' },
     { nilai: 'disampaikan', label: 'Disampaikan' },
@@ -309,66 +351,6 @@ export default function RiwayatPembelajaranView() {
               </div>
             </div>
 
-            {/* Laporan Tilawati per santri (2026-09-03, diminta owner) --
-                otomatis dari kartu "Tilawati" (Pelaksanaan). Naik & Tetap
-                dua keterangan warna beda; kartu bisa dibuka/tutup. */}
-            <div className="kartu-premium mb-5 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setTilawatiTerbuka((v) => !v)}
-                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent px-4 py-3 text-left"
-              >
-                <span className="text-[13px] font-bold text-text">Tilawati</span>
-                <ChevronDown
-                  size={16}
-                  className={`shrink-0 text-text-faint transition-transform duration-150 ${
-                    tilawatiTerbuka ? 'rotate-180' : ''
-                  }`}
-                />
-              </button>
-              {tilawatiTerbuka && (
-                <div className="border-t border-border">
-                  {loadingTilawati ? (
-                    <div className="p-3">
-                      <Skeleton className="h-[44px] w-full" />
-                    </div>
-                  ) : tilawatiRingkas.length === 0 ? (
-                    <p className="px-4 py-3 text-[13px] text-text-dim">
-                      Belum ada catatan Tilawati pada {NAMA_BULAN[bulan - 1]} {tahun}.
-                    </p>
-                  ) : (
-                    tilawatiRingkas.map((s) => (
-                      <div
-                        key={s.santriId}
-                        className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                      >
-                        <span className="min-w-0">
-                          <span className="block truncate text-[13px] font-semibold text-text">{s.nama}</span>
-                          <span className="block text-[11px] text-text-faint">
-                            terakhir {formatTanggal(s.terakhir)}
-                            {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
-                            {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
-                          </span>
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5">
-                          {s.naik > 0 && (
-                            <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                              {s.naik}× Naik
-                            </span>
-                          )}
-                          {s.tetap > 0 && (
-                            <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                              {s.tetap}× Tetap
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
             {/* Saringan status: chip, satu bahasa dgn chip kelas di atas
                 -- sebelumnya tiga tombol kotak selebar layar dgn isian
                 indigo penuh, yang membuatnya terbaca sbg aksi utama
@@ -434,51 +416,148 @@ export default function RiwayatPembelajaranView() {
               </div>
             )}
 
-            {loading && (
+            {loading ? (
               <div className="flex flex-col gap-2.5">
                 <Skeleton className="h-[64px] w-full" />
                 <Skeleton className="h-[64px] w-full" />
                 <Skeleton className="h-[64px] w-full" />
               </div>
-            )}
-            {!loading && baris.length === 0 && (
-              <p className="text-[13px] text-text-dim">Tidak ada materi yang cocok.</p>
-            )}
-
-            {/* SATU kartu berisi baris berpemisah -- bentuk yang sama dgn
-                daftar materi di Pelaksanaan, bukan setumpuk kartu
-                berbayang masing-masing. */}
-            {!loading && baris.length > 0 && (
-              <div className="kartu-premium overflow-hidden">
-                {baris.map((m) => {
-                  const sudah = m.status === 'disampaikan';
-                  const { kategori, utama, rincian } = pecahJudulMateri(m.judul);
-                  return (
-                    <div key={m.id} className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
-                      <span
-                        className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                          sudah ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
-                        }`}
-                      >
-                        {sudah ? <CheckCircle2 size={17} /> : <Clock size={17} />}
+            ) : (
+              <>
+                {/* Materi Klasikal -- kartu collapsible sendiri (2026-09-03,
+                    diminta owner, pola sama Pelaksanaan). */}
+                <div className="kartu-premium mb-4 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setKlasikalTerbuka((v) => !v)}
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+                  >
+                    <span className="text-[15px] font-bold text-text">Materi Klasikal</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                        {nKlasikal.sudah}/{nKlasikal.total} Materi
                       </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="label-mikro">
-                          {[kategori, m.tanggal ? formatTanggal(m.tanggal) : null].filter(Boolean).join(' · ') ||
-                            '—'}
-                        </div>
-                        <div className="text-[15px] font-bold text-text">{utama}</div>
-                        {rincian && (
-                          <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>
-                        )}
-                        <div className={`mt-0.5 text-[12px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
-                          {sudah ? 'Disampaikan' : 'Belum disampaikan'}
-                        </div>
-                      </div>
+                      <ChevronDown
+                        size={16}
+                        className={`text-text-faint transition-transform duration-150 ${
+                          klasikalTerbuka ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </span>
+                  </button>
+                  {klasikalTerbuka && (
+                    <div className="border-t border-border">
+                      {barisKlasikal.length === 0 ? (
+                        <p className="px-3.5 py-3.5 text-[13px] text-text-dim">
+                          Tidak ada materi Klasikal yang cocok.
+                        </p>
+                      ) : (
+                        barisKlasikal.map((m) => barisRiwayat(m))
+                      )}
                     </div>
-                  );
-                })}
-              </div>
+                  )}
+                </div>
+
+                {/* Materi Ngaji */}
+                <div className="kartu-premium mb-4 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setNgajiTerbuka((v) => !v)}
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+                  >
+                    <span className="text-[15px] font-bold text-text">Materi Ngaji</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                        {nNgaji.sudah}/{nNgaji.total} Materi
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-text-faint transition-transform duration-150 ${
+                          ngajiTerbuka ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </span>
+                  </button>
+                  {ngajiTerbuka && (
+                    <div className="border-t border-border">
+                      {barisNgaji.length === 0 ? (
+                        <p className="px-3.5 py-3.5 text-[13px] text-text-dim">
+                          Tidak ada materi Ngaji yang cocok.
+                        </p>
+                      ) : (
+                        barisNgaji.map((m) => barisRiwayat(m))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Tilawati -- kartu ke-3 (2026-09-03, diminta owner):
+                    laporan otomatis dari kartu "Tilawati" (Pelaksanaan).
+                    Naik & Tetap dua keterangan warna beda. */}
+                <div className="kartu-premium mb-4 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setTilawatiTerbuka((v) => !v)}
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+                  >
+                    <span className="text-[15px] font-bold text-text">Tilawati</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                        {tilawatiRingkas.length} Santri
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-text-faint transition-transform duration-150 ${
+                          tilawatiTerbuka ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </span>
+                  </button>
+                  {tilawatiTerbuka && (
+                    <div className="border-t border-border">
+                      {loadingTilawati ? (
+                        <div className="p-3">
+                          <Skeleton className="h-[44px] w-full" />
+                        </div>
+                      ) : tilawatiRingkas.length === 0 ? (
+                        <p className="px-4 py-3 text-[13px] text-text-dim">
+                          Belum ada catatan Tilawati pada {NAMA_BULAN[bulan - 1]} {tahun}.
+                        </p>
+                      ) : (
+                        tilawatiRingkas.map((s) => (
+                          <div
+                            key={s.santriId}
+                            className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-[13px] font-semibold text-text">
+                                {s.nama}
+                              </span>
+                              <span className="block text-[11px] text-text-faint">
+                                terakhir {formatTanggal(s.terakhir)}
+                                {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
+                                {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
+                              </span>
+                            </span>
+                            <span className="flex shrink-0 items-center gap-1.5">
+                              {s.naik > 0 && (
+                                <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                                  {s.naik}× Naik
+                                </span>
+                              )}
+                              {s.tetap > 0 && (
+                                <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                                  {s.tetap}× Tetap
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </>
         )}
