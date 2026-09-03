@@ -73,6 +73,19 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 
+/* Peraga Tilawati (diminta owner 2026-09-03): halaman peraga hanya
+   1-20; jilid peraga hanya Paud / 1-6. */
+const PERAGA_HAL_MAKS = 20;
+const OPSI_JILID_PERAGA: OpsiSelect[] = [
+  { value: 'Paud', label: 'Paud' },
+  ...[1, 2, 3, 4, 5, 6].map((n) => ({ value: String(n), label: String(n) })),
+];
+function jepitHalPeraga(v: string): string {
+  const d = v.replace(/[^0-9]/g, '');
+  if (d === '') return '';
+  return String(Math.min(Math.max(Number(d), 1), PERAGA_HAL_MAKS));
+}
+
 type Kelas = { id: number; nama: string };
 type Materi = {
   id: number;
@@ -640,7 +653,7 @@ export default function RencanaPembelajaranView() {
 
     const peraga = /^Baca Huruf Al-Qur'an/.test(m.judul)
       ? {
-          jilid: m.judul.match(/Jilid\s+(\d+)/)?.[1] ?? '',
+          jilid: m.judul.match(/Jilid\s+(Paud|\d+)/i)?.[1] ?? '',
           hal: m.judul.match(/Peraga Tilawati hal\s+(\d+)(?:\s*[–-]\s*(\d+))?/i) ?? null,
           teknik: m.judul.match(/Teknik\s+(\d+)/)?.[1] ?? '',
         }
@@ -1705,15 +1718,13 @@ export default function RencanaPembelajaranView() {
                     <div className="grid grid-cols-3 gap-2">
                       <div>
                         <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
-                          Jilid
+                          Jilid Peraga
                         </label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          min={1}
+                        <SelectKustom
                           value={peragaJilidBaru}
-                          onChange={(e) => setPeragaJilidBaru(e.target.value)}
-                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2.5 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                          onChange={setPeragaJilidBaru}
+                          opsi={OPSI_JILID_PERAGA}
+                          placeholder="Pilih"
                         />
                       </div>
                       <div>
@@ -1759,7 +1770,7 @@ export default function RencanaPembelajaranView() {
 
                     <div>
                       <label className="mb-1.5 block text-[12px] font-semibold text-text">
-                        Peraga Tilawati
+                        Halaman Peraga Tilawati
                       </label>
                       <div className="flex items-center gap-2">
                         {([
@@ -1779,8 +1790,9 @@ export default function RencanaPembelajaranView() {
                                 type="number"
                                 inputMode="numeric"
                                 min={1}
+                                max={PERAGA_HAL_MAKS}
                                 value={nilai}
-                                onChange={(e) => set(e.target.value)}
+                                onChange={(e) => set(jepitHalPeraga(e.target.value))}
                                 className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 text-[13px] text-text focus:border-brass focus:outline-none ${
                                   nilai ? 'px-3 text-center' : 'pr-3 pl-9'
                                 }`}
