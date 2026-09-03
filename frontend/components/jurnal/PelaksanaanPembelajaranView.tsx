@@ -47,7 +47,7 @@
    owner cuma utk Rencana Pembelajaran. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Check } from 'lucide-react';
+import { Calendar, Check, ArrowUp, Equal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -119,6 +119,40 @@ function todayStr() {
      di ERROR_LOG. Sejak layar ini mengunci baris berdasarkan tanggal,
      salah satu hari berarti materi hari ini ikut terkunci. */
   return `${d.getFullYear()}-${dua(d.getMonth() + 1)}-${dua(d.getDate())}`;
+}
+
+/* Tilawati (2026-09-03): Buku Jilid maks 6, Halaman maks 44 (diminta
+   owner). Angka di luar rentang dijepit; kosong tetap kosong. */
+const TILAWATI_MAKS_JILID = 6;
+const TILAWATI_MAKS_HALAMAN = 44;
+function jepitTilawati(v: string, maks: number): string {
+  const d = v.replace(/[^0-9]/g, '');
+  if (d === '') return '';
+  return String(Math.min(Math.max(Number(d), 1), maks));
+}
+/* Prefill hari ini dari catatan terakhir: kalau terakhir "naik", halaman
+   maju satu; kalau lewat 44, pindah jilid berikutnya halaman 1 (maks
+   jilid 6). Status hari ini dikosongkan -- guru yang memutuskan. */
+function lanjutkanTilawati(last: { jilid: string; halaman: string; status: string }): {
+  jilid: string;
+  halaman: string;
+  status: '' | 'naik' | 'tetap';
+} {
+  let jil = Number(last.jilid);
+  let hal = Number(last.halaman);
+  if (last.status === 'naik' && Number.isFinite(hal) && hal >= 1) {
+    hal += 1;
+    if (hal > TILAWATI_MAKS_HALAMAN) {
+      hal = 1;
+      if (Number.isFinite(jil) && jil >= 1) jil = Math.min(jil + 1, TILAWATI_MAKS_JILID);
+    }
+  }
+  return {
+    jilid: Number.isFinite(jil) && jil >= 1 ? String(Math.min(jil, TILAWATI_MAKS_JILID)) : last.jilid,
+    halaman:
+      Number.isFinite(hal) && hal >= 1 ? String(Math.min(hal, TILAWATI_MAKS_HALAMAN)) : last.halaman,
+    status: '',
+  };
 }
 
 function jamSekarangStr() {
@@ -361,25 +395,49 @@ export default function PelaksanaanPembelajaranView() {
         supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
         supabase
           .from('tilawati_pelaksanaan')
-          .select('santri_id, buku_jilid, halaman, status')
+          .select('santri_id, tanggal, buku_jilid, halaman, status')
           .eq('kelas_id', kelasId)
-          .eq('tanggal', hariIni),
+          .lte('tanggal', hariIni)
+          .order('tanggal', { ascending: true }),
       ]);
       if (sRes.error) throw new Error(sRes.error.message);
       if (tRes.error) throw new Error(tRes.error.message);
       setTilawatiSantri((sRes.data ?? []) as { id: number; nama: string }[]);
-      const peta: Record<number, BarisTilawati> = {};
+
+      /* Kumpulkan riwayat per santri. Kalau hari ini belum ada catatan
+         DAN catatan terakhir "naik" -> halaman OTOMATIS pindah ke
+         berikutnya (diminta owner 2026-09-03). Prefill ini display-only
+         sampai guru menekan Naik/Tetap. */
+      const perSantri = new Map<number, { tanggal: string; jilid: string; halaman: string; status: string }[]>();
       for (const r of (tRes.data ?? []) as {
         santri_id: number;
+        tanggal: string;
         buku_jilid: string | null;
         halaman: string | null;
         status: string | null;
       }[]) {
-        peta[r.santri_id] = {
+        const arr = perSantri.get(r.santri_id) ?? [];
+        arr.push({
+          tanggal: r.tanggal,
           jilid: r.buku_jilid ?? '',
           halaman: r.halaman ?? '',
-          status: (r.status as '' | 'naik' | 'tetap') ?? '',
-        };
+          status: r.status ?? '',
+        });
+        perSantri.set(r.santri_id, arr);
+      }
+      const peta: Record<number, BarisTilawati> = {};
+      for (const [sid, arr] of perSantri) {
+        const todayRow = arr.find((x) => x.tanggal === hariIni);
+        if (todayRow) {
+          peta[sid] = {
+            jilid: todayRow.jilid,
+            halaman: todayRow.halaman,
+            status: (todayRow.status as '' | 'naik' | 'tetap') || '',
+          };
+          continue;
+        }
+        const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
+        if (last) peta[sid] = lanjutkanTilawati(last);
       }
       setTilawati(peta);
     } catch (e) {
@@ -1150,46 +1208,58 @@ export default function PelaksanaanPembelajaranView() {
                             <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="label-mikro mb-1 block">Buku Jilid</label>
+                                <label className="label-mikro mb-1 block">Buku Jilid (1–6)</label>
                                 <input
-                                  type="text"
+                                  type="number"
+                                  inputMode="numeric"
+                                  min={1}
+                                  max={TILAWATI_MAKS_JILID}
                                   value={t.jilid}
-                                  onChange={(e) => ubahTilawati(s.id, { jilid: e.target.value }, false)}
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+                                  onChange={(e) =>
+                                    ubahTilawati(s.id, { jilid: jepitTilawati(e.target.value, TILAWATI_MAKS_JILID) }, false)
+                                  }
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                                 />
                               </div>
                               <div>
-                                <label className="label-mikro mb-1 block">Halaman</label>
+                                <label className="label-mikro mb-1 block">Halaman (1–44)</label>
                                 <input
-                                  type="text"
+                                  type="number"
                                   inputMode="numeric"
+                                  min={1}
+                                  max={TILAWATI_MAKS_HALAMAN}
                                   value={t.halaman}
-                                  onChange={(e) => ubahTilawati(s.id, { halaman: e.target.value }, false)}
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+                                  onChange={(e) =>
+                                    ubahTilawati(s.id, { halaman: jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN) }, false)
+                                  }
+                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                                 />
                               </div>
                             </div>
-                            <div className="mt-2 flex overflow-hidden rounded-[var(--radius)] border border-border">
-                              {(['naik', 'tetap'] as const).map((opt) => {
+                            {/* Sakelar Naik / Tetap -- pil modern: track
+                                cekung, tombol aktif "terangkat" + ikon,
+                                ketuk lagi utk batal (diminta owner
+                                2026-09-03). */}
+                            <div className="mt-2.5 flex gap-1.5 rounded-full bg-panel-2 p-1">
+                              {([
+                                { opt: 'naik', label: 'Naik', Ikon: ArrowUp, warna: 'var(--sage)' },
+                                { opt: 'tetap', label: 'Tetap', Ikon: Equal, warna: 'var(--indigo)' },
+                              ] as const).map(({ opt, label, Ikon, warna }) => {
                                 const aktif = t.status === opt;
                                 return (
                                   <button
                                     key={opt}
                                     type="button"
-                                    onClick={() =>
-                                      ubahTilawati(s.id, { status: aktif ? '' : opt }, true)
-                                    }
-                                    className={`flex-1 py-2 text-[13px] font-bold transition-colors duration-100 ${
-                                      opt === 'tetap' ? 'border-l border-border' : ''
-                                    } ${
+                                    onClick={() => ubahTilawati(s.id, { status: aktif ? '' : opt }, true)}
+                                    className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] ${
                                       aktif
-                                        ? opt === 'naik'
-                                          ? 'bg-sage text-white'
-                                          : 'bg-indigo text-white'
-                                        : 'bg-panel text-text-dim active:bg-panel-2'
+                                        ? 'text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                                        : 'bg-transparent text-text-dim'
                                     }`}
+                                    style={aktif ? { background: warna } : undefined}
                                   >
-                                    {opt === 'naik' ? 'Naik' : 'Tetap'}
+                                    <Ikon size={15} strokeWidth={2.6} />
+                                    {label}
                                   </button>
                                 );
                               })}
