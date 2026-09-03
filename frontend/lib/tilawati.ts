@@ -1,16 +1,20 @@
-/* Laporan Tilawati "Naik" per santri (2026-09-03, diminta owner) --
-   dipakai Riwayat Pembelajaran & Monitoring Pencapaian Materi.
-   Sumber: tabel `tilawati_pelaksanaan` (migrasi 20260903120000), diisi
-   guru di kartu "Tilawati" pada Pelaksanaan Pembelajaran. RLS tabel itu
-   sudah membatasi ke kelas milik guru / scope admin. */
+/* Laporan Tilawati per santri (2026-09-03, diminta owner) -- dipakai
+   Riwayat Pembelajaran & Monitoring Pencapaian Materi. Sumber: tabel
+   `tilawati_pelaksanaan` (migrasi 20260903120000), diisi guru di kartu
+   "Tilawati" pada Pelaksanaan Pembelajaran. RLS tabel itu sudah
+   membatasi ke kelas milik guru / scope admin. */
 
 import { supabase } from './supabase';
 
-export type TilawatiNaik = {
+export type TilawatiStatus = 'naik' | 'tetap';
+
+export type TilawatiRingkas = {
   santriId: number;
   nama: string;
-  jumlah: number;
+  naik: number;
+  tetap: number;
   terakhir: string;
+  terakhirStatus: TilawatiStatus | '';
   terakhirJilid: string | null;
   terakhirHalaman: string | null;
 };
@@ -18,36 +22,49 @@ export type TilawatiNaik = {
 type BarisMentah = {
   santri_id: number;
   tanggal: string;
+  status: string | null;
   buku_jilid: string | null;
   halaman: string | null;
   santri: { nama: string } | { nama: string }[] | null;
 };
 
-/** Per santri: berapa kali "Naik" di rentang, plus jilid/halaman terakhir. */
-export async function muatTilawatiNaik(
+/** Per santri: jumlah "Naik" & "Tetap" di rentang + jilid/halaman/status
+ *  terakhir. Hanya santri yang punya minimal satu catatan naik/tetap. */
+export async function muatTilawatiRingkas(
   kelasId: number,
   awal: string,
   akhir: string,
-): Promise<TilawatiNaik[]> {
+): Promise<TilawatiRingkas[]> {
   const { data, error } = await supabase
     .from('tilawati_pelaksanaan')
-    .select('santri_id, tanggal, buku_jilid, halaman, santri:santri_id(nama)')
+    .select('santri_id, tanggal, status, buku_jilid, halaman, santri:santri_id(nama)')
     .eq('kelas_id', kelasId)
-    .eq('status', 'naik')
+    .in('status', ['naik', 'tetap'])
     .gte('tanggal', awal)
     .lte('tanggal', akhir)
     .order('tanggal', { ascending: true });
   if (error) throw new Error(error.message);
 
-  const peta = new Map<number, TilawatiNaik>();
+  const peta = new Map<number, TilawatiRingkas>();
   for (const r of (data ?? []) as BarisMentah[]) {
     const nama = (Array.isArray(r.santri) ? r.santri[0]?.nama : r.santri?.nama) ?? '—';
     const cur =
       peta.get(r.santri_id) ??
-      { santriId: r.santri_id, nama, jumlah: 0, terakhir: '', terakhirJilid: null, terakhirHalaman: null };
-    cur.jumlah += 1;
+      {
+        santriId: r.santri_id,
+        nama,
+        naik: 0,
+        tetap: 0,
+        terakhir: '',
+        terakhirStatus: '' as const,
+        terakhirJilid: null,
+        terakhirHalaman: null,
+      };
+    if (r.status === 'naik') cur.naik += 1;
+    else if (r.status === 'tetap') cur.tetap += 1;
     if (r.tanggal >= cur.terakhir) {
       cur.terakhir = r.tanggal;
+      cur.terakhirStatus = (r.status as TilawatiStatus | null) ?? '';
       cur.terakhirJilid = r.buku_jilid;
       cur.terakhirHalaman = r.halaman;
     }

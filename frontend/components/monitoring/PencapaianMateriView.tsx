@@ -83,7 +83,7 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
-import { muatTilawatiNaik, type TilawatiNaik } from '@/lib/tilawati';
+import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
@@ -241,20 +241,20 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      laporan otomatis dari kartu "Tilawati" di Pelaksanaan. Tampil utk
      guru & admin (beda dari sisi Per Santri Hafalan Surat yang masih
      admin-only). ── */
-  const [tilawatiNaik, setTilawatiNaik] = useState<TilawatiNaik[]>([]);
+  const [tilawatiRingkas, setTilawatiRingkas] = useState<TilawatiRingkas[]>([]);
   const [loadingTilawati, setLoadingTilawati] = useState(false);
   const [errorTilawati, setErrorTilawati] = useState<string | null>(null);
   useEffect(() => {
     if (kelasId === '') {
-      setTilawatiNaik([]);
+      setTilawatiRingkas([]);
       return;
     }
     let batal = false;
     setLoadingTilawati(true);
     setErrorTilawati(null);
-    muatTilawatiNaik(kelasId, periode.awal, periode.akhir)
+    muatTilawatiRingkas(kelasId, periode.awal, periode.akhir)
       .then((d) => {
-        if (!batal) setTilawatiNaik(d);
+        if (!batal) setTilawatiRingkas(d);
       })
       .catch((e) => {
         if (!batal) setErrorTilawati(e instanceof Error ? e.message : 'Gagal memuat data.');
@@ -604,19 +604,19 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          {/* ── Tilawati (Naik) per santri -- guru & admin (2026-09-03,
-              diminta owner). ── */}
-          <div className="label-mikro mb-2">Tilawati — Kenaikan Jilid</div>
+          {/* ── Tilawati (Naik/Tetap) per santri -- guru & admin
+              (2026-09-03, diminta owner). ── */}
+          <div className="label-mikro mb-2">Tilawati</div>
           {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorTilawati && <p className="mb-5 text-[13px] text-red">{errorTilawati}</p>}
           {!loadingTilawati && !errorTilawati && (
             <div className="kartu-premium mb-5 overflow-hidden">
-              {tilawatiNaik.length === 0 ? (
+              {tilawatiRingkas.length === 0 ? (
                 <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada santri yang naik jilid pada periode ini.
+                  Belum ada catatan Tilawati pada periode ini.
                 </p>
               ) : (
-                tilawatiNaik.map((s) => (
+                tilawatiRingkas.map((s) => (
                   <div
                     key={s.santriId}
                     className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
@@ -629,7 +629,18 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                         {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
                       </span>
                     </span>
-                    <span className="angka-metrik shrink-0 text-[15px] text-sage">{s.jumlah}× Naik</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      {s.naik > 0 && (
+                        <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                          {s.naik}× Naik
+                        </span>
+                      )}
+                      {s.tetap > 0 && (
+                        <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                          {s.tetap}× Tetap
+                        </span>
+                      )}
+                    </span>
                   </div>
                 ))
               )}

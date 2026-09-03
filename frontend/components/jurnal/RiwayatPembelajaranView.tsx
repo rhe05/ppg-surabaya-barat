@@ -16,7 +16,7 @@
    dari RencanaPembelajaranView.tsx). */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Search, CheckCircle2, Clock, X } from 'lucide-react';
+import { Calendar, Search, CheckCircle2, Clock, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
@@ -26,7 +26,7 @@ import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
-import { muatTilawatiNaik, type TilawatiNaik } from '@/lib/tilawati';
+import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Kelas = { id: number; nama: string };
@@ -68,21 +68,22 @@ export default function RiwayatPembelajaranView() {
   const [filter, setFilter] = useState<Filter>('semua');
   const [cari, setCari] = useState('');
 
-  /* Laporan Tilawati "Naik" per santri bulan ini (2026-09-03, diminta
-     owner) -- sumber kartu "Tilawati" di Pelaksanaan Pembelajaran. */
-  const [tilawatiNaik, setTilawatiNaik] = useState<TilawatiNaik[]>([]);
+  /* Laporan Tilawati (Naik/Tetap) per santri bulan ini (2026-09-03,
+     diminta owner) -- sumber kartu "Tilawati" di Pelaksanaan. */
+  const [tilawatiRingkas, setTilawatiRingkas] = useState<TilawatiRingkas[]>([]);
   const [loadingTilawati, setLoadingTilawati] = useState(false);
+  const [tilawatiTerbuka, setTilawatiTerbuka] = useState(true);
   const muatTilawati = useCallback(async () => {
     if (kelasId === '') {
-      setTilawatiNaik([]);
+      setTilawatiRingkas([]);
       return;
     }
     setLoadingTilawati(true);
     try {
       const mm = String(bulan).padStart(2, '0');
       const akhirHari = new Date(tahun, bulan, 0).getDate();
-      setTilawatiNaik(
-        await muatTilawatiNaik(kelasId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
+      setTilawatiRingkas(
+        await muatTilawatiRingkas(kelasId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
       );
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat Tilawati.', 'error');
@@ -308,40 +309,63 @@ export default function RiwayatPembelajaranView() {
               </div>
             </div>
 
-            {/* Laporan Tilawati "Naik" per santri (2026-09-03, diminta
-                owner) -- otomatis muncul begitu guru menekan "Naik" di
-                kartu Tilawati (Pelaksanaan Pembelajaran). */}
+            {/* Laporan Tilawati per santri (2026-09-03, diminta owner) --
+                otomatis dari kartu "Tilawati" (Pelaksanaan). Naik & Tetap
+                dua keterangan warna beda; kartu bisa dibuka/tutup. */}
             <div className="kartu-premium mb-5 overflow-hidden">
-              <div className="label-mikro border-b border-border px-4 py-2.5">
-                Tilawati — Kenaikan Jilid
-              </div>
-              {loadingTilawati ? (
-                <div className="p-3">
-                  <Skeleton className="h-[44px] w-full" />
+              <button
+                type="button"
+                onClick={() => setTilawatiTerbuka((v) => !v)}
+                className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent px-4 py-3 text-left"
+              >
+                <span className="text-[13px] font-bold text-text">Tilawati</span>
+                <ChevronDown
+                  size={16}
+                  className={`shrink-0 text-text-faint transition-transform duration-150 ${
+                    tilawatiTerbuka ? 'rotate-180' : ''
+                  }`}
+                />
+              </button>
+              {tilawatiTerbuka && (
+                <div className="border-t border-border">
+                  {loadingTilawati ? (
+                    <div className="p-3">
+                      <Skeleton className="h-[44px] w-full" />
+                    </div>
+                  ) : tilawatiRingkas.length === 0 ? (
+                    <p className="px-4 py-3 text-[13px] text-text-dim">
+                      Belum ada catatan Tilawati pada {NAMA_BULAN[bulan - 1]} {tahun}.
+                    </p>
+                  ) : (
+                    tilawatiRingkas.map((s) => (
+                      <div
+                        key={s.santriId}
+                        className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                      >
+                        <span className="min-w-0">
+                          <span className="block truncate text-[13px] font-semibold text-text">{s.nama}</span>
+                          <span className="block text-[11px] text-text-faint">
+                            terakhir {formatTanggal(s.terakhir)}
+                            {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
+                            {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
+                          </span>
+                        </span>
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          {s.naik > 0 && (
+                            <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                              {s.naik}× Naik
+                            </span>
+                          )}
+                          {s.tetap > 0 && (
+                            <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                              {s.tetap}× Tetap
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
-              ) : tilawatiNaik.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada santri yang naik jilid pada {NAMA_BULAN[bulan - 1]} {tahun}.
-                </p>
-              ) : (
-                tilawatiNaik.map((s) => (
-                  <div
-                    key={s.santriId}
-                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-text">{s.nama}</span>
-                      <span className="block text-[11px] text-text-faint">
-                        terakhir {formatTanggal(s.terakhir)}
-                        {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
-                        {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
-                      </span>
-                    </span>
-                    <span className="shrink-0 rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                      {s.jumlah}× Naik
-                    </span>
-                  </div>
-                ))
               )}
             </div>
 
