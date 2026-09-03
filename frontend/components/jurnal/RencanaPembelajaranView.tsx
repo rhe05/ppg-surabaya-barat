@@ -83,6 +83,10 @@ type Materi = {
   tanggal_rencana: string | null;
   klasikal_hafalan_surat: string | null;
   klasikal_hafalan_doa: string | null;
+  /* Dipakai utk pra-isi borang saat MENGUBAH materi ngaji (2026-09-03). */
+  pertemuan_ke: string | null;
+  catatan: string | null;
+  pengingat_aktif: boolean | null;
 };
 
 const NAMA_BULAN = [
@@ -600,11 +604,15 @@ export default function RencanaPembelajaranView() {
   const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
   const [peragaJilidBaru, setPeragaJilidBaru] = useState('');
   const [peragaTeknikBaru, setPeragaTeknikBaru] = useState('');
+  /* null = mode Tambah materi ngaji; angka = mode Ubah baris itu
+     (2026-09-03, "samakan seperti materi klasikal"). */
+  const [editNgajiId, setEditNgajiId] = useState<number | null>(null);
   const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
   const tampilPeragaTilawati =
     judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
 
   function bukaFormTambah() {
+    setEditNgajiId(null);
     setJudulBaru('');
     setMateriDropdownTerbuka(false);
     setTanggalRencanaBaru(new Date().toISOString().slice(0, 10));
@@ -616,6 +624,52 @@ export default function RencanaPembelajaranView() {
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
+  }
+
+  /* Buka borang Materi Ngaji dlm mode UBAH -- pra-isi dari baris. Kalau
+     judulnya hasil susunan Peraga Tilawati ("Baca Huruf Al-Qur'an —
+     Jilid N: Peraga Tilawati hal X–Y · Teknik M"), diurai balik ke
+     field-fieldnya supaya blok khusus itu tampil terisi. */
+  function bukaEditMateri(m: Materi) {
+    setEditNgajiId(m.id);
+    setMateriDropdownTerbuka(false);
+    setTanggalRencanaBaru(m.tanggal_rencana ?? new Date().toISOString().slice(0, 10));
+    setPertemuanKeBaru(m.pertemuan_ke ?? '');
+    setCatatanBaru(m.catatan ?? '');
+    setPengingatBaru(m.pengingat_aktif ?? false);
+
+    const peraga = /^Baca Huruf Al-Qur'an/.test(m.judul)
+      ? {
+          jilid: m.judul.match(/Jilid\s+(\d+)/)?.[1] ?? '',
+          hal: m.judul.match(/Peraga Tilawati hal\s+(\d+)(?:\s*[–-]\s*(\d+))?/i) ?? null,
+          teknik: m.judul.match(/Teknik\s+(\d+)/)?.[1] ?? '',
+        }
+      : null;
+    if (peraga && (peraga.jilid || peraga.hal || peraga.teknik)) {
+      setJudulBaru("Baca Huruf Al-Qur'an");
+      setPeragaJilidBaru(peraga.jilid);
+      setPeragaTilawatiDari(peraga.hal?.[1] ?? '');
+      setPeragaTilawatiSampai(peraga.hal?.[2] ?? '');
+      setPeragaTeknikBaru(peraga.teknik);
+    } else {
+      setJudulBaru(m.judul);
+      setPeragaJilidBaru('');
+      setPeragaTilawatiDari('');
+      setPeragaTilawatiSampai('');
+      setPeragaTeknikBaru('');
+    }
+    setTambahTerbuka(true);
+  }
+
+  /* Kartu Minggu N Ngaji bisa dibuka/tutup (pola sama Klasikal). */
+  const [ngajiDetailTerbuka, setNgajiDetailTerbuka] = useState<Set<number>>(new Set());
+  function toggleNgajiDetail(mingguKe: number) {
+    setNgajiDetailTerbuka((prev) => {
+      const baru = new Set(prev);
+      if (baru.has(mingguKe)) baru.delete(mingguKe);
+      else baru.add(mingguKe);
+      return baru;
+    });
   }
 
   /* Materi Klasikal -- diminta owner 2026-08-23: sesi pembukaan KBM
@@ -791,6 +845,9 @@ export default function RencanaPembelajaranView() {
       tanggal_rencana: tanggalKlasikalBaru,
       klasikal_hafalan_surat: suratTerpilih,
       klasikal_hafalan_doa: doa,
+      pertemuan_ke: null,
+      catatan: null,
+      pengingat_aktif: false,
     };
     /* Penjaga dobel LAPIS PERTAMA (2026-09-02, dilaporkan owner: muncul
        dua Klasikal di tanggal yang sama). Satu baris klasikal sudah
@@ -903,12 +960,16 @@ export default function RencanaPembelajaranView() {
     const bulanBaru = Number(tanggalRencanaBaru.slice(5, 7));
     const tahunBaru = Number(tanggalRencanaBaru.slice(0, 4));
 
+    const idDiubah = editNgajiId;
+
     /* Penjaga dobel lapis pertama utk materi ngaji: judul yang sama di
        kelas & tanggal yang sama. Dibandingkan tanpa peduli huruf
        besar-kecil, sama dengan indeks uniknya di basis data (migrasi
-       20260902140000) -- "Baca Simak" dan "baca simak" itu satu materi. */
+       20260902140000) -- "Baca Simak" dan "baca simak" itu satu materi.
+       Saat MENGUBAH, baris itu sendiri dikecualikan. */
     const bentrok = materiList.find(
       (m) =>
+        m.id !== idDiubah &&
         m.jenis !== 'klasikal' &&
         m.tanggal_rencana === tanggalRencanaBaru &&
         m.judul.trim().toLowerCase() === judul.toLowerCase()
@@ -920,7 +981,7 @@ export default function RencanaPembelajaranView() {
 
     // Optimistic: baris sementara langsung tampil, modal langsung tertutup.
     const sementara: Materi = {
-      id: idSementara--,
+      id: idDiubah ?? idSementara--,
       minggu_ke: mingguKe,
       judul,
       status: 'belum',
@@ -928,13 +989,19 @@ export default function RencanaPembelajaranView() {
       tanggal_rencana: tanggalRencanaBaru,
       klasikal_hafalan_surat: null,
       klasikal_hafalan_doa: null,
+      pertemuan_ke: pertemuanKeBaru.trim() === '' ? null : pertemuanKeBaru.trim(),
+      catatan: catatanBaru.trim() === '' ? null : catatanBaru.trim(),
+      pengingat_aktif: pengingatBaru,
     };
-    setMateriList((prev) => [...prev, sementara]);
+    const materiListSebelum = materiList;
+    setMateriList((prev) =>
+      idDiubah ? prev.map((m) => (m.id === idDiubah ? sementara : m)) : [...prev, sementara]
+    );
     setTambahTerbuka(false);
     setMenyimpan(true);
 
     try {
-      const { error: err } = await supabase.from('jurnal_materi').insert({
+      const payload = {
         kelas_id: kelasId,
         tahun: tahunBaru,
         bulan: bulanBaru,
@@ -944,14 +1011,17 @@ export default function RencanaPembelajaranView() {
         pertemuan_ke: pertemuanKeBaru.trim() === '' ? null : pertemuanKeBaru.trim(),
         catatan: catatanBaru.trim() === '' ? null : catatanBaru.trim(),
         pengingat_aktif: pengingatBaru,
-      });
+      };
+      const { error: err } = idDiubah
+        ? await supabase.from('jurnal_materi').update(payload).eq('id', idDiubah)
+        : await supabase.from('jurnal_materi').insert(payload);
       if (err) throw new Error(err.message);
-      push('Materi rencana tersimpan.', 'sukses');
+      push(idDiubah ? 'Materi rencana diperbarui.' : 'Materi rencana tersimpan.', 'sukses');
       tandaiMateriBerubah(kelasId, tahunBaru, bulanBaru);
+      if (tahunBaru !== tahun || bulanBaru !== bulan) tandaiMateriBerubah(kelasId, tahun, bulan);
       await muatMateri();
     } catch (e) {
-      // Gagal -> tarik lagi baris sementara.
-      setMateriList((prev) => prev.filter((m) => m.id !== sementara.id));
+      setMateriList(materiListSebelum);
       push(pesanGalatDb(e, 'Gagal menyimpan materi.'), 'error');
     } finally {
       setMenyimpan(false);
@@ -1414,32 +1484,81 @@ export default function RencanaPembelajaranView() {
                       Belum ada Materi Ngaji direncanakan bulan ini.
                     </p>
                   ) : (
-                    mingguDipakai.map(({ mingguKe, materi }) => (
-                      <div
-                        key={mingguKe}
-                        className="rounded-[var(--radius)] border border-border bg-panel p-4"
-                      >
-                        <div className="mb-2 flex items-start justify-between gap-2">
-                          <div>
-                            <div className="text-[15px] font-bold text-text">Minggu {mingguKe}</div>
-                            <div className="text-[11px] text-text-dim">
-                              {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
-                            </div>
+                    mingguDipakai.map(({ mingguKe, rentang, materi }) => {
+                      const dibuka = ngajiDetailTerbuka.has(mingguKe);
+                      const seninMinggu = rentang
+                        ? hariSekolahDalamMinggu(tahun, bulan, rentang)[0]?.iso
+                        : undefined;
+                      const kebab = [
+                        ...materi.map((m) => {
+                          const t = m.tanggal_rencana
+                            ? new Date(m.tanggal_rencana + 'T00:00:00')
+                            : null;
+                          const hari = t ? NAMA_HARI[t.getDay()].slice(0, 3) + ' ' + t.getDate() : '—';
+                          const j = m.judul.length > 16 ? m.judul.slice(0, 16) + '…' : m.judul;
+                          return { label: `Ubah · ${hari} · ${j}`, onClick: () => bukaEditMateri(m) };
+                        }),
+                        {
+                          label: '+ Materi Ngaji',
+                          onClick: () => {
+                            bukaFormTambah();
+                            if (seninMinggu) setTanggalRencanaBaru(seninMinggu);
+                          },
+                        },
+                      ];
+                      return (
+                        <div
+                          key={mingguKe}
+                          className="rounded-[var(--radius)] border border-border bg-panel"
+                        >
+                          <div className="flex items-center justify-between gap-2 p-4">
+                            <button
+                              type="button"
+                              onClick={() => toggleNgajiDetail(mingguKe)}
+                              className="flex min-w-0 flex-1 cursor-pointer items-baseline gap-1.5 border-none bg-transparent text-left"
+                            >
+                              <span className="text-[15px] font-bold text-text">Minggu {mingguKe}</span>
+                              <span className="truncate text-[11px] text-text-dim">
+                                · {labelRentangMinggu(tahun, bulan, mingguKe, NAMA_BULAN)}
+                              </span>
+                            </button>
+                            <span className="flex shrink-0 items-center gap-1">
+                              <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                                {materi.length} Materi
+                              </span>
+                              <KebabMenu item={kebab} />
+                            </span>
                           </div>
-                          <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                            {materi.length} Materi
-                          </span>
+                          {dibuka && (
+                            <div className="flex flex-col border-t border-border">
+                              {materi.map((m) => {
+                                const t = m.tanggal_rencana
+                                  ? new Date(m.tanggal_rencana + 'T00:00:00')
+                                  : null;
+                                return (
+                                  <button
+                                    key={m.id}
+                                    type="button"
+                                    onClick={() => bukaEditMateri(m)}
+                                    className="flex w-full items-start justify-between gap-2 border-b border-border px-4 py-3 text-left last:border-b-0 active:bg-panel-2"
+                                  >
+                                    <span className="min-w-0">
+                                      <span className="block text-[11px] font-bold text-text-dim">
+                                        {t
+                                          ? `${NAMA_HARI[t.getDay()]}, ${formatTanggalDDMMYYYY(t)}`
+                                          : 'Tanpa tanggal'}
+                                      </span>
+                                      <span className="block text-[13px] text-text">{m.judul}</span>
+                                    </span>
+                                    <ChevronRight size={16} className="mt-0.5 shrink-0 text-text-faint" />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                        <ul className="flex flex-col gap-1.5">
-                          {materi.map((m) => (
-                            <li key={m.id} className="flex items-center gap-2 text-[13px] text-text">
-                              <span className="h-[5px] w-[5px] shrink-0 rounded-full bg-text-faint" />
-                              {m.judul}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               )}
@@ -1462,7 +1581,9 @@ export default function RencanaPembelajaranView() {
               </div>
 
               <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
-                <div className="text-[17px] font-bold text-text">Tambah Materi Rencana</div>
+                <div className="text-[17px] font-bold text-text">
+                  {editNgajiId ? 'Ubah Materi Rencana' : 'Tambah Materi Rencana'}
+                </div>
                 <button
                   type="button"
                   onClick={() => setTambahTerbuka(false)}
@@ -1755,7 +1876,7 @@ export default function RencanaPembelajaranView() {
                   style={{ background: 'linear-gradient(135deg, var(--indigo) 0%, var(--violet) 100%)' }}
                 >
                   <Check size={16} strokeWidth={2.6} />
-                  Simpan Materi
+                  {editNgajiId ? 'Simpan Perubahan' : 'Simpan Materi'}
                 </button>
               </div>
             </div>

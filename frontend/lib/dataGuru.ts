@@ -112,6 +112,8 @@ export type MateriJurnal = {
   status: 'belum' | 'disampaikan';
   jenis: string;
   catatan: string | null;
+  pertemuan_ke: string | null;
+  pengingat_aktif: boolean | null;
   tanggal_rencana: string | null;
   tanggal_disampaikan: string | null;
   klasikal_hafalan_surat: string | null;
@@ -124,7 +126,7 @@ export function muatMateriBulan(kelasId: number, tahun: number, bulan: number): 
     const { data, error } = await supabase
       .from('jurnal_materi')
       .select(
-        'id, minggu_ke, judul, status, jenis, catatan, tanggal_rencana, tanggal_disampaikan, klasikal_hafalan_surat, klasikal_hafalan_doa, updated_at'
+        'id, minggu_ke, judul, status, jenis, catatan, pertemuan_ke, pengingat_aktif, tanggal_rencana, tanggal_disampaikan, klasikal_hafalan_surat, klasikal_hafalan_doa, updated_at'
       )
       .eq('kelas_id', kelasId)
       .eq('tahun', tahun)
