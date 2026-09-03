@@ -16,7 +16,7 @@
    dari RencanaPembelajaranView.tsx). */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Search, CheckCircle2, Clock, X, ChevronDown } from 'lucide-react';
+import { Calendar, Search, CheckCircle2, XCircle, Clock, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
@@ -133,7 +133,7 @@ export default function RiwayatPembelajaranView() {
 
   const total = materiList.length;
   const disampaikan = materiList.filter((m) => m.status === 'disampaikan').length;
-  const belum = total - disampaikan;
+  const belum = materiList.filter((m) => m.status === 'belum').length;
   const persen = total > 0 ? Math.round((disampaikan / total) * 100) : 0;
 
   /* Disaring & diurutkan di dalam useMemo (audit 2026-09-02): tanpa ini
@@ -189,7 +189,9 @@ export default function RiwayatPembelajaranView() {
 
   function barisRiwayat(m: (typeof baris)[number]) {
     const sudah = m.status === 'disampaikan';
+    const gagal = m.status === 'tidak_tersampaikan';
     const { kategori, utama, rincian } = pecahJudulMateri(m.judul);
+    const warna = sudah ? 'text-sage' : gagal ? 'text-red' : 'text-brass';
     return (
       <div
         key={m.id}
@@ -197,10 +199,14 @@ export default function RiwayatPembelajaranView() {
       >
         <span
           className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-            sudah ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+            sudah
+              ? 'bg-sage-lembut text-sage'
+              : gagal
+                ? 'bg-red-lembut text-red'
+                : 'bg-brass-lembut text-brass'
           }`}
         >
-          {sudah ? <CheckCircle2 size={17} /> : <Clock size={17} />}
+          {sudah ? <CheckCircle2 size={17} /> : gagal ? <XCircle size={17} /> : <Clock size={17} />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="label-mikro">
@@ -208,9 +214,14 @@ export default function RiwayatPembelajaranView() {
           </div>
           <div className="text-[15px] font-bold text-text">{utama}</div>
           {rincian && <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>}
-          <div className={`mt-0.5 text-[12px] font-semibold ${sudah ? 'text-sage' : 'text-brass'}`}>
-            {sudah ? 'Disampaikan' : 'Belum disampaikan'}
+          <div className={`mt-0.5 text-[12px] font-semibold ${warna}`}>
+            {sudah ? 'Disampaikan' : gagal ? 'Tidak tersampaikan' : 'Belum disampaikan'}
           </div>
+          {gagal && m.catatan && m.catatan.trim() !== '' && (
+            <div className="mt-0.5 text-[12px] leading-snug text-text-faint">
+              Alasan: {m.catatan}
+            </div>
+          )}
         </div>
       </div>
     );

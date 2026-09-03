@@ -47,7 +47,7 @@
    owner cuma utk Rencana Pembelajaran. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Check, ArrowUp, Equal } from 'lucide-react';
+import { Calendar, Check, ArrowUp, Equal, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -80,11 +80,11 @@ type Baris = {
      krn masih ada jalan UI yang membuatnya. */
   id: number | null;
   judul: string;
-  status: 'belum' | 'disampaikan';
+  status: 'belum' | 'disampaikan' | 'tidak_tersampaikan';
   catatan: string;
   /* Nilai yang TERAKHIR benar-benar ada di server. Dipakai utk tahu
      baris mana yang masih tertinggal saat penyimpanan gagal. */
-  statusAsli: 'belum' | 'disampaikan';
+  statusAsli: 'belum' | 'disampaikan' | 'tidak_tersampaikan';
   catatanAsli: string;
   /* Tanggal RENCANA (disusun di layar Rencana Pembelajaran). Dipakai dua
      hal sekaligus (2026-09-02, diminta owner): ditampilkan di baris, dan
@@ -342,9 +342,9 @@ export default function PelaksanaanPembelajaranView() {
           uid: `db-${m.id}`,
           id: m.id,
           judul: m.judul,
-          status: m.status as 'belum' | 'disampaikan',
+          status: m.status as Baris['status'],
           catatan: m.catatan ?? '',
-          statusAsli: m.status as 'belum' | 'disampaikan',
+          statusAsli: m.status as Baris['status'],
           catatanAsli: m.catatan ?? '',
           tanggalRencana: m.tanggal_rencana ?? null,
           tanggalDisampaikan: m.tanggal_disampaikan ?? null,
@@ -656,12 +656,15 @@ export default function PelaksanaanPembelajaranView() {
     );
   }
 
-  function toggleStatus(uid: string) {
+  /* Dua sakelar (2026-09-03, diminta owner): "Tersampaikan" /
+     "Tidak Tersampaikan". Ketuk sakelar yang sudah aktif = kembali ke
+     'belum'. Kalau "Tidak Tersampaikan", guru mengisi ALASAN di kolom
+     `catatan` -- tetap terlihat kalau materi ini dijadwalkan ulang. */
+  function setStatusBaris(uid: string, target: 'disampaikan' | 'tidak_tersampaikan') {
     const asal = barisRef.current.find((b) => b.uid === uid);
     if (!asal) return;
-    /* Penahan kedua, di samping kotak centang yang memang sudah
-       dinonaktifkan: baris terkunci tidak boleh berubah lewat jalan lain
-       mana pun (mis. jam mulai terlewati saat baris sedang terbuka). */
+    /* Penahan kedua, di samping tombol yang memang sudah dinonaktifkan:
+       baris terkunci tidak boleh berubah lewat jalan lain mana pun. */
     const terkunci = alasanTerkunci(asal);
     if (terkunci) {
       push(terkunci, 'info');
@@ -670,7 +673,7 @@ export default function PelaksanaanPembelajaranView() {
     setBaris((prev) =>
       prev.map((b) => {
         if (b.uid !== uid) return b;
-        const status = b.status === 'disampaikan' ? 'belum' : 'disampaikan';
+        const status = b.status === target ? 'belum' : target;
         return {
           ...b,
           status,
@@ -681,8 +684,15 @@ export default function PelaksanaanPembelajaranView() {
     );
     setTerbukaUid((prev) => (prev === uid ? prev : uid));
     /* Jeda 0: tetap lewat setTimeout supaya simpanBaris membaca barisRef
-       SESUDAH setBaris di atas terpasang, bukan nilai sebelum toggle. */
+       SESUDAH setBaris di atas terpasang, bukan nilai sebelum ubah. */
     jadwalkanSimpan(uid, 0);
+  }
+
+  /* Alasan "tidak tersampaikan" -- disimpan 700ms setelah guru berhenti
+     mengetik (kolom `catatan`). */
+  function ubahCatatan(uid: string, val: string) {
+    setBaris((prev) => prev.map((b) => (b.uid === uid ? { ...b, catatan: val } : b)));
+    jadwalkanSimpan(uid, 700);
   }
 
   /* Guru mengubah "materi ini tersampaikan hari apa" lewat kalender di
@@ -846,80 +856,107 @@ export default function PelaksanaanPembelajaranView() {
   const nKlasikal = hitungJenis(true);
   const nNgaji = hitungJenis(false);
 
-  /* Satu baris materi (kotak centang + judul + rincian + pemilih
-     "Disampaikan pada"). Diekstrak supaya kedua kartu memakainya. */
+  /* Satu baris materi: judul + rincian, lalu DUA sakelar
+     "Tersampaikan" / "Tidak Tersampaikan" (2026-09-03, diminta owner),
+     lalu -- sesuai pilihan -- pemilih "Disampaikan pada" atau kolom
+     "Alasan tidak tersampaikan". Diekstrak supaya kedua kartu memakainya. */
   function barisMateri(b: Baris) {
     const dicentang = b.status === 'disampaikan';
+    const gagal = b.status === 'tidak_tersampaikan';
     const diperluas = terbukaUid === b.uid;
     const terkunci = alasanTerkunci(b);
     const { kategori, utama, rincian } = pecahJudulMateri(b.judul);
     const judulBaris = b.jenis === 'klasikal' ? 'Klasikal' : utama;
     const labelBaris = b.jenis === 'klasikal' ? null : kategori;
+    const sakelar = (
+      target: 'disampaikan' | 'tidak_tersampaikan',
+      aktif: boolean,
+      label: string,
+      Ikon: typeof Check,
+      warna: string,
+    ) => (
+      <button
+        type="button"
+        disabled={terkunci !== null}
+        onClick={() => setStatusBaris(b.uid, target)}
+        className={`flex flex-1 items-center justify-center gap-1.5 rounded-full border py-2 text-[12.5px] font-bold transition-all duration-150 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${
+          aktif ? 'border-transparent text-white' : 'border-border bg-panel text-text-dim'
+        }`}
+        style={aktif ? { background: warna } : undefined}
+      >
+        <Ikon size={14} strokeWidth={2.6} />
+        {label}
+      </button>
+    );
     return (
       <div key={b.uid} className="border-t border-border px-3.5 py-3">
-        <button
-          type="button"
-          onClick={() => toggleStatus(b.uid)}
-          aria-disabled={terkunci !== null}
-          className={`flex w-full items-start gap-3 border-none bg-transparent p-0 text-left ${
-            terkunci ? 'cursor-default' : 'cursor-pointer'
-          }`}
-        >
+        <div className="min-w-0">
+          {(labelBaris || b.tanggalRencana) && (
+            <span className="label-mikro block">
+              {[labelBaris, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
+                .filter(Boolean)
+                .join(' · ')}
+            </span>
+          )}
           <span
-            className={`mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-md border-2 transition-colors duration-150 ${
-              dicentang
-                ? 'border-sage bg-sage'
-                : terkunci
-                  ? 'border-border bg-panel-2'
-                  : 'border-border bg-panel'
+            className={`block text-[15px] font-bold ${
+              dicentang || terkunci ? 'text-text-dim' : 'text-text'
             }`}
           >
-            {dicentang && <Check size={13} strokeWidth={3} color="#fff" />}
+            {judulBaris}
           </span>
-          <span className="min-w-0 flex-1">
-            {(labelBaris || b.tanggalRencana) && (
-              <span className="label-mikro block">
-                {[labelBaris, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </span>
-            )}
-            <span
-              className={`block text-[15px] font-bold ${
-                dicentang || terkunci ? 'text-text-dim' : 'text-text'
-              }`}
-            >
-              {judulBaris}
-            </span>
-            {b.jenis === 'klasikal' ? (
-              <>
-                {b.hafalanSurat && (
-                  <span className="mt-1 block text-[12px] leading-snug text-text-dim">
-                    <span className="font-semibold text-text">Hafalan Surat:</span> {b.hafalanSurat}
-                  </span>
-                )}
-                {b.hafalanDoa && (
-                  <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
-                    <span className="font-semibold text-text">Hafalan Do&rsquo;a:</span> {b.hafalanDoa}
-                  </span>
-                )}
-                {!b.hafalanSurat && !b.hafalanDoa && rincian && (
-                  <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
-                )}
-              </>
-            ) : (
-              rincian && (
+          {b.jenis === 'klasikal' ? (
+            <>
+              {b.hafalanSurat && (
+                <span className="mt-1 block text-[12px] leading-snug text-text-dim">
+                  <span className="font-semibold text-text">Hafalan Surat:</span> {b.hafalanSurat}
+                </span>
+              )}
+              {b.hafalanDoa && (
+                <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">
+                  <span className="font-semibold text-text">Hafalan Do&rsquo;a:</span> {b.hafalanDoa}
+                </span>
+              )}
+              {!b.hafalanSurat && !b.hafalanDoa && rincian && (
                 <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
-              )
-            )}
-            {terkunci && (
-              <span className="mt-1 block text-[12px] leading-snug text-text-faint">{terkunci}</span>
-            )}
-          </span>
-        </button>
+              )}
+            </>
+          ) : (
+            rincian && (
+              <span className="mt-0.5 block text-[12px] leading-snug text-text-dim">{rincian}</span>
+            )
+          )}
+          {terkunci && (
+            <span className="mt-1 block text-[12px] leading-snug text-text-faint">{terkunci}</span>
+          )}
+        </div>
+
+        <div className="mt-2.5 flex gap-1.5">
+          {sakelar('disampaikan', dicentang, 'Tersampaikan', Check, 'var(--sage)')}
+          {sakelar('tidak_tersampaikan', gagal, 'Tidak Tersampaikan', X, 'var(--red)')}
+        </div>
+
+        {!terkunci && gagal && (
+          <div className="mt-2.5">
+            <label className="label-mikro mb-1 block">Alasan tidak tersampaikan</label>
+            <textarea
+              rows={2}
+              value={b.catatan}
+              onChange={(e) => ubahCatatan(b.uid, e.target.value)}
+              placeholder="Contoh: listrik padam, sebagian besar santri tidak hadir…"
+              className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text focus:border-brass focus:outline-none"
+            />
+          </div>
+        )}
+
+        {!terkunci && !gagal && b.catatan.trim() !== '' && (
+          <p className="mt-2 text-[12px] leading-snug text-text-faint">
+            Catatan sebelumnya: {b.catatan}
+          </p>
+        )}
 
         {diperluas && !terkunci && dicentang && (
-          <div className="mt-2.5 pl-[34px]">
+          <div className="mt-2.5">
             <label className="label-mikro mb-1 block">Disampaikan pada</label>
             <button
               type="button"

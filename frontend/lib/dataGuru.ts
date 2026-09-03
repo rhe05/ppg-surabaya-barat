@@ -109,7 +109,7 @@ export type MateriJurnal = {
   updated_at: string;
   minggu_ke: number;
   judul: string;
-  status: 'belum' | 'disampaikan';
+  status: 'belum' | 'disampaikan' | 'tidak_tersampaikan';
   jenis: string;
   catatan: string | null;
   pertemuan_ke: string | null;
