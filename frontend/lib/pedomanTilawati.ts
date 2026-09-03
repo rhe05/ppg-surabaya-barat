@@ -1,0 +1,159 @@
+/* ─────────────────────────────────────────────────────────────────────
+   PEDOMAN BUKU JILID TILAWATI — target yang harus dicapai generus.
+
+   Disimpan sebagai pedoman resmi atas permintaan owner (2026-09-03).
+   Sumber kebenaran: Kurikulum tahun 2026, kategori "Bacaan Al-Qur'an"
+   (kurikulum_prota / kurikulum_promes / kurikulum_probul, kelompok_id=1).
+   Data ini di-cache di sini supaya layar Monitoring / Rencana bisa
+   membandingkan CAPAIAN generus vs TARGET tanpa query kurikulum.
+
+   FOKUS SAAT INI: baru Buku Jilid Tilawati (buku pegangan tiap generus,
+   1 jilid = 44 halaman). Peraga Tilawati (papan peraga, Hal 1-20) BELUM
+   dipedomankan — di Promes cuma disebut "Peraga Jilid N Hal 1-20" tanpa
+   rincian per bulan/minggu.
+
+   ATURAN JILID PER KELAS (dari Promes):
+     - PAUD-TK : buku "Tilawati Paud" (44 hal) untuk SATU tahun penuh
+     - Kelas 1 : Semester 1 → Jilid 1 , Semester 2 → Jilid 2
+     - Kelas 2 : Semester 1 → Jilid 3 , Semester 2 → Jilid 4
+     - Kelas 3 : Semester 1 → Jilid 5 , Semester 2 → Jilid 6
+     - Kelas 4+ : sudah baca Al-Qur'an (juz), bukan jilid — di luar pedoman ini
+
+   POLA HALAMAN PER JILID (kelas 1-3, 6 bulan KBM per semester):
+     Bulan 1 : Hal 1-9    (M1 1-4 · M2 5-8 · M3 9 · M4 Evaluasi)
+     Bulan 2 : Hal 10-18  (M1 10-12 · M2 13-15 · M3 16-18 · M4 Evaluasi)
+     Bulan 3 : Hal 19-27
+     Bulan 4 : Hal 28-36
+     Bulan 5 : Hal 37-44
+     Bulan 6 : Evaluasi
+   "Bulan" di sini = bulan ke-N DALAM semester (1-6), bukan bulan kalender.
+
+   POLA HALAMAN PAUD-TK (12 bulan, buku Tilawati Paud 44 hal): lihat
+   POLA_PAUD di bawah.
+   ───────────────────────────────────────────────────────────────────── */
+
+export const PEDOMAN_TILAWATI_SUMBER =
+  "Kurikulum 2026 — kategori Bacaan Al-Qur'an (Prota/Promes/Probul). Disetujui owner 2026-09-03.";
+
+export const HAL_PER_JILID = 44;
+
+export type TargetMinggu = { minggu: 1 | 2 | 3 | 4; target: string };
+export type TargetBulan = {
+  /** Bulan ke-N dalam semester (kelas 1-3: 1-6) atau dalam tahun (PAUD: 1-12). */
+  bulan: number;
+  /** Ringkas target sebulan, mis. "Hal 1-9" atau "Evaluasi". */
+  target: string;
+  minggu: TargetMinggu[];
+};
+
+const evalMinggu = (n: 1 | 2 | 3 | 4): TargetMinggu => ({ minggu: n, target: 'Evaluasi' });
+
+/** Pola 6-bulanan untuk SATU jilid Tilawati (kelas 1-3). Sama untuk
+    jilid berapa pun — halaman selalu 1-44 dengan irama yang sama. */
+export const POLA_JILID_STANDAR: TargetBulan[] = [
+  {
+    bulan: 1,
+    target: 'Hal 1-9',
+    minggu: [
+      { minggu: 1, target: 'Hal 1-4' },
+      { minggu: 2, target: 'Hal 5-8' },
+      { minggu: 3, target: 'Hal 9' },
+      evalMinggu(4),
+    ],
+  },
+  {
+    bulan: 2,
+    target: 'Hal 10-18',
+    minggu: [
+      { minggu: 1, target: 'Hal 10-12' },
+      { minggu: 2, target: 'Hal 13-15' },
+      { minggu: 3, target: 'Hal 16-18' },
+      evalMinggu(4),
+    ],
+  },
+  {
+    bulan: 3,
+    target: 'Hal 19-27',
+    minggu: [
+      { minggu: 1, target: 'Hal 19-21' },
+      { minggu: 2, target: 'Hal 22-24' },
+      { minggu: 3, target: 'Hal 25-27' },
+      evalMinggu(4),
+    ],
+  },
+  {
+    bulan: 4,
+    target: 'Hal 28-36',
+    minggu: [
+      { minggu: 1, target: 'Hal 28-30' },
+      { minggu: 2, target: 'Hal 31-33' },
+      { minggu: 3, target: 'Hal 34-36' },
+      evalMinggu(4),
+    ],
+  },
+  {
+    bulan: 5,
+    target: 'Hal 37-44',
+    minggu: [
+      { minggu: 1, target: 'Hal 37-39' },
+      { minggu: 2, target: 'Hal 40-42' },
+      { minggu: 3, target: 'Hal 43-44' },
+      evalMinggu(4),
+    ],
+  },
+  {
+    bulan: 6,
+    target: 'Evaluasi',
+    minggu: [evalMinggu(1), evalMinggu(2), evalMinggu(3), evalMinggu(4)],
+  },
+];
+
+/** Pola 12-bulanan buku "Tilawati Paud" (44 hal) untuk jenjang PAUD-TK. */
+export const POLA_PAUD: TargetBulan[] = [
+  { bulan: 1, target: 'Hal 1-5', minggu: [{ minggu: 1, target: 'Hal 1-2' }, { minggu: 2, target: 'Hal 3-4' }, { minggu: 3, target: 'Hal 5' }, evalMinggu(4)] },
+  { bulan: 2, target: 'Hal 6-10', minggu: [{ minggu: 1, target: 'Hal 6-7' }, { minggu: 2, target: 'Hal 8-9' }, { minggu: 3, target: 'Hal 10' }, evalMinggu(4)] },
+  { bulan: 3, target: 'Hal 11-15', minggu: [{ minggu: 1, target: 'Hal 11-12' }, { minggu: 2, target: 'Hal 13-14' }, { minggu: 3, target: 'Hal 15' }, evalMinggu(4)] },
+  { bulan: 4, target: 'Hal 16-20', minggu: [{ minggu: 1, target: 'Hal 16-17' }, { minggu: 2, target: 'Hal 18-19' }, { minggu: 3, target: 'Hal 20' }, evalMinggu(4)] },
+  { bulan: 5, target: 'Hal 21-22', minggu: [{ minggu: 1, target: 'Hal 21' }, { minggu: 2, target: 'Hal 22' }, evalMinggu(3), evalMinggu(4)] },
+  { bulan: 6, target: 'Evaluasi', minggu: [evalMinggu(1), evalMinggu(2), evalMinggu(3), evalMinggu(4)] },
+  { bulan: 7, target: 'Hal 23-27', minggu: [{ minggu: 1, target: 'Hal 23-24' }, { minggu: 2, target: 'Hal 25-26' }, { minggu: 3, target: 'Hal 27' }, evalMinggu(4)] },
+  { bulan: 8, target: 'Hal 28-32', minggu: [{ minggu: 1, target: 'Hal 28-29' }, { minggu: 2, target: 'Hal 30-31' }, { minggu: 3, target: 'Hal 32' }, evalMinggu(4)] },
+  { bulan: 9, target: 'Hal 33-37', minggu: [{ minggu: 1, target: 'Hal 33-34' }, { minggu: 2, target: 'Hal 35-36' }, { minggu: 3, target: 'Hal 37' }, evalMinggu(4)] },
+  { bulan: 10, target: 'Hal 38-42', minggu: [{ minggu: 1, target: 'Hal 38-39' }, { minggu: 2, target: 'Hal 40-41' }, { minggu: 3, target: 'Hal 42' }, evalMinggu(4)] },
+  { bulan: 11, target: 'Hal 43-44', minggu: [{ minggu: 1, target: 'Hal 43' }, { minggu: 2, target: 'Hal 44' }, evalMinggu(3), evalMinggu(4)] },
+  { bulan: 12, target: 'Evaluasi', minggu: [evalMinggu(1), evalMinggu(2), evalMinggu(3), evalMinggu(4)] },
+];
+
+/** Jilid Tilawati yang jadi target per kelas (kode kelas Kurikulum). */
+export const JILID_TARGET_KELAS: Record<string, { semester1: string; semester2: string }> = {
+  'PAUD-TK': { semester1: 'Paud', semester2: 'Paud' },
+  '1': { semester1: '1', semester2: '2' },
+  '2': { semester1: '3', semester2: '4' },
+  '3': { semester1: '5', semester2: '6' },
+};
+
+/** Kode kelas yang punya pedoman Buku Jilid Tilawati (PAUD-TK s.d. 3). */
+export const KELAS_PEDOMAN_TILAWATI = Object.keys(JILID_TARGET_KELAS);
+
+/** Jilid target untuk kelas + semester. null kalau kelas di luar pedoman. */
+export function jilidTargetKelas(kodeKelas: string, semester: 1 | 2): string | null {
+  const p = JILID_TARGET_KELAS[kodeKelas];
+  if (!p) return null;
+  return semester === 1 ? p.semester1 : p.semester2;
+}
+
+/** Rencana target satu bulan. `bulanKe` = bulan ke-N dalam semester
+    (kelas 1-3: 1-6) atau dalam tahun (PAUD-TK: 1-12). */
+export function targetBulanTilawati(kodeKelas: string, bulanKe: number): TargetBulan | null {
+  const pola = kodeKelas === 'PAUD-TK' ? POLA_PAUD : POLA_JILID_STANDAR;
+  return pola.find((b) => b.bulan === bulanKe) ?? null;
+}
+
+/** Target satu minggu (string), mis. "Hal 5-8" atau "Evaluasi". */
+export function targetMingguTilawati(
+  kodeKelas: string,
+  bulanKe: number,
+  mingguKe: 1 | 2 | 3 | 4,
+): string | null {
+  return targetBulanTilawati(kodeKelas, bulanKe)?.minggu.find((m) => m.minggu === mingguKe)?.target ?? null;
+}
