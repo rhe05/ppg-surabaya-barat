@@ -85,7 +85,6 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
-import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import {
   targetAsmaulHusnaDari,
@@ -302,19 +301,39 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     };
   }, [kelasId, tahun, bulan]);
 
+  /* Dikelompokkan per JILID, angkanya = berapa kali jilid itu KHATAM
+     (diminta owner 2026-09-03: "5x adalah pengulangan khatamnya", bukan
+     jumlah pertemuan). Satu khatam = ada pertemuan peraga jilid itu yg
+     halamannya menyentuh halaman terakhir (44). Jilid yg sudah ada
+     pertemuan tapi belum khatam tetap ditampilkan ("sedang berjalan"). */
+  const PERAGA_HAL_AKHIR = 44;
   const peragaTampil = useMemo(() => {
-    const peta = new Map<string, { label: string; jumlah: number; terakhir: string }>();
+    const peta = new Map<
+      string,
+      { jilid: string; khatam: number; terakhir: string; urut: number }
+    >();
     for (const m of peragaMateri) {
       if (m.status !== 'disampaikan') continue;
-      const { utama, rincian } = pecahJudulMateri(m.judul);
-      const label = [utama, rincian].filter(Boolean).join(' · ') || m.judul;
+      const mj = m.judul.match(/Jilid\s+(\d+)/i);
+      const jilid = mj ? mj[1] : /paud/i.test(m.judul) ? 'Paud' : '—';
+      let maxHal = 0;
+      for (const h of m.judul.matchAll(/hal\s+(\d+)(?:\s*[–-]\s*(\d+))?/gi)) {
+        maxHal = Math.max(maxHal, Number(h[1]), h[2] ? Number(h[2]) : 0);
+      }
       const tgl = m.tanggal_disampaikan ?? '';
-      const cur = peta.get(m.judul) ?? { label, jumlah: 0, terakhir: '' };
-      cur.jumlah += 1;
+      const cur =
+        peta.get(jilid) ??
+        {
+          jilid,
+          khatam: 0,
+          terakhir: '',
+          urut: mj ? Number(mj[1]) : jilid === 'Paud' ? 0 : 99,
+        };
+      if (maxHal >= PERAGA_HAL_AKHIR) cur.khatam += 1;
       if (tgl > cur.terakhir) cur.terakhir = tgl;
-      peta.set(m.judul, cur);
+      peta.set(jilid, cur);
     }
-    return [...peta.values()].sort((a, b) => a.label.localeCompare(b.label, 'id'));
+    return [...peta.values()].sort((a, b) => a.urut - b.urut);
   }, [peragaMateri]);
 
   /* ── Target Asmaul Husna dari Kurikulum (Prota) kelas ini ──
@@ -671,14 +690,20 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
               ) : (
                 peragaTampil.map((b) => (
                   <div
-                    key={b.label}
+                    key={b.jilid}
                     className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
                   >
                     <span className="min-w-0 truncate text-[13px] font-semibold text-text">
-                      {b.label}
+                      Peraga Tilawati {b.jilid === 'Paud' ? 'Paud' : `Jilid ${b.jilid}`}
                     </span>
                     <span className="flex shrink-0 items-baseline gap-1.5">
-                      <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
+                      {b.khatam > 0 ? (
+                        <span className="angka-metrik text-[15px] text-sage">{b.khatam}×</span>
+                      ) : (
+                        <span className="text-[11px] whitespace-nowrap text-text-faint">
+                          sedang berjalan
+                        </span>
+                      )}
                       {b.terakhir && (
                         <span className="text-[11px] whitespace-nowrap text-text-faint">
                           terakhir {tanggalPendek(b.terakhir)}
