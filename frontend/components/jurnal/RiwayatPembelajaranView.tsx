@@ -26,6 +26,7 @@ import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
+import { muatTilawatiNaik, type TilawatiNaik } from '@/lib/tilawati';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Kelas = { id: number; nama: string };
@@ -66,6 +67,33 @@ export default function RiwayatPembelajaranView() {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<Filter>('semua');
   const [cari, setCari] = useState('');
+
+  /* Laporan Tilawati "Naik" per santri bulan ini (2026-09-03, diminta
+     owner) -- sumber kartu "Tilawati" di Pelaksanaan Pembelajaran. */
+  const [tilawatiNaik, setTilawatiNaik] = useState<TilawatiNaik[]>([]);
+  const [loadingTilawati, setLoadingTilawati] = useState(false);
+  const muatTilawati = useCallback(async () => {
+    if (kelasId === '') {
+      setTilawatiNaik([]);
+      return;
+    }
+    setLoadingTilawati(true);
+    try {
+      const mm = String(bulan).padStart(2, '0');
+      const akhirHari = new Date(tahun, bulan, 0).getDate();
+      setTilawatiNaik(
+        await muatTilawatiNaik(kelasId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
+      );
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal memuat Tilawati.', 'error');
+    } finally {
+      setLoadingTilawati(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, tahun, bulan]);
+  useEffect(() => {
+    muatTilawati();
+  }, [muatTilawati]);
 
   useEffect(() => {
     if (guruId == null) return;
@@ -140,7 +168,7 @@ export default function RiwayatPembelajaranView() {
      satu-satunya cara memuat ulang adalah menutup app. */
   async function segarkan() {
     buangSemuaSinggahan();
-    await muat();
+    await Promise.all([muat(), muatTilawati()]);
   }
 
   return (
@@ -278,6 +306,43 @@ export default function RiwayatPembelajaranView() {
                   <div className="text-[11px] text-text-dim">Belum</div>
                 </div>
               </div>
+            </div>
+
+            {/* Laporan Tilawati "Naik" per santri (2026-09-03, diminta
+                owner) -- otomatis muncul begitu guru menekan "Naik" di
+                kartu Tilawati (Pelaksanaan Pembelajaran). */}
+            <div className="kartu-premium mb-5 overflow-hidden">
+              <div className="label-mikro border-b border-border px-4 py-2.5">
+                Tilawati — Kenaikan Jilid
+              </div>
+              {loadingTilawati ? (
+                <div className="p-3">
+                  <Skeleton className="h-[44px] w-full" />
+                </div>
+              ) : tilawatiNaik.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada santri yang naik jilid pada {NAMA_BULAN[bulan - 1]} {tahun}.
+                </p>
+              ) : (
+                tilawatiNaik.map((s) => (
+                  <div
+                    key={s.santriId}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold text-text">{s.nama}</span>
+                      <span className="block text-[11px] text-text-faint">
+                        terakhir {formatTanggal(s.terakhir)}
+                        {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
+                        {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
+                      </span>
+                    </span>
+                    <span className="shrink-0 rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                      {s.jumlah}× Naik
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Saringan status: chip, satu bahasa dgn chip kelas di atas
