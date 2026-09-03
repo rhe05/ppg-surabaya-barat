@@ -1727,17 +1727,16 @@ export default function RencanaPembelajaranView() {
             Klasikal (sesi pembukaan KBM: hafalan surat + hafalan doa). */}
         {pilihJenisTerbuka && (
           <div
-            className="fixed inset-0 z-[600] flex items-end justify-center bg-[rgba(15,23,42,0.55)] backdrop-blur-[3px] sm:items-center sm:p-6"
+            /* Di TENGAH layar (diminta owner 2026-09-03), bukan
+               bottom-sheet lagi. */
+            className="fixed inset-0 z-[600] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-4 backdrop-blur-[3px]"
             onClick={() => setPilihJenisTerbuka(false)}
           >
             <div
-              className="flex w-full max-w-[420px] flex-col rounded-t-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)] sm:rounded-[24px]"
+              className="flex w-full max-w-[420px] flex-col rounded-[24px] bg-panel text-left shadow-[0_24px_48px_rgba(0,0,0,0.28)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex shrink-0 justify-center pt-2.5 sm:hidden">
-                <span className="h-1 w-9 rounded-full bg-border" />
-              </div>
-              <div className="flex shrink-0 items-center justify-between px-6 pt-4 pb-3">
+              <div className="flex shrink-0 items-center justify-between px-6 pt-5 pb-3">
                 <div className="text-[17px] font-bold text-text">Tambah Materi</div>
                 <button
                   type="button"
