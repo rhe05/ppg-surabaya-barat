@@ -90,7 +90,7 @@ import { rentangBulan } from '@/lib/periodeAkademik';
    (1-20) di borang Rencana Pembelajaran. Peraga jilid dinyatakan KHATAM
    sekali kalau ada pertemuan yg halamannya mencapai angka ini. */
 const PERAGA_HAL_AKHIR = 20;
-import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
+import { muatBukuJilidKelas, type BukuJilidSantri } from '@/lib/tilawati';
 import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
@@ -248,7 +248,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      laporan otomatis dari kartu "Tilawati" di Pelaksanaan. Tampil utk
      guru & admin (beda dari sisi Per Santri Hafalan Surat yang masih
      admin-only). ── */
-  const [tilawatiRingkas, setTilawatiRingkas] = useState<TilawatiRingkas[]>([]);
+  const [tilawatiRingkas, setTilawatiRingkas] = useState<BukuJilidSantri[]>([]);
   const [loadingTilawati, setLoadingTilawati] = useState(false);
   const [errorTilawati, setErrorTilawati] = useState<string | null>(null);
   useEffect(() => {
@@ -259,7 +259,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     let batal = false;
     setLoadingTilawati(true);
     setErrorTilawati(null);
-    muatTilawatiRingkas(kelasId, periode.awal, periode.akhir)
+    muatBukuJilidKelas(kelasId, periode.awal, periode.akhir)
       .then((d) => {
         if (!batal) setTilawatiRingkas(d);
       })
@@ -728,36 +728,56 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             <div className="kartu-premium mb-5 overflow-hidden">
               {tilawatiRingkas.length === 0 ? (
                 <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada catatan Tilawati pada periode ini.
+                  Belum ada santri di kelas ini.
                 </p>
               ) : (
-                tilawatiRingkas.map((s) => (
-                  <div
-                    key={s.santriId}
-                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-text">{s.nama}</span>
-                      <span className="block text-[11px] text-text-faint">
-                        terakhir {tanggalPendek(s.terakhir)}
-                        {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
-                        {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
+                tilawatiRingkas.map((s) => {
+                  const posisi =
+                    s.terakhirJilid || s.terakhirHalaman
+                      ? [
+                          s.terakhirJilid
+                            ? /paud/i.test(s.terakhirJilid)
+                              ? 'Paud'
+                              : `Jilid ${s.terakhirJilid}`
+                            : null,
+                          s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' ')
+                      : null;
+                  return (
+                    <div
+                      key={s.santriId}
+                      className="flex items-start justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate text-[13px] font-semibold text-text">
+                          {s.nama}
+                        </span>
+                        <span className="block text-[11px] text-text-faint">
+                          {s.adaCatatan ? (posisi ?? '—') : 'Belum ada catatan bulan ini'}
+                        </span>
                       </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      {s.naik > 0 && (
-                        <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                          {s.naik}× Naik
+                      {s.adaCatatan && (
+                        <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                          {s.naik > 0 && (
+                            <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
+                              {s.naik}× Naik
+                            </span>
+                          )}
+                          {s.tetap > 0 && (
+                            <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
+                              {s.tetap}× Tetap
+                            </span>
+                          )}
+                          <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                            {s.halProgres} Hal
+                          </span>
                         </span>
                       )}
-                      {s.tetap > 0 && (
-                        <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                          {s.tetap}× Tetap
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                ))
+                    </div>
+                  );
+                })
               )}
             </div>
           )}

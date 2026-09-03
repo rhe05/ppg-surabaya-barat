@@ -85,3 +85,93 @@ export async function muatTilawatiRingkas(
   }
   return [...peta.values()].sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
 }
+
+/* ── Buku Jilid per santri utk Monitoring (2026-09-03, diminta owner) ──
+   Beda dari muatTilawatiRingkas: menampilkan SEMUA santri di kelas
+   (termasuk yg belum ada catatan), plus "halaman yg dicapai bulan itu"
+   = selisih posisi terakhir dgn posisi pertama pada rentang. Satu jilid
+   Tilawati (buku santri) = 44 halaman. "Paud" dihitung jilid 0. */
+const HAL_PER_JILID = 44;
+function posisiTilawati(jilid: string | null, halaman: string | null): number | null {
+  if (!jilid && !halaman) return null;
+  const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : Number(jilid) || 0;
+  const h = Number(halaman) || 0;
+  return j * HAL_PER_JILID + h;
+}
+
+export type BukuJilidSantri = {
+  santriId: number;
+  nama: string;
+  naik: number;
+  tetap: number;
+  /* Halaman yg dicapai pada rentang (selisih posisi awal-akhir). */
+  halProgres: number;
+  terakhirJilid: string | null;
+  terakhirHalaman: string | null;
+  adaCatatan: boolean;
+};
+
+export async function muatBukuJilidKelas(
+  kelasId: number,
+  awal: string,
+  akhir: string,
+): Promise<BukuJilidSantri[]> {
+  const [sRes, tRes] = await Promise.all([
+    supabase
+      .from('santri')
+      .select('id, nama')
+      .eq('kelas_id', kelasId)
+      .is('deleted_at', null)
+      .order('nama'),
+    supabase
+      .from('tilawati_pelaksanaan')
+      .select('santri_id, tanggal, status, buku_jilid, halaman')
+      .eq('kelas_id', kelasId)
+      .gte('tanggal', awal)
+      .lte('tanggal', akhir)
+      .order('tanggal', { ascending: true }),
+  ]);
+  if (sRes.error) throw new Error(sRes.error.message);
+  if (tRes.error) throw new Error(tRes.error.message);
+
+  const perSantri = new Map<
+    number,
+    { status: string | null; jilid: string | null; halaman: string | null }[]
+  >();
+  for (const r of (tRes.data ?? []) as {
+    santri_id: number;
+    status: string | null;
+    buku_jilid: string | null;
+    halaman: string | null;
+  }[]) {
+    const arr = perSantri.get(r.santri_id) ?? [];
+    arr.push({ status: r.status, jilid: r.buku_jilid, halaman: r.halaman });
+    perSantri.set(r.santri_id, arr);
+  }
+
+  return ((sRes.data ?? []) as { id: number; nama: string }[]).map((s) => {
+    const arr = perSantri.get(s.id) ?? [];
+    let naik = 0;
+    let tetap = 0;
+    for (const r of arr) {
+      if (r.status === 'naik') naik += 1;
+      else if (r.status === 'tetap') tetap += 1;
+    }
+    const posisi = arr
+      .map((r) => posisiTilawati(r.jilid, r.halaman))
+      .filter((x): x is number => x != null);
+    const halProgres =
+      posisi.length >= 2 ? Math.max(0, posisi[posisi.length - 1] - posisi[0]) : 0;
+    const last = arr.length > 0 ? arr[arr.length - 1] : null;
+    return {
+      santriId: s.id,
+      nama: s.nama,
+      naik,
+      tetap,
+      halProgres,
+      terakhirJilid: last?.jilid ?? null,
+      terakhirHalaman: last?.halaman ?? null,
+      adaCatatan: arr.length > 0,
+    };
+  });
+}
