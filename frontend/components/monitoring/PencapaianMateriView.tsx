@@ -75,7 +75,9 @@ import {
   muatPengulanganKelasDoa,
   muatPengulanganSantri,
   muatProtaKelompok,
+  muatMateriBulan,
   namaKategori,
+  type MateriJurnal,
   type PengulanganKelas,
   type PengulanganKelasDoa,
   type PengulanganSantri,
@@ -83,6 +85,7 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
+import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import {
   targetAsmaulHusnaDari,
@@ -266,6 +269,53 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       batal = true;
     };
   }, [kelasId, periode.awal, periode.akhir]);
+
+  /* ── Peraga Tilawati (2026-09-03, diminta owner) -- materi ngaji
+     ber-judul "Baca Huruf Al-Qur'an"/"Peraga Tilawati" yg disampaikan
+     pada periode, dihitung pengulangannya spt Hafalan Surat. Sumber:
+     jurnal_materi bulan ini (rentangBulan = 1 bulan penuh). ── */
+  const [peragaMateri, setPeragaMateri] = useState<MateriJurnal[]>([]);
+  const [loadingPeraga, setLoadingPeraga] = useState(false);
+  useEffect(() => {
+    if (kelasId === '') {
+      setPeragaMateri([]);
+      return;
+    }
+    let batal = false;
+    setLoadingPeraga(true);
+    muatMateriBulan(kelasId, tahun, bulan)
+      .then((d) => {
+        if (batal) return;
+        setPeragaMateri(
+          d.filter(
+            (m) =>
+              m.jenis !== 'klasikal' &&
+              (/peraga tilawati/i.test(m.judul) || /^baca huruf al-?qur/i.test(m.judul.trim())),
+          ),
+        );
+      })
+      .finally(() => {
+        if (!batal) setLoadingPeraga(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, tahun, bulan]);
+
+  const peragaTampil = useMemo(() => {
+    const peta = new Map<string, { label: string; jumlah: number; terakhir: string }>();
+    for (const m of peragaMateri) {
+      if (m.status !== 'disampaikan') continue;
+      const { utama, rincian } = pecahJudulMateri(m.judul);
+      const label = [utama, rincian].filter(Boolean).join(' · ') || m.judul;
+      const tgl = m.tanggal_disampaikan ?? '';
+      const cur = peta.get(m.judul) ?? { label, jumlah: 0, terakhir: '' };
+      cur.jumlah += 1;
+      if (tgl > cur.terakhir) cur.terakhir = tgl;
+      peta.set(m.judul, cur);
+    }
+    return [...peta.values()].sort((a, b) => a.label.localeCompare(b.label, 'id'));
+  }, [peragaMateri]);
 
   /* ── Target Asmaul Husna dari Kurikulum (Prota) kelas ini ──
      Diminta owner 2026-09-03: Asmaul Husna DIGABUNG jadi satu baris di
@@ -604,9 +654,44 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          {/* ── Tilawati (Naik/Tetap) per santri -- guru & admin
-              (2026-09-03, diminta owner). ── */}
+          {/* ── Tilawati -- dua bagian spt Riwayat Pembelajaran
+              (2026-09-03, diminta owner): "Peraga Tilawati" (pengulangan
+              materi) + "Buku Jilid" (Naik/Tetap per santri). Keduanya
+              tampil utk guru & admin. ── */}
           <div className="label-mikro mb-2">Tilawati</div>
+
+          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Peraga Tilawati</div>
+          {loadingPeraga && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {!loadingPeraga && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {peragaTampil.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada Peraga Tilawati yang disampaikan pada periode ini.
+                </p>
+              ) : (
+                peragaTampil.map((b) => (
+                  <div
+                    key={b.label}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <span className="min-w-0 truncate text-[13px] font-semibold text-text">
+                      {b.label}
+                    </span>
+                    <span className="flex shrink-0 items-baseline gap-1.5">
+                      <span className="angka-metrik text-[15px] text-sage">{b.jumlah}×</span>
+                      {b.terakhir && (
+                        <span className="text-[11px] whitespace-nowrap text-text-faint">
+                          terakhir {tanggalPendek(b.terakhir)}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid</div>
           {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorTilawati && <p className="mb-5 text-[13px] text-red">{errorTilawati}</p>}
           {!loadingTilawati && !errorTilawati && (
