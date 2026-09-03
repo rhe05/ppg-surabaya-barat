@@ -125,6 +125,14 @@ function todayStr() {
    owner). Angka di luar rentang dijepit; kosong tetap kosong. */
 const TILAWATI_MAKS_JILID = 6;
 const TILAWATI_MAKS_HALAMAN = 44;
+/* Buku Jilid: "Paud" (buku sebelum Jilid 1) atau Jilid 1-6. */
+const OPSI_BUKU_JILID = [
+  { value: 'Paud', label: 'Paud' },
+  ...Array.from({ length: TILAWATI_MAKS_JILID }, (_, i) => ({
+    value: String(i + 1),
+    label: `Jilid ${i + 1}`,
+  })),
+];
 function jepitTilawati(v: string, maks: number): string {
   const d = v.replace(/[^0-9]/g, '');
   if (d === '') return '';
@@ -1301,18 +1309,16 @@ export default function PelaksanaanPembelajaranView() {
                             <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <label className="label-mikro mb-1 block">Buku Jilid (1–6)</label>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={TILAWATI_MAKS_JILID}
-                                  disabled={terkunci}
+                                <label className="label-mikro mb-1 block">Buku Jilid</label>
+                                {/* Paud + Jilid 1-6 (diminta owner 2026-09-03):
+                                    sebagian santri pakai buku "Paud" sebelum
+                                    masuk Jilid 1. Kolom text di DB. */}
+                                <SelectKustom
                                   value={t.jilid}
-                                  onChange={(e) =>
-                                    ubahTilawati(s.id, { jilid: jepitTilawati(e.target.value, TILAWATI_MAKS_JILID) }, false)
-                                  }
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                  onChange={(v) => ubahTilawati(s.id, { jilid: v }, true)}
+                                  disabled={terkunci}
+                                  placeholder="Pilih"
+                                  opsi={OPSI_BUKU_JILID}
                                 />
                               </div>
                               <div>
