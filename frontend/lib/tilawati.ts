@@ -8,6 +8,13 @@ import { supabase } from './supabase';
 
 export type TilawatiStatus = 'naik' | 'tetap';
 
+export type TilawatiHari = {
+  tanggal: string;
+  jilid: string | null;
+  halaman: string | null;
+  status: TilawatiStatus | '';
+};
+
 export type TilawatiRingkas = {
   santriId: number;
   nama: string;
@@ -17,6 +24,9 @@ export type TilawatiRingkas = {
   terakhirStatus: TilawatiStatus | '';
   terakhirJilid: string | null;
   terakhirHalaman: string | null;
+  /* Rincian per hari (urut tanggal menaik) -- dipakai Riwayat
+     Pembelajaran (bagian "Buku Jilid"). */
+  hari: TilawatiHari[];
 };
 
 type BarisMentah = {
@@ -59,9 +69,12 @@ export async function muatTilawatiRingkas(
         terakhirStatus: '' as const,
         terakhirJilid: null,
         terakhirHalaman: null,
+        hari: [] as TilawatiHari[],
       };
-    if (r.status === 'naik') cur.naik += 1;
-    else if (r.status === 'tetap') cur.tetap += 1;
+    const st = (r.status === 'naik' || r.status === 'tetap' ? r.status : '') as TilawatiStatus | '';
+    if (st === 'naik') cur.naik += 1;
+    else if (st === 'tetap') cur.tetap += 1;
+    cur.hari.push({ tanggal: r.tanggal, jilid: r.buku_jilid, halaman: r.halaman, status: st });
     if (r.tanggal >= cur.terakhir) {
       cur.terakhir = r.tanggal;
       cur.terakhirStatus = (r.status as TilawatiStatus | null) ?? '';

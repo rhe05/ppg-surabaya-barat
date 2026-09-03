@@ -47,6 +47,12 @@ function formatTanggal(iso: string) {
   return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+/* "01 September" -- rincian per hari Buku Jilid (diminta owner 2026-09-03). */
+function formatTanggalHari(iso: string) {
+  const d = new Date(iso + 'T00:00:00');
+  return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]}`;
+}
+
 export default function RiwayatPembelajaranView() {
   const { profile } = useAuth();
   const guruId = profile?.guru_id ?? null;
@@ -562,30 +568,34 @@ export default function RiwayatPembelajaranView() {
                         tilawatiRingkas.map((s) => (
                           <div
                             key={s.santriId}
-                            className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                            className="border-b border-border pb-2 last:border-b-0"
                           >
-                            <span className="min-w-0">
-                              <span className="block truncate text-[13px] font-semibold text-text">
-                                {s.nama}
-                              </span>
-                              <span className="block text-[11px] text-text-faint">
-                                terakhir {formatTanggal(s.terakhir)}
-                                {s.terakhirJilid ? ` · Jilid ${s.terakhirJilid}` : ''}
-                                {s.terakhirHalaman ? ` hal ${s.terakhirHalaman}` : ''}
-                              </span>
-                            </span>
-                            <span className="flex shrink-0 items-center gap-1.5">
-                              {s.naik > 0 && (
-                                <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                                  {s.naik}× Naik
+                            <div className="px-4 pt-2.5 pb-1 text-[13px] font-bold text-text">
+                              {s.nama}
+                            </div>
+                            {s.hari.map((h) => (
+                              <div
+                                key={h.tanggal}
+                                className="flex items-center justify-between gap-2 px-4 py-1 text-[12px]"
+                              >
+                                <span className="min-w-0 truncate text-text-dim">
+                                  {formatTanggalHari(h.tanggal)}
+                                  {h.jilid ? ` · Jilid ${h.jilid}` : ''}
+                                  {h.halaman ? ` hal ${h.halaman}` : ''}
                                 </span>
-                              )}
-                              {s.tetap > 0 && (
-                                <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                                  {s.tetap}× Tetap
-                                </span>
-                              )}
-                            </span>
+                                {h.status && (
+                                  <span
+                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                      h.status === 'naik'
+                                        ? 'bg-sage-lembut text-sage'
+                                        : 'bg-brass-lembut text-brass'
+                                    }`}
+                                  >
+                                    {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
                           </div>
                         ))
                       )}
