@@ -557,6 +557,7 @@ export default function RencanaPembelajaranView() {
   const [peragaTilawatiDari, setPeragaTilawatiDari] = useState('');
   const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
   const [peragaJilidBaru, setPeragaJilidBaru] = useState('');
+  const [peragaTeknikBaru, setPeragaTeknikBaru] = useState('');
   const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
   const tampilPeragaTilawati =
     judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
@@ -568,6 +569,7 @@ export default function RencanaPembelajaranView() {
     setPeragaTilawatiDari('');
     setPeragaTilawatiSampai('');
     setPeragaJilidBaru('');
+    setPeragaTeknikBaru('');
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
@@ -846,7 +848,10 @@ export default function RencanaPembelajaranView() {
       const jilid = peragaJilidBaru.trim();
       let inti = "Baca Huruf Al-Qur'an";
       if (jilid) inti += ` — Jilid ${jilid}`;
-      judul = rentang ? `${inti}: Peraga Tilawati hal ${rentang}` : inti;
+      const bagian: string[] = [];
+      if (rentang) bagian.push(`Peraga Tilawati hal ${rentang}`);
+      if (peragaTeknikBaru) bagian.push(`Teknik ${peragaTeknikBaru}`);
+      judul = bagian.length > 0 ? `${inti}: ${bagian.join(' · ')}` : inti;
     }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
        Klasikal (dropdown "Masukkan ke" dihapus 2026-09-03, diminta
@@ -1446,9 +1451,10 @@ export default function RencanaPembelajaranView() {
                     kondisi ini aktif. */}
                 {tampilPeragaTilawati ? (
                   <div className="mb-3.5">
-                  {/* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke
-                      (diminta owner 2026-09-03). Kolom kecil semua, angka. */}
-                  <div className="flex items-end gap-2">
+                  {/* Satu baris: Peraga Tilawati — Jilid — Pertemuan ke —
+                      Teknik ke (diminta owner 2026-09-03). Kolom kecil
+                      semua; membungkus ke baris kedua kalau layar sempit. */}
+                  <div className="flex flex-wrap items-end gap-x-2 gap-y-3">
                     <div className="shrink-0">
                       <label className="mb-1 block text-[11px] font-semibold text-text leading-tight">
                         Peraga Tilawati
@@ -1505,6 +1511,22 @@ export default function RencanaPembelajaranView() {
                         onChange={(e) => setPertemuanKeBaru(e.target.value)}
                         className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
                       />
+                    </div>
+                    <div className="w-[70px] shrink-0">
+                      <label className="mb-1 flex items-center gap-1 text-[11px] font-semibold text-text leading-tight">
+                        Teknik ke
+                        <LabelInfo teks="Teknik membaca klasikal peraga" />
+                      </label>
+                      <select
+                        value={peragaTeknikBaru}
+                        onChange={(e) => setPeragaTeknikBaru(e.target.value)}
+                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-1 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none"
+                      >
+                        <option value="">–</option>
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                      </select>
                     </div>
                   </div>
 
