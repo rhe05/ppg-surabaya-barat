@@ -16,6 +16,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeftRight,
   Check,
+  Download,
   House,
   TrendingUp,
   UserPlus,
@@ -28,6 +29,7 @@ import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriF
 import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
+import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
 
 type AksiMassal = 'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif';
 type KelasRingkas = { id: number; nama: string };
@@ -84,7 +86,7 @@ const SHEET =
   'w-full max-w-[430px] rounded-t-[26px] border border-border bg-panel p-5 shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card';
 
 export default function AdminSantriMobile() {
-  const { profile } = useAuth();
+  const { profile, namaKelompok } = useAuth();
   const { sukses } = useToast();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
@@ -99,6 +101,7 @@ export default function AdminSantriMobile() {
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
 
   const [menuTerbuka, setMenuTerbuka] = useState(false);
+  const [unduhTerbuka, setUnduhTerbuka] = useState(false);
   const [modeMassal, setModeMassal] = useState<AksiMassal | null>(null);
   const [terpilih, setTerpilih] = useState<Set<number>>(new Set());
   const [modalKonfirmasi, setModalKonfirmasi] = useState(false);
@@ -257,6 +260,18 @@ export default function AdminSantriMobile() {
                       </button>
                     );
                   })}
+                  <div className="my-1 h-px bg-border" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMenuTerbuka(false);
+                      setUnduhTerbuka(true);
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+                  >
+                    <Download size={18} strokeWidth={2} className="shrink-0 text-indigo" />
+                    <span>Unduh Data</span>
+                  </button>
                 </div>
               </>
             )}
@@ -357,6 +372,14 @@ export default function AdminSantriMobile() {
       {formTerbuka && (
         <SantriForm santri={santriDiubah} onSelesai={selesaiForm} onBatal={() => setFormTerbuka(false)} />
       )}
+
+      <UnduhDataSheet
+        terbuka={unduhTerbuka}
+        onTutup={() => setUnduhTerbuka(false)}
+        data={santri}
+        namaKelompok={namaKelompok}
+        daftarKelas={kelasList}
+      />
 
       {modalKonfirmasi && modeMassal === 'pindah' && (
         <PindahKelasModal

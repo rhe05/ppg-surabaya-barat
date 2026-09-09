@@ -1,8 +1,13 @@
 'use client';
 
 /* Bottom sheet "Unduh Data Generus" — dipakai dari menu titik-tiga di
-   /santri-saya (guru mobile). Guru memilih format (Excel / PDF) + kolom
-   apa saja yang ikut, lalu berkas dibuat 100% di peramban.
+   /santri-saya (guru mobile) & Data Generus admin kelp mobile. Pengguna
+   memilih format (Excel / PDF) + kolom apa saja yang ikut, lalu berkas
+   dibuat 100% di peramban. Baris selalu diberi nomor urut (kolom "No").
+
+   Mode admin kelp (`daftarKelas` diisi): tambah pemilih kelas — boleh
+   pilih > 1 kelas, datanya digabung jadi satu berkas, diurutkan
+   kelas → nama.
 
    HEMAT SUPABASE: komponen ini TIDAK query apa pun. Data generus sudah ada
    di memori halaman pemanggil (state `santri`, hasil satu SELECT saat kelas
@@ -12,7 +17,7 @@
    Pustaka PDF (jspdf ±350 KB) di-import dinamis di dalam lib/unduhPdf.ts,
    jadi tidak membebani bundel awal — baru diunduh saat tombol PDF ditekan. */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { X, FileSpreadsheet, FileText, Check } from 'lucide-react';
 import type { SantriRow } from '@/components/santri/SantriForm';
 import { KOLOM_EKSPOR_SANTRI, GRUP_URUT } from '@/lib/kolomEksporSantri';
@@ -64,19 +69,40 @@ export default function UnduhDataSheet({
   data,
   namaKelas,
   namaKelompok,
+  daftarKelas,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   data: SantriRow[];
-  /* Nama kelas ngaji yang sedang dibuka, mis. "1 & 2" atau "PAUD/TK". */
-  namaKelas: string;
-  /* Nama kelompok guru (tanpa awalan "Kelp") — utk kop PDF. */
+  /* Nama kelas ngaji yang sedang dibuka, mis. "1 & 2" atau "PAUD/TK".
+     Dipakai mode guru (satu kelas). Diabaikan kalau `daftarKelas` ada. */
+  namaKelas?: string;
+  /* Nama kelompok (tanpa awalan "Kelp") — utk kop PDF & nama berkas. */
   namaKelompok?: string | null;
+  /* MODE ADMIN KELP: daftar kelas kelompok. Kalau diisi, sheet menampilkan
+     pemilih kelas (boleh > 1); `data` = SELURUH generus kelompok, disaring
+     di sini berdasarkan `kelas_ngaji`. Kalau undefined = mode guru. */
+  daftarKelas?: { id: number; nama: string }[];
 }) {
+  const modeAdmin = Array.isArray(daftarKelas) && daftarKelas.length > 0;
+
   const [format, setFormat] = useState<Format>(bacaFormat);
   const [dipilih, setDipilih] = useState<Set<string>>(bacaPilihanKolom);
+  const [kelasDipilih, setKelasDipilih] = useState<Set<string>>(
+    () => new Set((daftarKelas ?? []).map((k) => k.nama)),
+  );
   const [sedangBuat, setSedangBuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
+
+  /* `daftarKelas` sering datang belakangan (query async di pemanggil).
+     Begitu terisi & belum ada pilihan, centang semua kelas. */
+  const kunciKelas = (daftarKelas ?? []).map((k) => k.nama).join('|');
+  useEffect(() => {
+    if (modeAdmin && kelasDipilih.size === 0) {
+      setKelasDipilih(new Set((daftarKelas ?? []).map((k) => k.nama)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kunciKelas, modeAdmin]);
 
   /* Urutan kolom terpilih SELALU mengikuti urutan KOLOM_EKSPOR_SANTRI,
      bukan urutan klik — supaya berkas rapi & konsisten. */
@@ -84,6 +110,29 @@ export default function UnduhDataSheet({
     () => KOLOM_EKSPOR_SANTRI.filter((k) => dipilih.has(k.judul)),
     [dipilih],
   );
+
+  /* Data efektif: mode admin → saring per kelas terpilih lalu urutkan
+     kelas → nama (supaya gabungan beberapa kelas tetap rapi). Mode guru →
+     apa adanya (sudah urut nama dari query). */
+  const dataEfektif = useMemo(() => {
+    if (!modeAdmin) return data;
+    const rows = data.filter((s) => kelasDipilih.has(s.kelas_ngaji ?? ''));
+    return [...rows].sort(
+      (a, b) =>
+        (a.kelas_ngaji ?? '').localeCompare(b.kelas_ngaji ?? '', 'id') ||
+        a.nama.localeCompare(b.nama, 'id'),
+    );
+  }, [modeAdmin, data, kelasDipilih]);
+
+  const labelKelas = useMemo(() => {
+    if (!modeAdmin) return namaKelas ?? '';
+    const total = daftarKelas!.length;
+    const n = kelasDipilih.size;
+    if (n === 0) return 'Belum ada kelas dipilih';
+    if (n === total) return 'Semua Kelas';
+    if (n === 1) return [...kelasDipilih][0];
+    return `${n} Kelas`;
+  }, [modeAdmin, namaKelas, daftarKelas, kelasDipilih]);
 
   if (!terbuka) return null;
 
@@ -113,6 +162,19 @@ export default function UnduhDataSheet({
     simpanKolom(next);
   }
 
+  function toggleKelas(nama: string) {
+    setKelasDipilih((prev) => {
+      const next = new Set(prev);
+      if (next.has(nama)) next.delete(nama);
+      else next.add(nama);
+      return next;
+    });
+  }
+
+  function toggleSemuaKelas(semua: boolean) {
+    setKelasDipilih(semua ? new Set((daftarKelas ?? []).map((k) => k.nama)) : new Set());
+  }
+
   function pilihFormat(f: Format) {
     setFormat(f);
     try {
@@ -123,31 +185,43 @@ export default function UnduhDataSheet({
   }
 
   async function jalankan() {
-    if (kolomTerpilih.length === 0 || data.length === 0) return;
+    if (kolomTerpilih.length === 0 || dataEfektif.length === 0) return;
     setSedangBuat(true);
     setGalat(null);
     try {
-      const headers = kolomTerpilih.map((k) => k.judul);
+      /* Kolom pertama = nomor urut (1..N), selalu ada. */
+      const headers = ['No', ...kolomTerpilih.map((k) => k.judul)];
       /* Nama berkas: "Data Generus - Kelp Petemon - 1A - 09-09-2026"
          (tanggal-bulan-tahun). Segmen kelompok dilewati kalau tak ada. */
       const now = new Date();
       const dd = String(now.getDate()).padStart(2, '0');
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const tgl = `${dd}-${mm}-${now.getFullYear()}`;
-      const namaBerkas = ['Data Generus', namaKelompok ? `Kelp ${namaKelompok}` : null, namaKelas, tgl]
+      const namaBerkas = [
+        'Data Generus',
+        namaKelompok ? `Kelp ${namaKelompok}` : null,
+        labelKelas,
+        tgl,
+      ]
         .filter(Boolean)
         .join(' - ');
 
       if (format === 'excel') {
         /* Satu lintasan O(baris × kolom), tanpa await di dalam loop. */
-        const rows = data.map((s) => kolomTerpilih.map((k) => k.ambil(s)));
+        const rows = dataEfektif.map((s, i) => [
+          String(i + 1),
+          ...kolomTerpilih.map((k) => k.ambil(s)),
+        ]);
         unduhXlsx('Data Generus', headers, rows, namaBerkas);
       } else {
-        const rows = data.map((s) => kolomTerpilih.map((k) => nilaiTeks(k.ambil(s))));
+        const rows = dataEfektif.map((s, i) => [
+          String(i + 1),
+          ...kolomTerpilih.map((k) => nilaiTeks(k.ambil(s))),
+        ]);
         await unduhPdf({
           namaBerkas,
           judul: 'Data Generus',
-          subjudul: `Kelas ${namaKelas} · ${data.length} generus`,
+          subjudul: `${labelKelas} · ${dataEfektif.length} generus`,
           kelompok: namaKelompok ?? undefined,
           headers,
           rows,
@@ -161,7 +235,7 @@ export default function UnduhDataSheet({
     }
   }
 
-  const bisaUnduh = kolomTerpilih.length > 0 && data.length > 0 && !sedangBuat;
+  const bisaUnduh = kolomTerpilih.length > 0 && dataEfektif.length > 0 && !sedangBuat;
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
@@ -175,7 +249,9 @@ export default function UnduhDataSheet({
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div>
             <h2 className="text-[17px] font-extrabold text-text">Unduh Data Generus</h2>
-            <p className="mt-0.5 text-[12px] text-text-dim">Kelas {namaKelas}</p>
+            <p className="mt-0.5 text-[12px] text-text-dim">
+              {labelKelas} · {dataEfektif.length} generus
+            </p>
           </div>
           <button
             type="button"
@@ -188,6 +264,40 @@ export default function UnduhDataSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* MODE ADMIN: pilih kelas (boleh > 1, digabung jadi satu berkas) */}
+          {modeAdmin && (
+            <div className="mb-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-[12px] font-bold tracking-wide text-text-dim uppercase">Kelas</p>
+                <button
+                  type="button"
+                  onClick={() => toggleSemuaKelas(kelasDipilih.size !== daftarKelas!.length)}
+                  className="cursor-pointer rounded-full border border-border bg-panel px-2.5 py-1 text-[11px] font-bold text-text-dim active:scale-95"
+                >
+                  {kelasDipilih.size === daftarKelas!.length ? 'Kosongkan' : 'Pilih semua'}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {daftarKelas!.map((k) => {
+                  const on = kelasDipilih.has(k.nama);
+                  return (
+                    <button
+                      key={k.id}
+                      type="button"
+                      onClick={() => toggleKelas(k.nama)}
+                      className={`flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] px-3 py-1.5 text-[12.5px] font-semibold transition-all active:scale-95 ${
+                        on ? 'border-sage bg-[rgba(5,150,105,0.08)] text-sage' : 'border-border bg-panel text-text-dim'
+                      }`}
+                    >
+                      {on && <Check size={13} strokeWidth={3} />}
+                      {k.nama}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Pilih format */}
           <p className="mb-2 text-[12px] font-bold tracking-wide text-text-dim uppercase">Format</p>
           <div className="grid grid-cols-2 gap-3">
@@ -272,7 +382,7 @@ export default function UnduhDataSheet({
           >
             {sedangBuat
               ? 'Menyiapkan berkas…'
-              : `Unduh ${format === 'excel' ? 'Excel' : 'PDF'} · ${data.length} generus`}
+              : `Unduh ${format === 'excel' ? 'Excel' : 'PDF'} · ${dataEfektif.length} generus`}
           </button>
         </div>
       </div>
