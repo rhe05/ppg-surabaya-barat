@@ -356,12 +356,12 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      guru menyampaikan 1-99 -> 1×; guru cuma 1-20 -> tidak dihitung). */
   const [protaDoa, setProtaDoa] = useState<ProtaBaris[]>([]);
   useEffect(() => {
-    if (!kelompokId) {
-      setProtaDoa([]);
-      return;
-    }
     let batal = false;
-    muatProtaKelompok(kelompokId, tahun)
+    /* Kurikulum = data BERSAMA, selalu di kelompok_id=1 (lihat
+       kurikulum/page.tsx KELOMPOK_KURIKULUM_BERSAMA_ID). Memakai
+       kelompokId scope guru/pilihan admin membuat target Asmaul Husna
+       kosong utk kelompok selain id 1. */
+    muatProtaKelompok(1, tahun)
       .then((rows) => {
         if (batal) return;
         setProtaDoa(
@@ -377,7 +377,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelompokId, tahun]);
+  }, [tahun]);
 
   const namaKelasAktif = useMemo(() => {
     if (kelasId === '') return '';

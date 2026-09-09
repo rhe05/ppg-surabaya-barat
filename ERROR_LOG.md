@@ -1243,9 +1243,12 @@ Efeknya juga tak lagi bergantung pada `profile.scope_kelompok_id`.
 `status_aktif='aktif'`, 4 akun guru aktif+terhubung, kelas & RLS jurnal
 benar.
 
-**Sisa yang belum ditangani** (di luar keluhan ini): `PencapaianMateriView.tsx`
-(Monitoring) masih memakai `muatProtaKelompok(kelompokId, tahun)` dari
-picker/scope — kemungkinan bug serupa untuk guru/admin kelompok ≠ 1.
+**Bug kembar di Monitoring Pencapaian Materi** (diperbaiki bersama, commit
+lanjutan): `PencapaianMateriView.tsx` juga memakai
+`muatProtaKelompok(kelompokId, tahun)` dari scope guru / pilihan admin —
+target Asmaul Husna (Hafalan Do'a) kosong utk kelompok ≠ 1. Diubah ke
+`muatProtaKelompok(1, tahun)`. Bagian Hafalan Surat & Buku Jilid tidak
+kena (sumbernya RPC per-kelas_id + pedoman statis, bukan prota per-kelompok).
 
 **Cara verifikasi**: login guru kelompok ≠ 1 → Rencana Pembelajaran →
 Tambah Materi Klasikal → cek-list Hafalan Surat & Hafalan Do'a terisi
