@@ -219,7 +219,7 @@ export default function RingkasanJurnalKelp({
 
   return (
     <div
-      className="mb-4 rounded-card border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+      className="animasi-konten-muncul mb-4 rounded-card border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
       style={perluAksi ? { borderColor: 'var(--red)', borderWidth: 1.5 } : { borderColor: 'var(--border)' }}
     >
       <div>

@@ -460,9 +460,12 @@ export default function GuruDashboard() {
           </div>
         )}
 
-        {!loading &&
-          !error &&
-          kelas.map((k) => {
+        {/* Kartu kelas asli muncul dgn fade tipis (opacity 280ms) begitu
+            menggantikan skeleton -- animasi opacity-only, aman utk elemen
+            fixed di dalamnya (lihat catatan di globals.css). */}
+        {!loading && !error && kelas.length > 0 && (
+          <div className="animasi-konten-muncul">
+            {kelas.map((k) => {
             const kategori = namaDari(k.kategori_kbm);
             const menit = durasiMenit(k.jam_mulai, k.jam_selesai);
             /* null = statistiknya belum selesai dimuat -> kotaknya tetap "—".
@@ -555,7 +558,9 @@ export default function GuruDashboard() {
                 </div>
               </div>
             );
-          })}
+            })}
+          </div>
+        )}
       </div>
     </main>
     </TarikUntukSegarkan>
