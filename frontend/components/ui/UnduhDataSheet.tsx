@@ -128,8 +128,15 @@ export default function UnduhDataSheet({
     setGalat(null);
     try {
       const headers = kolomTerpilih.map((k) => k.judul);
-      const tgl = new Date().toISOString().slice(0, 10);
-      const namaBerkas = `Data Generus - ${namaKelas} - ${tgl}`;
+      /* Nama berkas: "Data Generus - Kelp Petemon - 1A - 09-09-2026"
+         (tanggal-bulan-tahun). Segmen kelompok dilewati kalau tak ada. */
+      const now = new Date();
+      const dd = String(now.getDate()).padStart(2, '0');
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const tgl = `${dd}-${mm}-${now.getFullYear()}`;
+      const namaBerkas = ['Data Generus', namaKelompok ? `Kelp ${namaKelompok}` : null, namaKelas, tgl]
+        .filter(Boolean)
+        .join(' - ');
 
       if (format === 'excel') {
         /* Satu lintasan O(baris × kolom), tanpa await di dalam loop. */
