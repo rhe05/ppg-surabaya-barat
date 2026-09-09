@@ -8,6 +8,15 @@
 
 import type { SantriRow } from '@/components/santri/SantriForm';
 
+/* Tanggal dari DB tersimpan ISO (YYYY-MM-DD). Untuk ekspor Data Generus
+   owner minta khusus Tanggal Lahir tampil "tanggal dulu": DD-MM-YYYY.
+   Nilai non-ISO (kosong / format lain) dibiarkan apa adanya. */
+function tglHariDuluan(v: unknown): string {
+  const s = String(v ?? '').trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : s;
+}
+
 export type GrupKolom = 'Identitas' | 'Pendidikan' | 'Kontak & Alamat' | 'Keluarga' | 'Ngaji';
 
 export type KolomEksporSantri = {
@@ -25,7 +34,7 @@ export const KOLOM_EKSPOR_SANTRI: KolomEksporSantri[] = [
   { judul: 'Nama Panggilan', grup: 'Identitas', baku: false, ambil: (s) => s.nama_panggilan },
   { judul: 'Gender', grup: 'Identitas', baku: true, ambil: (s) => s.gender },
   { judul: 'Tempat Lahir', grup: 'Identitas', baku: false, ambil: (s) => s.tempat_lahir },
-  { judul: 'Tanggal Lahir', grup: 'Identitas', baku: true, ambil: (s) => s.tanggal_lahir },
+  { judul: 'Tanggal Lahir', grup: 'Identitas', baku: true, ambil: (s) => tglHariDuluan(s.tanggal_lahir) },
   { judul: 'Status Nikah', grup: 'Identitas', baku: false, ambil: (s) => s.status_nikah },
 
   { judul: 'Pendidikan', grup: 'Pendidikan', baku: false, ambil: (s) => s.pendidikan },
