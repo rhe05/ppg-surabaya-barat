@@ -84,6 +84,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
+import InfoTip from '@/components/ui/InfoTip';
 import RiwayatKehadiranKelasInline from '@/components/dashboard/RiwayatKehadiranKelasInline';
 import {
   muatRingkasanBulan,
@@ -1372,12 +1373,14 @@ export default function AdminKelpDashboard() {
             onTutup={() => setPickerLiburBuka(false)}
           />
           <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
-            <div className="mb-1 text-[15px] font-extrabold text-text">Tandai Libur atau Aktif</div>
-            <p className="mb-4 text-[12.5px] text-text-dim">
-              Pilih tanggal (boleh lampau atau yang akan datang) &amp; tulis alasan.
-              Tanggal yang sudah ditandai bisa dibatalkan dari sini juga.
-            </p>
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Tanggal</label>
+            <div className="mb-4 text-[15px] font-extrabold text-text">Tandai Libur atau Aktif</div>
+            <div className="mb-1.5 flex items-center gap-1.5">
+              <span className="text-[12px] font-semibold text-text-dim">Tanggal</span>
+              <InfoTip label="Info tanggal">
+                Boleh tanggal lampau atau yang akan datang. Tanggal yang sudah
+                ditandai bisa dibatalkan dari sini juga.
+              </InfoTip>
+            </div>
             <button
               type="button"
               ref={refPickerLibur}
