@@ -31,14 +31,13 @@ export type JurnalKelasRingkas = {
   guruNama: string;
   santriCount: number;
 
-  /* jurnal_materi bulan ini */
-  direncana: number; // total baris (belum + disampaikan + tidak_tersampaikan)
+  /* jurnal_materi NGAJI bulan ini (kartu "Ringkasan Jurnal Ngaji") */
+  direncana: number; // ngaji: belum + disampaikan + tidak_tersampaikan
   disampaikan: number;
   belum: number;
   tidakTersampaikan: number;
-  alasanTidakTersampaikan: string[]; // catatan dari baris tidak_tersampaikan
-  ngajiDisampaikan: number;
-  ngajiDirencana: number;
+  alasanTidakTersampaikan: string[]; // catatan baris tidak_tersampaikan (ngaji)
+  /* jurnal_materi KLASIKAL -- ditampilkan ringkas saja di kartu Ngaji */
   klasikalDisampaikan: number;
   klasikalDirencana: number;
 
@@ -62,19 +61,34 @@ export type JurnalKelasRingkas = {
     tetap: number;
   } | null;
 
-  kesehatan: KesehatanJurnal;
+  kesehatan: KesehatanJurnal; // dari jurnal NGAJI saja
   kemungkinanPenyebab: string[];
+  /* status Tilawati vs pedoman (kartu "Monitoring"). 'takberlaku' = kelas
+     di luar pedoman (kelas 4+) atau belum ada catatan sama sekali. */
+  kesehatanTilawati: KesehatanJurnal | 'takberlaku';
 
   pengingatTerakhir: string | null; // ISO timestamp
 };
 
 export type RingkasanJurnalKelompok = {
   totalKelas: number;
-  kelasTerjurnal: number; // punya minimal 1 entri jurnal bulan ini
+  kelasTerjurnal: number; // punya minimal 1 entri jurnal ngaji bulan ini
   direncana: number;
   disampaikan: number;
   belum: number;
   tidakTersampaikan: number;
+  kelasTertinggal: number;
+  kelasPerhatian: number;
+};
+
+export type RingkasanMonitoringKelompok = {
+  kelasDinilai: number; // kelas dgn tilawati berlaku & ada catatan
+  bsb: number;
+  bsh: number;
+  mb: number;
+  bb: number;
+  naik: number;
+  tetap: number;
   kelasTertinggal: number;
   kelasPerhatian: number;
 };
@@ -89,48 +103,56 @@ function beririsan(aMulai: string, aSelesai: string, bMulai: string, bSelesai: s
    wajar (bahkan bagus kalau sudah ada rencana). Rasio delivery baru
    relevan kalau bulan sudah berjalan. Kelas yang baru dibuat < 7 hari
    dapat "masa tenang" -- tidak ditandai apa pun. */
-function hitungKesehatan(k: {
+/* Kesehatan JURNAL NGAJI (kartu "Ringkasan Jurnal Ngaji"). Sadar waktu:
+   awal bulan "belum disampaikan" wajar; rasio delivery baru dinilai kalau
+   bulan sudah berjalan. Kelas < 7 hari = "masa tenang". */
+function hitungKesehatanNgaji(k: {
   direncana: number;
   disampaikan: number;
   tidakTersampaikan: number;
-  hariSejakDisentuh: number | null; // jurnal terakhir DIUBAH (updated_at) -- sinyal aktivitas guru
-  porsiBulan: number; // 0-1: seberapa jauh bulan berjalan
-  hariBerjalan: number; // hari ke-N bulan itu (bulan lampau = jumlah hari sebulan)
+  hariSejakDisentuh: number | null;
+  porsiBulan: number;
+  hariBerjalan: number;
   kelasBaru: boolean;
-  tilawati: JurnalKelasRingkas['tilawati'];
-}): { kesehatan: KesehatanJurnal; kelasBaru: boolean } {
-  if (k.kelasBaru) return { kesehatan: 'sehat', kelasBaru: true };
-
-  const t = k.tilawati;
-  const tilawatiTertinggal =
-    t != null && t.santriDinilai >= 2 && t.bb >= Math.ceil(t.santriDinilai / 2) && k.porsiBulan > 0.4;
-  const tilawatiLemah =
-    t != null && t.santriDinilai >= 2 && t.bb + t.mb > t.bsh + t.bsb && k.porsiBulan > 0.4;
-
+}): KesehatanJurnal {
+  if (k.kelasBaru) return 'sehat';
   const rasio = k.direncana > 0 ? k.disampaikan / k.direncana : 0;
-  // Tertinggal dari LAJU bulan: mis. bulan sudah 70% jalan tapi baru 30% disampaikan.
   const tertinggalLaju = k.porsiBulan > 0.5 && k.direncana > 0 && rasio < k.porsiBulan - 0.3;
 
   if (
     (k.direncana === 0 && k.hariBerjalan >= 22) ||
     (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 21) ||
-    k.tidakTersampaikan >= 2 ||
-    tilawatiTertinggal
+    k.tidakTersampaikan >= 2
   ) {
-    return { kesehatan: 'tertinggal', kelasBaru: false };
+    return 'tertinggal';
   }
   if (
     (k.direncana === 0 && k.hariBerjalan >= 15) ||
     (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 10) ||
-    tertinggalLaju ||
-    tilawatiLemah
+    tertinggalLaju
   ) {
-    return { kesehatan: 'perhatian', kelasBaru: false };
+    return 'perhatian';
   }
-  return { kesehatan: 'sehat', kelasBaru: false };
+  return 'sehat';
+}
+
+/* Kesehatan MONITORING = Tilawati vs pedoman (kartu "Monitoring"). */
+function hitungKesehatanTilawati(
+  t: JurnalKelasRingkas['tilawati'],
+  porsiBulan: number,
+  kelasBaru: boolean,
+): KesehatanJurnal | 'takberlaku' {
+  if (t == null || t.santriDinilai < 1) return 'takberlaku';
+  if (kelasBaru) return 'sehat';
+  if (porsiBulan <= 0.4) return 'sehat'; // terlalu awal utk menilai pacing
+  if (t.santriDinilai >= 2 && t.bb >= Math.ceil(t.santriDinilai / 2)) return 'tertinggal';
+  if (t.bb + t.mb > t.bsh + t.bsb) return 'perhatian';
+  return 'sehat';
 }
 
 const URUT_KESEHATAN: Record<KesehatanJurnal, number> = { tertinggal: 0, perhatian: 1, sehat: 2 };
+const urutKes = (k: KesehatanJurnal | 'takberlaku') =>
+  k === 'takberlaku' ? 3 : URUT_KESEHATAN[k];
 
 export async function muatRingkasanJurnalPerKelas(
   kelompokId: number,
@@ -271,16 +293,15 @@ export async function muatRingkasanJurnalPerKelas(
     .filter((k) => k.santri_count > 0)
     .map((k) => {
       const materi = materiPerKelas.get(k.id) ?? [];
-      let disampaikan = 0;
-      let belum = 0;
-      let tidakTersampaikan = 0;
-      let ngajiDisampaikan = 0;
-      let ngajiDirencana = 0;
+      // NGAJI = angka utama kartu; KLASIKAL = ringkas saja.
+      let disampaikan = 0; // ngaji
+      let belum = 0; // ngaji
+      let tidakTersampaikan = 0; // ngaji
       let klasikalDisampaikan = 0;
       let klasikalDirencana = 0;
-      const alasan: string[] = [];
-      let disampaikanTerakhir: string | null = null; // tanggal materi TERAKHIR yg disampaikan
-      let disentuhTerakhir: string | null = null; // updated_at max -- kapan jurnal terakhir diubah
+      const alasan: string[] = []; // ngaji
+      let disampaikanTerakhir: string | null = null;
+      let disentuhTerakhir: string | null = null;
 
       for (const m of materi) {
         if (m.status === 'disampaikan' && m.tanggal_disampaikan) {
@@ -289,20 +310,20 @@ export async function muatRingkasanJurnalPerKelas(
         }
         if (m.updated_at && (disentuhTerakhir == null || m.updated_at > disentuhTerakhir))
           disentuhTerakhir = m.updated_at;
-        if (m.jenis === 'ngaji') ngajiDirencana += 1;
-        else if (m.jenis === 'klasikal') klasikalDirencana += 1;
-        if (m.status === 'disampaikan') {
-          disampaikan += 1;
-          if (m.jenis === 'ngaji') ngajiDisampaikan += 1;
-          else if (m.jenis === 'klasikal') klasikalDisampaikan += 1;
-        } else if (m.status === 'tidak_tersampaikan') {
+
+        if (m.jenis === 'klasikal') {
+          klasikalDirencana += 1;
+          if (m.status === 'disampaikan') klasikalDisampaikan += 1;
+          continue;
+        }
+        // ngaji
+        if (m.status === 'disampaikan') disampaikan += 1;
+        else if (m.status === 'tidak_tersampaikan') {
           tidakTersampaikan += 1;
           if (m.catatan?.trim()) alasan.push(m.catatan.trim());
-        } else {
-          belum += 1;
-        }
+        } else belum += 1;
       }
-      const direncana = materi.length;
+      const direncana = disampaikan + belum + tidakTersampaikan; // ngaji
       const nowMs = new Date(hariIniStr + 'T00:00:00').getTime();
       const hariSejakDisentuh =
         disentuhTerakhir != null
@@ -382,7 +403,7 @@ export async function muatRingkasanJurnalPerKelas(
       });
       if (liburKelas > 0) penyebab.push(`${liburKelas} tanggal ditandai libur bulan ini`);
 
-      const { kesehatan, kelasBaru: kbaru } = hitungKesehatan({
+      const kesehatan = hitungKesehatanNgaji({
         direncana,
         disampaikan,
         tidakTersampaikan,
@@ -390,8 +411,8 @@ export async function muatRingkasanJurnalPerKelas(
         porsiBulan,
         hariBerjalan,
         kelasBaru,
-        tilawati,
       });
+      const kesehatanTilawati = hitungKesehatanTilawati(tilawati, porsiBulan, kelasBaru);
 
       return {
         kelasId: k.id,
@@ -405,17 +426,16 @@ export async function muatRingkasanJurnalPerKelas(
         belum,
         tidakTersampaikan,
         alasanTidakTersampaikan: alasan,
-        ngajiDisampaikan,
-        ngajiDirencana,
         klasikalDisampaikan,
         klasikalDirencana,
         disampaikanTerakhir,
         hariSejakDisampaikan,
         disentuhTerakhir,
         hariSejakDisentuh,
-        kelasBaru: kbaru,
+        kelasBaru,
         tilawati,
         kesehatan,
+        kesehatanTilawati,
         kemungkinanPenyebab: penyebab,
         pengingatTerakhir: pengingatPerKelas.get(k.id) ?? null,
       };
@@ -427,6 +447,30 @@ export async function muatRingkasanJurnalPerKelas(
     return a.kelasNama.localeCompare(b.kelasNama, 'id');
   });
   return hasil;
+}
+
+/* Urutan utk kartu Monitoring: tilawati bermasalah dulu, 'takberlaku' terakhir. */
+export function urutkanUntukMonitoring(list: JurnalKelasRingkas[]): JurnalKelasRingkas[] {
+  return [...list].sort((a, b) => {
+    const d = urutKes(a.kesehatanTilawati) - urutKes(b.kesehatanTilawati);
+    if (d !== 0) return d;
+    return a.kelasNama.localeCompare(b.kelasNama, 'id');
+  });
+}
+
+export function ringkasMonitoringKelompok(list: JurnalKelasRingkas[]): RingkasanMonitoringKelompok {
+  const berlaku = list.filter((k) => k.kesehatanTilawati !== 'takberlaku' && k.tilawati);
+  return {
+    kelasDinilai: berlaku.length,
+    bsb: berlaku.reduce((s, k) => s + (k.tilawati?.bsb ?? 0), 0),
+    bsh: berlaku.reduce((s, k) => s + (k.tilawati?.bsh ?? 0), 0),
+    mb: berlaku.reduce((s, k) => s + (k.tilawati?.mb ?? 0), 0),
+    bb: berlaku.reduce((s, k) => s + (k.tilawati?.bb ?? 0), 0),
+    naik: berlaku.reduce((s, k) => s + (k.tilawati?.naik ?? 0), 0),
+    tetap: berlaku.reduce((s, k) => s + (k.tilawati?.tetap ?? 0), 0),
+    kelasTertinggal: berlaku.filter((k) => k.kesehatanTilawati === 'tertinggal').length,
+    kelasPerhatian: berlaku.filter((k) => k.kesehatanTilawati === 'perhatian').length,
+  };
 }
 
 function tglSingkat(iso: string): string {

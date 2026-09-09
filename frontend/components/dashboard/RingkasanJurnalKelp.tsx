@@ -109,14 +109,9 @@ export default function RingkasanJurnalKelp({
   function catatanKondisi(k: JurnalKelasRingkas): string {
     return [
       k.direncana === 0
-        ? 'belum ada rencana bulan ini'
-        : `${k.disampaikan}/${k.direncana} materi disampaikan`,
+        ? 'belum ada rencana materi ngaji bulan ini'
+        : `${k.disampaikan}/${k.direncana} materi ngaji disampaikan`,
       k.tidakTersampaikan > 0 ? `${k.tidakTersampaikan} tidak tersampaikan` : null,
-      k.tilawati &&
-      k.tilawati.santriDinilai >= 2 &&
-      k.tilawati.bb + k.tilawati.mb > k.tilawati.bsh + k.tilawati.bsb
-        ? 'Tilawati di bawah target'
-        : null,
     ]
       .filter(Boolean)
       .join(', ');
@@ -221,7 +216,7 @@ export default function RingkasanJurnalKelp({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="flex items-center gap-1.5 text-[13px] font-bold text-text">
               <ClipboardList size={14} className="text-text-dim" />
-              {utkGuru ? 'Status Jurnal Kelas Saya' : 'Ringkasan Jurnal Pembelajaran'}
+              {utkGuru ? 'Status Jurnal Ngaji Kelas Saya' : 'Ringkasan Jurnal Ngaji'}
             </span>
             <ChevronDown
               size={14}
@@ -233,7 +228,7 @@ export default function RingkasanJurnalKelp({
             {headline}
           </div>
           <div className="mt-0.5 text-[11px] text-text-dim">
-            {NAMA_BULAN[bulan - 1]} {tahun} · {ringkas.kelasTerjurnal}/{ringkas.totalKelas} kelas ada jurnal
+            {NAMA_BULAN[bulan - 1]} {tahun} · {ringkas.kelasTerjurnal}/{ringkas.totalKelas} kelas ada jurnal ngaji
           </div>
         </div>
       </button>
@@ -333,8 +328,6 @@ export default function RingkasanJurnalKelp({
 
           {list.map((k) => {
             const s = SEHAT[k.kesehatan];
-            const t = k.tilawati;
-            const tilawatiLemah = t != null && t.santriDinilai >= 2 && t.bb + t.mb > t.bsh + t.bsb;
             return (
               <div key={k.kelasId} className="rounded-[var(--radius-lg)] border border-border bg-panel-2 p-3.5">
                 <button
@@ -371,10 +364,10 @@ export default function RingkasanJurnalKelp({
                   </div>
                 </button>
 
-                {/* Ringkas selalu tampil: rasio ngaji/klasikal + tilawati */}
+                {/* Ringkas: materi ngaji disampaikan/direncana + klasikal */}
                 <div className="mt-2.5 flex flex-wrap gap-1.5 text-[11px] font-semibold">
                   <span className="rounded-md bg-panel px-2 py-1 text-text-dim">
-                    Ngaji {k.ngajiDisampaikan}/{k.ngajiDirencana}
+                    Ngaji {k.disampaikan}/{k.direncana}
                   </span>
                   <span className="rounded-md bg-panel px-2 py-1 text-text-dim">
                     Klasikal {k.klasikalDisampaikan}/{k.klasikalDirencana}
@@ -385,18 +378,6 @@ export default function RingkasanJurnalKelp({
                       style={{ background: 'rgba(220,38,38,0.1)', color: 'var(--red)' }}
                     >
                       {k.tidakTersampaikan} tidak tersampaikan
-                    </span>
-                  )}
-                  {t && (
-                    <span
-                      className="rounded-md px-2 py-1"
-                      style={
-                        tilawatiLemah
-                          ? { background: 'rgba(217,119,6,0.12)', color: 'var(--brass)' }
-                          : { background: 'rgba(5,150,105,0.1)', color: 'var(--sage)' }
-                      }
-                    >
-                      Tilawati {tilawatiLemah ? 'di bawah target' : 'sesuai target'}
                     </span>
                   )}
                 </div>
@@ -410,17 +391,6 @@ export default function RingkasanJurnalKelp({
 
                 {kelasTerbuka === k.kelasId && (
                   <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-                    {t && (
-                      <div className="text-[11.5px] leading-snug text-text-dim">
-                        <span className="font-bold text-text">Target Tilawati bulan ini:</span> {t.labelTarget}
-                        {t.santriDinilai > 0 && (
-                          <div className="mt-1">
-                            Capaian {t.santriDinilai} santri dinilai — BSB {t.bsb} · BSH {t.bsh} · MB {t.mb} · BB {t.bb}
-                            {t.naik + t.tetap > 0 && ` · ${t.naik} Naik, ${t.tetap} Tetap`}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {k.alasanTidakTersampaikan.length > 0 && (
                       <div className="text-[11.5px] leading-snug text-text-dim">
                         <span className="font-bold text-text">Alasan tidak tersampaikan:</span>
