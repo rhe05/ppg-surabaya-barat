@@ -86,9 +86,12 @@ export default function UnduhDataSheet({
 }) {
   const modeAdmin = Array.isArray(daftarKelas) && daftarKelas.length > 0;
 
-  /* Nama kelompok di DB sudah ber-awalan "Kelp " — buang dulu supaya tidak
-     jadi "Kelp Kelp Petemon" saat kita tambahkan awalannya sendiri. */
-  const kelompokBersih = (namaKelompok ?? '').replace(/^\s*kelp\s+/i, '').trim();
+  /* Nama kelompok di DB umumnya sudah ber-awalan "Kelp " (mis. "Kelp
+     Petemon") — buang semua awalan "Kelp" berulang supaya tidak jadi
+     "Kelp Kelp Petemon" saat kita menambahkan awalannya sendiri. */
+  const kelompokBersih = (namaKelompok ?? '')
+    .replace(/^(?:[\s ]*kelp\b[.\s ]*)+/i, '')
+    .trim();
 
   const [format, setFormat] = useState<Format>(bacaFormat);
   const [dipilih, setDipilih] = useState<Set<string>>(bacaPilihanKolom);

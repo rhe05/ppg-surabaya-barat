@@ -64,7 +64,10 @@ export async function unduhPdf({
     ambilLogo(),
   ]);
   const autoTable = autoTableMod.default;
-  const keteranganKanan = kelompok ? `${judul} - Kelp ${kelompok}` : judul;
+  /* Jaga-jaga kalau pemanggil terlanjur mengirim "Kelp Petemon" — buang
+     awalan "Kelp" berulang supaya tidak jadi "Kelp Kelp Petemon". */
+  const kelompokBersih = (kelompok ?? '').replace(/^(?:[\s ]*kelp\b[.\s ]*)+/i, '').trim();
+  const keteranganKanan = kelompokBersih ? `${judul} - Kelp ${kelompokBersih}` : judul;
 
   /* > 5 kolom → lanskap supaya kolom tidak remuk. */
   const lanskap = headers.length > 5;
