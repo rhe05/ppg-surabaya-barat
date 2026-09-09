@@ -87,7 +87,13 @@ function AbsensiContent() {
       batal = true;
     };
   }, [kelompokId]);
-  const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
+  /* Per-kelas begitu guru memilih kelas: kalau kelas itu ditandai libur
+     (kalender_kelompok.kelas_ids), tanggalnya ikut terkunci & Simpan
+     ditolak. Sebelum kelas dipilih -> hanya libur SELURUH kelompok. */
+  const cekNonaktif = useMemo(
+    () => buatCekNonaktif(overrideKelompok, kelasId ? Number(kelasId) : null),
+    [overrideKelompok, kelasId],
+  );
 
   const [santri, setSantri] = useState<Santri[]>([]);
   const [tersimpan, setTersimpan] = useState<Record<number, AbsensiRow>>({});
