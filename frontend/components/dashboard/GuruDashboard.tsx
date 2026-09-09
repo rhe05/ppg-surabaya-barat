@@ -79,7 +79,7 @@ function SkeletonKartuKelas() {
       <Skeleton className="mt-2 h-[15px] w-3/5" />
       <div className="mt-3 grid grid-cols-5 gap-2">
         {Array.from({ length: 5 }, (_, i) => (
-          <Skeleton key={i} className="h-[58px] w-full" />
+          <Skeleton key={i} className="h-[72px] w-full rounded-[10px]" />
         ))}
       </div>
     </div>
@@ -530,7 +530,10 @@ export default function GuruDashboard() {
                       background: 'linear-gradient(155deg, #0F766E 0%, #0D9488 60%, #14B8A6 100%)',
                     }}
                   >
-                    <span className="text-[17px] leading-none font-extrabold text-white tabular-nums">
+                    <span
+                      key={angka ? 'a' : 'k'}
+                      className="animasi-konten-muncul text-[17px] leading-none font-extrabold text-white tabular-nums"
+                    >
                       {angka ? angka.hariAktif : '—'}
                     </span>
                     <span className="mt-px text-[11px] font-bold tracking-[0.02em] text-white/85 uppercase">
@@ -553,19 +556,25 @@ export default function GuruDashboard() {
                         className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
                       >
                         <span
-                          className="text-[17px] leading-none font-extrabold tabular-nums"
+                          key={nilai === null ? 'k' : 'a'}
+                          className="animasi-konten-muncul text-[17px] leading-none font-extrabold tabular-nums"
                           style={{ color: nilai === null ? undefined : st.warna }}
                         >
                           {nilai === null ? '—' : nilai}
                         </span>
-                        {persen !== null && (
-                          <span
-                            className="rounded-full px-[7px] py-0.5 text-[11px] leading-none font-bold tabular-nums"
-                            style={{ background: st.pill, color: st.warna }}
-                          >
-                            {persen}%
-                          </span>
-                        )}
+                        {/* Slot pill tinggi tetap — supaya kartu tidak
+                            "tumbuh" saat persentase muncul setelah statistik
+                            dimuat (dulu bikin layar melompat sekali). */}
+                        <span className="flex h-[17px] items-center">
+                          {persen !== null && (
+                            <span
+                              className="animasi-konten-muncul rounded-full px-[7px] py-0.5 text-[11px] leading-none font-bold tabular-nums"
+                              style={{ background: st.pill, color: st.warna }}
+                            >
+                              {persen}%
+                            </span>
+                          )}
+                        </span>
                         <span className="mt-px text-center text-[11px] font-bold tracking-[0.02em] text-text-dim uppercase">
                           {st.label}
                         </span>

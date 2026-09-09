@@ -253,6 +253,23 @@ body:has([data-guru-nav]) .bilah-aksi-bawah {
   animation: kerangka-kilau 1.6s ease-in-out infinite;
 }
 
+/* Lipat/buka halus tanpa tahu tinggi konten (trik grid-template-rows
+   0fr↔1fr). Dipakai bagian rincian kartu Ringkasan Jurnal yang bisa
+   membuka sendiri saat ada kelas "tertinggal" — dulu langsung "menjeblak"
+   dan mendorong konten di bawahnya seketika. */
+.lipat-halus {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms ease-out;
+}
+.lipat-halus[data-buka='true'] {
+  grid-template-rows: 1fr;
+}
+.lipat-halus > * {
+  overflow: hidden;
+  min-height: 0;
+}
+
 /* Hormati preferensi "kurangi gerak" OS/peramban — matikan semua animasi
    dekoratif yang berulang/masuk. */
 @media (prefers-reduced-motion: reduce) {
@@ -262,6 +279,9 @@ body:has([data-guru-nav]) .bilah-aksi-bawah {
   .animasi-konten-muncul,
   .animasi-toast-masuk {
     animation-duration: 1ms;
+  }
+  .lipat-halus {
+    transition: none;
   }
 }
 

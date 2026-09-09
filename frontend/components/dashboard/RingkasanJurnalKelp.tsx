@@ -313,7 +313,11 @@ export default function RingkasanJurnalKelp({
         })}
       </div>
 
-      {buka && (
+      {/* Rincian per-kelas — selalu dirender, dilipat/dibuka dgn transisi
+          halus (globals .lipat-halus). Bisa membuka sendiri saat ada kelas
+          "tertinggal"; dulu langsung menjeblak & mendorong konten. */}
+      <div className="lipat-halus" data-buka={buka}>
+        <div>
         <div className="mt-4 flex flex-col gap-2.5 border-t border-border pt-4">
           {list.length === 0 && (
             <p className="text-[12.5px] text-text-dim">Belum ada kelas dengan santri di kelompok ini.</p>
@@ -457,7 +461,8 @@ export default function RingkasanJurnalKelp({
             );
           })}
         </div>
-      )}
+        </div>
+      </div>
     </div>
   );
 }
