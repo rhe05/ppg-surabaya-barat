@@ -183,7 +183,8 @@ export default function SantriProgressReport() {
     supabase
       .from('kelas')
       .select('id, nama, jam_mulai, jam_selesai, ruangan')
-      .eq('guru_id', guruId)
+      // guru utama ATAU guru gilir kedua (kelas.guru_id_2)
+      .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
       .is('deleted_at', null)
       .order('nama')
       .then(({ data }) => {

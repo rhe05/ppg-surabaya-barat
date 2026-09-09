@@ -600,10 +600,13 @@ function DataGenerusContent() {
         setKelasList([]);
         return;
       }
+      // Termasuk kelas yang diampu sebagai guru gilir kedua (guru_id_2) --
+      // RLS santri_update_guru & ajukan_permintaan_generus() menerima
+      // keduanya (migrasi 20260909110000).
       const { data } = await supabase
         .from('kelas')
         .select('id, nama, santri_count')
-        .eq('guru_id', guruId)
+        .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
         .is('deleted_at', null)
         .order('nama');
       if (cancelled) return;

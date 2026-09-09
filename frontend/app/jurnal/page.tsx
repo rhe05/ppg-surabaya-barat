@@ -139,7 +139,10 @@ function JurnalContent() {
         .eq('kelompok_id', kelompokId)
         .is('deleted_at', null)
         .order('nama');
-      if (adalahGuru && profile?.guru_id != null) q = q.eq('guru_id', profile.guru_id);
+      // guru utama ATAU guru gilir kedua (kelas.guru_id_2) -- RLS jurnal
+      // menerima keduanya (migrasi 20260909100000).
+      if (adalahGuru && profile?.guru_id != null)
+        q = q.or(`guru_id.eq.${profile.guru_id},guru_id_2.eq.${profile.guru_id}`);
       const { data } = await q;
       const daftar = (data ?? []) as unknown as Kelas[];
       setKelasList(daftar);

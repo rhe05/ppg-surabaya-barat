@@ -1245,12 +1245,24 @@ di UI Data Kelas + `guruGiliran()` (pengumuman).
   Supabase SQL Editor (pola backlog drift, lihat memory
   `feedback-migrasi-satu-file-isolasi-dari-backlog`).
 
-**Belum ditangani (sengaja)**: `santri_update_guru` (edit data generus
-oleh guru) masih `k.guru_id = p.guru_id` — di luar lingkup keluhan ini.
-
 **Cara verifikasi**: setelah migrasi jalan, login sebagai guru kedua →
 Rencana Pembelajaran → kelas giliran muncul di daftar & bisa tambah
 materi; cek juga tab lain (Pelaksanaan, Tilawati, Monitoring).
+
+**Lanjutan — Data Generus** (migrasi `20260909110000`, commit terpisah):
+jalur guru mengubah/mengajukan data santri juga hanya kenal
+`kelas.guru_id`:
+- policy `santri_update_guru` (UPDATE inline field santri)
+- `ajukan_permintaan_generus()` — 3 cek pemilik kelas/santri (jenis
+  'tambah' pilih kelas + cek kepemilikan santri utk aksi massal)
+- frontend: `santri-saya`, `jurnal/page.tsx`, `SantriProgressReport.tsx`
+  filter kelas `.eq('guru_id')` → `.or(guru_id/guru_id_2)`
+`tambah_santri()`/`nonaktifkan_santri()`/`pindah_kelas_santri()`/
+`naikkan_jenjang_santri()` TIDAK disentuh — cabang guru-nya sudah dicabut
+(admin-only sejak migrasi 20260821180000).
+
+**Masih terbuka**: fitur Tabungan (guru terima setoran) masih
+`k.guru_id = p.guru_id` di beberapa policy/RPC — belum diminta.
 
 ---
 
