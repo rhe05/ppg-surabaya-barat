@@ -134,7 +134,8 @@ function TabunganContent() {
         const { data: dK } = await supabase
           .from('kelas')
           .select('id')
-          .eq('guru_id', guruId)
+          // guru utama ATAU guru gilir kedua (kelas.guru_id_2)
+          .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
           .is('deleted_at', null);
         const kelasIds = (dK ?? []).map((k) => k.id);
         if (kelasIds.length === 0) {

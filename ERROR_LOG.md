@@ -1261,8 +1261,19 @@ jalur guru mengubah/mengajukan data santri juga hanya kenal
 `naikkan_jenjang_santri()` TIDAK disentuh — cabang guru-nya sudah dicabut
 (admin-only sejak migrasi 20260821180000).
 
-**Masih terbuka**: fitur Tabungan (guru terima setoran) masih
-`k.guru_id = p.guru_id` di beberapa policy/RPC — belum diminta.
+**Lanjutan — Tabungan & monitoring hafalan** (migrasi `20260909120000`):
+- `tabungan_transaksi_insert` cabang guru (terima setoran santri kelas
+  yang dia ampu) → `p.guru_id IN (k.guru_id, k.guru_id_2)`. Jalur
+  penghimpun tidak diubah.
+- `jurnal_materi_hafalan_surat_select_scoped` +
+  `jurnal_materi_hafalan_doa_select_scoped` (tabel turunan monitoring
+  pengulangan, dibaca via RPC) → cabang guru pakai `IN (guru_id, guru_id_2)`.
+- frontend `tabungan/page.tsx` filter kelas → `.or`.
+Tidak ada fungsi RPC tabungan yang perlu diubah (`adalah_penghimpun`
+tidak menyentuh `kelas.guru_id`).
+
+**Tuntas**: semua jalur guru (jurnal, tilawati, data generus, tabungan,
+monitoring) kini mengenali guru gilir kedua.
 
 ---
 
