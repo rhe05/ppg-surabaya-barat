@@ -75,9 +75,11 @@ function DashboardContent() {
 
   if (!profile?.role) return <LayarMemuatDashboard />;
 
-  /* Penerobos Kelp tidak punya dashboard di sini — RequireAuth mengalihkan
-     ke /jamaah. Tahan di layar memuat supaya shell admin tidak berkedip. */
-  if (profile.role === 'penerobos') return <LayarMemuatDashboard />;
+  /* Penerobos Kelp / Ketua Muda-i tidak punya dashboard di sini —
+     RequireAuth mengalihkan ke app-nya. Tahan di layar memuat supaya
+     shell admin tidak berkedip. */
+  if (profile.role === 'penerobos' || profile.role === 'ketua_mudai')
+    return <LayarMemuatDashboard />;
 
   if (profile.role === 'guru') return <GuruDashboard />;
 

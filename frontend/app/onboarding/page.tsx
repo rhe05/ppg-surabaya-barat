@@ -32,7 +32,13 @@ import { useAuth } from '@/lib/auth-context';
 import { supabase } from '@/lib/supabase';
 import TinggiHalus from '@/components/ui/TinggiHalus';
 
-type Peran = 'guru' | 'admin_kelompok' | 'admin_desa' | 'admin_ppg';
+type Peran =
+  | 'guru'
+  | 'admin_kelompok'
+  | 'admin_desa'
+  | 'admin_ppg'
+  | 'penerobos'
+  | 'ketua_mudai';
 
 type KelompokTerbuka = {
   id: number;
@@ -76,15 +82,27 @@ const PERAN: {
   lingkup: 'kelompok' | 'desa' | 'ppg';
 }[] = [
   {
+    nilai: 'admin_kelompok',
+    judul: 'Admin Kelp',
+    ringkas: 'Mengelola santri, guru, dan jadwal satu kelompok',
+    lingkup: 'kelompok',
+  },
+  {
     nilai: 'guru',
     judul: 'Guru',
     ringkas: 'Mengisi absensi & jurnal KBM kelas yang diampu',
     lingkup: 'kelompok',
   },
   {
-    nilai: 'admin_kelompok',
-    judul: 'Admin Kelp',
-    ringkas: 'Mengelola santri, guru, dan jadwal satu kelompok',
+    nilai: 'ketua_mudai',
+    judul: 'Ketua Muda-i',
+    ringkas: 'Koordinator muda-mudi satu kelompok',
+    lingkup: 'kelompok',
+  },
+  {
+    nilai: 'penerobos',
+    judul: 'Penerobos Kelp',
+    ringkas: 'Mendata jamaah & kehadiran majlis taklim satu kelompok',
     lingkup: 'kelompok',
   },
   {

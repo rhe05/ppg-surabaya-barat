@@ -43,6 +43,10 @@ const HALAMAN_GURU = [
    app jamaah majlis taklim. Semua rute lain -> dialihkan ke /jamaah. */
 const HALAMAN_PENEROBOS = ['/jamaah'];
 
+/* Peran 'ketua_mudai' (Ketua Muda-i, migrasi 20260909180000) — untuk
+   sekarang belum punya aplikasi; diarahkan ke halaman "fitur menyusul". */
+const HALAMAN_KETUA_MUDAI = ['/ketua-mudai'];
+
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, profile, loading, profileError } = useAuth();
   const router = useRouter();
@@ -80,6 +84,14 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       !HALAMAN_PENEROBOS.some((h) => pathname === h || pathname.startsWith(h + '/'))
     ) {
       router.replace('/jamaah');
+    }
+    if (
+      !loading &&
+      profile?.role === 'ketua_mudai' &&
+      pathname &&
+      !HALAMAN_KETUA_MUDAI.some((h) => pathname === h || pathname.startsWith(h + '/'))
+    ) {
+      router.replace('/ketua-mudai');
     }
   }, [loading, session, profile, pathname, router]);
 
@@ -208,6 +220,19 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
         </div>
         <JamaahBottomNav />
         <BannerOffline adaBottomNav />
+      </div>
+    );
+  }
+
+  /* Peran 'ketua_mudai' — belum ada aplikasi; kolom 430px polos, isinya
+     halaman "fitur menyusul" (app/ketua-mudai/page.tsx). */
+  if (profile?.role === 'ketua_mudai') {
+    return (
+      <div className="min-h-screen w-full bg-border">
+        <div className="animasi-konten-muncul mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
+          {children}
+        </div>
+        <BannerOffline />
       </div>
     );
   }

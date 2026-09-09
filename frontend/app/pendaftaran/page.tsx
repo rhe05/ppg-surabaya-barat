@@ -24,6 +24,8 @@ const LABEL_PERAN: Record<string, string> = {
   admin_kelompok: 'Admin Kelp',
   admin_desa: 'Admin Desa',
   admin_ppg: 'Admin Aplikasi',
+  penerobos: 'Penerobos Kelp',
+  ketua_mudai: 'Ketua Muda-i',
 };
 
 type Status = 'menunggu' | 'disetujui' | 'ditolak';
