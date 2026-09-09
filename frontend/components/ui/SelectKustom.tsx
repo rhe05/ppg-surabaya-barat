@@ -71,6 +71,7 @@ export default function SelectKustom({
 
   useEffect(() => {
     if (terbuka) hitungPosisi();
+    else setPosisi(null); // jangan biarkan koordinat lama nyangkut saat dibuka lagi
   }, [terbuka, hitungPosisi]);
 
   useEffect(() => {
