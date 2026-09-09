@@ -136,6 +136,9 @@ export async function muatRingkasanJurnalPerKelas(
   kelompokId: number,
   tahun: number,
   bulan: number,
+  /* Kalau diisi -> hanya kelas yang diampu guru ini (utk kartu di layar
+     guru). Kosong -> semua kelas kelompok (utk admin). */
+  hanyaGuruId?: number | null,
 ): Promise<JurnalKelasRingkas[]> {
   const awal = `${tahun}-${dua(bulan)}-01`;
   const akhirTgl = new Date(tahun, bulan, 0).getDate();
@@ -146,7 +149,7 @@ export async function muatRingkasanJurnalPerKelas(
   const [kelasRes, materiRes, santriRes, tilawatiRes, izinRes, peta] = await Promise.all([
     supabase
       .from('kelas')
-      .select('id, nama, guru_id, santri_count, created_at, guru:guru_id(nama), kategori_kbm(nama)')
+      .select('id, nama, guru_id, guru_id_2, santri_count, created_at, guru:guru_id(nama), kategori_kbm(nama)')
       .eq('kelompok_id', kelompokId)
       .is('deleted_at', null)
       .order('jam_mulai'),
@@ -196,15 +199,20 @@ export async function muatRingkasanJurnalPerKelas(
   type Tersemat = { nama: string } | { nama: string }[] | null;
   const namaDari = (v: Tersemat) => (Array.isArray(v) ? v[0]?.nama : v?.nama) ?? null;
 
-  const kelasList = (kelasRes.data ?? []) as unknown as {
+  const kelasListSemua = (kelasRes.data ?? []) as unknown as {
     id: number;
     nama: string;
     guru_id: number | null;
+    guru_id_2: number | null;
     santri_count: number;
     created_at: string;
     guru: Tersemat;
     kategori_kbm: Tersemat;
   }[];
+  const kelasList =
+    hanyaGuruId != null
+      ? kelasListSemua.filter((k) => k.guru_id === hanyaGuruId || k.guru_id_2 === hanyaGuruId)
+      : kelasListSemua;
 
   /* Seberapa jauh bulan yang dilihat sudah berjalan (0-1). Bulan lampau = 1. */
   const skrg = new Date();

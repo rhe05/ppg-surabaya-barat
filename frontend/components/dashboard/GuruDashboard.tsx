@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import BellPermintaanGuru from '@/components/notifikasi/BellPermintaanGuru';
 import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
+import RingkasanJurnalKelp from '@/components/dashboard/RingkasanJurnalKelp';
 import PesanGalat from '@/components/ui/PesanGalat';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { tanggalLiburKelas, adalahAkhirPekan, type PetaOverride } from '@/lib/kalenderKelompok';
@@ -440,6 +441,16 @@ export default function GuruDashboard() {
           <div className="rounded-card border border-border bg-panel p-4 text-[12px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             Belum ada kelas yang terdaftar atas nama Anda.
           </div>
+        )}
+
+        {!loading && !error && guruId != null && kelas.length > 0 && (
+          <RingkasanJurnalKelp
+            kelompokId={kelompokId}
+            tahun={tahun}
+            bulan={bulan}
+            varian="guru"
+            guruId={guruId}
+          />
         )}
 
         {!loading &&

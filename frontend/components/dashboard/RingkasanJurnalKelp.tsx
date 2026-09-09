@@ -54,18 +54,28 @@ export default function RingkasanJurnalKelp({
   kelompokId,
   tahun,
   bulan,
+  varian = 'admin',
+  guruId = null,
 }: {
   kelompokId: number | null;
   tahun: number;
   bulan: number;
+  /* 'admin' -> semua kelas kelompok + tombol Kirim Pengingat.
+     'guru'  -> hanya kelas guru ini, tanpa tombol pengingat, framing
+                "status kelas saya" (Fase 2: pacing mengalir ke guru). */
+  varian?: 'admin' | 'guru';
+  guruId?: number | null;
 }) {
+  const utkGuru = varian === 'guru';
   const { profile } = useAuth();
   const toast = useToast();
   const [buka, setBuka] = useState(false);
+  const [dilipatManual, setDilipatManual] = useState(false);
   const [loading, setLoading] = useState(true);
   const [list, setList] = useState<JurnalKelasRingkas[]>([]);
   const [kelasTerbuka, setKelasTerbuka] = useState<number | null>(null);
   const [mengirim, setMengirim] = useState<number | null>(null);
+  const [mengirimSemua, setMengirimSemua] = useState(false);
 
   const muat = useCallback(async () => {
     if (!kelompokId) {
@@ -75,38 +85,57 @@ export default function RingkasanJurnalKelp({
     }
     setLoading(true);
     try {
-      setList(await muatRingkasanJurnalPerKelas(kelompokId, tahun, bulan));
+      setList(
+        await muatRingkasanJurnalPerKelas(kelompokId, tahun, bulan, utkGuru ? guruId : null),
+      );
     } catch {
       setList([]);
     } finally {
       setLoading(false);
     }
-  }, [kelompokId, tahun, bulan]);
+  }, [kelompokId, tahun, bulan, utkGuru, guruId]);
 
   useEffect(() => {
     muat();
   }, [muat]);
 
+  /* Buka sendiri kalau ada kelas TERTINGGAL -- admin tidak perlu ingat
+     mengetuk. Dihormati kalau admin sudah melipat manual. */
+  useEffect(() => {
+    if (!dilipatManual && list.some((k) => k.kesehatan === 'tertinggal')) setBuka(true);
+  }, [list, dilipatManual]);
+
+  function catatanKondisi(k: JurnalKelasRingkas): string {
+    return [
+      k.direncana === 0
+        ? 'belum ada rencana bulan ini'
+        : `${k.disampaikan}/${k.direncana} materi disampaikan`,
+      k.tidakTersampaikan > 0 ? `${k.tidakTersampaikan} tidak tersampaikan` : null,
+      k.tilawati &&
+      k.tilawati.santriDinilai >= 2 &&
+      k.tilawati.bb + k.tilawati.mb > k.tilawati.bsh + k.tilawati.bsb
+        ? 'Tilawati di bawah target'
+        : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+  }
+
+  // pernah diingatkan < 20 jam terakhir -> jangan spam saat "kirim semua"
+  const baruDiingatkan = (k: JurnalKelasRingkas) =>
+    k.pengingatTerakhir != null && Date.now() - new Date(k.pengingatTerakhir).getTime() < 20 * 3_600_000;
+
   async function kirim(k: JurnalKelasRingkas) {
     if (!kelompokId) return;
     setMengirim(k.kelasId);
     try {
-      const ringkasKondisi = [
-        k.direncana === 0 ? 'belum ada rencana bulan ini' : `${k.disampaikan}/${k.direncana} materi disampaikan`,
-        k.tidakTersampaikan > 0 ? `${k.tidakTersampaikan} tidak tersampaikan` : null,
-        k.tilawati && k.tilawati.santriDinilai >= 2 && k.tilawati.bb + k.tilawati.mb > k.tilawati.bsh + k.tilawati.bsb
-          ? 'Tilawati di bawah target'
-          : null,
-      ]
-        .filter(Boolean)
-        .join(', ');
       await kirimPengingatJurnal({
         kelompokId,
         kelasId: k.kelasId,
         kelasNama: k.kelasNama,
         guruId: k.guruId,
         guruNama: k.guruNama,
-        catatan: ringkasKondisi,
+        catatan: catatanKondisi(k),
         dibuatOleh: profile?.id ?? null,
       });
       toast.sukses(`Pengingat terkirim ke ${k.guruNama} (lewat lonceng).`);
@@ -118,33 +147,79 @@ export default function RingkasanJurnalKelp({
     }
   }
 
+  async function kirimSemua() {
+    if (!kelompokId) return;
+    const target = list.filter((k) => k.kesehatan !== 'sehat' && !baruDiingatkan(k));
+    if (target.length === 0) {
+      toast.info('Semua kelas yang perlu sudah diingatkan dalam 20 jam terakhir.');
+      return;
+    }
+    setMengirimSemua(true);
+    let ok = 0;
+    for (const k of target) {
+      try {
+        await kirimPengingatJurnal({
+          kelompokId,
+          kelasId: k.kelasId,
+          kelasNama: k.kelasNama,
+          guruId: k.guruId,
+          guruNama: k.guruNama,
+          catatan: catatanKondisi(k),
+          dibuatOleh: profile?.id ?? null,
+        });
+        ok += 1;
+      } catch {
+        /* lanjut ke kelas berikutnya */
+      }
+    }
+    setMengirimSemua(false);
+    toast.sukses(`Pengingat terkirim ke ${ok} kelas.`);
+    await muat();
+  }
+
   if (!kelompokId) return null;
 
   const ringkas = ringkasKelompokDariKelas(list);
   const perluTindak = ringkas.kelasTertinggal + ringkas.kelasPerhatian;
   const headline =
     list.length === 0
-      ? 'Belum ada kelas dengan santri'
+      ? utkGuru
+        ? 'Belum ada kelas'
+        : 'Belum ada kelas dengan santri'
       : perluTindak === 0
-        ? 'Semua kelas sehat bulan ini'
-        : `${perluTindak} dari ${ringkas.totalKelas} kelas perlu perhatian`;
+        ? utkGuru
+          ? 'Semua kelasmu on-track bulan ini'
+          : 'Semua kelas sehat bulan ini'
+        : utkGuru
+          ? `${perluTindak} kelas perlu kamu kejar bulan ini`
+          : `${perluTindak} dari ${ringkas.totalKelas} kelas perlu perhatian`;
   const headlineWarna =
     perluTindak === 0 ? 'var(--sage)' : ringkas.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
 
   if (loading) return <Skeleton className="mb-4 h-[92px] w-full rounded-card" />;
 
+  const perluAksi = ringkas.kelasTertinggal > 0;
+
   return (
-    <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+    <div
+      className="mb-4 rounded-card border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
+      style={perluAksi ? { borderColor: 'var(--red)', borderWidth: 1.5 } : { borderColor: 'var(--border)' }}
+    >
       <button
         type="button"
-        onClick={() => setBuka((v) => !v)}
+        onClick={() => {
+          setBuka((v) => {
+            if (v) setDilipatManual(true);
+            return !v;
+          });
+        }}
         className="flex w-full cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-0 text-left"
       >
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
             <span className="flex items-center gap-1.5 text-[13px] font-bold text-text">
               <ClipboardList size={14} className="text-text-dim" />
-              Ringkasan Jurnal Pembelajaran
+              {utkGuru ? 'Status Jurnal Kelas Saya' : 'Ringkasan Jurnal Pembelajaran'}
             </span>
             <ChevronDown
               size={14}
@@ -215,6 +290,21 @@ export default function RingkasanJurnalKelp({
           {list.length === 0 && (
             <p className="text-[12.5px] text-text-dim">Belum ada kelas dengan santri di kelompok ini.</p>
           )}
+
+          {!utkGuru && perluTindak > 0 && (
+            <button
+              type="button"
+              disabled={mengirimSemua}
+              onClick={kirimSemua}
+              className="flex items-center justify-center gap-2 rounded-[var(--radius-lg)] border border-brass bg-brass px-4 py-2.5 text-[12.5px] font-bold text-white disabled:opacity-50"
+            >
+              <Send size={13} />
+              {mengirimSemua
+                ? 'Mengirim…'
+                : `Kirim pengingat ke semua yang perlu (${perluTindak})`}
+            </button>
+          )}
+
           {list.map((k) => {
             const s = SEHAT[k.kesehatan];
             const t = k.tilawati;
@@ -245,7 +335,8 @@ export default function RingkasanJurnalKelp({
                     />
                   </div>
                   <div className="mt-1 text-[12px] font-semibold text-text-dim">
-                    {k.guruNama} · {k.santriCount} santri ·{' '}
+                    {!utkGuru && `${k.guruNama} · `}
+                    {k.santriCount} santri ·{' '}
                     {k.kelasBaru
                       ? 'kelas baru'
                       : k.disentuhTerakhir
@@ -324,8 +415,8 @@ export default function RingkasanJurnalKelp({
                   </div>
                 )}
 
-                {/* Aksi: Kirim Pengingat + jejak */}
-                {k.kesehatan !== 'sehat' && (
+                {/* Aksi: Kirim Pengingat + jejak (admin saja) */}
+                {!utkGuru && k.kesehatan !== 'sehat' && (
                   <div className="mt-3 flex items-center justify-between gap-2">
                     <span className="text-[10.5px] text-text-faint">
                       {k.pengingatTerakhir ? `Pengingat terakhir: ${lalu(k.pengingatTerakhir)}` : 'Belum pernah diingatkan'}
