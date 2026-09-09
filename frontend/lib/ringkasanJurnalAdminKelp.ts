@@ -446,6 +446,68 @@ export function ringkasKelompokDariKelas(list: JurnalKelasRingkas[]): RingkasanJ
   };
 }
 
+/* ── Pola alasan "tidak tersampaikan" lintas kelas (Fase 3, poin 8) ──
+   Kalau BEBERAPA kelas menyebut alasan yang MIRIP, itu bukan N masalah
+   terpisah -- bisa jadi sinyal se-kelompok (mis. penempatan/leveling
+   kelas kurang pas). Pengelompokan sederhana: dua alasan dianggap satu
+   pola kalau berbagi >= 2 kata penting (>3 huruf, bukan kata umum). */
+const KATA_UMUM = new Set([
+  'yang', 'anak', 'anak-anak', 'belum', 'sudah', 'tidak', 'karena', 'masih',
+  'untuk', 'pada', 'dari', 'dengan', 'akan', 'ada', 'juga', 'saya', 'kami',
+  'guru', 'kelas', 'materi', 'santri', 'generus', 'ini', 'itu', 'bisa', 'agar',
+  'atau', 'dan', 'saat', 'ketika', 'jadi', 'lagi', 'nya', 'para',
+]);
+
+function kataPenting(teks: string): string[] {
+  return [
+    ...new Set(
+      teks
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter((w) => w.length > 3 && !KATA_UMUM.has(w)),
+    ),
+  ];
+}
+
+export type PolaAlasan = { contoh: string; kelas: string[]; jumlahKelas: number };
+
+export function polaAlasanTidakTersampaikan(list: JurnalKelasRingkas[]): PolaAlasan[] {
+  // kumpulkan (alasan, kelasNama) unik per kelas
+  const entri: { teks: string; kelas: string; kata: string[] }[] = [];
+  for (const k of list) {
+    const unikKelas = new Set<string>();
+    for (const a of k.alasanTidakTersampaikan) {
+      const key = a.trim().toLowerCase();
+      if (key === '' || unikKelas.has(key)) continue;
+      unikKelas.add(key);
+      entri.push({ teks: a.trim(), kelas: k.kelasNama, kata: kataPenting(a) });
+    }
+  }
+  if (entri.length < 2) return [];
+
+  const dipakai = new Array(entri.length).fill(false);
+  const pola: PolaAlasan[] = [];
+  for (let i = 0; i < entri.length; i++) {
+    if (dipakai[i]) continue;
+    const grup = [i];
+    for (let j = i + 1; j < entri.length; j++) {
+      if (dipakai[j] || entri[j].kelas === entri[i].kelas) continue;
+      const shared = entri[j].kata.filter((w) => entri[i].kata.includes(w));
+      if (shared.length >= 2) {
+        grup.push(j);
+        dipakai[j] = true;
+      }
+    }
+    const kelasUnik = [...new Set(grup.map((g) => entri[g].kelas))];
+    if (kelasUnik.length >= 2) {
+      dipakai[i] = true;
+      pola.push({ contoh: entri[i].teks, kelas: kelasUnik, jumlahKelas: kelasUnik.length });
+    }
+  }
+  return pola.sort((a, b) => b.jumlahKelas - a.jumlahKelas);
+}
+
 /* Kirim pengingat jurnal ke guru sebuah kelas: catat di jurnal_pengingat
    + buat pengumuman utk lonceng guru. `catatan` = ringkasan kondisi. */
 export async function kirimPengingatJurnal(params: {

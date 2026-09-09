@@ -22,6 +22,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import {
   muatRingkasanJurnalPerKelas,
   ringkasKelompokDariKelas,
+  polaAlasanTidakTersampaikan,
   kirimPengingatJurnal,
   type JurnalKelasRingkas,
   type KesehatanJurnal,
@@ -199,6 +200,7 @@ export default function RingkasanJurnalKelp({
   if (loading) return <Skeleton className="mb-4 h-[92px] w-full rounded-card" />;
 
   const perluAksi = ringkas.kelasTertinggal > 0;
+  const pola = utkGuru ? [] : polaAlasanTidakTersampaikan(list);
 
   return (
     <div
@@ -289,6 +291,24 @@ export default function RingkasanJurnalKelp({
         <div className="mt-4 flex flex-col gap-2.5 border-t border-border pt-4">
           {list.length === 0 && (
             <p className="text-[12.5px] text-text-dim">Belum ada kelas dengan santri di kelompok ini.</p>
+          )}
+
+          {pola.length > 0 && (
+            <div className="rounded-[var(--radius-lg)] border border-[#FDE68A] bg-[#FFFBEB] p-3 text-[11.5px] leading-snug text-[#92400E]">
+              <div className="mb-1 flex items-center gap-1.5 font-bold">
+                <AlertTriangle size={13} />
+                Pola terdeteksi — mungkin bukan masalah per-kelas
+              </div>
+              {pola.map((p, i) => (
+                <div key={i} className="mt-1">
+                  <span className="font-semibold">{p.jumlahKelas} kelas</span> menyebut alasan mirip:
+                  “{p.contoh}” <span className="text-[#B45309]">({p.kelas.join(', ')})</span>
+                </div>
+              ))}
+              <div className="mt-1.5 text-[10.5px] text-[#B45309]">
+                Pertimbangkan tinjau penempatan/leveling kelas, atau bahas bersama para guru.
+              </div>
+            </div>
           )}
 
           {!utkGuru && perluTindak > 0 && (
