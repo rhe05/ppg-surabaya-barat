@@ -63,12 +63,15 @@ export default function UnduhDataSheet({
   onTutup,
   data,
   namaKelas,
+  namaKelompok,
 }: {
   terbuka: boolean;
   onTutup: () => void;
   data: SantriRow[];
   /* Nama kelas ngaji yang sedang dibuka, mis. "1 & 2" atau "PAUD/TK". */
   namaKelas: string;
+  /* Nama kelompok guru (tanpa awalan "Kelp") — utk kop PDF. */
+  namaKelompok?: string | null;
 }) {
   const [format, setFormat] = useState<Format>(bacaFormat);
   const [dipilih, setDipilih] = useState<Set<string>>(bacaPilihanKolom);
@@ -138,6 +141,7 @@ export default function UnduhDataSheet({
           namaBerkas,
           judul: 'Data Generus',
           subjudul: `Kelas ${namaKelas} · ${data.length} generus`,
+          kelompok: namaKelompok ?? undefined,
           headers,
           rows,
         });

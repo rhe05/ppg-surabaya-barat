@@ -12,23 +12,59 @@ const HIJAU: [number, number, number] = [21, 101, 52]; // #156534 — header bra
 const HIJAU_MUDA: [number, number, number] = [240, 253, 244]; // #F0FDF4 — baris zebra
 const ABU: [number, number, number] = [100, 116, 139]; // #64748B — teks sekunder
 
+/* Logo Ruang Ngaji — 149×135 px (public/logo-ruang-ngaji.png). Rasio
+   dipakai apa adanya supaya tidak gepeng. */
+const LOGO_URL = '/logo-ruang-ngaji.png';
+const LOGO_RASIO = 149 / 135;
+
+/* Ambil logo sekali sebagai data URL untuk doc.addImage. Aset statis
+   satu-origin (±9 KB) — nol Supabase. Kalau gagal, kop tetap dibuat
+   tanpa logo. */
+async function ambilLogo(): Promise<string | null> {
+  try {
+    const res = await fetch(LOGO_URL);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise<string | null>((resolve) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(typeof fr.result === 'string' ? fr.result : null);
+      fr.onerror = () => resolve(null);
+      fr.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 export type OpsiUnduhPdf = {
   /* Nama berkas tanpa ekstensi. */
   namaBerkas: string;
-  /* Judul besar di kiri-atas, mis. "Data Generus". */
+  /* Judul di kanan-atas, mis. "Data Generus". */
   judul: string;
   /* Baris kecil di bawah judul, mis. "Kelas 1 & 2 · 12 generus". */
   subjudul: string;
+  /* Nama kelompok (tanpa awalan "Kelp"), mis. "Petemon" — dipakai di
+     keterangan kanan-atas "Data Generus - Kelp Petemon". */
+  kelompok?: string;
   headers: string[];
   rows: string[][];
 };
 
-export async function unduhPdf({ namaBerkas, judul, subjudul, headers, rows }: OpsiUnduhPdf) {
-  const [{ jsPDF }, autoTableMod] = await Promise.all([
+export async function unduhPdf({
+  namaBerkas,
+  judul,
+  subjudul,
+  kelompok,
+  headers,
+  rows,
+}: OpsiUnduhPdf) {
+  const [{ jsPDF }, autoTableMod, logo] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
+    ambilLogo(),
   ]);
   const autoTable = autoTableMod.default;
+  const keteranganKanan = kelompok ? `${judul} - Kelp ${kelompok}` : judul;
 
   /* > 5 kolom → lanskap supaya kolom tidak remuk. */
   const lanskap = headers.length > 5;
@@ -44,24 +80,35 @@ export async function unduhPdf({ namaBerkas, judul, subjudul, headers, rows }: O
   });
 
   /* --- Kepala halaman ber-brand --- */
+  const BAND = 24; // tinggi pita hijau (mm)
   function gambarKepala() {
     doc.setFillColor(...HIJAU);
-    doc.rect(0, 0, lebarHal, 22, 'F');
+    doc.rect(0, 0, lebarHal, BAND, 'F');
+
+    /* Kiri: logo + wordmark. Logo tegak di tengah pita, rasio asli. */
+    let xTeks = M;
+    if (logo) {
+      const hLogo = 13;
+      const wLogo = hLogo * LOGO_RASIO;
+      doc.addImage(logo, 'PNG', M, (BAND - hLogo) / 2, wLogo, hLogo);
+      xTeks = M + wLogo + 4;
+    }
     doc.setTextColor(255, 255, 255);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.text('Ruang Ngaji', M, 10);
+    doc.setFontSize(14);
+    doc.text('Ruang Ngaji', xTeks, 11);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text('PPG Surabaya Barat', M, 15.5);
+    doc.text('Platform Manajemen Ngaji', xTeks, 16.5);
 
+    /* Kanan: keterangan + konteks kelas + tanggal unduh. */
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(12);
-    doc.text(judul, lebarHal - M, 9, { align: 'right' });
+    doc.text(keteranganKanan, lebarHal - M, 10, { align: 'right' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
-    doc.text(subjudul, lebarHal - M, 14, { align: 'right' });
-    doc.text(`Diunduh ${tglCetak}`, lebarHal - M, 18, { align: 'right' });
+    doc.text(subjudul, lebarHal - M, 15, { align: 'right' });
+    doc.text(`Diunduh ${tglCetak}`, lebarHal - M, 19, { align: 'right' });
   }
 
   autoTable(doc, {

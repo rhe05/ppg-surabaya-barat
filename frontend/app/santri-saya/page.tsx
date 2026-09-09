@@ -576,7 +576,7 @@ function IkonKelas() {
 }
 
 function DataGenerusContent() {
-  const { profile } = useAuth();
+  const { profile, namaKelompok } = useAuth();
   const guruId = profile?.guru_id ?? null;
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
@@ -823,6 +823,7 @@ function DataGenerusContent() {
           onTutup={() => setUnduhTerbuka(false)}
           data={santri}
           namaKelas={kelasAktif.nama}
+          namaKelompok={namaKelompok}
         />
       )}
 
