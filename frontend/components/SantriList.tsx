@@ -5,40 +5,14 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import SantriForm, { KOLOM_SANTRI, type SantriRow } from '@/components/santri/SantriForm';
 import { unduhXlsx } from '@/lib/xlsx';
+import { KOLOM_EKSPOR_SANTRI } from '@/lib/kolomEksporSantri';
 import ImporSantri from '@/components/santri/ImporSantri';
 import RingkasanDesaGenerus from '@/components/santri/RingkasanDesaGenerus';
 import { JENJANG_URUT, WARNA_JENJANG } from '@/lib/jenjang';
 
-/* Kolom ekspor data generus. Baris yang diekspor = hasil saringan yang
-   sedang tampil, bukan seluruh tabel. */
-const KOLOM_EKSPOR_SANTRI: { judul: string; ambil: (s: SantriRow) => unknown }[] = [
-  { judul: 'NIS', ambil: (s) => s.nis },
-  { judul: 'Nama', ambil: (s) => s.nama },
-  { judul: 'Nama Panggilan', ambil: (s) => s.nama_panggilan },
-  { judul: 'Gender', ambil: (s) => s.gender },
-  { judul: 'Tempat Lahir', ambil: (s) => s.tempat_lahir },
-  { judul: 'Tanggal Lahir', ambil: (s) => s.tanggal_lahir },
-  { judul: 'Jenjang', ambil: (s) => s.jenjang_saat_ini },
-  { judul: 'Pendidikan', ambil: (s) => s.pendidikan },
-  { judul: 'Kelas Sekolah', ambil: (s) => s.kelas_sekolah },
-  { judul: 'Kelas Ngaji', ambil: (s) => s.kelas_ngaji },
-  { judul: 'Status Nikah', ambil: (s) => s.status_nikah },
-  { judul: 'Mulai Ngaji', ambil: (s) => s.mulai_ngaji },
-  { judul: 'Alamat', ambil: (s) => s.alamat },
-  { judul: 'RT', ambil: (s) => s.rt },
-  { judul: 'RW', ambil: (s) => s.rw },
-  { judul: 'Kelurahan', ambil: (s) => s.kelurahan },
-  { judul: 'Kecamatan', ambil: (s) => s.kecamatan },
-  { judul: 'Kabupaten/Kota', ambil: (s) => s.kabupaten_kota },
-  { judul: 'Provinsi', ambil: (s) => s.provinsi },
-  { judul: 'Kode Pos', ambil: (s) => s.kode_pos },
-  { judul: 'Nama Ayah', ambil: (s) => s.nama_ayah },
-  { judul: 'Nama Ibu', ambil: (s) => s.nama_ibu },
-  { judul: 'Nomor WA', ambil: (s) => s.nomor_wa },
-  { judul: 'Nomor WA Ayah', ambil: (s) => s.nomor_wa_ayah },
-  { judul: 'Nomor WA Ibu', ambil: (s) => s.nomor_wa_ibu },
-  { judul: 'Kelompok', ambil: (s) => s.kelompok_id },
-];
+/* Kolom ekspor data generus dipindah ke lib/kolomEksporSantri.ts (dipakai
+   bersama dgn UnduhDataSheet guru mobile). Baris yang diekspor di sini =
+   hasil saringan yang sedang tampil, bukan seluruh tabel. */
 
 const PAGE_SIZE = 10;
 

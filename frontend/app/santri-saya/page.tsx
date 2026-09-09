@@ -35,6 +35,7 @@ import {
   Check,
   CalendarDays,
   MoreVertical,
+  Download,
 } from 'lucide-react';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
@@ -45,6 +46,7 @@ import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriForm';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
+import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
 
 type Kelas = { id: number; nama: string; santri_count: number };
 
@@ -238,6 +240,7 @@ function TambahMenu({
   onPindahDomisili,
   onNaikKelas,
   onNonAktif,
+  onUnduh,
   bisaPindahKelas,
 }: {
   terbuka: boolean;
@@ -247,6 +250,7 @@ function TambahMenu({
   onPindahDomisili: () => void;
   onNaikKelas: () => void;
   onNonAktif: () => void;
+  onUnduh: () => void;
   bisaPindahKelas: boolean;
 }) {
   if (!terbuka) return null;
@@ -314,6 +318,18 @@ function TambahMenu({
         >
           <UserRoundX size={18} strokeWidth={2} className="shrink-0 text-red" />
           <span>Non Aktif</span>
+        </button>
+        <div className="my-1 h-px bg-border" />
+        <button
+          type="button"
+          onClick={() => {
+            onTutup();
+            onUnduh();
+          }}
+          className="flex w-full cursor-pointer items-center gap-2.5 rounded-[10px] border-none bg-transparent px-3 py-[11px] text-left text-[14px] font-semibold text-text active:bg-bg"
+        >
+          <Download size={18} strokeWidth={2} className="shrink-0 text-indigo" />
+          <span>Unduh Data</span>
         </button>
       </div>
     </>
@@ -581,6 +597,7 @@ function DataGenerusContent() {
   const [santriDiubah, setSantriDiubah] = useState<SantriRow | null>(null);
 
   const [menuTambahTerbuka, setMenuTambahTerbuka] = useState(false);
+  const [unduhTerbuka, setUnduhTerbuka] = useState(false);
   /* null = mode normal (tap kartu = buka Ubah). Selain itu = mode centang
      aksi massal -- tap kartu memilih/batal pilih, bukan buka form. Satu
      set state dipakai bergantian utk ke-4 aksi supaya UI kartu & bilah
@@ -800,6 +817,15 @@ function DataGenerusContent() {
         />
       )}
 
+      {kelasAktif && (
+        <UnduhDataSheet
+          terbuka={unduhTerbuka}
+          onTutup={() => setUnduhTerbuka(false)}
+          data={santri}
+          namaKelas={kelasAktif.nama}
+        />
+      )}
+
       {/* Toast "menunggu persetujuan" -- muncul sesaat tiap kali salah satu
           dari 5 aksi guru diajukan (migrasi 20260821180000), auto-hilang
           5 detik. fixed spt tombol/bilah lain di layar ini -- lihat
@@ -852,6 +878,7 @@ function DataGenerusContent() {
                 onPindahDomisili={() => mulaiModeMassal('pindah_domisili')}
                 onNaikKelas={() => mulaiModeMassal('naik')}
                 onNonAktif={() => mulaiModeMassal('non_aktif')}
+                onUnduh={() => setUnduhTerbuka(true)}
                 bisaPindahKelas={
                   (kelasKelompok.length ? kelasKelompok : kelasList).filter((k) => k.id !== kelasId)
                     .length > 0
