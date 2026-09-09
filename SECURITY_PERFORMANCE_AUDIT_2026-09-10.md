@@ -140,8 +140,8 @@ Postur umum **BAIK** — konvensi kuat & konsisten:
 - RLS pakai `auth_profile()` (`STABLE SECURITY DEFINER`) sebagai InitPlan — dievaluasi sekali per-statement, bukan per-baris.
 
 **Sisa yang masih terbuka dari `SUPABASE_RESOURCE_AUDIT.md` (prioritas turun drastis setelah P0 beres):**
-- **HIGH #2** — `AdminKelpDashboard.tsx`: query `guru`/`santri` tanpa `.eq('kelompok_id', …)` (murni andalkan RLS). Tambah filter eksplisit → bantu planner. Kecil (tabel guru/santri ~100 baris).
-- **HIGH #3** — Dashboard admin kelp = 8 round-trip terpisah saat mount. Konsolidasi ke lebih sedikit RPC.
+- ~~**HIGH #2**~~ — SUDAH diperbaiki (`AdminKelpDashboard.tsx` query `guru`/`santri` kini pakai `.eq('kelompok_id', …)`, dikonfirmasi malam ini).
+- **HIGH #3** — Dashboard admin kelp = 8 round-trip terpisah saat mount. Konsolidasi ke lebih sedikit RPC. Refactor sedang; kerjakan saat owner bisa memantau.
 - **#1 (CRITICAL lama)** — `AbsensiChart` / `AttendanceSummaryReport` sudah dibatasi 30 hari (`15eb83d`), tapi masih tarik baris mentah ke klien lalu hitung di JS + tanpa filter `kelompok_id`. Ideal: ganti ke RPC agregat sisi-server (pola `statistik_kehadiran` yang sudah ada). Menengah.
 
 **Bloat tabel `absensi`**: 12 MB untuk 3.450 baris (>50% dead tuple) akibat P0. Setelah tab runaway ditutup + migrasi rate-limit jalan, autovacuum akan menyusutkannya sendiri; kalau mau instan, owner bisa `VACUUM FULL public.absensi;` di SQL Editor saat sepi (mengunci tabel sebentar).
