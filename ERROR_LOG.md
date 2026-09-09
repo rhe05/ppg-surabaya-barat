@@ -1217,6 +1217,42 @@ atas teks Prota SUNGGUHAN dari produksi dan mencetak hasil per kelas.
 
 ---
 
+## #34 — Hafalan Surat & Hafalan Do'a di Tambah Materi Klasikal "tidak bisa dipencet" untuk guru di kelompok selain Kelp Petemon (2026-09-09)
+
+**Gejala** (keluhan guru Dara, Kelp Bangun Rejo / kelompok 6): di borang
+Tambah Materi Klasikal (Rencana Pembelajaran, guru mobile), cek-list
+Hafalan Surat dan Hafalan Do'a kosong / tidak bisa ditekan. Guru di Kelp
+Petemon (kelompok 1) tidak terdampak.
+
+**Akar masalah**: `RencanaPembelajaranView.tsx` memanggil
+`muatProtaKelompok(profile.scope_kelompok_id, tahun)`. Sejak Kurikulum
+jadi data BERSAMA (2026-08-22), SELURUH baris `kurikulum_prota` disimpan
+di `kelompok_id = 1` saja. Untuk guru di kelompok lain, query itu
+mengembalikan 0 baris → `opsiHafalanSurat` / `opsiHafalanDoa` kosong →
+tidak ada yang bisa dicentang. Kelp Petemon lolos hanya karena kebetulan
+`kelompok_id`-nya = 1. Diagnosis lewat SQL produksi:
+`select kelompok_id, count(*) from kurikulum_prota group by 1` → hanya
+`{kelompok_id:1, count:130}`.
+
+**Penanganan**: panggil `muatProtaKelompok(1, tahun)` (konstanta, id
+kelompok kurikulum bersama), samakan dengan `SantriProgressReport.tsx`
+dan `kurikulum/page.tsx` yang sudah pakai `KELOMPOK_KURIKULUM_BERSAMA_ID`.
+Efeknya juga tak lagi bergantung pada `profile.scope_kelompok_id`.
+
+**Bukan** masalah "Kelp Bangun Rejo belum aktif": kelompok 6 sudah
+`status_aktif='aktif'`, 4 akun guru aktif+terhubung, kelas & RLS jurnal
+benar.
+
+**Sisa yang belum ditangani** (di luar keluhan ini): `PencapaianMateriView.tsx`
+(Monitoring) masih memakai `muatProtaKelompok(kelompokId, tahun)` dari
+picker/scope — kemungkinan bug serupa untuk guru/admin kelompok ≠ 1.
+
+**Cara verifikasi**: login guru kelompok ≠ 1 → Rencana Pembelajaran →
+Tambah Materi Klasikal → cek-list Hafalan Surat & Hafalan Do'a terisi
+sesuai jenjang kelas dan bisa dicentang.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

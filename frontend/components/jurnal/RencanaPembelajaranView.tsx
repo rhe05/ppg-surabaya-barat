@@ -385,16 +385,19 @@ export default function RencanaPembelajaranView() {
   const [protaKelompok, setProtaKelompok] = useState<ProtaBaris[]>([]);
 
   useEffect(() => {
-    const kelompokId = profile?.scope_kelompok_id;
-    if (!kelompokId) return;
     let batal = false;
-    muatProtaKelompok(kelompokId, tahun).then((data) => {
+    /* Kurikulum adalah data BERSAMA, selalu tersimpan di kelompok_id=1
+       (lihat kurikulum/page.tsx KELOMPOK_KURIKULUM_BERSAMA_ID). Guru di
+       kelompok lain (mis. Kelp Bangun Rejo) pakai baris yang sama --
+       memakai scope_kelompok_id guru membuat daftar Hafalan Surat/Do'a
+       kosong sehingga cek-list-nya tak bisa dipencet. */
+    muatProtaKelompok(1, tahun).then((data) => {
       if (!batal) setProtaKelompok(data);
     });
     return () => {
       batal = true;
     };
-  }, [profile?.scope_kelompok_id, tahun]);
+  }, [tahun]);
 
   /* Saran "Materi Ngaji" disaring ke jenjang kelas ruang ini (diminta
      owner 2026-09-03: "jika kelas di bawah kelas 4 maka ... tidak
