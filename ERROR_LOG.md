@@ -1437,6 +1437,40 @@ tinggi tanpa sebab jelas. Laporan lengkap:
 
 ---
 
+## #39 — Pencapaian Tilawati salah & TIDAK BISA diperbaiki (tabel tanpa policy DELETE) (2026-09-10)
+
+**Gejala** (keluhan guru Ratna, Kelp Petemon): pencapaian Tilawati santri
+"Naira" kebaca Jilid 4 padahal seharusnya Jilid 2. Guru bertanya "di mana
+memperbaikinya" — dan memang **tidak ada** jalannya.
+
+**Akar masalah**:
+1. Kartu "Tilawati" di Pelaksanaan auto-prefill dari catatan terakhir:
+   kalau terakhir `naik` & halaman 44 → otomatis maju ke jilid berikutnya
+   halaman 1 (`lanjutkanTilawati`). Saat guru MENYUSULKAN beberapa hari
+   sekaligus lalu menekan "Naik" tiap hari, jilidnya melompat 2→3→4 tanpa
+   ia sadari.
+2. `tilawati_pelaksanaan` (migrasi 20260903120000) punya policy
+   INSERT/UPDATE/SELECT tapi **TIDAK ADA DELETE** → baris salah nyangkut
+   selamanya. "Pencapaian terakhir" (`lib/tilawati.ts` `muatTilawatiRingkas`)
+   dibaca dari baris **tanggal termuda** → ikut salah.
+3. Riwayat Pembelajaran > Tilawati menampilkan riwayat per hari TAPI
+   read-only — tak ada tombol hapus/koreksi.
+
+**Penanganan** (commit `c01750f`):
+- Migrasi `20260910120000_tilawati_delete.sql`: policy DELETE (cakupan =
+  UPDATE: guru atas kelasnya sendiri via `guru_id`/`guru_id_2`,
+  admin_kelompok se-kelompok, admin_ppg). ⚠️ owner run manual.
+- `RiwayatPembelajaranView.tsx` kartu Tilawati > "Buku Jilid": tombol
+  (x) per baris riwayat + konfirmasi Hapus/Batal inline → guru koreksi
+  sendiri.
+- `scripts/koreksi_tilawati_naira_petemon.sql` (opsional, owner
+  konfirmasi ke Ratna dulu).
+
+**Belum diubah** (sengaja): perilaku auto-prefill `lanjutkanTilawati` —
+owner yang memintanya (2026-09-03). Tombol hapus menutupi risikonya.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
