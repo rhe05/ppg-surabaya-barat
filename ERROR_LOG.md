@@ -1217,6 +1217,36 @@ atas teks Prota SUNGGUHAN dari produksi dan mencetak hasil per kelas.
 
 ---
 
+## #36 — Dropdown `SelectKustom` kepotong utk item paling bawah (Buku Jilid Tilawati) (2026-09-09)
+
+**Gejala** (tangkapan layar owner): di Pelaksanaan Pembelajaran → kartu
+"Buku Jilid" (Tilawati per santri), dropdown Buku Jilid santri PALING
+BAWAH (mis. Sheza) terpotong — pilihan di bawah "Jilid 1" tidak kelihatan
+dan tidak bisa di-scroll.
+
+**Akar masalah**: `components/ui/SelectKustom.tsx` memosisikan panel
+dropdown dengan `position: absolute` relatif wrapper-nya. Begitu komponen
+dipakai di dalam kartu ber-`overflow-hidden` (`.kartu-premium`, dan kartu
+section Tilawati juga `overflow-hidden` utk sudut membulat), panel yang
+menjulur ke bawah dipotong batas kartu. Komentar lama di file itu
+mengklaim "dipakai di konten yang TIDAK overflow-hidden" — asumsi itu
+tidak lagi benar.
+
+**Penanganan**: panel pindah ke `position: fixed` + koordinat dari
+`getBoundingClientRect()` tombol pemicu (SAMA teknik `TanggalPicker.tsx`)
+— `fixed` lolos dari `overflow-hidden` ancestor selama tak ada `transform`
+di ancestor (app ini memang menghindarinya, lihat komentar `konten-muncul`
+di globals.css). Tambah logika BALIK KE ATAS kalau ruang bawah < ~160px,
+dan tutup-saat-scroll (kecuali scroll di dalam daftar opsi sendiri).
+API komponen tidak berubah — perbaikan otomatis berlaku di semua
+pemakainya (Rencana/Pelaksanaan/Riwayat Pembelajaran, Monitoring).
+
+**Cara verifikasi**: buka Pelaksanaan Pembelajaran di HP, kelas dgn
+banyak santri, buka dropdown Buku Jilid santri paling bawah — panel
+muncul penuh (balik ke atas) dan semua pilihan bisa dipilih.
+
+---
+
 ## #35 — Guru gilir kedua (`kelas.guru_id_2`) tak bisa lihat/isi jurnal & tilawati kelas giliran-nya (2026-09-09)
 
 **Gejala**: admin kelp menaruh 2 guru di satu kelas via Data Kelas
