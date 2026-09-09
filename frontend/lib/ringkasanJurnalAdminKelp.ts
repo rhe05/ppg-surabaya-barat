@@ -95,6 +95,7 @@ function hitungKesehatan(k: {
   tidakTersampaikan: number;
   hariSejakDisentuh: number | null; // jurnal terakhir DIUBAH (updated_at) -- sinyal aktivitas guru
   porsiBulan: number; // 0-1: seberapa jauh bulan berjalan
+  hariBerjalan: number; // hari ke-N bulan itu (bulan lampau = jumlah hari sebulan)
   kelasBaru: boolean;
   tilawati: JurnalKelasRingkas['tilawati'];
 }): { kesehatan: KesehatanJurnal; kelasBaru: boolean } {
@@ -111,7 +112,7 @@ function hitungKesehatan(k: {
   const tertinggalLaju = k.porsiBulan > 0.5 && k.direncana > 0 && rasio < k.porsiBulan - 0.3;
 
   if (
-    (k.direncana === 0 && k.porsiBulan > 0.33) ||
+    (k.direncana === 0 && k.hariBerjalan >= 22) ||
     (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 21) ||
     k.tidakTersampaikan >= 2 ||
     tilawatiTertinggal
@@ -119,7 +120,7 @@ function hitungKesehatan(k: {
     return { kesehatan: 'tertinggal', kelasBaru: false };
   }
   if (
-    (k.direncana === 0 && k.porsiBulan > 0.15) ||
+    (k.direncana === 0 && k.hariBerjalan >= 15) ||
     (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 10) ||
     tertinggalLaju ||
     tilawatiLemah
@@ -210,6 +211,7 @@ export async function muatRingkasanJurnalPerKelas(
   const bulanIni = skrg.getFullYear() === tahun && skrg.getMonth() + 1 === bulan;
   const bulanLampau = tahun < skrg.getFullYear() || (tahun === skrg.getFullYear() && bulan < skrg.getMonth() + 1);
   const porsiBulan = bulanLampau ? 1 : bulanIni ? Math.min(1, skrg.getDate() / akhirTgl) : 0;
+  const hariBerjalan = bulanLampau ? akhirTgl : bulanIni ? skrg.getDate() : 0;
 
   const materiPerKelas = new Map<number, typeof materiRes.data>();
   for (const m of materiRes.data ?? []) {
@@ -378,6 +380,7 @@ export async function muatRingkasanJurnalPerKelas(
         tidakTersampaikan,
         hariSejakDisentuh,
         porsiBulan,
+        hariBerjalan,
         kelasBaru,
         tilawati,
       });
