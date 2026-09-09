@@ -1584,7 +1584,7 @@ export default function AdminKelpDashboard() {
               <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
                 Absensi yang sudah diinput guru untuk{' '}
                 {cakupanLibur === 'semua' ? 'tanggal ini' : 'kelas yang dipilih'} akan dikosongkan
-                otomatis (bisa dipulihkan admin PPG kalau keliru).
+                otomatis (bisa dipulihkan admin Aplikasi jika keliru).
               </p>
             ) : (
               <p className="mt-2 rounded-[var(--radius)] bg-[rgba(5,150,105,0.08)] px-3 py-2 text-[11.5px] leading-snug text-sage">
