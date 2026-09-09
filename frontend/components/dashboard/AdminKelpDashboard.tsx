@@ -86,6 +86,7 @@ import AdminHeader from '@/components/dashboard/AdminHeader';
 import Skeleton from '@/components/ui/Skeleton';
 import InfoTip from '@/components/ui/InfoTip';
 import RiwayatKehadiranKelasInline from '@/components/dashboard/RiwayatKehadiranKelasInline';
+import RingkasanJurnalKelp from '@/components/dashboard/RingkasanJurnalKelp';
 import {
   muatRingkasanBulan,
   muatRingkasanPerKelas,
@@ -1143,6 +1144,8 @@ export default function AdminKelpDashboard() {
             </div>
           </>
         )}
+
+        <RingkasanJurnalKelp kelompokId={kelompokId} tahun={tahun} bulan={bulan} />
 
         {guruIzin.length > 0 && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
