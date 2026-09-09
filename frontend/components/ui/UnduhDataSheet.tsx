@@ -86,6 +86,10 @@ export default function UnduhDataSheet({
 }) {
   const modeAdmin = Array.isArray(daftarKelas) && daftarKelas.length > 0;
 
+  /* Nama kelompok di DB sudah ber-awalan "Kelp " — buang dulu supaya tidak
+     jadi "Kelp Kelp Petemon" saat kita tambahkan awalannya sendiri. */
+  const kelompokBersih = (namaKelompok ?? '').replace(/^\s*kelp\s+/i, '').trim();
+
   const [format, setFormat] = useState<Format>(bacaFormat);
   const [dipilih, setDipilih] = useState<Set<string>>(bacaPilihanKolom);
   const [kelasDipilih, setKelasDipilih] = useState<Set<string>>(
@@ -199,7 +203,7 @@ export default function UnduhDataSheet({
       const tgl = `${dd}-${mm}-${now.getFullYear()}`;
       const namaBerkas = [
         'Data Generus',
-        namaKelompok ? `Kelp ${namaKelompok}` : null,
+        kelompokBersih ? `Kelp ${kelompokBersih}` : null,
         labelKelas,
         tgl,
       ]
@@ -222,7 +226,7 @@ export default function UnduhDataSheet({
           namaBerkas,
           judul: 'Data Generus',
           subjudul: `${labelKelas} · ${dataEfektif.length} generus`,
-          kelompok: namaKelompok ?? undefined,
+          kelompok: kelompokBersih || undefined,
           headers,
           rows,
         });
