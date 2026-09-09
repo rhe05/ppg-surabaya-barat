@@ -10,6 +10,7 @@ import { posisiTilawati } from './pedomanTilawati';
 export type TilawatiStatus = 'naik' | 'tetap';
 
 export type TilawatiHari = {
+  id: number;
   tanggal: string;
   jilid: string | null;
   halaman: string | null;
@@ -31,6 +32,7 @@ export type TilawatiRingkas = {
 };
 
 type BarisMentah = {
+  id: number;
   santri_id: number;
   tanggal: string;
   status: string | null;
@@ -48,7 +50,7 @@ export async function muatTilawatiRingkas(
 ): Promise<TilawatiRingkas[]> {
   const { data, error } = await supabase
     .from('tilawati_pelaksanaan')
-    .select('santri_id, tanggal, status, buku_jilid, halaman, santri:santri_id(nama)')
+    .select('id, santri_id, tanggal, status, buku_jilid, halaman, santri:santri_id(nama)')
     .eq('kelas_id', kelasId)
     .in('status', ['naik', 'tetap'])
     .gte('tanggal', awal)
@@ -75,7 +77,7 @@ export async function muatTilawatiRingkas(
     const st = (r.status === 'naik' || r.status === 'tetap' ? r.status : '') as TilawatiStatus | '';
     if (st === 'naik') cur.naik += 1;
     else if (st === 'tetap') cur.tetap += 1;
-    cur.hari.push({ tanggal: r.tanggal, jilid: r.buku_jilid, halaman: r.halaman, status: st });
+    cur.hari.push({ id: r.id, tanggal: r.tanggal, jilid: r.buku_jilid, halaman: r.halaman, status: st });
     if (r.tanggal >= cur.terakhir) {
       cur.terakhir = r.tanggal;
       cur.terakhirStatus = (r.status as TilawatiStatus | null) ?? '';

@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Calendar, Search, CheckCircle2, XCircle, Clock, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
@@ -79,6 +80,12 @@ export default function RiwayatPembelajaranView() {
   const [tilawatiRingkas, setTilawatiRingkas] = useState<TilawatiRingkas[]>([]);
   const [loadingTilawati, setLoadingTilawati] = useState(false);
   const [tilawatiTerbuka, setTilawatiTerbuka] = useState(true);
+  /* Koreksi catatan Buku Jilid yang salah -- id baris yg sedang
+     dikonfirmasi hapus (2026-09-10, keluhan guru Ratna: pencapaian
+     Tilawati tak bisa diperbaiki). DELETE ditahan RLS ke kelas guru
+     sendiri (migrasi 20260910120000). */
+  const [hapusTilawatiId, setHapusTilawatiId] = useState<number | null>(null);
+  const [menghapusTilawati, setMenghapusTilawati] = useState(false);
   const muatTilawati = useCallback(async () => {
     if (kelasId === '') {
       setTilawatiRingkas([]);
@@ -101,6 +108,21 @@ export default function RiwayatPembelajaranView() {
   useEffect(() => {
     muatTilawati();
   }, [muatTilawati]);
+
+  async function hapusCatatanTilawati(id: number) {
+    setMenghapusTilawati(true);
+    try {
+      const { error } = await supabase.from('tilawati_pelaksanaan').delete().eq('id', id);
+      if (error) throw new Error(error.message);
+      setHapusTilawatiId(null);
+      push('Catatan Buku Jilid dihapus.', 'sukses');
+      await muatTilawati();
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal menghapus catatan.', 'error');
+    } finally {
+      setMenghapusTilawati(false);
+    }
+  }
 
   useEffect(() => {
     if (guruId == null) return;
@@ -586,7 +608,7 @@ export default function RiwayatPembelajaranView() {
                             </div>
                             {s.hari.map((h) => (
                               <div
-                                key={h.tanggal}
+                                key={h.id}
                                 className="flex items-center justify-between gap-2 px-4 py-1 text-[12px]"
                               >
                                 <span className="min-w-0 truncate text-text-dim">
@@ -594,17 +616,47 @@ export default function RiwayatPembelajaranView() {
                                   {h.jilid ? ` · Jilid ${h.jilid}` : ''}
                                   {h.halaman ? ` hal ${h.halaman}` : ''}
                                 </span>
-                                {h.status && (
-                                  <span
-                                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                      h.status === 'naik'
-                                        ? 'bg-sage-lembut text-sage'
-                                        : 'bg-brass-lembut text-brass'
-                                    }`}
-                                  >
-                                    {h.status === 'naik' ? 'Naik' : 'Tetap'}
-                                  </span>
-                                )}
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  {h.status && (
+                                    <span
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                        h.status === 'naik'
+                                          ? 'bg-sage-lembut text-sage'
+                                          : 'bg-brass-lembut text-brass'
+                                      }`}
+                                    >
+                                      {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                                    </span>
+                                  )}
+                                  {hapusTilawatiId === h.id ? (
+                                    <span className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={menghapusTilawati}
+                                        onClick={() => hapusCatatanTilawati(h.id)}
+                                        className="rounded-full bg-red px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                                      >
+                                        Hapus
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setHapusTilawatiId(null)}
+                                        className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold text-text-dim"
+                                      >
+                                        Batal
+                                      </button>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      aria-label="Hapus catatan ini"
+                                      onClick={() => setHapusTilawatiId(h.id)}
+                                      className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  )}
+                                </span>
                               </div>
                             ))}
                           </div>
