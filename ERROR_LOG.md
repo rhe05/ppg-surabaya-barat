@@ -1415,9 +1415,17 @@ terpecahkan (`SUPABASE_RESOURCE_AUDIT.md` — audit kode 26 Agt menebak
    `absensi.n_tup_ins` berhenti naik.
 2. **Pagar server** — migrasi `20260910100000_rate_limit.sql`: tabel
    `laju_permintaan` + fungsi `batasi_laju(aksi, maks, detik)`;
-   `simpan_absensi_kelas` memanggil `batasi_laju('simpan_absensi',20,60)`
-   SEBELUM kerja berat. Panggilan berlebih ditolak dgn 1 upsert murah,
-   bukan seluruh RPC. ⚠️ Owner jalankan manual.
+   `simpan_absensi_kelas` memanggil `batasi_laju('simpan_absensi',20,60)`.
+   ⚠️ Owner jalankan manual.
+   **PERINGATAN**: `batasi_laju` sendirian TIDAK cukup — klien runaway
+   selalu `RAISE 40001` → PostgREST rollback SELURUH txn → increment
+   counter ikut hilang → pagar tak menggigit (`laju_permintaan` kosong,
+   n_tup_ins tetap naik ~550/dtk setelah migrasi pertama).
+2b. **Fast-path** — migrasi `20260910110000_absensi_fast_path.sql`:
+   `simpan_absensi_kelas` cek PALING DEPAN "apakah semua baris sudah ada
+   persis begini?" → kalau ya `RETURN {baru:0,diperbarui:0}` yang COMMIT
+   (tanpa speculative INSERT, tanpa 40001). Loop klien basi jadi = 1
+   SELECT ber-index lalu commit → `n_tup_ins` berhenti. ⚠️ Owner run juga.
 3. **Pagar klien** — `lib/jedaAksi.ts` (`useJedaAksi`), dipasang di
    tombol Simpan Input Kehadiran (`jedaMs: 2500`).
 

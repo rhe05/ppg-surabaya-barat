@@ -48,6 +48,21 @@ Tabel `laju_permintaan` + fungsi `batasi_laju(aksi, maks, detik)` + `simpan_abse
 
 **Jalankan**: `08_Development/tpq-app/supabase/migrations/20260910100000_rate_limit.sql` (idempoten, badan RPC disalin utuh dari produksi + 1 baris).
 
+> **UPDATE 2026-09-10 (setelah owner run migrasi pertama):** counter
+> `laju_permintaan` ternyata **KOSONG** & absensi.n_tup_ins masih naik
+> ~550/detik. Sebab: klien runaway selalu berakhir `RAISE 40001` →
+> PostgREST me-rollback SELURUH transaksi → increment counter `batasi_laju`
+> ikut hilang → pagar tak pernah menggigit.
+> **Perbaikan lanjutan — migrasi `20260910110000_absensi_fast_path.sql`**:
+> `simpan_absensi_kelas` dapat **fast-path** paling depan — kalau semua
+> baris yang dikirim sudah ada persis begitu (tanggal + status sama), RPC
+> langsung `RETURN {baru:0, diperbarui:0}` yang **COMMIT** tanpa speculative
+> INSERT / tanpa 40001. Loop klien basi (yang mengirim ulang data 26 Agt
+> tak berubah) jadi = 1 SELECT ber-index (`idx_absensi_santri_tanggal`)
+> lalu commit. `absensi.n_tup_ins` berhenti naik. Semantik anti-lost-update
+> tidak berubah (fast-path hanya kena kalau BENAR-BENAR tidak ada yang
+> berubah). **⚠️ Owner: run migrasi `20260910110000` ini juga.**
+
 ### Pagar sisi klien (sudah di-commit)
 
 - `lib/jedaAksi.ts` — hook `useJedaAksi(fn, {jedaMs})`: menolak pemanggilan ulang selama fn sebelumnya berjalan ATAU dalam `jedaMs` sejak mulai.
