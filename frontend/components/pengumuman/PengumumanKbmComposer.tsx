@@ -35,7 +35,7 @@ import {
 import {
   muatOverrideKelompok,
   buatCekNonaktif,
-  type OverrideKelompok,
+  type PetaOverride,
 } from '@/lib/kalenderKelompok';
 import { nonaktifAkhirPekanLibur } from '@/lib/liburNasional';
 
@@ -193,7 +193,7 @@ export default function PengumumanKbmComposer({
      yang ditandai "aktif" tetap boleh, yang ditandai "libur" ikut terkunci
      merah. Memakai helper bersama buatCekNonaktif, BUKAN aturan sendiri,
      supaya tidak pernah menyimpang dari layar absensi. */
-  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  const [overrideKelompok, setOverrideKelompok] = useState<PetaOverride>(new Map());
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;

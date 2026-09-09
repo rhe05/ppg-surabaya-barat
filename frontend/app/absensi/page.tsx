@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context';
 import RingkasanKelas from '@/components/absensi/RingkasanKelas';
 import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiView';
 import StatusModal from '@/components/absensi/StatusModal';
-import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatOverrideKelompok, buatCekNonaktif, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatKelasGuru, muatQuoteHarian } from '@/lib/dataGuru';
 
 const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
@@ -76,7 +76,7 @@ function AbsensiContent() {
      saat Simpan (handleSimpanGuru) -- keduanya WAJIB konsisten, kalau
      tidak guru bisa memilih tanggal di kalender tapi ditolak saat Simpan
      (atau sebaliknya). */
-  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  const [overrideKelompok, setOverrideKelompok] = useState<PetaOverride>(new Map());
   useEffect(() => {
     if (!kelompokId) return;
     let batal = false;

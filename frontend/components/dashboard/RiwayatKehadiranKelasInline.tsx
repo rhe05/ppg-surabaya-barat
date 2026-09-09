@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
-import { muatOverrideKelompok, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatOverrideKelompok, overrideUntukKelas, type PetaOverride } from '@/lib/kalenderKelompok';
 import { santriIdsKelasPadaPeriode } from '@/lib/riwayatKelas';
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';
@@ -53,7 +53,7 @@ export default function RiwayatKehadiranKelasInline({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [baris, setBaris] = useState<{ id: number; nama: string; sel: Record<string, Status> }[]>([]);
-  const [override, setOverride] = useState<Map<string, OverrideKelompok>>(new Map());
+  const [override, setOverride] = useState<PetaOverride>(new Map());
 
   useEffect(() => {
     let batal = false;
@@ -150,7 +150,7 @@ export default function RiwayatKehadiranKelasInline({
             {tanggalList.map((tgl) => {
               const d = new Date(tgl + 'T00:00:00');
               const namaLibur = LIBUR_NASIONAL_2026[tgl];
-              const ov = override.get(tgl);
+              const ov = overrideUntukKelas(override, tgl, kelasId);
               const liburKelompok = ov?.jenis === 'libur' ? ov.catatan || 'Libur' : null;
               const merah = !!namaLibur || !!liburKelompok;
               return (
@@ -183,7 +183,7 @@ export default function RiwayatKehadiranKelasInline({
                    di-soft-delete oleh bersihkanAbsensiTanggalLibur saat
                    Ringkasan Kehadiran dimuat; guard ini menjaga kalau
                    pemuatannya balapan. */
-                const libur = override.get(tgl)?.jenis === 'libur';
+                const libur = overrideUntukKelas(override, tgl, kelasId)?.jenis === 'libur';
                 const st = libur ? undefined : r.sel[tgl];
                 return (
                   <td key={tgl} className="border-r border-border px-1.5 py-1.5 text-center">

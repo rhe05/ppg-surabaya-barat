@@ -75,7 +75,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { saringAbsensiHariKerja, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { saringAbsensiHariKerja, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatKelasGuru, muatKalenderKelompok } from '@/lib/dataGuru';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
@@ -259,10 +259,13 @@ export default function GuruLaporanView() {
 
     /* Buang sesi Sabtu/Minggu & tanggal libur kelompok -- "Hari Aktif" &
        persentase kehadiran ikut definisi baru (2026-08-27). */
-    const override = profile?.scope_kelompok_id
+    const override: PetaOverride = profile?.scope_kelompok_id
       ? await muatKalenderKelompok(profile.scope_kelompok_id)
-      : new Map<string, OverrideKelompok>();
-    return { santri, absensi: saringAbsensiHariKerja(absensi, override) };
+      : new Map();
+    return {
+      santri,
+      absensi: saringAbsensiHariKerja(absensi, override, kelasId),
+    };
   }, [kelasId, kelasList, bulan, tahun, profile?.scope_kelompok_id]);
 
   async function siapkanLaporan() {

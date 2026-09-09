@@ -71,7 +71,12 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import KelasGate, { KelasGateItem } from '@/components/absensi/KelasGate';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
-import { muatOverrideKelompok, adalahAkhirPekan, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import {
+  muatOverrideKelompok,
+  overrideUntukKelas,
+  adalahAkhirPekan,
+  type PetaOverride,
+} from '@/lib/kalenderKelompok';
 import { santriIdsKelasPadaPeriode } from '@/lib/riwayatKelas';
 import { muatKelasGuru, buangSemuaSinggahan } from '@/lib/dataGuru';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
@@ -200,7 +205,7 @@ function RiwayatKehadiranContent() {
      mengubah warna kolom nasional itu -- persis prinsip lib/kalenderKelompok.ts
      ("kalender tanggal merah biarkan saja tetap merah"), cuma menambah
      kolom BARU yang merah kalau jenisnya 'libur'. */
-  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  const [overrideKelompok, setOverrideKelompok] = useState<PetaOverride>(new Map());
   useEffect(() => {
     if (!profile?.scope_kelompok_id) return;
     let batal = false;
@@ -396,9 +401,11 @@ function RiwayatKehadiranContent() {
   const hariAktif = useMemo(
     () =>
       tanggalDiisi.filter(
-        (t) => overrideKelompok.get(t)?.jenis !== 'libur' && !adalahAkhirPekan(t),
+        (t) =>
+          overrideUntukKelas(overrideKelompok, t, kelasId)?.jenis !== 'libur' &&
+          !adalahAkhirPekan(t),
       ).length,
-    [tanggalDiisi, overrideKelompok]
+    [tanggalDiisi, overrideKelompok, kelasId]
   );
 
   const semuaTanggal = useMemo(() => tanggalKerjaBulan(tahun, bulan), [tahun, bulan]);
@@ -701,7 +708,7 @@ function RiwayatKehadiranContent() {
                        ov.jenis === 'libur' di tanggal yang bukan tanggal
                        merah nasional. 'aktif' TIDAK diproses di sini
                        (bukan tujuannya kolom ini). */
-                    const ov = overrideKelompok.get(tgl);
+                    const ov = overrideUntukKelas(overrideKelompok, tgl, kelasId);
                     const liburKelompok = ov?.jenis === 'libur' ? (ov.catatan || 'Libur') : null;
                     const tandaiMerah = !!namaLibur || !!liburKelompok;
                     return (

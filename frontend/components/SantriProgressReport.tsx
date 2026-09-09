@@ -63,7 +63,7 @@ import { supabase } from '@/lib/supabase';
 import {
   muatOverrideKelompok,
   saringAbsensiHariKerja,
-  type OverrideKelompok,
+  type PetaOverride,
 } from '@/lib/kalenderKelompok';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
@@ -254,10 +254,10 @@ export default function SantriProgressReport() {
       /* Buang sesi Sabtu/Minggu & tanggal libur kelompok -- "Hari Aktif"
          & persentase kehadiran ikut definisi baru (2026-08-27). */
       const kelompokId = absensi.find((a) => a.kelompok_id != null)?.kelompok_id ?? null;
-      const override = kelompokId
+      const override: PetaOverride = kelompokId
         ? await muatOverrideKelompok(kelompokId)
-        : new Map<string, OverrideKelompok>();
-      const absensiHariKerja = saringAbsensiHariKerja(absensi, override);
+        : new Map();
+      const absensiHariKerja = saringAbsensiHariKerja(absensi, override, kelasId);
 
       const tanggalAktif = new Set(absensiHariKerja.map((a) => a.tanggal));
 

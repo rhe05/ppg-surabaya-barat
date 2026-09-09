@@ -100,6 +100,12 @@ import {
 } from '@/lib/ringkasanAdminKelp';
 
 type StatusKalenderHariIni = { id: number; jenis: 'aktif' | 'libur'; catatan: string | null } | null;
+type EntriKal = {
+  id: number;
+  jenis: 'aktif' | 'libur';
+  catatan: string | null;
+  kelas_ids: number[] | null;
+};
 type TitikTren = { tanggal: string; persen: number | null };
 type StatistikRingkas = { persen: number | null; tren: TitikTren[] };
 type HitungGenderKategori = { total: number; l: number; p: number };
@@ -382,9 +388,16 @@ export default function AdminKelpDashboard() {
      hari ini saat modal dibuka. */
   const [tanggalLibur, setTanggalLibur] = useState(tanggalHariIniLokal());
   /* Entri kalender_kelompok yang SUDAH ada utk `tanggalLibur` (dicek tiap
-     tanggal di modal berganti) -- kalau ada & jenisnya libur, modal
-     menampilkan tombol "Batalkan Libur" alih-alih "Konfirmasi". */
-  const [liburTanggalItu, setLiburTanggalItu] = useState<StatusKalenderHariIni>(null);
+     tanggal di modal berganti). Bisa 0-2 (satu 'libur' + satu 'aktif'),
+     masing-masing bisa se-kelompok (kelas_ids null) atau kelas tertentu.
+     Ditampilkan sbg daftar dgn tombol Batalkan per entri. */
+  const [entriTanggalIni, setEntriTanggalIni] = useState<EntriKal[]>([]);
+  /* Cakupan penandaan yang sedang disusun: seluruh kelompok atau kelas
+     tertentu (diminta owner 2026-09-09). */
+  const [cakupanLibur, setCakupanLibur] = useState<'semua' | 'kelas'>('semua');
+  const [kelasLiburIds, setKelasLiburIds] = useState<number[]>([]);
+  /* Daftar kelas kelompok (utk pilihan cakupan) -- dimuat saat modal buka. */
+  const [kelasKelpModal, setKelasKelpModal] = useState<{ id: number; nama: string }[]>([]);
   /* Admin kelp kini bisa menandai LIBUR maupun TETAP AKTIF dari modal yang
      sama (diminta owner 2026-08-28). "Tetap aktif" dipakai utk membuka
      kunci tanggal yang sebetulnya akhir pekan / tanggal merah nasional
@@ -519,11 +532,16 @@ export default function AdminKelpDashboard() {
     setMemuatKalender(true);
     const { data } = await supabase
       .from('kalender_kelompok')
-      .select('id, jenis, catatan')
+      .select('id, jenis, catatan, kelas_ids')
       .eq('kelompok_id', kelompokId)
-      .eq('tanggal', tanggalHariIniLokal())
-      .maybeSingle();
-    setKalenderHariIni((data as StatusKalenderHariIni) ?? null);
+      .eq('tanggal', tanggalHariIniLokal());
+    /* Kartu quick-toggle ini soal SELURUH kelompok -- hanya entri yg
+       kelas_ids-nya null yang mengubah statusnya. Penandaan per-kelas
+       tidak ditampilkan di sini (dikelola lewat modal). */
+    const seKelompok = ((data as EntriKal[] | null) ?? []).find((r) => r.kelas_ids == null);
+    setKalenderHariIni(
+      seKelompok ? { id: seKelompok.id, jenis: seKelompok.jenis, catatan: seKelompok.catatan } : null,
+    );
     setMemuatKalender(false);
   }, [kelompokId]);
 
@@ -533,6 +551,11 @@ export default function AdminKelpDashboard() {
 
   async function tandaiLiburHariIni() {
     if (!kelompokId || !alasanLibur.trim() || !tanggalLibur) return;
+    if (cakupanLibur === 'kelas' && kelasLiburIds.length === 0) {
+      setError('Pilih minimal satu kelas, atau ubah ke "Semua kelas".');
+      return;
+    }
+    const kelasIds = cakupanLibur === 'semua' ? null : [...kelasLiburIds];
     setSibukKalender(true);
     try {
       const { error: err } = await supabase.from('kalender_kelompok').insert({
@@ -540,14 +563,16 @@ export default function AdminKelpDashboard() {
         tanggal: tanggalLibur,
         jenis: jenisPenandaan,
         catatan: alasanLibur.trim(),
+        kelas_ids: kelasIds,
         dibuat_oleh: profile?.id ?? null,
       });
       if (err) {
         if (err.code === '23505') {
-          setError('Tanggal itu sudah ditandai di kalender kelompok.');
-          setModalLiburTerbuka(false);
-          setAlasanLibur('');
-          await muatKalenderHariIni();
+          setError(
+            `Sudah ada penandaan "${jenisPenandaan === 'libur' ? 'Libur' : 'Tetap Aktif'}" ` +
+              'untuk tanggal ini. Batalkan dulu di daftar di atas untuk menggantinya.',
+          );
+          await muatEntriTanggalIni();
           return;
         }
         throw new Error(err.message);
@@ -567,13 +592,32 @@ export default function AdminKelpDashboard() {
          KBM tetap berjalan, jadi absensi yang sudah diisi harus dibiarkan
          apa adanya (2026-08-28, saat opsi 'aktif' ditambahkan). */
       if (jenisPenandaan === 'libur') {
-        const { error: errWipe } = await supabase
-          .from('absensi')
-          .update({ deleted_at: new Date().toISOString() })
-          .eq('kelompok_id', kelompokId)
-          .eq('tanggal', tanggalLibur)
-          .is('deleted_at', null);
-        if (errWipe) throw new Error(errWipe.message);
+        if (kelasIds == null) {
+          const { error: errWipe } = await supabase
+            .from('absensi')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('kelompok_id', kelompokId)
+            .eq('tanggal', tanggalLibur)
+            .is('deleted_at', null);
+          if (errWipe) throw new Error(errWipe.message);
+        } else {
+          const { data: sList } = await supabase
+            .from('santri')
+            .select('id')
+            .eq('kelompok_id', kelompokId)
+            .in('kelas_id', kelasIds)
+            .is('deleted_at', null);
+          const sIds = (sList ?? []).map((s) => s.id);
+          if (sIds.length > 0) {
+            const { error: errWipe } = await supabase
+              .from('absensi')
+              .update({ deleted_at: new Date().toISOString() })
+              .eq('tanggal', tanggalLibur)
+              .in('santri_id', sIds)
+              .is('deleted_at', null);
+            if (errWipe) throw new Error(errWipe.message);
+          }
+        }
       }
 
       /* Pengumuman OTOMATIS (2026-08-24, diminta owner) -- begitu admin
@@ -587,13 +631,21 @@ export default function AdminKelpDashboard() {
          sudah berhasil) -- diam2 saja kalau pengumumannya gagal dibuat. */
       const hariIniStr = tanggalLibur;
       const [thnP, blnP, tglP] = hariIniStr.split('-').map(Number);
+      const namaKelasTerpilih =
+        kelasIds == null
+          ? null
+          : kelasKelpModal
+              .filter((k) => kelasIds.includes(k.id))
+              .map((k) => k.nama)
+              .join(', ');
+      const sufiksKelas = namaKelasTerpilih ? ` — Kelas: ${namaKelasTerpilih}` : '';
       try {
         await supabase.from('pengumuman').insert({
           kelompok_id: kelompokId,
           judul:
-            jenisPenandaan === 'libur'
+            (jenisPenandaan === 'libur'
               ? `Libur KBM (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`
-              : `KBM Tetap Masuk (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`,
+              : `KBM Tetap Masuk (${tglP} ${NAMA_BULAN[blnP - 1]} ${thnP})`) + sufiksKelas,
           isi: alasanLibur.trim(),
           tanggal: hariIniStr,
           dibuat_oleh: profile?.id ?? null,
@@ -602,11 +654,11 @@ export default function AdminKelpDashboard() {
         // Non-kritis -- penandaan kalender tetap berhasil walau ini gagal.
       }
 
-      setModalLiburTerbuka(false);
       setAlasanLibur('');
-      setTanggalLibur(tanggalHariIniLokal());
+      setCakupanLibur('semua');
+      setKelasLiburIds([]);
       setKalenderNonce((n) => n + 1);
-      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
+      await Promise.all([muatKalenderHariIni(), muatBelumIsi(), muatEntriTanggalIni()]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menandai libur.');
     } finally {
@@ -614,47 +666,58 @@ export default function AdminKelpDashboard() {
     }
   }
 
-  /* batalkanKalenderHariIni() DIHAPUS 2026-08-28: tombol "Batalkan" di
-     kartu sudah tidak ada -- pembatalan kini lewat modal yang sama
-     (batalkanLiburTanggalItu), yang bisa membatalkan tanggal APA PUN,
-     bukan cuma hari ini. */
+  /* batalkanKalenderHariIni() DIHAPUS 2026-08-28: pembatalan kini lewat
+     modal (batalkanEntriKalender per baris). */
 
-  useEffect(() => {
-    if (!modalLiburTerbuka || !kelompokId || !tanggalLibur) {
-      setLiburTanggalItu(null);
+  const muatEntriTanggalIni = useCallback(async () => {
+    if (!kelompokId || !tanggalLibur) {
+      setEntriTanggalIni([]);
       return;
     }
+    const { data } = await supabase
+      .from('kalender_kelompok')
+      .select('id, jenis, catatan, kelas_ids')
+      .eq('kelompok_id', kelompokId)
+      .eq('tanggal', tanggalLibur);
+    setEntriTanggalIni((data as EntriKal[] | null) ?? []);
+  }, [kelompokId, tanggalLibur]);
+
+  useEffect(() => {
+    if (!modalLiburTerbuka) {
+      setEntriTanggalIni([]);
+      return;
+    }
+    muatEntriTanggalIni();
+  }, [modalLiburTerbuka, muatEntriTanggalIni]);
+
+  /* Daftar kelas kelompok utk pilihan cakupan -- dimuat sekali saat modal
+     dibuka (kelas jarang berubah, tidak perlu ikut tiap ganti tanggal). */
+  useEffect(() => {
+    if (!modalLiburTerbuka || !kelompokId) return;
     let batal = false;
     supabase
-      .from('kalender_kelompok')
-      .select('id, jenis, catatan')
+      .from('kelas')
+      .select('id, nama')
       .eq('kelompok_id', kelompokId)
-      .eq('tanggal', tanggalLibur)
-      .maybeSingle()
+      .is('deleted_at', null)
+      .order('nama')
       .then(({ data }) => {
-        if (!batal) setLiburTanggalItu((data as StatusKalenderHariIni) ?? null);
+        if (!batal) setKelasKelpModal((data as { id: number; nama: string }[] | null) ?? []);
       });
     return () => {
       batal = true;
     };
-  }, [modalLiburTerbuka, kelompokId, tanggalLibur]);
+  }, [modalLiburTerbuka, kelompokId]);
 
-  async function batalkanLiburTanggalItu() {
-    if (!liburTanggalItu) return;
+  async function batalkanEntriKalender(id: number) {
     setSibukKalender(true);
     try {
-      const { error: err } = await supabase
-        .from('kalender_kelompok')
-        .delete()
-        .eq('id', liburTanggalItu.id);
+      const { error: err } = await supabase.from('kalender_kelompok').delete().eq('id', id);
       if (err) throw new Error(err.message);
-      setModalLiburTerbuka(false);
-      setAlasanLibur('');
-      setTanggalLibur(tanggalHariIniLokal());
       setKalenderNonce((n) => n + 1);
-      await Promise.all([muatKalenderHariIni(), muatBelumIsi()]);
+      await Promise.all([muatKalenderHariIni(), muatBelumIsi(), muatEntriTanggalIni()]);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Gagal membatalkan libur.');
+      setError(e instanceof Error ? e.message : 'Gagal membatalkan.');
     } finally {
       setSibukKalender(false);
     }
@@ -1372,7 +1435,7 @@ export default function AdminKelpDashboard() {
             onPilih={setTanggalLibur}
             onTutup={() => setPickerLiburBuka(false)}
           />
-          <div className="w-full max-w-[360px] rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
+          <div className="max-h-[85vh] w-full max-w-[360px] overflow-y-auto rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
             <div className="mb-4 text-[15px] font-extrabold text-text">Tandai Libur atau Aktif</div>
             <div className="mb-1.5 flex items-center gap-1.5">
               <span className="text-[12px] font-semibold text-text-dim">Tanggal</span>
@@ -1394,98 +1457,170 @@ export default function AdminKelpDashboard() {
               {fmtTglPanjang(tanggalLibur)}
               <CalendarDays size={15} className="shrink-0 text-text-faint" />
             </button>
-            {liburTanggalItu ? (
-              <div className="rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-3.5 py-3 text-[12.5px] text-[#92400E]">
-                Tanggal ini sudah ditandai{' '}
-                <span className="font-bold">
-                  {liburTanggalItu.jenis === 'libur' ? 'LIBUR' : 'TETAP AKTIF'}
-                </span>
-                {liburTanggalItu.catatan ? ` — ${liburTanggalItu.catatan}` : ''}.
-              </div>
-            ) : (
-              <>
-                <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
-                  Tandai sebagai
-                </label>
-                <div className="mb-3 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
-                  {(
-                    [
-                      { nilai: 'libur', label: 'Libur', bg: 'bg-[#B45309]' },
-                      { nilai: 'aktif', label: 'Tetap Aktif', bg: 'bg-sage' },
-                    ] as const
-                  ).map((o) => (
-                    <button
-                      key={o.nilai}
-                      type="button"
-                      onClick={() => setJenisPenandaan(o.nilai)}
-                      className={`min-w-0 flex-1 cursor-pointer truncate rounded-[calc(var(--radius)-3px)] border-none px-1 py-1.5 text-[12px] font-bold ${
-                        jenisPenandaan === o.nilai ? `${o.bg} text-white` : 'bg-transparent text-text-dim'
-                      }`}
+            {entriTanggalIni.length > 0 && (
+              <div className="mb-3 flex flex-col gap-1.5">
+                {entriTanggalIni.map((e) => {
+                  const namaKelas =
+                    e.kelas_ids == null
+                      ? 'Semua kelas'
+                      : kelasKelpModal
+                          .filter((k) => e.kelas_ids!.includes(k.id))
+                          .map((k) => k.nama)
+                          .join(', ') || `${e.kelas_ids.length} kelas`;
+                  return (
+                    <div
+                      key={e.id}
+                      className="flex items-start gap-2 rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-3 py-2 text-[12px] text-[#92400E]"
                     >
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-                <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
-                <textarea
-                  value={alasanLibur}
-                  onChange={(e) => setAlasanLibur(e.target.value)}
-                  placeholder={
-                    jenisPenandaan === 'libur'
-                      ? 'Misal: Hujan deras, jalan tidak bisa dilalui'
-                      : 'Misal: Ada kegiatan khusus, tetap masuk walau tanggal merah'
-                  }
-                  rows={3}
-                  className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
-                />
-                {jenisPenandaan === 'libur' ? (
-                  <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
-                    Absensi yang sudah diinput guru untuk tanggal ini akan
-                    dikosongkan otomatis (bisa dipulihkan admin PPG kalau keliru).
-                  </p>
-                ) : (
-                  <p className="mt-2 rounded-[var(--radius)] bg-[rgba(5,150,105,0.08)] px-3 py-2 text-[11.5px] leading-snug text-sage">
-                    Tanggal ini akan terbuka untuk guru walau jatuh di akhir pekan
-                    atau tanggal merah. Absensi yang sudah ada TIDAK dihapus.
-                  </p>
-                )}
-              </>
+                      <div className="min-w-0 flex-1">
+                        <span className="font-bold">
+                          {e.jenis === 'libur' ? 'LIBUR' : 'TETAP AKTIF'}
+                        </span>{' '}
+                        · {namaKelas}
+                        {e.catatan ? <span className="block text-[11px]">{e.catatan}</span> : null}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={sibukKalender}
+                        onClick={() => batalkanEntriKalender(e.id)}
+                        className="shrink-0 cursor-pointer rounded-full border border-[#B45309] px-2.5 py-1 text-[11px] font-bold text-[#B45309] disabled:opacity-50"
+                      >
+                        Batalkan
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             )}
+
+            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+              {entriTanggalIni.length > 0 ? 'Tambah penandaan' : 'Tandai sebagai'}
+            </label>
+            <div className="mb-3 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
+              {(
+                [
+                  { nilai: 'libur', label: 'Libur', bg: 'bg-[#B45309]' },
+                  { nilai: 'aktif', label: 'Tetap Aktif', bg: 'bg-sage' },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.nilai}
+                  type="button"
+                  onClick={() => setJenisPenandaan(o.nilai)}
+                  className={`min-w-0 flex-1 cursor-pointer truncate rounded-[calc(var(--radius)-3px)] border-none px-1 py-1.5 text-[12px] font-bold ${
+                    jenisPenandaan === o.nilai ? `${o.bg} text-white` : 'bg-transparent text-text-dim'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+
+            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+              Berlaku untuk
+            </label>
+            <div className="mb-2 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
+              {(
+                [
+                  { nilai: 'semua', label: 'Semua kelas' },
+                  { nilai: 'kelas', label: 'Kelas tertentu' },
+                ] as const
+              ).map((o) => (
+                <button
+                  key={o.nilai}
+                  type="button"
+                  onClick={() => setCakupanLibur(o.nilai)}
+                  className={`min-w-0 flex-1 cursor-pointer truncate rounded-[calc(var(--radius)-3px)] border-none px-1 py-1.5 text-[12px] font-bold ${
+                    cakupanLibur === o.nilai ? 'bg-brass text-white' : 'bg-transparent text-text-dim'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            {cakupanLibur === 'kelas' && (
+              <div className="mb-3 flex flex-wrap gap-1.5">
+                {kelasKelpModal.length === 0 ? (
+                  <span className="text-[12px] text-text-faint">Memuat kelas…</span>
+                ) : (
+                  kelasKelpModal.map((k) => {
+                    const dipilih = kelasLiburIds.includes(k.id);
+                    return (
+                      <button
+                        key={k.id}
+                        type="button"
+                        onClick={() =>
+                          setKelasLiburIds((c) =>
+                            c.includes(k.id) ? c.filter((x) => x !== k.id) : [...c, k.id],
+                          )
+                        }
+                        className={`cursor-pointer rounded-full border px-3 py-1.5 text-[12px] font-semibold ${
+                          dipilih
+                            ? 'border-brass bg-brass text-white'
+                            : 'border-border bg-panel text-text-dim'
+                        }`}
+                      >
+                        {k.nama}
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            )}
+
+            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
+            <textarea
+              value={alasanLibur}
+              onChange={(e) => setAlasanLibur(e.target.value)}
+              placeholder={
+                jenisPenandaan === 'libur'
+                  ? 'Misal: Hujan deras, jalan tidak bisa dilalui'
+                  : 'Misal: Ada kegiatan khusus, tetap masuk walau tanggal merah'
+              }
+              rows={3}
+              className="w-full resize-none rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-brass focus:shadow-[0_0_0_3px_rgba(217,119,6,0.1)] focus:outline-none"
+            />
+            {jenisPenandaan === 'libur' ? (
+              <p className="mt-2 rounded-[var(--radius)] bg-[#FEF2F2] px-3 py-2 text-[11.5px] leading-snug text-red">
+                Absensi yang sudah diinput guru untuk{' '}
+                {cakupanLibur === 'semua' ? 'tanggal ini' : 'kelas yang dipilih'} akan dikosongkan
+                otomatis (bisa dipulihkan admin PPG kalau keliru).
+              </p>
+            ) : (
+              <p className="mt-2 rounded-[var(--radius)] bg-[rgba(5,150,105,0.08)] px-3 py-2 text-[11.5px] leading-snug text-sage">
+                {cakupanLibur === 'semua' ? 'Tanggal ini' : 'Kelas yang dipilih'} akan terbuka untuk
+                guru walau jatuh di akhir pekan atau tanggal merah. Absensi yang sudah ada TIDAK
+                dihapus.
+              </p>
+            )}
+
             <div className="mt-4 flex gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   setModalLiburTerbuka(false);
                   setAlasanLibur('');
+                  setCakupanLibur('semua');
+                  setKelasLiburIds([]);
                   setTanggalLibur(tanggalHariIniLokal());
                 }}
                 className="flex-1 cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text active:scale-[0.98]"
               >
-                Batal
+                Tutup
               </button>
-              {liburTanggalItu ? (
-                <button
-                  type="button"
-                  disabled={sibukKalender}
-                  onClick={batalkanLiburTanggalItu}
-                  className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {sibukKalender
-                    ? 'Membatalkan...'
-                    : liburTanggalItu.jenis === 'libur'
-                      ? 'Batalkan Libur'
-                      : 'Batalkan Penandaan'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  disabled={!alasanLibur.trim() || !tanggalLibur || sibukKalender}
-                  onClick={tandaiLiburHariIni}
-                  className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {sibukKalender ? 'Menyimpan...' : 'Konfirmasi'}
-                </button>
-              )}
+              <button
+                type="button"
+                disabled={
+                  !alasanLibur.trim() ||
+                  !tanggalLibur ||
+                  sibukKalender ||
+                  (cakupanLibur === 'kelas' && kelasLiburIds.length === 0)
+                }
+                onClick={tandaiLiburHariIni}
+                className="flex-1 cursor-pointer rounded-[var(--radius)] border border-[#B45309] bg-[#B45309] px-4 py-2.5 text-[13px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {sibukKalender ? 'Menyimpan...' : 'Konfirmasi'}
+              </button>
             </div>
           </div>
         </div>

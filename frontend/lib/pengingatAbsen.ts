@@ -20,7 +20,12 @@
    bisa py absensi. */
 
 import { supabase } from './supabase';
-import { muatOverrideKelompok, buatCekNonaktif } from './kalenderKelompok';
+import {
+  muatOverrideKelompok,
+  buatCekNonaktif,
+  overrideUntukKelas,
+  type PetaOverride,
+} from './kalenderKelompok';
 
 const JUMLAH_HARI_DICEK = 7;
 
@@ -37,7 +42,8 @@ export async function hitungAbsenBelumDiisi(
 ): Promise<AbsenHilang[]> {
   if (kelas.length === 0) return [];
 
-  const override = kelompokId != null ? await muatOverrideKelompok(kelompokId) : new Map();
+  const override: PetaOverride =
+    kelompokId != null ? await muatOverrideKelompok(kelompokId) : new Map();
   const cekNonaktif = buatCekNonaktif(override);
 
   const kandidat: string[] = [];
@@ -88,6 +94,9 @@ export async function hitungAbsenBelumDiisi(
   const daftar: AbsenHilang[] = [];
   for (const k of kelas) {
     for (const tgl of kandidat) {
+      /* `kandidat` sudah membuang libur seluruh kelompok; lewati jg
+         tanggal yg cuma kelas ini yang libur. */
+      if (overrideUntukKelas(override, tgl, k.id)?.jenis === 'libur') continue;
       if (!terisi.get(k.id)?.has(tgl)) {
         daftar.push({ kelasId: k.id, kelasNama: k.nama, tanggal: tgl });
       }

@@ -11,7 +11,9 @@ import { supabase } from './supabase';
 import {
   muatOverrideKelompok,
   buatCekNonaktif,
+  overrideUntukKelas,
   tanggalLiburKelompok,
+  tanggalLiburKelas,
   bersihkanAbsensiTanggalLibur,
   adalahAkhirPekan,
 } from './kalenderKelompok';
@@ -91,8 +93,8 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
      dikosongkan (self-heal, lihat bersihkanAbsensiTanggalLibur) LALU
      dikeluarkan dari "Hari Aktif" (guard tambahan utk jendela singkat
      sebelum wipe kelar). Diminta owner 2026-08-27. */
-  const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
-  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, liburKelp);
+  const petaLibur = await muatOverrideKelompok(kelompokId);
+  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, petaLibur);
 
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')
@@ -160,7 +162,9 @@ async function muatRingkasanRentang(kelompokId: number, awal: string, akhir: str
 
   const hariAktifTerbanyak = Math.max(
     0,
-    ...[...tanggalPerKelas.values()].map((s) => hitungHariAktif(s, liburKelp)),
+    ...[...tanggalPerKelas.entries()].map(([kId, s]) =>
+      hitungHariAktif(s, tanggalLiburKelas(petaLibur, kId)),
+    ),
   );
 
   return {
@@ -322,8 +326,8 @@ export async function muatRingkasanPerKelas(
   const kelasIds = kelasAktif.map((k) => k.id);
   if (kelasIds.length === 0) return [];
 
-  const liburKelp = tanggalLiburKelompok(await muatOverrideKelompok(kelompokId));
-  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, liburKelp);
+  const petaLibur = await muatOverrideKelompok(kelompokId);
+  await bersihkanAbsensiTanggalLibur(kelompokId, awal, akhir, petaLibur);
 
   const { data: santriData, error: errSantri } = await supabase
     .from('santri')
@@ -381,7 +385,7 @@ export async function muatRingkasanPerKelas(
       jamMulai: k.jam_mulai,
       jamSelesai: k.jam_selesai,
       santriCount: k.santri_count,
-      hariAktif: acc ? hitungHariAktif(acc.tanggal, liburKelp) : 0,
+      hariAktif: acc ? hitungHariAktif(acc.tanggal, tanggalLiburKelas(petaLibur, k.id)) : 0,
       hadir: acc?.hadir ?? 0,
       izin: acc?.izin ?? 0,
       sakit: acc?.sakit ?? 0,
@@ -503,13 +507,19 @@ export async function muatAbsensiBelumDiisiBulan(
   return kelasAktif
     .map((k) => {
       const set = terisi.get(k.id);
-      const jumlahHari = kandidat.filter((tgl) => !set?.has(tgl)).length;
+      /* Kandidat sudah membuang libur SELURUH kelompok; di sini buang jg
+         tanggal yg cuma kelas ini yang libur (tidak ada KBM -> bukan
+         "belum diisi"). */
+      const hariKelas = kandidat.filter(
+        (tgl) => overrideUntukKelas(override, tgl, k.id)?.jenis !== 'libur',
+      );
+      const jumlahHari = hariKelas.filter((tgl) => !set?.has(tgl)).length;
       return {
         kelasId: k.id,
         kelasNama: k.nama,
         guruNama: namaDari(k.guru) ?? '-',
         jumlahHari,
-        totalHari: kandidat.length,
+        totalHari: hariKelas.length,
       };
     })
     .filter((k) => k.jumlahHari > 0)

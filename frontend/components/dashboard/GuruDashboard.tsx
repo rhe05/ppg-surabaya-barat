@@ -9,7 +9,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import PengingatAbsenBanner from '@/components/dashboard/PengingatAbsenBanner';
 import PesanGalat from '@/components/ui/PesanGalat';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
-import { tanggalLiburKelompok, adalahAkhirPekan } from '@/lib/kalenderKelompok';
+import { tanggalLiburKelas, adalahAkhirPekan, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatKelasGuru, muatKalenderKelompok, buangSemuaSinggahan } from '@/lib/dataGuru';
 
 type Tersemat = { nama: string } | { nama: string }[] | null;
@@ -215,12 +215,13 @@ export default function GuruDashboard() {
       /* "Hari Aktif" tidak menghitung tanggal libur kelompok maupun
          Sabtu/Minggu (diminta owner 2026-08-27) -- konsisten dgn Riwayat
          Kehadiran & kartu Ringkasan Kehadiran admin_kelp. */
-      const liburKelp = kelompokId
-        ? tanggalLiburKelompok(await muatKalenderKelompok(kelompokId))
-        : new Set<string>();
+      const petaLibur = kelompokId
+        ? await muatKalenderKelompok(kelompokId)
+        : (new Map() as PetaOverride);
       kelasIds.forEach((id) => {
+        const liburKelas = tanggalLiburKelas(petaLibur, id);
         hasil[id].hariAktif = [...tanggalPerKelas[id]].filter(
-          (t) => !liburKelp.has(t) && !adalahAkhirPekan(t),
+          (t) => !liburKelas.has(t) && !adalahAkhirPekan(t),
         ).length;
       });
       setStatistik(hasil);

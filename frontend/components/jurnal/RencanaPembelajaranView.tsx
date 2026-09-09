@@ -59,7 +59,7 @@ import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
 import { namaMateriTampil, KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
-import { muatOverrideKelompok, buatCekNonaktif, type OverrideKelompok } from '@/lib/kalenderKelompok';
+import { muatOverrideKelompok, buatCekNonaktif, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
 import { uraikanTargetDoa, adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
@@ -428,7 +428,7 @@ export default function RencanaPembelajaranView() {
      di bawah) -- pewarnaan hari libur di kartu Klasikal (LIBUR_NASIONAL_2026
      langsung) SENGAJA TIDAK disentuh, diminta owner eksplisit ("kalender
      tanggal merah biarkan saja tetap merah"). */
-  const [overrideKelompok, setOverrideKelompok] = useState<Map<string, OverrideKelompok>>(new Map());
+  const [overrideKelompok, setOverrideKelompok] = useState<PetaOverride>(new Map());
   useEffect(() => {
     const kelompokId = profile?.scope_kelompok_id;
     if (!kelompokId) return;
@@ -440,7 +440,10 @@ export default function RencanaPembelajaranView() {
       batal = true;
     };
   }, [profile?.scope_kelompok_id]);
-  const cekNonaktif = useMemo(() => buatCekNonaktif(overrideKelompok), [overrideKelompok]);
+  const cekNonaktif = useMemo(
+    () => buatCekNonaktif(overrideKelompok, kelasId === '' ? null : kelasId),
+    [overrideKelompok, kelasId],
+  );
 
   /* Tanggal Pencak Silat ASAD se-kelompok (2026-09-03) -- pada tanggal
      ini tidak ada klasikal, KECUALI kelas Remaja/SMA (kelasIkutAsad).
