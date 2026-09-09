@@ -1438,7 +1438,7 @@ export default function AdminKelpDashboard() {
           <div className="max-h-[85vh] w-full max-w-[360px] overflow-y-auto rounded-[24px] bg-panel px-6 pt-7 pb-6 shadow-[0_24px_48px_rgba(0,0,0,0.28)]">
             <div className="mb-4 text-[15px] font-extrabold text-text">Tandai Libur atau Aktif</div>
             <div className="mb-1.5 flex items-center gap-1.5">
-              <span className="text-[12px] font-semibold text-text-dim">Tanggal</span>
+              <span className="text-[12px] font-bold text-text">Tanggal</span>
               <InfoTip label="Info tanggal">
                 Boleh tanggal lampau atau yang akan datang. Tanggal yang sudah
                 ditandai bisa dibatalkan dari sini juga.
@@ -1493,13 +1493,13 @@ export default function AdminKelpDashboard() {
               </div>
             )}
 
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+            <label className="mb-1.5 block text-[12px] font-bold text-text">
               {entriTanggalIni.length > 0 ? 'Tambah penandaan' : 'Tandai sebagai'}
             </label>
             <div className="mb-3 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
               {(
                 [
-                  { nilai: 'libur', label: 'Libur', bg: 'bg-[#B45309]' },
+                  { nilai: 'libur', label: 'Libur', bg: 'bg-red' },
                   { nilai: 'aktif', label: 'Tetap Aktif', bg: 'bg-sage' },
                 ] as const
               ).map((o) => (
@@ -1516,7 +1516,7 @@ export default function AdminKelpDashboard() {
               ))}
             </div>
 
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+            <label className="mb-1.5 block text-[12px] font-bold text-text">
               Berlaku untuk
             </label>
             <div className="mb-2 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
@@ -1568,7 +1568,7 @@ export default function AdminKelpDashboard() {
               </div>
             )}
 
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Alasan</label>
+            <label className="mb-1.5 block text-[12px] font-bold text-text">Alasan</label>
             <textarea
               value={alasanLibur}
               onChange={(e) => setAlasanLibur(e.target.value)}
