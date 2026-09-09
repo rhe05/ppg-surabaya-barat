@@ -246,9 +246,11 @@ export default function RingkasanJurnalKelp({
                   </div>
                   <div className="mt-1 text-[12px] font-semibold text-text-dim">
                     {k.guruNama} · {k.santriCount} santri ·{' '}
-                    {k.entriTerakhir
-                      ? `jurnal terakhir ${k.hariSejakEntri ?? 0} hari lalu`
-                      : 'belum ada jurnal bulan ini'}
+                    {k.kelasBaru
+                      ? 'kelas baru'
+                      : k.disentuhTerakhir
+                        ? `jurnal disentuh ${k.hariSejakDisentuh ?? 0} hari lalu`
+                        : 'belum ada jurnal bulan ini'}
                   </div>
                 </button>
 
@@ -313,9 +315,11 @@ export default function RingkasanJurnalKelp({
                       </div>
                     )}
                     <div className="text-[10.5px] text-text-faint">
-                      {k.entriTerakhir
-                        ? `Berdasarkan entri jurnal terakhir ${k.hariSejakEntri} hari lalu.`
-                        : 'Guru belum membuat entri jurnal bulan ini.'}
+                      {k.disampaikanTerakhir
+                        ? `Materi terakhir disampaikan ${k.hariSejakDisampaikan} hari lalu.`
+                        : k.disentuhTerakhir
+                          ? `Jurnal terakhir diubah ${k.hariSejakDisentuh} hari lalu, belum ada yang disampaikan.`
+                          : 'Guru belum membuat entri jurnal bulan ini.'}
                     </div>
                   </div>
                 )}

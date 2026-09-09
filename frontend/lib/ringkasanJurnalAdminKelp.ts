@@ -43,8 +43,11 @@ export type JurnalKelasRingkas = {
   klasikalDirencana: number;
 
   /* kejujuran data */
-  entriTerakhir: string | null; // YYYY-MM-DD entri jurnal terbaru (rencana/disampaikan)
-  hariSejakEntri: number | null;
+  disampaikanTerakhir: string | null; // YYYY-MM-DD materi TERAKHIR yg disampaikan
+  hariSejakDisampaikan: number | null;
+  disentuhTerakhir: string | null; // ISO -- kapan jurnal terakhir DIUBAH (sinyal aktivitas guru)
+  hariSejakDisentuh: number | null;
+  kelasBaru: boolean; // kelas < 7 hari -- "masa tenang", tidak ditandai
 
   /* pacing Tilawati (null kalau kelas di luar pedoman -- kelas 4+) */
   tilawati: {
@@ -82,38 +85,48 @@ function beririsan(aMulai: string, aSelesai: string, bMulai: string, bSelesai: s
   return aMulai <= bSelesai && bMulai <= aSelesai;
 }
 
+/* Skor kesehatan yang SADAR WAKTU: awal bulan, "belum disampaikan" itu
+   wajar (bahkan bagus kalau sudah ada rencana). Rasio delivery baru
+   relevan kalau bulan sudah berjalan. Kelas yang baru dibuat < 7 hari
+   dapat "masa tenang" -- tidak ditandai apa pun. */
 function hitungKesehatan(k: {
-  santriCount: number;
   direncana: number;
   disampaikan: number;
   tidakTersampaikan: number;
-  hariSejakEntri: number | null;
+  hariSejakDisentuh: number | null; // jurnal terakhir DIUBAH (updated_at) -- sinyal aktivitas guru
+  porsiBulan: number; // 0-1: seberapa jauh bulan berjalan
+  kelasBaru: boolean;
   tilawati: JurnalKelasRingkas['tilawati'];
-}): KesehatanJurnal {
+}): { kesehatan: KesehatanJurnal; kelasBaru: boolean } {
+  if (k.kelasBaru) return { kesehatan: 'sehat', kelasBaru: true };
+
   const t = k.tilawati;
   const tilawatiTertinggal =
-    t != null && t.santriDinilai >= 2 && t.bb >= Math.ceil(t.santriDinilai / 2);
-  const tilawatiLemah = t != null && t.santriDinilai >= 2 && t.bb + t.mb > t.bsh + t.bsb;
+    t != null && t.santriDinilai >= 2 && t.bb >= Math.ceil(t.santriDinilai / 2) && k.porsiBulan > 0.4;
+  const tilawatiLemah =
+    t != null && t.santriDinilai >= 2 && t.bb + t.mb > t.bsh + t.bsb && k.porsiBulan > 0.4;
 
-  const tidakAdaEntri = k.direncana === 0;
   const rasio = k.direncana > 0 ? k.disampaikan / k.direncana : 0;
+  // Tertinggal dari LAJU bulan: mis. bulan sudah 70% jalan tapi baru 30% disampaikan.
+  const tertinggalLaju = k.porsiBulan > 0.5 && k.direncana > 0 && rasio < k.porsiBulan - 0.3;
 
   if (
-    tidakAdaEntri ||
-    (k.hariSejakEntri != null && k.hariSejakEntri > 14) ||
+    (k.direncana === 0 && k.porsiBulan > 0.33) ||
+    (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 21) ||
     k.tidakTersampaikan >= 2 ||
     tilawatiTertinggal
   ) {
-    return 'tertinggal';
+    return { kesehatan: 'tertinggal', kelasBaru: false };
   }
   if (
-    (k.hariSejakEntri != null && k.hariSejakEntri > 7) ||
-    (k.direncana > 0 && rasio < 0.5) ||
+    (k.direncana === 0 && k.porsiBulan > 0.15) ||
+    (k.hariSejakDisentuh != null && k.hariSejakDisentuh > 10) ||
+    tertinggalLaju ||
     tilawatiLemah
   ) {
-    return 'perhatian';
+    return { kesehatan: 'perhatian', kelasBaru: false };
   }
-  return 'sehat';
+  return { kesehatan: 'sehat', kelasBaru: false };
 }
 
 const URUT_KESEHATAN: Record<KesehatanJurnal, number> = { tertinggal: 0, perhatian: 1, sehat: 2 };
@@ -132,13 +145,13 @@ export async function muatRingkasanJurnalPerKelas(
   const [kelasRes, materiRes, santriRes, tilawatiRes, izinRes, peta] = await Promise.all([
     supabase
       .from('kelas')
-      .select('id, nama, guru_id, santri_count, guru:guru_id(nama), kategori_kbm(nama)')
+      .select('id, nama, guru_id, santri_count, created_at, guru:guru_id(nama), kategori_kbm(nama)')
       .eq('kelompok_id', kelompokId)
       .is('deleted_at', null)
       .order('jam_mulai'),
     supabase
       .from('jurnal_materi')
-      .select('kelas_id, jenis, status, catatan, tanggal_rencana, tanggal_disampaikan')
+      .select('kelas_id, jenis, status, catatan, tanggal_disampaikan, updated_at')
       .eq('kelompok_id', kelompokId)
       .eq('tahun', tahun)
       .eq('bulan', bulan)
@@ -187,9 +200,16 @@ export async function muatRingkasanJurnalPerKelas(
     nama: string;
     guru_id: number | null;
     santri_count: number;
+    created_at: string;
     guru: Tersemat;
     kategori_kbm: Tersemat;
   }[];
+
+  /* Seberapa jauh bulan yang dilihat sudah berjalan (0-1). Bulan lampau = 1. */
+  const skrg = new Date();
+  const bulanIni = skrg.getFullYear() === tahun && skrg.getMonth() + 1 === bulan;
+  const bulanLampau = tahun < skrg.getFullYear() || (tahun === skrg.getFullYear() && bulan < skrg.getMonth() + 1);
+  const porsiBulan = bulanLampau ? 1 : bulanIni ? Math.min(1, skrg.getDate() / akhirTgl) : 0;
 
   const materiPerKelas = new Map<number, typeof materiRes.data>();
   for (const m of materiRes.data ?? []) {
@@ -249,11 +269,16 @@ export async function muatRingkasanJurnalPerKelas(
       let klasikalDisampaikan = 0;
       let klasikalDirencana = 0;
       const alasan: string[] = [];
-      let entriTerakhir: string | null = null;
+      let disampaikanTerakhir: string | null = null; // tanggal materi TERAKHIR yg disampaikan
+      let disentuhTerakhir: string | null = null; // updated_at max -- kapan jurnal terakhir diubah
 
       for (const m of materi) {
-        const tgl = m.tanggal_disampaikan || m.tanggal_rencana || null;
-        if (tgl && (entriTerakhir == null || tgl > entriTerakhir)) entriTerakhir = tgl;
+        if (m.status === 'disampaikan' && m.tanggal_disampaikan) {
+          if (disampaikanTerakhir == null || m.tanggal_disampaikan > disampaikanTerakhir)
+            disampaikanTerakhir = m.tanggal_disampaikan;
+        }
+        if (m.updated_at && (disentuhTerakhir == null || m.updated_at > disentuhTerakhir))
+          disentuhTerakhir = m.updated_at;
         if (m.jenis === 'ngaji') ngajiDirencana += 1;
         else if (m.jenis === 'klasikal') klasikalDirencana += 1;
         if (m.status === 'disampaikan') {
@@ -268,14 +293,20 @@ export async function muatRingkasanJurnalPerKelas(
         }
       }
       const direncana = materi.length;
-      const hariSejakEntri =
-        entriTerakhir != null
-          ? Math.floor(
-              (new Date(hariIniStr + 'T00:00:00').getTime() -
-                new Date(entriTerakhir + 'T00:00:00').getTime()) /
-                86_400_000,
+      const nowMs = new Date(hariIniStr + 'T00:00:00').getTime();
+      const hariSejakDisentuh =
+        disentuhTerakhir != null
+          ? Math.max(0, Math.floor((Date.now() - new Date(disentuhTerakhir).getTime()) / 86_400_000))
+          : null;
+      const hariSejakDisampaikan =
+        disampaikanTerakhir != null
+          ? Math.max(
+              0,
+              Math.floor((nowMs - new Date(disampaikanTerakhir + 'T00:00:00').getTime()) / 86_400_000),
             )
           : null;
+      const kelasBaru =
+        Date.now() - new Date(k.created_at).getTime() < 7 * 86_400_000;
 
       // ── Pacing Tilawati ──
       const kodeKelas = kelasKurikulumSampai(k.nama).at(-1) ?? '';
@@ -341,12 +372,13 @@ export async function muatRingkasanJurnalPerKelas(
       });
       if (liburKelas > 0) penyebab.push(`${liburKelas} tanggal ditandai libur bulan ini`);
 
-      const kesehatan = hitungKesehatan({
-        santriCount: k.santri_count,
+      const { kesehatan, kelasBaru: kbaru } = hitungKesehatan({
         direncana,
         disampaikan,
         tidakTersampaikan,
-        hariSejakEntri,
+        hariSejakDisentuh,
+        porsiBulan,
+        kelasBaru,
         tilawati,
       });
 
@@ -366,8 +398,11 @@ export async function muatRingkasanJurnalPerKelas(
         ngajiDirencana,
         klasikalDisampaikan,
         klasikalDirencana,
-        entriTerakhir,
-        hariSejakEntri,
+        disampaikanTerakhir,
+        hariSejakDisampaikan,
+        disentuhTerakhir,
+        hariSejakDisentuh,
+        kelasBaru: kbaru,
         tilawati,
         kesehatan,
         kemungkinanPenyebab: penyebab,
