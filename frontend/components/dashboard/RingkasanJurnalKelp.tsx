@@ -15,10 +15,11 @@
    - tombol "Kirim Pengingat" -> lonceng guru + jejak kapan terakhir. */
 
 import { useCallback, useEffect, useState } from 'react';
-import { ClipboardList, ChevronDown, Send, AlertTriangle } from 'lucide-react';
+import { ChevronDown, Send, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/useToast';
 import Skeleton from '@/components/ui/Skeleton';
+import PemilihBulanTahun from '@/components/ui/PemilihBulanTahun';
 import {
   muatRingkasanJurnalPerKelas,
   ringkasKelompokDariKelas,
@@ -28,10 +29,6 @@ import {
   type KesehatanJurnal,
 } from '@/lib/ringkasanJurnalAdminKelp';
 
-const NAMA_BULAN = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
 
 const SEHAT: Record<
   KesehatanJurnal,
@@ -55,12 +52,16 @@ export default function RingkasanJurnalKelp({
   kelompokId,
   tahun,
   bulan,
+  onGantiBulan,
   varian = 'admin',
   guruId = null,
 }: {
   kelompokId: number | null;
   tahun: number;
   bulan: number;
+  /* Kalau diisi -> tampilkan pemilih Bulan-Tahun di kanan judul (sama
+     spt kartu Ringkasan Kehadiran). */
+  onGantiBulan?: (bulan: number, tahun: number) => void;
   /* 'admin' -> semua kelas kelompok + tombol Kirim Pengingat.
      'guru'  -> hanya kelas guru ini, tanpa tombol pengingat, framing
                 "status kelas saya" (Fase 2: pacing mengalir ke guru). */
@@ -177,20 +178,19 @@ export default function RingkasanJurnalKelp({
 
   const ringkas = ringkasKelompokDariKelas(list);
   const perluTindak = ringkas.kelasTertinggal + ringkas.kelasPerhatian;
+  /* Headline HANYA muncul kalau ada yang perlu perhatian / tidak ada kelas.
+     Kalau semua sehat -> tidak ada baris (kartu bersih). */
   const headline =
     list.length === 0
       ? utkGuru
         ? 'Belum ada kelas'
         : 'Belum ada kelas dengan santri'
-      : perluTindak === 0
+      : perluTindak > 0
         ? utkGuru
-          ? 'Semua kelasmu on-track bulan ini'
-          : 'Semua kelas sehat bulan ini'
-        : utkGuru
           ? `${perluTindak} kelas perlu kamu kejar bulan ini`
-          : `${perluTindak} dari ${ringkas.totalKelas} kelas perlu perhatian`;
-  const headlineWarna =
-    perluTindak === 0 ? 'var(--sage)' : ringkas.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
+          : `${perluTindak} dari ${ringkas.totalKelas} kelas perlu perhatian`
+        : null;
+  const headlineWarna = ringkas.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
 
   if (loading) return <Skeleton className="mb-4 h-[92px] w-full rounded-card" />;
 
@@ -202,36 +202,41 @@ export default function RingkasanJurnalKelp({
       className="mb-4 rounded-card border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
       style={perluAksi ? { borderColor: 'var(--red)', borderWidth: 1.5 } : { borderColor: 'var(--border)' }}
     >
-      <button
-        type="button"
-        onClick={() => {
-          setBuka((v) => {
-            if (v) setDilipatManual(true);
-            return !v;
-          });
-        }}
-        className="flex w-full cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-0 text-left"
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="flex items-center gap-1.5 text-[13px] font-bold text-text">
-              <ClipboardList size={14} className="text-text-dim" />
-              {utkGuru ? 'Status Jurnal Ngaji Kelas Saya' : 'Ringkasan Jurnal Ngaji'}
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              setBuka((v) => {
+                if (v) setDilipatManual(true);
+                return !v;
+              })
+            }
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+          >
+            <span className="shrink-0 text-[13px] font-bold text-text">
+              {utkGuru ? 'Status Jurnal Kelas Saya' : 'Ringkasan Jurnal'}
             </span>
             <ChevronDown
               size={14}
               className={`shrink-0 text-text-faint transition-transform duration-200 ${buka ? 'rotate-180' : ''}`}
             />
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color: headlineWarna }}>
+          </button>
+          {onGantiBulan && <PemilihBulanTahun bulan={bulan} tahun={tahun} onUbah={onGantiBulan} />}
+        </div>
+        {headline && (
+          <div
+            className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold"
+            style={{ color: headlineWarna }}
+          >
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: headlineWarna }} />
             {headline}
           </div>
-          <div className="mt-0.5 text-[11px] text-text-dim">
-            {NAMA_BULAN[bulan - 1]} {tahun} · {ringkas.kelasTerjurnal}/{ringkas.totalKelas} kelas ada jurnal ngaji
-          </div>
+        )}
+        <div className="mt-1 text-[11px] text-text-dim">
+          {ringkas.kelasTerjurnal}/{ringkas.totalKelas} kelas ada jurnal ngaji
         </div>
-      </button>
+      </div>
 
       {/* 5 tile ringkasan -- struktur seragam (angka / slot-pill tinggi
           tetap / label 2-baris) supaya label semua tile sebaris. */}
