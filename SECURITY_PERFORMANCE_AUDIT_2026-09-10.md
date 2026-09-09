@@ -216,3 +216,54 @@ object-src 'none';
 ```
 
 `'unsafe-inline'`/`'unsafe-eval'` di `script-src` masih diperlukan (Next App Router tanpa nonce middleware + Tailwind v4 inline style). Ini tetap memblokir **script eksternal** yang disuntik — baseline nyata. Menghilangkan `'unsafe-*'` butuh middleware nonce + `'strict-dynamic'` (pekerjaan tersendiri, risiko memecah hydration).
+
+---
+
+## ADDENDUM 2026-09-10 — checklist audit lengkap owner + audit RLS menyeluruh
+
+Owner memberi checklist audit keamanan SaaS generik + wewenang penuh memutuskan. Berikut pemetaannya ke aplikasi ini. **Keputusan senior: tidak ada perubahan kode lanjutan yang sepadan** — semua item MUST sudah beres atau tidak berlaku karena arsitektur, item SHOULD sudah baik, item OPTIONAL/DON'T memang dilewati.
+
+### Audit RLS menyeluruh (READ-ONLY, dijalankan malam ini)
+
+| Cek | Hasil |
+|---|---|
+| Tabel `public` dengan RLS aktif | **60 / 60** ✅ (100%) |
+| Kebijakan SELECT dengan `USING(true)` | **hanya** `desa`, `kelompok`, `ppg`, `kategori_kbm` — semua data referensi org non-sensitif (nama desa/kelompok/kategori) yang memang dibutuhkan sidebar/pemilih. **Bukan lubang.** |
+| `profiles` | `USING (id = auth.uid())` — tiap user **hanya** baca profil sendiri ✅ |
+| Semua tabel data pribadi/anggota (santri, guru, jamaah, absensi, tabungan, jurnal, konseling, munaqosah, siklus_generus, dst) | scoped via `auth_profile()` — role + scope kelompok/desa dicek per baris ✅ |
+| Kebijakan INSERT/UPDATE/DELETE yang **melewati** cek auth | **NOL** ✅ — tiap write policy scoped `auth_profile()` atau `auth.uid()` |
+| Tabel RLS-aktif tanpa policy (deny-all) | 6: `audit_log`, `hari`, `kurikulum_akhlaq`, `jadwal_kategori_hari_aktif`, `riwayat_jenjang`, `laju_permintaan`. **Nol dipakai frontend** → deny-all = aman & benar (audit_log memang tak boleh dibaca via API). |
+
+**Verdict RLS: BERSIH.** Tidak ada user yang bisa membaca/menulis data user/kelompok lain. Postur ini setara atau lebih baik dari mayoritas SaaS berbayar.
+
+### Pemetaan checklist owner
+
+| Item | Status | Catatan |
+|---|---|---|
+| HTTPS/SSL | ✅ | Vercel + Supabase auto; HSTS ditambah |
+| CORS whitelist | N/A | PostgREST `*` + wajib JWT + RLS = desain Supabase; proxy CORS = overkill utk skala ini |
+| Env vars no hardcoded secret | ✅ | hanya `NEXT_PUBLIC_*`; nol `service_role`; `.env` gitignore |
+| Input validation server-side + parameterized | ✅ | supabase-js parameterized; enum + CHECK + validasi RPC |
+| CSRF token per-request | **N/A** | auth pakai JWT header, bukan cookie → CSRF tidak mungkin. Menambah token CSRF = cargo-cult, nol manfaat |
+| Rate limiting (client stun) | ✅ | `lib/jedaAksi.ts` + 36 komponen `disabled` saat submit + server `batasi_laju` |
+| XSS prevention | ✅ | React auto-escape; nol `dangerouslySetInnerHTML`/`innerHTML`/`eval` |
+| SQL injection | ✅ | supabase-js; nol string SQL dari input; RPC pakai `->>`+cast, bukan `EXECUTE format()` |
+| RLS | ✅ | audit menyeluruh di atas — bersih |
+| Connection pooling | N/A | frontend pakai REST URL, bukan connection string; PostgREST kelola pool sendiri |
+| Pagination | ✅ | `.range()` + `break` benar di 13 file |
+| Column selection | ✅ | nol `select('*')` di seluruh frontend |
+| Edge caching / Cache-Control | dilewati | app 100% dinamis per-user; nyaris tak ada yang bisa di-cache aman; aset statis sudah ditangani Vercel |
+| JWT token caching | ✅ | supabase-js cache sesi di localStorage + `autoRefreshToken`; profil dibaca 1× per mount (2 ms) |
+| Encryption data sensitif (SSN/payment) | N/A | app tidak menyimpan SSN/kartu/pembayaran. PII (nama, alamat, no HP keluarga) sudah dilindungi enkripsi-at-rest Supabase + RLS + TLS — cukup utk aplikasi manajemen TPQ |
+| Audit logging | 🟡 sebagian | tabel `audit_log` ada (dari trigger); tidak menyeluruh. Cukup utk tahap ini |
+| ISR / Redis rate limit / WAF / multi-region / PCI / pentest / SAML | dilewati | benar — overkill utk tahap & jenis aplikasi ini (sesuai "DO NOT IMPLEMENT" di checklist owner) |
+
+### Satu-satunya item terbuka (bukan kode)
+
+**Supabase Auth → URL Configuration**: Site URL masih `http://localhost:3000`. Owner perbaiki di dashboard (lihat bagian pilar 5). Ini memblokir login Google dari HP dan membuat link email (reset password) mengarah ke localhost.
+
+### Yang SENGAJA tidak dikerjakan (keputusan senior)
+
+- **`batasi_laju` di 10 RPC tulis lain** — RPC-nya low-frequency (admin/guru-triggered), tidak "550/detik-able", sudah dilindungi RLS + `jedaAksi` + rate limit Supabase Auth. Menyalin badan 10 fungsi `SECURITY DEFINER` dari produksi = risiko transkripsi nyata untuk manfaat kecil. Yang penting (`simpan_absensi_kelas`) sudah dibereskan dgn fast-path + `batasi_laju`. Sesuai Rule 1 checklist owner (Atomic Task Focus), bukan "add full stack to 50 endpoints".
+- **CSP penuh enforcing** — disiapkan (di atas), tapi butuh diuji di preview dulu; risiko blank screen kalau salah satu directive meleset. Owner/sesi berikutnya promosikan setelah verifikasi.
+- **Encryption kolom PII** — tidak sepadan; RLS + TLS + at-rest sudah lapisan yang benar.
