@@ -238,48 +238,54 @@ export default function RingkasanJurnalKelp({
         </div>
       </button>
 
-      {/* 5 tile ringkasan -- pola sama Ringkasan Kehadiran */}
+      {/* 5 tile ringkasan -- struktur seragam (angka / slot-pill tinggi
+          tetap / label 2-baris) supaya label semua tile sebaris. */}
       <div className="mt-3 grid grid-cols-5 gap-2">
+        {/* Tile gradient */}
         <div
-          className="flex flex-col items-center gap-[3px] rounded-[10px] px-1 pt-2.5 pb-[9px] shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
+          className="flex flex-col items-center rounded-[10px] px-1 pt-2.5 pb-2 shadow-[0_4px_14px_rgba(13,148,136,0.26),inset_0_1px_0_rgba(255,255,255,0.14)]"
           style={{ background: 'linear-gradient(155deg,#0F766E 0%,#0D9488 60%,#14B8A6 100%)' }}
         >
           <span className="text-[18px] leading-none font-extrabold text-white tabular-nums">
             {ringkas.kelasTerjurnal}
           </span>
-          <span className="mt-px text-center text-[10px] font-bold tracking-[0.02em] text-white/85 uppercase">
-            Kelas
-            <br />
-            Terjurnal
+          <span className="h-[16px]" />
+          <span className="flex min-h-[24px] items-center text-center text-[10px] leading-[1.15] font-bold tracking-[0.02em] text-white/85 uppercase">
+            Kelas Terjurnal
           </span>
         </div>
         {(
           [
-            { n: ringkas.direncana, label: 'Direncana', c: 'var(--text-dim)' },
-            { n: ringkas.disampaikan, label: 'Disampaikan', c: 'var(--sage)' },
-            { n: ringkas.belum, label: 'Belum', c: 'var(--brass)' },
-            { n: ringkas.tidakTersampaikan, label: 'Tdk Sampai', c: 'var(--red)' },
+            { n: ringkas.direncana, label: 'Direncana', c: 'var(--text-dim)', pill: false },
+            { n: ringkas.disampaikan, label: 'Disampaikan', c: 'var(--sage)', pill: true },
+            { n: ringkas.belum, label: 'Belum', c: 'var(--brass)', pill: true },
+            { n: ringkas.tidakTersampaikan, label: 'Tdk Sampai', c: 'var(--red)', pill: true },
           ] as const
         ).map((t) => {
-          const persen = ringkas.direncana > 0 ? Math.round((t.n / ringkas.direncana) * 100) : null;
-          const pakaiPersen = t.label !== 'Direncana' && persen !== null;
+          const persen =
+            t.pill && ringkas.direncana > 0 ? Math.round((t.n / ringkas.direncana) * 100) : null;
           return (
             <div
               key={t.label}
-              className="flex flex-col items-center gap-[3px] rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-[9px]"
+              className="flex flex-col items-center rounded-[10px] bg-panel-2 px-1 pt-2.5 pb-2"
             >
-              <span className="text-[18px] leading-none font-extrabold tabular-nums" style={{ color: t.c }}>
+              <span
+                className="text-[18px] leading-none font-extrabold tabular-nums"
+                style={{ color: t.c }}
+              >
                 {t.n}
               </span>
-              {pakaiPersen && (
-                <span
-                  className="rounded-full px-[7px] py-0.5 text-[10px] leading-none font-bold tabular-nums"
-                  style={{ background: `${t.c}1F`, color: t.c }}
-                >
-                  {persen}%
-                </span>
-              )}
-              <span className="mt-px text-center text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
+              <span className="flex h-[16px] items-center">
+                {persen !== null && (
+                  <span
+                    className="rounded-full px-[7px] py-0.5 text-[10px] leading-none font-bold tabular-nums"
+                    style={{ background: `${t.c}1F`, color: t.c }}
+                  >
+                    {persen}%
+                  </span>
+                )}
+              </span>
+              <span className="flex min-h-[24px] items-center text-center text-[10px] leading-[1.15] font-bold tracking-[0.02em] text-text-dim uppercase">
                 {t.label}
               </span>
             </div>
