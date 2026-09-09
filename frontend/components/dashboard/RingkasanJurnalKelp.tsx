@@ -217,6 +217,9 @@ export default function RingkasanJurnalKelp({
             <span className="shrink-0 text-[13px] font-bold text-text">
               {utkGuru ? 'Status Jurnal Kelas Saya' : 'Ringkasan Jurnal'}
             </span>
+            <span className="truncate text-[11.5px] text-text-dim">
+              {ringkas.kelasTerjurnal} dari {ringkas.totalKelas} kelas
+            </span>
             <ChevronDown
               size={14}
               className={`shrink-0 text-text-faint transition-transform duration-200 ${buka ? 'rotate-180' : ''}`}
@@ -233,9 +236,6 @@ export default function RingkasanJurnalKelp({
             {headline}
           </div>
         )}
-        <div className="mt-1 text-[11px] text-text-dim">
-          {ringkas.kelasTerjurnal}/{ringkas.totalKelas} kelas ada jurnal ngaji
-        </div>
       </div>
 
       {/* 5 tile ringkasan -- struktur seragam (angka / slot-pill tinggi
