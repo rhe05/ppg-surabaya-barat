@@ -10,7 +10,7 @@
 **Stack**: Google Apps Script + Google Sheets + HTML/CSS/JS  
 **Repo**: https://github.com/rhe05/ppg-surabaya-barat (private, akun rhe05)  
 **Deployment**: Auto via GitHub Actions → Apps Script Web App  
-**Last Updated**: 2026-07-15  
+**Last Updated**: 2026-09-09  
 
 ---
 
@@ -262,6 +262,54 @@ bandingkan hasil/jumlah dokumen sebelum & sesudah perubahan — baru HAPUS
 diag route itu setelah terverifikasi. Jangan biarkan diag route mutasi
 menumpuk permanen di `doGet` (endpoint publik, access "Anyone").
 
+## Prinsip Data Supabase / RLS (WAJIB — app "Ruang Ngaji" Next.js, sejak 2026-09-09)
+
+> Ditetapkan setelah rentetan bug "kelompok X tidak bisa Y": kurikulum
+> bersama & guru gilir kedua. Berlaku tiap tambah/ubah fitur yang
+> menyaring data per-kelompok atau per-guru.
+
+### 1. Kurikulum = data BERSAMA di `kelompok_id = 1`
+- SELURUH baris `kurikulum_prota` / `kurikulum_promes` / `kurikulum_probul`
+  (+ turunannya) hidup di `kelompok_id = 1` saja (sejak migrasi
+  `20260822100000`). Kelompok lain memakai baris yang sama.
+- Membaca kurikulum: **SELALU** pakai konstanta `1`
+  (`KELOMPOK_KURIKULUM_BERSAMA_ID`), **JANGAN** `profile.scope_kelompok_id`.
+  Kalau pakai scope guru, daftar jadi kosong utk kelompok ≠ 1 → cek-list
+  tak bisa dipencet / target hilang. (ERROR_LOG #34.)
+- Pedoman statis (`lib/pedomanTilawati.ts`) di-key per KODE KELAS kurikulum
+  ('1'..'12'/'PAUD-TK'), bukan kelompok — aman.
+
+### 2. Kelas punya DUA guru: `guru_id` + `guru_id_2` (gilir)
+- `kelas.guru_id_2` = guru gilir kedua (Data Kelas, migrasi
+  `20260827110000`). Giliran per-tanggal dihitung `guruGiliran()`
+  (`lib/kelasGabungGilir.ts`) — TAPI itu cuma utk TAMPILAN pengumuman.
+- Utk AKSES (lihat kelas, isi jurnal/tilawati/tabungan, edit santri):
+  KEDUA guru berhak PENUH atas kelas itu, tanpa cek tanggal giliran.
+- Pola WAJIB di query frontend: `.or('guru_id.eq.<id>,guru_id_2.eq.<id>')`,
+  bukan `.eq('guru_id', <id>)`.
+- Pola WAJIB di policy/RPC RLS: `p.guru_id IN (kl.guru_id, kl.guru_id_2)`,
+  bukan `kl.guru_id = p.guru_id`. (ERROR_LOG #35, migrasi
+  `20260909100000`/`110000`/`120000`.)
+- `absensi` PENGECUALIAN: cabang guru-nya se-kelompok
+  (`p.scope_kelompok_id = absensi.kelompok_id`), tidak per-kelas — sudah
+  benar apa adanya.
+
+### 3. Migrasi = dijalankan owner MANUAL di Supabase SQL Editor
+- CLI `supabase db push` TIDAK dipakai (backlog drift — banyak migrasi
+  "pending" sebenarnya sudah live). Tulis SATU file migrasi idempoten,
+  minta owner paste+Run. Lihat memory
+  `feedback-migrasi-satu-file-isolasi-dari-backlog`.
+- Salin badan fungsi/policy lama dari DB PRODUKSI (`pg_get_functiondef` /
+  `pg_policies` via Management API), bukan dari ingatan.
+- Verifikasi: SQL diagnostik + impersonasi
+  (`set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>"}'`)
+  ke produksi, bandingkan sebelum/sesudah. Lihat memory
+  `ppg-supabase-sql-diag-management-api`.
+
+### 4. Frontend deploy = Vercel Git integration
+Push ke `main` = auto-deploy production. TIDAK ada CI frontend; verifikasi
+= `npx tsc --noEmit` + `node tools/check_local.js` (pre-commit hook).
+
 ## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
 
 1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah + penanganan. Cocokkan gejala sebelum investigasi baru.
@@ -354,7 +402,7 @@ bf6de5c feat: user management — CRUD + RBAC + password management
 **Owner**: rheza354@gmail.com  
 **GitHub**: rhe05  
 **Created**: 2026-07 (approximately)  
-**Last Updated**: 2026-07-15  
+**Last Updated**: 2026-09-09  
 
 **Related Docs**:
 - Memory: `~/.claude/projects/PPG_Surabaya_Barat/memory/ppg-project-status.md`
