@@ -32,6 +32,17 @@
   --indigo-lembut: #EEF2FF;
   --indigo-lembut-2: #E0E7FF;
   --teal: #0D9488;
+
+  /* ── Palet "Penerobos Kelp" (app jamaah majlis taklim) ───────────────
+     Biru tua / navy — SENGAJA beda dari hijau (guru) & indigo (identitas
+     kategori generus) supaya jelas ini aplikasi berbeda untuk pengguna
+     dewasa. --navy = aksen/aksi utama, --navy-tua = hero gelap,
+     --navy-lembut/-2 = permukaan isian muda (chip aktif, kartu terpilih). */
+  --navy: #1D4ED8;
+  --navy-tua: #172554;
+  --navy-lembut: #EFF4FF;
+  --navy-lembut-2: #DBE6FE;
+
   --panel: #FFFFFF;
   --panel-2: #F9FAFB;
   --bg: #F8FAFC;
@@ -103,6 +114,10 @@
   --color-indigo-lembut: var(--indigo-lembut);
   --color-indigo-lembut-2: var(--indigo-lembut-2);
   --color-teal: var(--teal);
+  --color-navy: var(--navy);
+  --color-navy-tua: var(--navy-tua);
+  --color-navy-lembut: var(--navy-lembut);
+  --color-navy-lembut-2: var(--navy-lembut-2);
   --color-panel: var(--panel);
   --color-panel-2: var(--panel-2);
   --color-bg: var(--bg);
@@ -158,7 +173,8 @@ body {
    tampil. Layar tugas yang menyembunyikan nav (Input Kehadiran, Rencana
    Pembelajaran) otomatis tidak kena padding ini karena elemennya tidak
    ada di DOM. */
-body:has([data-guru-nav]) main {
+body:has([data-guru-nav]) main,
+body:has([data-jamaah-nav]) main {
   padding-bottom: calc(60px + env(safe-area-inset-bottom));
 }
 
@@ -179,7 +195,8 @@ body:has([data-guru-nav]) main {
   background: var(--panel);
 }
 
-body:has([data-guru-nav]) .bilah-aksi-bawah {
+body:has([data-guru-nav]) .bilah-aksi-bawah,
+body:has([data-jamaah-nav]) .bilah-aksi-bawah {
   bottom: calc(60px + env(safe-area-inset-bottom));
 }
 

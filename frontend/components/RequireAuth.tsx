@@ -6,6 +6,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import AdminSidebar from '@/components/dashboard/AdminSidebar';
 import GuruBottomNav from '@/components/dashboard/GuruBottomNav';
+import JamaahBottomNav from '@/components/jamaah/JamaahBottomNav';
 import BannerOffline from '@/components/ui/BannerOffline';
 
 /* Halaman yang boleh dibuka peran `guru`, menyalin menu mobile guru app lama
@@ -38,6 +39,10 @@ const HALAMAN_GURU = [
   '/monitoring',
 ];
 
+/* Peran 'penerobos' (Penerobos Kelp, migrasi 20260909150000) dikunci ke
+   app jamaah majlis taklim. Semua rute lain -> dialihkan ke /jamaah. */
+const HALAMAN_PENEROBOS = ['/jamaah'];
+
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, profile, loading, profileError } = useAuth();
   const router = useRouter();
@@ -67,6 +72,14 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       !HALAMAN_GURU.some((h) => pathname === h || pathname.startsWith(h + '/'))
     ) {
       router.replace('/dashboard');
+    }
+    if (
+      !loading &&
+      profile?.role === 'penerobos' &&
+      pathname &&
+      !HALAMAN_PENEROBOS.some((h) => pathname === h || pathname.startsWith(h + '/'))
+    ) {
+      router.replace('/jamaah');
     }
   }, [loading, session, profile, pathname, router]);
 
@@ -179,6 +192,21 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
           {children}
         </div>
         <GuruBottomNav />
+        <BannerOffline adaBottomNav />
+      </div>
+    );
+  }
+
+  /* App "Penerobos Kelp" — sama pola kolom 430px + bottom nav seperti
+     guru, tapi navnya JamaahBottomNav & temanya navy. Peran 'penerobos'
+     tidak pernah masuk cabang sidebar admin di atas. */
+  if (profile?.role === 'penerobos') {
+    return (
+      <div className="min-h-screen w-full bg-border">
+        <div className="animasi-konten-muncul mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
+          {children}
+        </div>
+        <JamaahBottomNav />
         <BannerOffline adaBottomNav />
       </div>
     );
