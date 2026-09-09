@@ -14,10 +14,11 @@
      kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
      (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
+import { usePanelMelayang } from '@/lib/usePanelMelayang';
 import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 
 export type SantriRow = {
@@ -260,6 +261,8 @@ function FieldSaran<T = unknown>({
   colSpan?: boolean;
 }) {
   const [terbuka, setTerbuka] = useState(false);
+  const tutup = useCallback(() => setTerbuka(false), []);
+  const { anchorRef, panelRef, gaya } = usePanelMelayang<HTMLInputElement>(terbuka, tutup);
   const q = value.trim().toLowerCase();
   const cocok = (q ? saran.filter((s) => s.teks.toLowerCase().includes(q)) : saran).slice(0, 8);
 
@@ -270,6 +273,7 @@ function FieldSaran<T = unknown>({
         {wajib ? ' *' : ''}
       </label>
       <input
+        ref={anchorRef}
         className={KELAS_INPUT}
         value={value}
         autoComplete="off"
@@ -278,8 +282,12 @@ function FieldSaran<T = unknown>({
         onBlur={() => setTimeout(() => setTerbuka(false), 150)}
         placeholder={placeholder}
       />
-      {terbuka && cocok.length > 0 && (
-        <div className="absolute z-20 mt-1 max-h-52 w-full overflow-y-auto rounded-[var(--radius)] border border-border bg-panel shadow-[0_10px_25px_-8px_rgba(15,23,42,0.35)]">
+      {terbuka && gaya && cocok.length > 0 && (
+        <div
+          ref={panelRef}
+          style={gaya}
+          className="z-20 rounded-[var(--radius)] border border-border bg-panel shadow-[0_10px_25px_-8px_rgba(15,23,42,0.35)]"
+        >
           {cocok.map((item, i) => (
             <button
               key={`${item.teks}-${i}`}

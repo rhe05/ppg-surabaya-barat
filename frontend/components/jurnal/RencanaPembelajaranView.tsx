@@ -64,6 +64,7 @@ import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
 import { uraikanTargetDoa, adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 import { pesanGalatDb } from '@/lib/pesanGalatDb';
+import { usePanelMelayang } from '@/lib/usePanelMelayang';
 import {
   muatKelasGuru,
   muatMateriBulan,
@@ -590,6 +591,12 @@ export default function RencanaPembelajaranView() {
      browser, diminta owner 2026-09-03) TAPI tetap boleh ketik sendiri. */
   const [materiDropdownTerbuka, setMateriDropdownTerbuka] = useState(false);
   const materiWrapRef = useRef<HTMLDivElement>(null);
+  const tutupMateriDropdown = useCallback(() => setMateriDropdownTerbuka(false), []);
+  const {
+    anchorRef: materiInputRef,
+    panelRef: materiPanelRef,
+    gaya: materiPanelGaya,
+  } = usePanelMelayang<HTMLInputElement>(materiDropdownTerbuka, tutupMateriDropdown);
   useEffect(() => {
     if (!materiDropdownTerbuka) return;
     function tutupJikaDiluar(e: MouseEvent) {
@@ -1654,6 +1661,7 @@ export default function RencanaPembelajaranView() {
                       sendiri. Diminta owner 2026-09-03. */}
                   <div ref={materiWrapRef} className="relative">
                     <input
+                      ref={materiInputRef}
                       type="text"
                       value={judulBaru}
                       onChange={(e) => {
@@ -1676,8 +1684,12 @@ export default function RencanaPembelajaranView() {
                         className={`transition-transform duration-150 ${materiDropdownTerbuka ? 'rotate-180' : ''}`}
                       />
                     </button>
-                    {materiDropdownTerbuka && opsiMateriKurikulum.length > 0 && (
-                      <div className="absolute z-[1100] mt-1.5 max-h-[220px] w-full overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]">
+                    {materiDropdownTerbuka && materiPanelGaya && opsiMateriKurikulum.length > 0 && (
+                      <div
+                        ref={materiPanelRef}
+                        style={materiPanelGaya}
+                        className="z-[1100] rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+                      >
                         {opsiMateriTersaring.length === 0 ? (
                           <div className="px-3 py-2.5 text-[12px] text-text-faint">
                             Tak ada yang cocok — lanjut ketik materi sendiri.

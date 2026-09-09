@@ -1245,14 +1245,15 @@ pemakainya (Rencana/Pelaksanaan/Riwayat Pembelajaran, Monitoring).
 banyak santri, buka dropdown Buku Jilid santri paling bawah — panel
 muncul penuh (balik ke atas) dan semua pilihan bisa dipilih.
 
-**Audit menyeluruh (diminta owner)** — panel melayang lain sudah aman:
-`KebabMenu`, `TanggalPicker`, `JamPicker` (KelasForm), lonceng notifikasi
-(`BellPermintaanGuru/Admin`) semua sudah `createPortal`+`fixed`. `FieldSaran`
-(SantriForm) & combobox "Materi Ngaji" (RencanaPembelajaranView) masih
-`absolute` TAPI di dalam modal/sheet yang `overflow-y-auto` (bukan
-`overflow-hidden`) & field pemicunya dekat atas — meluber, tidak
-ter-clip keras. Perbaikan SelectKustom otomatis berlaku di semua
-pemakainya: pemilih Kelas, Bulan/Tahun, Buku Jilid, filter Monitoring.
+**Audit menyeluruh (diminta owner)** — panel melayang lain: `KebabMenu`,
+`TanggalPicker`, `JamPicker` (KelasForm), lonceng notifikasi
+(`BellPermintaanGuru/Admin`) sudah `createPortal`+`fixed` sejak awal.
+Logika posisi diangkat jadi hook bersama **`lib/usePanelMelayang.ts`**
+(fixed + getBoundingClientRect + balik-ke-atas + tutup-saat-scroll),
+dipakai `SelectKustom`, `FieldSaran` (Form Generus), dan combobox
+"Materi Ngaji" (RencanaPembelajaranView) — ketiganya dulu `absolute`.
+Perbaikan `SelectKustom` otomatis berlaku di semua pemakainya: pemilih
+Kelas, Bulan/Tahun, Buku Jilid, filter Monitoring.
 
 ---
 
