@@ -421,6 +421,23 @@ export default function GuruDashboard() {
         {!loading && !error && (
           <PengingatAbsenBanner kelas={kelas.filter((k) => k.santri_count > 0).map((k) => ({ id: k.id, nama: k.nama }))} />
         )}
+
+        {/* Kartu "Status Jurnal Kelas Saya" dirender di slot TETAP ini --
+            selama loading maupun sesudahnya -- supaya (1) fetch-nya jalan
+            paralel dgn load() daftar kelas + statistik (dulu nunggu load()
+            kelar dulu baru mulai), dan (2) tidak "disisipkan" di atas kartu
+            kelas begitu data tiba (dulu bikin layar melompat). Komponen ini
+            punya kerangka & penjaga kelompok/guru-id sendiri. */}
+        {!error && guruId != null && (loading || kelas.length > 0) && (
+          <RingkasanJurnalKelp
+            kelompokId={kelompokId}
+            tahun={tahun}
+            bulan={bulan}
+            varian="guru"
+            guruId={guruId}
+          />
+        )}
+
         {loading && (
           <>
             <SkeletonKartuKelas />
@@ -441,16 +458,6 @@ export default function GuruDashboard() {
           <div className="rounded-card border border-border bg-panel p-4 text-[12px] text-text-dim shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
             Belum ada kelas yang terdaftar atas nama Anda.
           </div>
-        )}
-
-        {!loading && !error && guruId != null && kelas.length > 0 && (
-          <RingkasanJurnalKelp
-            kelompokId={kelompokId}
-            tahun={tahun}
-            bulan={bulan}
-            varian="guru"
-            guruId={guruId}
-          />
         )}
 
         {!loading &&

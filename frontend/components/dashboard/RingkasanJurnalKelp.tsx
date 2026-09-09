@@ -39,6 +39,26 @@ const SEHAT: Record<
   tertinggal: { titik: 'var(--red)', teks: 'var(--red)', label: 'Tertinggal', bg: 'rgba(220,38,38,0.08)' },
 };
 
+/* Kerangka kartu -- meniru bentuk akhir (judul + 5 tile) supaya tinggi
+   slot tidak berubah saat data tiba (dulu Skeleton h-[92px] jauh lebih
+   pendek dari kartu asli -> layar melompat pas jurnal selesai dimuat). */
+function KerangkaKartu() {
+  return (
+    <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-[13px] w-[150px]" />
+        <Skeleton className="h-[11px] w-[80px]" />
+      </div>
+      <Skeleton className="mt-1.5 h-[12px] w-[130px]" />
+      <div className="mt-3 grid grid-cols-5 gap-2">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Skeleton key={i} className="h-[76px] w-full rounded-[10px]" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function lalu(iso: string): string {
   const hari = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
   if (hari <= 0) return 'hari ini';
@@ -192,7 +212,7 @@ export default function RingkasanJurnalKelp({
         : null;
   const headlineWarna = ringkas.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
 
-  if (loading) return <Skeleton className="mb-4 h-[92px] w-full rounded-card" />;
+  if (loading) return <KerangkaKartu />;
 
   const perluAksi = ringkas.kelasTertinggal > 0;
   const pola = utkGuru ? [] : polaAlasanTidakTersampaikan(list);
