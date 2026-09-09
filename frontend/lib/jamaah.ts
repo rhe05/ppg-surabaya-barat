@@ -20,6 +20,9 @@ export type JamaahRow = {
   tempat_lahir: string | null;
   tanggal_lahir: string | null;
   status_keluarga: string | null;
+  status_domisili: string | null;
+  jenis_hunian: string | null;
+  status_hunian: string | null;
   pekerjaan: string | null;
   pendidikan_terakhir: string | null;
   no_wa: string | null;
@@ -38,8 +41,8 @@ export type JamaahRow = {
 /* Kolom yang di-SELECT untuk daftar & form jamaah. */
 export const KOLOM_JAMAAH =
   'id, kelompok_id, sub_kelp_id, nama, nama_panggilan, gender, tempat_lahir, tanggal_lahir, ' +
-  'status_keluarga, pekerjaan, pendidikan_terakhir, no_wa, alamat, rt, rw, kelurahan, ' +
-  'kecamatan, kabupaten_kota, provinsi, kode_pos, catatan';
+  'status_keluarga, status_domisili, jenis_hunian, status_hunian, pekerjaan, pendidikan_terakhir, ' +
+  'no_wa, alamat, rt, rw, kelurahan, kecamatan, kabupaten_kota, provinsi, kode_pos, catatan';
 
 export const STATUS_KELUARGA = [
   'Kepala Keluarga',
@@ -47,6 +50,19 @@ export const STATUS_KELUARGA = [
   'Anak Dewasa',
   'Lajang',
   'Umum',
+] as const;
+
+export const STATUS_DOMISILI = ['Mukim', 'Musiman', 'Pindah'] as const;
+
+export const JENIS_HUNIAN = ['Rumah', 'Kost', 'Apartemen', 'Mess', 'Lainnya'] as const;
+
+export const STATUS_HUNIAN = [
+  'Milik Sendiri',
+  'Sewa Kontrak',
+  'Rumah Orang Tua',
+  'Rumah Mertua',
+  'Di Sediakan Instansi',
+  'Lainnya',
 ] as const;
 
 export const PENDIDIKAN_TERAKHIR = [

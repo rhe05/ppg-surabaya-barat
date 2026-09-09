@@ -16,6 +16,9 @@ import { useAuth } from '@/lib/auth-context';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
+  STATUS_DOMISILI,
+  JENIS_HUNIAN,
+  STATUS_HUNIAN,
   PENDIDIKAN_TERAKHIR,
   type JamaahRow,
   type SubKelp,
@@ -33,6 +36,9 @@ type Isian = {
   tempat_lahir: string;
   tanggal_lahir: string;
   status_keluarga: string;
+  status_domisili: string;
+  jenis_hunian: string;
+  status_hunian: string;
   pekerjaan: string;
   pendidikan_terakhir: string;
   no_wa: string;
@@ -55,6 +61,9 @@ const KOSONG: Isian = {
   tempat_lahir: '',
   tanggal_lahir: '',
   status_keluarga: '',
+  status_domisili: '',
+  jenis_hunian: '',
+  status_hunian: '',
   pekerjaan: '',
   pendidikan_terakhir: '',
   no_wa: '',
@@ -78,6 +87,9 @@ function dariBaris(j: JamaahRow): Isian {
     tempat_lahir: j.tempat_lahir ?? '',
     tanggal_lahir: j.tanggal_lahir ?? '',
     status_keluarga: j.status_keluarga ?? '',
+    status_domisili: j.status_domisili ?? '',
+    jenis_hunian: j.jenis_hunian ?? '',
+    status_hunian: j.status_hunian ?? '',
     pekerjaan: j.pekerjaan ?? '',
     pendidikan_terakhir: j.pendidikan_terakhir ?? '',
     no_wa: j.no_wa ?? '',
@@ -143,6 +155,9 @@ export default function JamaahForm({
       tempat_lahir: kosongJadiNull(isian.tempat_lahir),
       tanggal_lahir: isian.tanggal_lahir || null,
       status_keluarga: kosongJadiNull(isian.status_keluarga),
+      status_domisili: kosongJadiNull(isian.status_domisili),
+      jenis_hunian: kosongJadiNull(isian.jenis_hunian),
+      status_hunian: kosongJadiNull(isian.status_hunian),
       pekerjaan: kosongJadiNull(isian.pekerjaan),
       pendidikan_terakhir: kosongJadiNull(isian.pendidikan_terakhir),
       no_wa: kosongJadiNull(isian.no_wa),
@@ -294,6 +309,55 @@ export default function JamaahForm({
               >
                 <option value="">—</option>
                 {PENDIDIKAN_TERAKHIR.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={LABEL}>Status Domisili</label>
+            <select
+              className={INPUT}
+              value={isian.status_domisili}
+              onChange={(e) => ubah('status_domisili', e.target.value)}
+            >
+              <option value="">—</option>
+              {STATUS_DOMISILI.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Jenis Hunian</label>
+              <select
+                className={INPUT}
+                value={isian.jenis_hunian}
+                onChange={(e) => ubah('jenis_hunian', e.target.value)}
+              >
+                <option value="">—</option>
+                {JENIS_HUNIAN.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className={LABEL}>Status Hunian</label>
+              <select
+                className={INPUT}
+                value={isian.status_hunian}
+                onChange={(e) => ubah('status_hunian', e.target.value)}
+              >
+                <option value="">—</option>
+                {STATUS_HUNIAN.map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
