@@ -78,7 +78,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { Calendar, CalendarDays, CalendarOff, CalendarCheck2, ChevronDown, ChevronRight, ClipboardCheck, Megaphone, MoreVertical, UserCheck, UserX } from 'lucide-react';
+import { CalendarDays, CalendarOff, CalendarCheck2, ChevronDown, ChevronRight, ClipboardCheck, Megaphone, MoreVertical, UserCheck, UserX } from 'lucide-react';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -193,9 +193,6 @@ function fmtTglPanjang(v: string) {
   return `${d} ${NAMA_BULAN[m - 1] ?? m} ${y}`;
 }
 
-const SELECT_BULAN_TAHUN =
-  'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2.5 text-[13px] text-text';
-
 const GAYA_TOOLTIP = {
   background: 'var(--panel)',
   border: '1px solid var(--border)',
@@ -259,6 +256,14 @@ function durasiMenitKelas(mulai: string | null, selesai: string | null) {
    berbagi dgn bulan/tahun "Ringkasan Kehadiran" di atas: dua konteks
    berbeda (kehadiran per sesi vs populasi guru/santri per bulan),
    owner tidak pernah minta keduanya harus selalu sama. */
+const BULAN_SINGKAT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+];
+
+/* Pemilih Bulan+Tahun MODERN (2026-09-09, diminta owner) -- pemicu teks
+   "Bulan - Tahun" yang bisa diklik, popup kartu melayang dgn stepper
+   tahun + grid 12 bulan. BUKAN <select> bawaan browser. Posisi fixed +
+   getBoundingClientRect spt TanggalPicker supaya tidak ke-clip. */
 function PemilihBulanTahun({
   bulan,
   tahun,
@@ -270,53 +275,75 @@ function PemilihBulanTahun({
 }) {
   const [terbuka, setTerbuka] = useState(false);
   const [posisi, setPosisi] = useState<{ top: number; right: number } | null>(null);
+  const [thnLihat, setThnLihat] = useState(tahun);
   const tombolRef = useRef<HTMLButtonElement>(null);
-  const tahunSekarang = new Date().getFullYear();
+  const thnSekarang = new Date().getFullYear();
+  const thnMin = thnSekarang - 3;
+  const thnMax = thnSekarang + 1;
+
+  function toggle() {
+    const r = tombolRef.current?.getBoundingClientRect();
+    if (r) setPosisi({ top: r.bottom + 6, right: window.innerWidth - r.right });
+    setThnLihat(tahun);
+    setTerbuka((v) => !v);
+  }
 
   return (
     <div className="relative shrink-0">
       <button
         type="button"
         ref={tombolRef}
-        onClick={() => {
-          const rect = tombolRef.current?.getBoundingClientRect();
-          if (rect) setPosisi({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-          setTerbuka((v) => !v);
-        }}
-        className="cursor-pointer border-none bg-transparent text-[11px] font-bold text-indigo active:opacity-70"
+        onClick={toggle}
+        className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-[11px] font-bold text-indigo active:opacity-70"
       >
         {NAMA_BULAN[bulan - 1]} - {tahun}
+        <ChevronDown size={12} className={`transition-transform ${terbuka ? 'rotate-180' : ''}`} />
       </button>
       {terbuka && posisi && (
         <>
           <div className="fixed inset-0 z-[1090]" onClick={() => setTerbuka(false)} />
           <div
-            className="fixed z-[1100] w-[220px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+            className="fixed z-[1100] w-[248px] rounded-[var(--radius-lg)] border border-border bg-panel p-3 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
             style={{ top: posisi.top, right: posisi.right }}
           >
-            <div className="flex gap-2">
-              <select
-                value={bulan}
-                onChange={(e) => onUbah(Number(e.target.value), tahun)}
-                className={SELECT_BULAN_TAHUN}
+            <div className="mb-2.5 flex items-center justify-between">
+              <button
+                type="button"
+                disabled={thnLihat <= thnMin}
+                onClick={() => setThnLihat((y) => Math.max(thnMin, y - 1))}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim disabled:opacity-30"
               >
-                {NAMA_BULAN.map((nm, idx) => (
-                  <option key={nm} value={idx + 1}>
+                ‹
+              </button>
+              <span className="text-[14px] font-extrabold text-text tabular-nums">{thnLihat}</span>
+              <button
+                type="button"
+                disabled={thnLihat >= thnMax}
+                onClick={() => setThnLihat((y) => Math.min(thnMax, y + 1))}
+                className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim disabled:opacity-30"
+              >
+                ›
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-1.5">
+              {BULAN_SINGKAT.map((nm, i) => {
+                const aktif = i + 1 === bulan && thnLihat === tahun;
+                return (
+                  <button
+                    key={nm}
+                    type="button"
+                    onClick={() => {
+                      onUbah(i + 1, thnLihat);
+                      setTerbuka(false);
+                    }}
+                    className={`cursor-pointer rounded-[var(--radius)] py-2 text-[12px] font-bold transition-colors ${
+                      aktif ? 'bg-brass text-white' : 'bg-panel-2 text-text-dim hover:bg-panel-2/70'
+                    }`}
+                  >
                     {nm}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={tahun}
-                onChange={(e) => onUbah(bulan, Number(e.target.value))}
-                className={SELECT_BULAN_TAHUN}
-              >
-                {[tahunSekarang - 1, tahunSekarang].map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
-              </select>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </>
@@ -352,9 +379,6 @@ export default function AdminKelpDashboard() {
   const sekarangAwal = new Date();
   const [bulan, setBulan] = useState(sekarangAwal.getMonth() + 1);
   const [tahun, setTahun] = useState(sekarangAwal.getFullYear());
-  const [kalenderKpiTerbuka, setKalenderKpiTerbuka] = useState(false);
-  const [posisiKalenderKpi, setPosisiKalenderKpi] = useState<{ top: number; right: number } | null>(null);
-  const ikonKalenderKpiRef = useRef<HTMLSpanElement>(null);
   const [ringkasanBulan, setRingkasanBulan] = useState<RingkasanHariIni | null>(null);
   const [loadingBulan, setLoadingBulan] = useState(true);
 
@@ -935,12 +959,12 @@ export default function AdminKelpDashboard() {
 
         {!loadingBulan && ringkasanBulan && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <button
-              type="button"
-              onClick={() => setDetailKelasTerbuka((v) => !v)}
-              className="mb-3 flex w-full cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-0 text-left"
-            >
-              <div className="min-w-0">
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setDetailKelasTerbuka((v) => !v)}
+                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+              >
                 <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                   <span className="text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
                   <span className="text-[11.5px] text-text-dim">
@@ -952,24 +976,18 @@ export default function AdminKelpDashboard() {
                   />
                 </div>
                 <div className="mt-0.5 text-[11px] text-text-dim">
-                  {NAMA_BULAN[bulan - 1]} {tahun} · {persenKelasSelesai}% kelas terisi
+                  {persenKelasSelesai}% kelas terisi
                 </div>
-              </div>
-              <span
-                role="button"
-                aria-label="Pilih Bulan dan Tahun"
-                ref={ikonKalenderKpiRef}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                  setPosisiKalenderKpi({ top: rect.bottom + 8, right: window.innerWidth - rect.right });
-                  setKalenderKpiTerbuka((v) => !v);
+              </button>
+              <PemilihBulanTahun
+                bulan={bulan}
+                tahun={tahun}
+                onUbah={(b, t) => {
+                  setBulan(b);
+                  setTahun(t);
                 }}
-                className="flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full bg-[#EEF2FF] text-indigo transition-all duration-150 active:scale-[0.92]"
-              >
-                <Calendar size={17} />
-              </span>
-            </button>
+              />
+            </div>
             <div className="grid grid-cols-5 gap-2">
               {ringkasanBulan && (
                 <div
@@ -1117,33 +1135,6 @@ export default function AdminKelpDashboard() {
               </div>
             )}
           </div>
-        )}
-
-        {kalenderKpiTerbuka && posisiKalenderKpi && (
-          <>
-            <div className="fixed inset-0 z-[1090]" onClick={() => setKalenderKpiTerbuka(false)} />
-            <div
-              className="fixed z-[1100] w-[240px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
-              style={{ top: posisiKalenderKpi.top, right: posisiKalenderKpi.right }}
-            >
-              <div className="flex gap-2">
-                <select value={bulan} onChange={(e) => setBulan(Number(e.target.value))} className={SELECT_BULAN_TAHUN}>
-                  {NAMA_BULAN.map((nm, idx) => (
-                    <option key={nm} value={idx + 1}>
-                      {nm}
-                    </option>
-                  ))}
-                </select>
-                <select value={tahun} onChange={(e) => setTahun(Number(e.target.value))} className={SELECT_BULAN_TAHUN}>
-                  {[sekarangAwal.getFullYear() - 1, sekarangAwal.getFullYear()].map((y) => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </>
         )}
 
         <RingkasanJurnalKelp kelompokId={kelompokId} tahun={tahun} bulan={bulan} />
