@@ -1035,7 +1035,15 @@ export default function AdminKelpDashboard() {
             setTahun(t);
           }}
         />
-        <MonitoringKelp kelompokId={kelompokId} tahun={tahun} bulan={bulan} />
+        <MonitoringKelp
+          kelompokId={kelompokId}
+          tahun={tahun}
+          bulan={bulan}
+          onGantiBulan={(b, t) => {
+            setBulan(b);
+            setTahun(t);
+          }}
+        />
 
         {guruIzin.length > 0 && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">

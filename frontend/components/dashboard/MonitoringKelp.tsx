@@ -11,10 +11,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { LineChart, ChevronDown, ChevronRight, Send } from 'lucide-react';
+import { ChevronDown, ChevronRight, Send } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/useToast';
 import Skeleton from '@/components/ui/Skeleton';
+import PemilihBulanTahun from '@/components/ui/PemilihBulanTahun';
 import {
   muatRingkasanJurnalPerKelas,
   urutkanUntukMonitoring,
@@ -23,11 +24,6 @@ import {
   type JurnalKelasRingkas,
   type KesehatanJurnal,
 } from '@/lib/ringkasanJurnalAdminKelp';
-
-const NAMA_BULAN = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
-];
 
 const SEHAT: Record<
   KesehatanJurnal,
@@ -51,10 +47,12 @@ export default function MonitoringKelp({
   kelompokId,
   tahun,
   bulan,
+  onGantiBulan,
 }: {
   kelompokId: number | null;
   tahun: number;
   bulan: number;
+  onGantiBulan?: (bulan: number, tahun: number) => void;
 }) {
   const { profile } = useAuth();
   const toast = useToast();
@@ -123,14 +121,15 @@ export default function MonitoringKelp({
   const dinilai = list.filter((k) => k.kesehatanTilawati !== 'takberlaku');
   const takBerlaku = list.filter((k) => k.kesehatanTilawati === 'takberlaku');
 
+  /* Headline HANYA kalau ada yang di bawah target / belum ada data. */
   const headline =
     r.kelasDinilai === 0
       ? 'Belum ada capaian Tilawati untuk dinilai'
-      : perluTindak === 0
-        ? 'Semua kelas sesuai target Tilawati'
-        : `${perluTindak} kelas di bawah target Tilawati`;
+      : perluTindak > 0
+        ? `${perluTindak} kelas di bawah target Tilawati`
+        : null;
   const headlineWarna =
-    r.kelasDinilai === 0 ? 'var(--text-dim)' : perluTindak === 0 ? 'var(--sage)' : r.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
+    r.kelasDinilai === 0 ? 'var(--text-dim)' : r.kelasTertinggal > 0 ? 'var(--red)' : 'var(--brass)';
   const perluAksi = r.kelasTertinggal > 0;
 
   return (
@@ -138,39 +137,39 @@ export default function MonitoringKelp({
       className="mb-4 rounded-card border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]"
       style={perluAksi ? { borderColor: 'var(--red)', borderWidth: 1.5 } : { borderColor: 'var(--border)' }}
     >
-      <button
-        type="button"
-        onClick={() =>
-          setBuka((v) => {
-            if (v) setDilipatManual(true);
-            return !v;
-          })
-        }
-        className="flex w-full cursor-pointer items-start justify-between gap-3 border-none bg-transparent p-0 text-left"
-      >
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <span className="flex items-center gap-1.5 text-[13px] font-bold text-text">
-              <LineChart size={14} className="text-text-dim" />
-              Monitoring
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() =>
+              setBuka((v) => {
+                if (v) setDilipatManual(true);
+                return !v;
+              })
+            }
+            className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+          >
+            <span className="shrink-0 text-[13px] font-bold text-text">Monitoring</span>
+            <span className="truncate text-[11.5px] text-text-dim">
+              {r.kelasDinilai} dari {list.length} kelas dinilai
             </span>
             <ChevronDown
               size={14}
               className={`shrink-0 text-text-faint transition-transform duration-200 ${buka ? 'rotate-180' : ''}`}
             />
-          </div>
+          </button>
+          {onGantiBulan && <PemilihBulanTahun bulan={bulan} tahun={tahun} onUbah={onGantiBulan} />}
+        </div>
+        {headline && (
           <div
-            className="mt-0.5 flex items-center gap-1.5 text-[11.5px] font-semibold"
+            className="mt-1 flex items-center gap-1.5 text-[11.5px] font-semibold"
             style={{ color: headlineWarna }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: headlineWarna }} />
             {headline}
           </div>
-          <div className="mt-0.5 text-[11px] text-text-dim">
-            {NAMA_BULAN[bulan - 1]} {tahun} · Buku Jilid Tilawati vs pedoman
-          </div>
-        </div>
-      </button>
+        )}
+      </div>
 
       {/* 5 tile -- struktur seragam dgn kartu lain */}
       <div className="mt-3 grid grid-cols-5 gap-2">
