@@ -276,15 +276,19 @@ function PemilihBulanTahun({
   const [terbuka, setTerbuka] = useState(false);
   const [posisi, setPosisi] = useState<{ top: number; right: number } | null>(null);
   const [thnLihat, setThnLihat] = useState(tahun);
+  const [pilihThn, setPilihThn] = useState(false); // true = tampilkan grid tahun
   const tombolRef = useRef<HTMLButtonElement>(null);
   const thnSekarang = new Date().getFullYear();
-  const thnMin = thnSekarang - 3;
+  const thnMin = thnSekarang - 5;
   const thnMax = thnSekarang + 1;
+  const daftarThn: number[] = [];
+  for (let y = thnMax; y >= thnMin; y--) daftarThn.push(y);
 
   function toggle() {
     const r = tombolRef.current?.getBoundingClientRect();
     if (r) setPosisi({ top: r.bottom + 6, right: window.innerWidth - r.right });
     setThnLihat(tahun);
+    setPilihThn(false);
     setTerbuka((v) => !v);
   }
 
@@ -294,10 +298,9 @@ function PemilihBulanTahun({
         type="button"
         ref={tombolRef}
         onClick={toggle}
-        className="flex cursor-pointer items-center gap-1 border-none bg-transparent text-[11px] font-bold text-indigo active:opacity-70"
+        className="cursor-pointer border-none bg-transparent text-[12px] font-bold text-indigo active:opacity-70"
       >
         {NAMA_BULAN[bulan - 1]} - {tahun}
-        <ChevronDown size={12} className={`transition-transform ${terbuka ? 'rotate-180' : ''}`} />
       </button>
       {terbuka && posisi && (
         <>
@@ -306,45 +309,77 @@ function PemilihBulanTahun({
             className="fixed z-[1100] w-[248px] rounded-[var(--radius-lg)] border border-border bg-panel p-3 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
             style={{ top: posisi.top, right: posisi.right }}
           >
+            {/* Baris tahun: panah kiri/kanan + angka tahun yang bisa diklik */}
             <div className="mb-2.5 flex items-center justify-between">
               <button
                 type="button"
-                disabled={thnLihat <= thnMin}
+                disabled={pilihThn || thnLihat <= thnMin}
                 onClick={() => setThnLihat((y) => Math.max(thnMin, y - 1))}
+                aria-label="Tahun sebelumnya"
                 className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim disabled:opacity-30"
               >
                 ‹
               </button>
-              <span className="text-[14px] font-extrabold text-text tabular-nums">{thnLihat}</span>
               <button
                 type="button"
-                disabled={thnLihat >= thnMax}
+                onClick={() => setPilihThn((v) => !v)}
+                className={`rounded-[var(--radius)] px-3 py-1 text-[14px] font-extrabold tabular-nums transition-colors ${
+                  pilihThn ? 'bg-brass text-white' : 'text-text hover:bg-panel-2'
+                }`}
+              >
+                {thnLihat}
+              </button>
+              <button
+                type="button"
+                disabled={pilihThn || thnLihat >= thnMax}
                 onClick={() => setThnLihat((y) => Math.min(thnMax, y + 1))}
+                aria-label="Tahun berikutnya"
                 className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border border-border bg-panel-2 text-text-dim disabled:opacity-30"
               >
                 ›
               </button>
             </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {BULAN_SINGKAT.map((nm, i) => {
-                const aktif = i + 1 === bulan && thnLihat === tahun;
-                return (
+
+            {pilihThn ? (
+              <div className="grid grid-cols-3 gap-1.5">
+                {daftarThn.map((y) => (
                   <button
-                    key={nm}
+                    key={y}
                     type="button"
                     onClick={() => {
-                      onUbah(i + 1, thnLihat);
-                      setTerbuka(false);
+                      setThnLihat(y);
+                      setPilihThn(false);
                     }}
-                    className={`cursor-pointer rounded-[var(--radius)] py-2 text-[12px] font-bold transition-colors ${
-                      aktif ? 'bg-brass text-white' : 'bg-panel-2 text-text-dim hover:bg-panel-2/70'
+                    className={`cursor-pointer rounded-[var(--radius)] py-2 text-[12px] font-bold tabular-nums transition-colors ${
+                      y === thnLihat ? 'bg-brass text-white' : 'bg-panel-2 text-text-dim hover:bg-panel-2/70'
                     }`}
                   >
-                    {nm}
+                    {y}
                   </button>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-1.5">
+                {BULAN_SINGKAT.map((nm, i) => {
+                  const aktif = i + 1 === bulan && thnLihat === tahun;
+                  return (
+                    <button
+                      key={nm}
+                      type="button"
+                      onClick={() => {
+                        onUbah(i + 1, thnLihat);
+                        setTerbuka(false);
+                      }}
+                      className={`cursor-pointer rounded-[var(--radius)] py-2 text-[12px] font-bold transition-colors ${
+                        aktif ? 'bg-brass text-white' : 'bg-panel-2 text-text-dim hover:bg-panel-2/70'
+                      }`}
+                    >
+                      {nm}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -959,34 +994,32 @@ export default function AdminKelpDashboard() {
 
         {!loadingBulan && ringkasanBulan && (
           <div className="mb-4 rounded-card border border-border bg-panel p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-            <div className="mb-3 flex items-start justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => setDetailKelasTerbuka((v) => !v)}
-                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
-              >
-                <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span className="text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
-                  <span className="text-[11.5px] text-text-dim">
+            <div className="mb-3">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setDetailKelasTerbuka((v) => !v)}
+                  className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                >
+                  <span className="shrink-0 text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
+                  <span className="truncate text-[11.5px] text-text-dim">
                     {ringkasanBulan.kelasSudahDiabsen} dari {ringkasanBulan.totalKelas} kelas
                   </span>
                   <ChevronDown
                     size={14}
                     className={`shrink-0 text-text-faint transition-transform duration-200 ${detailKelasTerbuka ? 'rotate-180' : ''}`}
                   />
-                </div>
-                <div className="mt-0.5 text-[11px] text-text-dim">
-                  {persenKelasSelesai}% kelas terisi
-                </div>
-              </button>
-              <PemilihBulanTahun
-                bulan={bulan}
-                tahun={tahun}
-                onUbah={(b, t) => {
-                  setBulan(b);
-                  setTahun(t);
-                }}
-              />
+                </button>
+                <PemilihBulanTahun
+                  bulan={bulan}
+                  tahun={tahun}
+                  onUbah={(b, t) => {
+                    setBulan(b);
+                    setTahun(t);
+                  }}
+                />
+              </div>
+              <div className="mt-1 text-[11px] text-text-dim">{persenKelasSelesai}% kelas terisi</div>
             </div>
             <div className="grid grid-cols-5 gap-2">
               {ringkasanBulan && (
