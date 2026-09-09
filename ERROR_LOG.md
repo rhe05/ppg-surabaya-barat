@@ -1245,6 +1245,15 @@ pemakainya (Rencana/Pelaksanaan/Riwayat Pembelajaran, Monitoring).
 banyak santri, buka dropdown Buku Jilid santri paling bawah — panel
 muncul penuh (balik ke atas) dan semua pilihan bisa dipilih.
 
+**Audit menyeluruh (diminta owner)** — panel melayang lain sudah aman:
+`KebabMenu`, `TanggalPicker`, `JamPicker` (KelasForm), lonceng notifikasi
+(`BellPermintaanGuru/Admin`) semua sudah `createPortal`+`fixed`. `FieldSaran`
+(SantriForm) & combobox "Materi Ngaji" (RencanaPembelajaranView) masih
+`absolute` TAPI di dalam modal/sheet yang `overflow-y-auto` (bukan
+`overflow-hidden`) & field pemicunya dekat atas — meluber, tidak
+ter-clip keras. Perbaikan SelectKustom otomatis berlaku di semua
+pemakainya: pemilih Kelas, Bulan/Tahun, Buku Jilid, filter Monitoring.
+
 ---
 
 ## #35 — Guru gilir kedua (`kelas.guru_id_2`) tak bisa lihat/isi jurnal & tilawati kelas giliran-nya (2026-09-09)
