@@ -70,6 +70,9 @@ export type JamaahAcara = {
   deleted_at?: string | null;
 };
 
+export const KOLOM_ACARA =
+  'id, kelompok_id, sub_kelp_id, judul, tanggal, tempat, keterangan';
+
 export type StatusHadir = 'hadir' | 'izin' | 'sakit' | 'alpa';
 
 export type JamaahKehadiran = {
