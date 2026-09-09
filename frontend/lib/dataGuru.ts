@@ -70,13 +70,17 @@ export type KelasJurnal = {
   kategori_kbm: { nama: string } | { nama: string }[] | null;
 };
 
-/** Daftar kelas yang diampu seorang guru. Dipakai semua layar guru. */
+/** Daftar kelas yang diampu seorang guru. Dipakai semua layar guru.
+    Termasuk kelas yang dia ampu sebagai guru gilir kedua (`guru_id_2`,
+    Data Kelas) -- kalau tidak, guru kedua tak bisa lihat/isi jurnal &
+    tilawati kelas giliran-nya. RLS jurnal/tilawati menerima keduanya
+    (migrasi 20260909100000). */
 export function muatKelasGuru(guruId: number): Promise<KelasJurnal[]> {
   return ambil(`kelas:${guruId}`, async () => {
     const { data, error } = await supabase
       .from('kelas')
       .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)')
-      .eq('guru_id', guruId)
+      .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
       .is('deleted_at', null)
       .order('nama');
     if (error) throw new Error(error.message);

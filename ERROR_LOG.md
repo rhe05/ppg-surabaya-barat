@@ -1217,6 +1217,43 @@ atas teks Prota SUNGGUHAN dari produksi dan mencetak hasil per kelas.
 
 ---
 
+## #35 — Guru gilir kedua (`kelas.guru_id_2`) tak bisa lihat/isi jurnal & tilawati kelas giliran-nya (2026-09-09)
+
+**Gejala**: admin kelp menaruh 2 guru di satu kelas via Data Kelas
+(guru utama + guru gilir kedua). Guru kedua tidak melihat kelas itu di
+menu guru (Rencana/Pelaksanaan Pembelajaran, Monitoring, Laporan) dan
+tidak bisa mengisi jurnal materi / tilawati untuknya. Contoh: Kelp
+Bangun Rejo kelas "1 & 2" — `guru_id=40` (Dara) + `guru_id_2=42`
+(Nabhilla); Nabhilla mentok.
+
+**Akar masalah**: dua lapis hanya mengenal `kelas.guru_id`:
+1. `frontend/lib/dataGuru.ts` `muatKelasGuru()` — `.eq('guru_id', guruId)`.
+2. RLS `jurnal_kbm` / `jurnal_materi` / `tilawati_pelaksanaan` — cabang
+   guru mencocokkan `p.guru_id = kl.guru_id` saja.
+`kelas.guru_id_2` (migrasi 20260827110000) sampai saat itu cuma dipakai
+di UI Data Kelas + `guruGiliran()` (pengumuman).
+
+**absensi tidak kena**: cabang guru-nya se-kelompok
+(`p.scope_kelompok_id = absensi.kelompok_id`), bukan per-kelas.
+
+**Penanganan**:
+- `muatKelasGuru()` → `.or('guru_id.eq.<id>,guru_id_2.eq.<id>')`.
+- Migrasi `20260909100000_guru_id_2_akses_jurnal_tilawati.sql` — 9
+  kebijakan (3 tabel × select/insert/update): cabang guru diganti dari
+  `p.guru_id = kl.guru_id` jadi `p.guru_id IN (kl.guru_id, kl.guru_id_2)`.
+  Peran admin tidak disentuh. ⚠️ **WAJIB dijalankan owner manual** di
+  Supabase SQL Editor (pola backlog drift, lihat memory
+  `feedback-migrasi-satu-file-isolasi-dari-backlog`).
+
+**Belum ditangani (sengaja)**: `santri_update_guru` (edit data generus
+oleh guru) masih `k.guru_id = p.guru_id` — di luar lingkup keluhan ini.
+
+**Cara verifikasi**: setelah migrasi jalan, login sebagai guru kedua →
+Rencana Pembelajaran → kelas giliran muncul di daftar & bisa tambah
+materi; cek juga tab lain (Pelaksanaan, Tilawati, Monitoring).
+
+---
+
 ## #34 — Hafalan Surat & Hafalan Do'a di Tambah Materi Klasikal "tidak bisa dipencet" untuk guru di kelompok selain Kelp Petemon (2026-09-09)
 
 **Gejala** (keluhan guru Dara, Kelp Bangun Rejo / kelompok 6): di borang
