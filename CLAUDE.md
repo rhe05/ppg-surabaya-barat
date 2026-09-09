@@ -1,414 +1,171 @@
-# PPG Surabaya Barat — Project Documentation
+# PPG Surabaya Barat — "Ruang Ngaji"
 
-> Aplikasi Manajemen TPQ (Taman Pendidikan Quran) untuk organisasi PPG Surabaya Barat.
-> Built dengan Google Apps Script + HTML/CSS/JavaScript. Production-ready.
+> Aplikasi manajemen TPQ (Taman Pendidikan Quran) untuk PPG Surabaya Barat.
+> **Stack aktif: Next.js 16 (App Router) + Supabase (Postgres + RLS + Auth).**
+> Di-deploy ke Vercel. PWA (installable, manifest + service worker).
+>
+> ⚠️ App lama berbasis Google Apps Script + Google Sheets **sudah mati sejak
+> 2026-08-18**. Kodenya masih ada di `13_AppsScript/` sebagai arsip — lihat
+> bagian "Sejarah / arsip" di bawah. Jangan kerjakan di sana.
 
-## Quick Summary
-
-**Project**: PPG Surabaya Barat TPQ Management App  
-**Status**: ✅ Complete (4 phases delivered)  
-**Stack**: Google Apps Script + Google Sheets + HTML/CSS/JS  
-**Repo**: https://github.com/rhe05/ppg-surabaya-barat (private, akun rhe05)  
-**Deployment**: Auto via GitHub Actions → Apps Script Web App  
-**Last Updated**: 2026-09-09  
-
----
-
-## Architecture Overview
-
-### Frontend
-- **7 Screens**: Login, Dashboard, Santri, Guru, Absensi, Laporan, Statistik, User Management
-- **Tech**: Vanilla HTML/CSS/JavaScript (no framework)
-- **Responsive**: 5 breakpoints (xs:320px, sm:480px, md:768px, lg:1024px, xl:1280px)
-- **Charts**: Google Charts API (LineChart, BarChart, PieChart, ColumnChart)
-- **Pattern**: `google.script.run()` for async server calls
-
-### Backend
-- **Language**: Google Apps Script (~2000 lines)
-- **Modules**: 8 modules (Utilities, Dashboard, Statistics, Laporan, UserManagement, MaintainSantri/Guru/Absensi)
-- **Functions**: 35+ server functions with RBAC enforcement
-- **Auth**: Custom auth + SHA-256 password hashing
-- **RBAC**: 4 roles (admin_ppg, admin_desa, admin_kelompok, guru)
-
-### Database
-- **Storage**: Google Sheets (12 sheets/tables)
-- **Schema**: Organizasi, Pengguna, Santri, Guru, Absensi, Evaluasi, Kurikulum, Audit
-- **Key Tables**: ppg, desa, kelompok, users (12 cols), santri, guru, absensi
+**Repo**: https://github.com/rhe05/ppg-surabaya-barat (privat, akun rhe05)
+**Owner**: rheza354@gmail.com
+**Supabase project ref**: `fnhqtkqswxsqmjxynldg`
+**Last Updated**: 2026-09-09
 
 ---
 
-## Features by Phase
+## Arsitektur
 
-### Phase 1: Laporan & Export ✅
-- CSV export untuk Santri, Guru, Absensi
-- Ringkasan kehadiran per kelompok
-- Print-friendly reports
-- **Backend**: Modul_Laporan.gs
+### Frontend — `frontend/`
+- **Next.js 16 App Router** (baca `frontend/AGENTS.md` + `node_modules/next/dist/docs/`
+  sebelum menulis kode Next — versi ini punya breaking changes dari yang kamu tahu).
+- **Vanilla React + Tailwind v4** (⚠️ Tailwind v4: kelas bisa diam-diam tidak
+  ter-generate walau build hijau — grep CSS hasil build).
+- Route per fitur di `frontend/app/<fitur>/` (absensi, jurnal, kurikulum,
+  monitoring, tabungan, santri, guru, dashboard, data-master, peringkat,
+  konseling, munaqosah, pengumuman, kalender, siklus-generus, dst).
+- Helper bersama di `frontend/lib/` (`supabase.ts` klien, `auth-context.tsx`,
+  `dataGuru.ts`, `kelasGabungGilir.ts`, `pedomanTilawati.ts`, …).
+- Komponen di `frontend/components/<fitur>/`.
+- Nav: `GuruBottomNav` / `AdminBottomNav` + `AksiCepat*`. Toast global `useToast`.
+  Offline: `useKoneksi` / `BannerOffline` / `TarikUntukSegarkan`.
 
-### Phase 2: Statistik & Analytics ✅
-- **4 Analytics Tabs**:
-  - Kehadiran: Line chart trend + Bar chart per kelompok
-  - Demografi: Pie chart gender + Column chart santri per jenjang
-  - Ranking: Top 10 & Bottom 10 santri
-  - Growth: Column chart santri/guru + KPI cards
-- **Backend**: Modul_Statistics.gs
-
-### Phase 3: User Management ✅
-- Create/Edit/Delete users
-- Reset password (generate temp)
-- Toggle status (active/inactive)
-- Change own password
-- **Backend**: Modul_UserManagement.gs
-
-### Phase 4: Mobile Optimization ✅
-- Responsive design (5 breakpoints)
-- Touch-friendly UI (44×44px buttons)
-- Mobile overlay navigation
-- Full-screen modals pada mobile
-- Responsive charts with dynamic sizing
-
----
-
-## Key Files
-
-```
-13_AppsScript/
-├── Index.html (1500+ lines)
-│   ├── 7 complete screens
-│   ├── 40+ JavaScript functions
-│   └── Responsive CSS (5 breakpoints + touch)
-├── Setup_Database.gs — Schema + seeding
-├── Modul_Utilities.gs — Auth, RBAC, helpers
-├── Modul_Dashboard.gs — KPI aggregation
-├── Modul_Statistics.gs — Analytics (6 functions)
-├── Modul_Laporan.gs — Export/reports (4 functions)
-├── Modul_SeedData.gs — Demo data
-├── Modul_MaintainSantri.gs — Santri CRUD
-├── Modul_MaintainGuru.gs — Guru CRUD
-└── Modul_MaintainAbsensi.gs — Absensi CRUD
-
-.github/workflows/
-└── deploy-appsscript.yml — CI/CD pipeline
-```
-
----
-
-## Development Guide
-
-### Setup
-1. Clone repo: `git clone https://github.com/rhe05/ppg-surabaya-barat.git`
-2. Open Google Sheet (ID in `.clasp.json`)
-3. Apps Script editor: Extensions > Apps Script
-4. Push code: `clasp push` (or via GitHub Actions)
-
-### Adding Features
-1. **Backend**: Add function to appropriate Modul_*.gs
-2. **Frontend**: Add JavaScript function + UI element in Index.html
-3. **Database**: Update Setup_Database.gs if schema changes needed
-4. **Test**: Run function in Apps Script editor
-5. **Commit**: `git add -A && git commit -m "feat: ..."`
-6. **Deploy**: `git push origin main` (auto-deploys via CI/CD)
-
-### Testing
-- Test locally in Apps Script editor
-- Test in web app (run deployed version)
-- Check browser console for JS errors
-- Verify RBAC: test with different user roles
-
-### Database
-- Run `setupDatabaseStructure()` to initialize (safe to re-run)
-- Run `seedTestData()` for demo data
-- Check Google Sheet for data integrity
-
----
-
-## Login & RBAC
-
-### Default Credentials (CHANGE BEFORE PRODUCTION)
-- **Username**: `admin`
-- **Password**: `admin123`
-- **Role**: `admin_ppg`
-
-### Roles
-- `admin_ppg` — Access everything (7 screens + user management)
-- `admin_desa` — Access own desa's data (5 screens)
-- `admin_kelompok` — Access own kelompok's data (5 screens)
-- `guru` — View-only access (dashboard, view santri/guru/absensi)
-
-### RBAC Enforcement
-- All backend functions check user role/scope
-- Frontend conditionally shows User Management menu (admin only)
-- Users see only data they have access to
-
----
-
-## Deployment & CI/CD
-
-### GitHub Setup
-1. **Repository**: https://github.com/rhe05/ppg-surabaya-barat (private)
-2. **GitHub Account**: rhe05
-3. **SSH Key**: Added to GitHub
-4. **Secrets**:
-   - `CLASPRC_JSON` — Contents of `~/.clasprc.json`
-   - `APPSSCRIPT_DEPLOYMENT_ID` — Web App deployment ID
-5. **Workflow**: `.github/workflows/deploy-appsscript.yml`
-
-### Deployment Flow
-```
-Local change → git push → GitHub Actions
-→ clasp push (update code) → clasp deploy (same deployment ID)
-→ Web App URL stays same, code updated ✅
-```
-
-### Web App URL
-After deployment, app accessible at Apps Script deployment URL (stable URL, same even after updates).
-
----
-
-## Performance & Limitations
-
-### Performance
-- Dashboard load: ~2-3s first load (with charts) → <1s cached
-- Charts: Renders within 1-2s
-- Network: Requires stable internet (no offline support)
-
-### Current Limitations
-- ❌ No offline sync (requires internet)
-- ❌ No bulk Excel import (CSV export only)
-- ❌ No push/email notifications
-- ❌ No dark mode
-- ❌ No PWA support
-
-### Future Improvements
-- [ ] Offline capability (IndexedDB + sync)
-- [ ] Bulk Excel import
-- [ ] Email notifications
-- [ ] Dark mode toggle
-- [ ] PWA wrapper
-- [ ] Advanced analytics
-- [ ] Mobile app (Capacitor)
+### Backend — Supabase
+- **Postgres** dengan **RLS di semua tabel** (tidak ada server app terpisah;
+  klien bicara langsung ke PostgREST + RPC).
+- **Auth**: Supabase Auth (Login Google). Profil & peran di tabel `profiles`
+  (`role`, `scope_ppg_id/desa_id/kelompok_id`, `guru_id`, `is_active`).
+- **RBAC**: 4 peran — `admin_ppg`, `admin_desa`, `admin_kelompok`, `guru`.
+  Fungsi `auth_profile()` (SECURITY DEFINER, STABLE) dipakai semua policy;
+  pola cepat: subquery skalar tanpa korelasi = InitPlan, bukan per-baris
+  (lihat migrasi `20260902100000`/`120000` & memory `ppg-rls-initplan-jurnal`).
+- **Migrasi**: `08_Development/tpq-app/supabase/migrations/` (±75 file).
+- Struktur wilayah: 5 desa / 18 kelompok (sidebar dinamis dari DB).
 
 ---
 
 ## Formula Kerja AI (standar senior developer — WAJIB)
 
-1. **Minimal diff**: perbaiki HANYA error/fitur yang diminta. Dilarang menulis ulang fungsi/section yang tidak berhubungan, dilarang "sekalian merapikan".
-2. **Hemat token**: mulai dari `FILE_MAP.md` → grep penanda → baca hanya bagian relevan. Dilarang membaca Index.html utuh.
-3. **Diagnosis berbasis bukti**: reproduksi/ukur dulu (tools/, output server, console), baru simpulkan. Dilarang menebak lalu mengedit.
-4. **Aturan mutasi data** (wajib untuk fungsi server baru): bungkus tulis-sheet dalam `withScriptLock_()`, generate id DI DALAM lock, pakai id hasil lookup (bukan parameter mentah), `cacheDrop_()` kunci cache terkait, return `{success, error}` via try/catch — contoh pola: `serverAddGuru`/`serverUpdateGuru`.
-5. **Aturan baca data**: daftar yang sering diakses pakai `cacheGet_`/`cachePut_` + invalidasi di semua mutasinya (kunci: `guru_k<id>`, `santri_k<id>`).
-6. **Setiap perubahan skema sheet** → update `Setup_Database.gs` (header + fungsi migrasi) + ingatkan user jalankan `setupDatabaseStructure()` manual.
-7. **Verifikasi wajib**: `node tools/check_local.js` sebelum commit → deploy → `node tools/verify_served.js`. Belum lolos = belum selesai.
-8. **Regresi**: bug baru ditemukan = entri baru `ERROR_LOG.md` di commit yang sama dengan fix-nya.
+1. **Minimal diff**: perbaiki HANYA error/fitur yang diminta. Dilarang menulis
+   ulang fungsi/section yang tidak berhubungan, dilarang "sekalian merapikan".
+2. **Langkah kecil**: kerjakan bertahap, "fokus di X" diartikan literal. Jangan
+   perencanaan berat di depan.
+3. **Diagnosis berbasis bukti**: reproduksi/ukur dulu (SQL diagnostik ke
+   produksi, `read` output, console browser), baru simpulkan. Dilarang menebak
+   lalu mengedit. Prompt gaya spec panjang / `#ISSUE` → verifikasi kode dulu,
+   balik ke minimal-diff.
+4. **Bug baru = entri baru `ERROR_LOG.md`** dalam commit yang sama dengan fix-nya.
+5. **Verifikasi wajib sebelum "selesai"**: `npx tsc --noEmit` di `frontend/`
+   (+ pre-commit hook `tools/check_local.js` yang masih jalan — tapi itu cuma
+   memvalidasi tree GAS arsip, bukan frontend). Untuk perubahan RLS: SQL
+   diagnostik + impersonasi ke produksi (lihat di bawah).
+6. **Deploy**: full autonomy commit/push tanpa tanya (memory
+   `feedback-deploy-workflow`). Push ke `main` = auto-deploy Vercel. TIDAK ada
+   CI frontend.
 
-## Prinsip Performa Firestore (WAJIB — berlaku tiap tambah/ubah fitur yang sentuh Firestore)
+---
 
-> Ditetapkan 2026-08-05/06 setelah audit performa collection `absensi`,
-> `santri`/`guru`/`jadwal_kbm`/`jadwal_kategori_hari`/`pengumuman`,
-> `jurnal_kbm`, `kop_surat` — SEMUA collection Firestore yang ada saat ini
-> sudah dicek. Aturan di bawah WAJIB dipakai untuk collection Firestore
-> BARU atau perubahan pada yang sudah ada, bukan cuma referensi historis.
-
-**Sebelum menambah field/fungsi baru yang baca/tulis Firestore, tanya 3 hal ini:**
-
-### 1. ID dokumen
-- Collection punya composite key alami yang UNIK per baris (mis. absensi =
-  `tanggal_santriId`, jurnal_kbm = `slug(kelas)__tanggal`)? → PAKAI itu
-  sebagai id dokumen deterministik. Upsert langsung `firestoreUpdateDoc_`
-  (PATCH dgn field mask lengkap = otomatis create-if-absent), delete
-  langsung `firestoreDeleteDoc_` by id. **JANGAN** baca-semua-dulu-cari-id
-  utk collection begini — kalau ada composite key alami, TIDAK PERNAH
-  butuh baca apa pun sebelum tulis.
-- Tidak ada composite key alami (mis. santri/guru/jadwal_kbm/pengumuman,
-  butuh id sekuensial)? → PAKAI `firestoreGenerateIdInPath_(path)`
-  (Modul_FirestoreBridge.gs) APA ADANYA — sudah pakai dokumen counter
-  (`.../_counters/{tabel}`, O(1)), JANGAN bikin logika scan-cari-maxId
-  sendiri lagi.
-
-### 2. Baca data
-- Collection itu MASTER/REFERENSI (daftar yang memang selalu dibutuhkan
-  UTUH, volumenya kecil-menengah dan tidak tumbuh tanpa batas — santri,
-  guru, jadwal_kbm, pengumuman)? → `firestoreListCollection_(path)` full
-  read TETAP TEPAT, tidak perlu diubah jadi query.
-- Collection itu TIME-SERIES / tumbuh terus tanpa batas (ditulis per-hari
-  atau per-transaksi — absensi, jurnal_kbm, atau apa pun sejenis itu di
-  masa depan) DAN pemanggil cuma butuh SEBAGIAN (1 bulan/1 tanggal/1
-  filter field)? → WAJIB `firestoreRunQuery_` + `firestoreRangeQuery_`
-  (Modul_FirestoreBridge.gs, query `where` di sisi Firestore). **JANGAN**
-  `firestoreListCollection_` lalu `.filter()` manual di Apps Script — itu
-  men-download seluruh riwayat cuma buat dibuang sebagian besar, dan
-  biayanya tumbuh terus seiring data bertambah (bukan biaya tetap).
-- Inequality/equality pada SATU field (mis. rentang tanggal, atau equal 1
-  nilai) tidak butuh composite index baru — Firestore auto-index tiap
-  field. Composite index baru relevan kalau nanti ADA query yang
-  menggabungkan equality field lain + range field lain sekaligus (belum
-  ada kasusnya di app ini).
-
-### 3. Tulis data
-- WAJIB di dalam `withScriptLock_()` (menyerialkan semua penulis app ini —
-  ini juga alasan pola read-lalu-tulis counter di atas AMAN tanpa
-  transaksi Firestore beneran).
-- Kalau id deterministik (poin 1) → upsert langsung, TANPA baca dulu utk
-  cek "sudah ada atau belum".
-- Kalau TERPAKSA perlu tahu existence duluan (bukan collection dgn id
-  deterministik) → `firestoreGetDoc_` (1 dokumen, O(1)), **JANGAN**
-  `firestoreListCollection_` (semua dokumen) cuma buat cek ada/tidak.
-
-### Cara verifikasi (tidak ada test otomatis utk Firestore production)
-Tambah diag route sementara di `Code.js` (pola `?diag=xxxtest`, lihat
-riwayat commit utk contoh), panggil via `node tools/diag_query.js` (atau
-script Node sekali-pakai serupa) LANGSUNG ke deployment production,
-bandingkan hasil/jumlah dokumen sebelum & sesudah perubahan — baru HAPUS
-diag route itu setelah terverifikasi. Jangan biarkan diag route mutasi
-menumpuk permanen di `doGet` (endpoint publik, access "Anyone").
-
-## Prinsip Data Supabase / RLS (WAJIB — app "Ruang Ngaji" Next.js, sejak 2026-09-09)
-
-> Ditetapkan setelah rentetan bug "kelompok X tidak bisa Y": kurikulum
-> bersama & guru gilir kedua. Berlaku tiap tambah/ubah fitur yang
-> menyaring data per-kelompok atau per-guru.
+## Prinsip Data Supabase / RLS (WAJIB — tiap tambah/ubah fitur yang menyaring
+per-kelompok atau per-guru)
 
 ### 1. Kurikulum = data BERSAMA di `kelompok_id = 1`
 - SELURUH baris `kurikulum_prota` / `kurikulum_promes` / `kurikulum_probul`
   (+ turunannya) hidup di `kelompok_id = 1` saja (sejak migrasi
   `20260822100000`). Kelompok lain memakai baris yang sama.
 - Membaca kurikulum: **SELALU** pakai konstanta `1`
-  (`KELOMPOK_KURIKULUM_BERSAMA_ID`), **JANGAN** `profile.scope_kelompok_id`.
-  Kalau pakai scope guru, daftar jadi kosong utk kelompok ≠ 1 → cek-list
-  tak bisa dipencet / target hilang. (ERROR_LOG #34.)
+  (`KELOMPOK_KURIKULUM_BERSAMA_ID`), **JANGAN** `profile.scope_kelompok_id` —
+  kalau pakai scope guru, daftar jadi kosong utk kelompok ≠ 1 (cek-list tak
+  bisa dipencet / target hilang). ERROR_LOG #34.
 - Pedoman statis (`lib/pedomanTilawati.ts`) di-key per KODE KELAS kurikulum
-  ('1'..'12'/'PAUD-TK'), bukan kelompok — aman.
+  (`'1'..'12'`/`'PAUD-TK'`), bukan kelompok — aman.
 
 ### 2. Kelas punya DUA guru: `guru_id` + `guru_id_2` (gilir)
-- `kelas.guru_id_2` = guru gilir kedua (Data Kelas, migrasi
-  `20260827110000`). Giliran per-tanggal dihitung `guruGiliran()`
-  (`lib/kelasGabungGilir.ts`) — TAPI itu cuma utk TAMPILAN pengumuman.
-- Utk AKSES (lihat kelas, isi jurnal/tilawati/tabungan, edit santri):
-  KEDUA guru berhak PENUH atas kelas itu, tanpa cek tanggal giliran.
-- Pola WAJIB di query frontend: `.or('guru_id.eq.<id>,guru_id_2.eq.<id>')`,
-  bukan `.eq('guru_id', <id>)`.
-- Pola WAJIB di policy/RPC RLS: `p.guru_id IN (kl.guru_id, kl.guru_id_2)`,
-  bukan `kl.guru_id = p.guru_id`. (ERROR_LOG #35, migrasi
-  `20260909100000`/`110000`/`120000`.)
+- `kelas.guru_id_2` = guru gilir kedua (Data Kelas, migrasi `20260827110000`).
+  `guruGiliran()` (`lib/kelasGabungGilir.ts`) menghitung giliran per-tanggal —
+  TAPI itu HANYA utk TAMPILAN pengumuman.
+- Utk AKSES (lihat kelas, isi jurnal/tilawati/tabungan, edit santri): KEDUA
+  guru berhak PENUH atas kelas itu, tanpa cek tanggal giliran.
+- Pola WAJIB di query frontend:
+  `.or('guru_id.eq.<id>,guru_id_2.eq.<id>')`, bukan `.eq('guru_id', <id>)`.
+- Pola WAJIB di policy/RPC RLS:
+  `p.guru_id IN (kl.guru_id, kl.guru_id_2)`, bukan `kl.guru_id = p.guru_id`.
+  ERROR_LOG #35, migrasi `20260909100000`/`110000`/`120000`.
 - `absensi` PENGECUALIAN: cabang guru-nya se-kelompok
-  (`p.scope_kelompok_id = absensi.kelompok_id`), tidak per-kelas — sudah
-  benar apa adanya.
+  (`p.scope_kelompok_id = absensi.kelompok_id`), tidak per-kelas — sudah benar.
 
-### 3. Migrasi = dijalankan owner MANUAL di Supabase SQL Editor
+### 3. Aturan mutasi Firestore/DB (peninggalan, konsep tetap berlaku)
+- Tulis: bungkus dalam `withScriptLock_()` (GAS) / andalkan RLS + RPC atomik
+  (Supabase). ID deterministik kalau ada composite key alami → upsert langsung
+  tanpa baca-dulu. ID sekuensial → dokumen counter O(1), jangan scan-cari-max.
+- Baca: collection MASTER (santri/guru/jadwal) → full read OK. TIME-SERIES
+  (absensi/jurnal) + butuh sebagian → query `where` di sisi server, JANGAN
+  full read lalu `.filter()`.
+- Setiap RPC baru: `REVOKE ... FROM PUBLIC`, sisakan `TO authenticated`.
+- `CREATE OR REPLACE FUNCTION` gagal (42P13) kalau tipe kembalian berubah →
+  `DROP FUNCTION` dulu (menghapus GRANT lama juga).
+
+### 4. Migrasi = dijalankan owner MANUAL di Supabase SQL Editor
 - CLI `supabase db push` TIDAK dipakai (backlog drift — banyak migrasi
-  "pending" sebenarnya sudah live). Tulis SATU file migrasi idempoten,
-  minta owner paste+Run. Lihat memory
+  "pending" sebenarnya sudah live). Tulis SATU file migrasi idempoten
+  (`BEGIN; … COMMIT;`), minta owner paste + Run. Memory
   `feedback-migrasi-satu-file-isolasi-dari-backlog`.
 - Salin badan fungsi/policy lama dari DB PRODUKSI (`pg_get_functiondef` /
-  `pg_policies` via Management API), bukan dari ingatan.
-- Verifikasi: SQL diagnostik + impersonasi
-  (`set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>"}'`)
-  ke produksi, bandingkan sebelum/sesudah. Lihat memory
-  `ppg-supabase-sql-diag-management-api`.
-
-### 4. Frontend deploy = Vercel Git integration
-Push ke `main` = auto-deploy production. TIDAK ada CI frontend; verifikasi
-= `npx tsc --noEmit` + `node tools/check_local.js` (pre-commit hook).
-
-## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
-
-1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah + penanganan. Cocokkan gejala sebelum investigasi baru.
-2. **Cari kode via `FILE_MAP.md`** (peta penanda grep) — JANGAN baca Index.html utuh (±7300 baris, boros token).
-3. **Sebelum commit**: `node tools/check_local.js` (parse semua script + guardrail).
-4. **Setelah deploy**: `node tools/verify_served.js` (ambil & validasi output server sungguhan — satu-satunya cara mendeteksi kerusakan oleh pemroses HtmlService).
-5. **Bug baru = entri baru di ERROR_LOG.md** dalam commit yang sama dengan fix-nya.
-
-⚠️ **Aturan kritis**: dilarang menulis `//` (termasuk URL `http://`) di dalam string JavaScript pada Index.html — HtmlService memotong baris saat serving → layar putih total (ERROR_LOG.md #1).
+  `pg_policies` via Management API), BUKAN dari ingatan / berkas migrasi lama.
+- Setiap perubahan skema → update file migrasi + ingatkan owner jalankan manual.
 
 ---
 
-## Troubleshooting
+## Debugging & Verifikasi (WAJIB — jangan tebak-tebak)
 
-### App not loading?
-1. Check network connection (requires internet)
-2. Clear browser cache (Ctrl+Shift+Delete)
-3. Check Apps Script logs: Extensions > Apps Script > Logs
-4. Verify Google Sheet is accessible
-
-### Charts not rendering?
-1. Check that data exists (run `loadDashboard()` first)
-2. Verify Google Charts library loaded (`google.charts.load()`)
-3. Check browser console for errors
-4. Mobile? Charts smaller but should still render
-
-### Login failing?
-1. Verify credentials in users sheet
-2. Check password hash (should be SHA-256)
-3. Clear sessionStorage: F12 > Application > Session Storage > Clear All
-4. Check Apps Script logs
-
-### User can't see data?
-1. Check user's role and scope_id in users sheet
-2. Verify RBAC logic in backend function
-3. Check kelompok_id matches user's scope_id
-4. Clear cache and re-login
+1. **Ada error/bug? Baca `ERROR_LOG.md` DULU** — riwayat bug + akar masalah +
+   penanganan. Cocokkan gejala sebelum investigasi baru.
+2. **SQL diagnostik ke produksi** (bypass RLS, inspeksi saja) via Management API —
+   token `SUPABASE_ACCESS_TOKEN` di `.env` ROOT repo. Pola di memory
+   `ppg-supabase-sql-diag-management-api`. Auto-mode classifier memblok
+   query yang MENULIS ke DB — untuk itu minta owner jalankan sendiri.
+3. **Verifikasi RLS**: impersonasi di dalam transaksi yang di-rollback —
+   `begin; set local role authenticated; set local request.jwt.claims = '{"sub":"<uuid>"}'; <query>; rollback;`
+   Bandingkan hasil sebelum & sesudah perubahan.
+4. **Verifikasi visual tanpa login**: pratinjau statis di `frontend/public/` +
+   cek gaya terhitung. Untuk komponen bergulir, screenshot TIDAK cukup — cek
+   `scrollLeft` & `getBoundingClientRect`. Memory
+   `feedback-verifikasi-visual-tanpa-login`.
+5. **PostgREST diam-diam memotong di 1000 baris** → paginasi wajib untuk daftar
+   besar. `.upsert` `onConflict` gagal 42P10 pada partial unique index.
 
 ---
 
 ## Code Standards
 
-- **Git Messages**: Descriptive, use `feat:`, `fix:`, `refactor:`
-- **Naming**: camelCase for JS/functions, snake_case for sheet columns
-- **Comments**: Only for non-obvious logic (why, not what)
-- **Modules**: Group by feature (Laporan, Statistics, etc.)
-- **RBAC**: Always enforce in backend, never trust frontend
+- **Git**: pesan deskriptif, `feat:` / `fix:` / `refactor:` / `docs:` /
+  `style:`. Akhiri commit dengan `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>`.
+- **Naming**: camelCase untuk JS/fungsi, snake_case untuk kolom Postgres.
+- **Komentar**: hanya untuk logika non-obvious (kenapa, bukan apa) — dan
+  komentar di repo ini padat menjelaskan keputusan; ikuti gayanya.
+- **JANGAN** `prettier --write` (merusak gaya kutip) — memory
+  `ppg-guru-saas-polish-2026-08-28`.
+- **RLS**: selalu tegakkan di DB, jangan percaya frontend.
+- **Navigasi**: satu jalan per tujuan, jangan duplikasi menu.
+- **No `cd &&` compound** di shell — pakai absolute path.
 
 ---
 
-## Important Notes
+## Sejarah / arsip (JANGAN dikerjakan)
 
-⚠️ **Before Production**:
-1. Change default admin password
-2. Test with real data
-3. Verify all sheets have headers
-4. Backup Google Sheet
-5. Train users
-6. Monitor Apps Script quotas
+- **`13_AppsScript/`** — app GAS + Google Sheets, mati 2026-08-18. `FILE_MAP.md`,
+  `tools/check_local.js`, `tools/verify_served.js`, `tools/diag_query.js`,
+  `ERROR_LOG.md #1–#9` mengacu ke era ini. Bug kritis historis: menulis `//`
+  (termasuk `http://`) di dalam string JS pada file HtmlService → layar putih
+  (ERROR_LOG #1).
+- **Migrasi GAS→Supabase** (Agustus 2026): `AUDIT_MIGRASI_GAS_KE_SUPABASE_*.md`,
+  `MIGRATION_GUIDE.md`, `RUANG_NGAJI_AUDIT_REPORT.md`, banyak skrip ETL
+  sekali-pakai di root & `tools/`.
+- **Era Firestore bridge** (sebelum Supabase): `Modul_FirestoreBridge.gs`,
+  `Modul_FirestoreMigration.gs`, audit performa Firestore. Konsep performa-nya
+  (composite key, query vs full read, counter O(1)) tetap dipakai — sudah
+  diringkas di "Prinsip Data Supabase / RLS §3".
 
-⚠️ **Security**:
-- Passwords: SHA-256 hashed (sufficient for internal org)
-- No HTTPS worries: Google Apps Script provides HTTPS
-- Data: In Google Sheets (encrypted at rest)
-- Auth: Session token in sessionStorage (HTTPS only)
-
-⚠️ **Quotas**:
-- Apps Script: 20k/day (execution units)
-- Google Sheets: API quota shared with Apps Script
-- Monitor: Extensions > Apps Script > Overview
-
----
-
-## Git History
-
-```
-81347b4 feat: mobile optimization — responsive design + touch-friendly UX
-bf6de5c feat: user management — CRUD + RBAC + password management
-1c75b1a feat: statistik & analytics — Google Charts + advanced metrics
-03c4a11 feat: laporan & export CSV — santri, guru, absensi + ringkasan kehadiran
-9cf1756 fix: replace hamburger icon dengan chevron SVG button (like kalkulator laundry)
-9c73ddf fix: sidebar alignment + collapsible toggle
-474e602 feat: sidebar navigation + 5 complete screens (dashboard, santri, guru, absensi)
-```
-
----
-
-## Contact & References
-
-**Owner**: rheza354@gmail.com  
-**GitHub**: rhe05  
-**Created**: 2026-07 (approximately)  
-**Last Updated**: 2026-09-09  
-
-**Related Docs**:
-- Memory: `~/.claude/projects/PPG_Surabaya_Barat/memory/ppg-project-status.md`
-- CI/CD Details: `memory/appsscript-github-cicd.md`
-
----
-
-**Status**: ✅ Production Ready  
-**Next Step**: Deploy to team, gather feedback, iterate on Phase 5 improvements
+**Related docs**: `frontend/AGENTS.md` (aturan Next.js versi ini),
+`frontend/AUTH_SETUP.md`, memory `~/.claude/projects/.../memory/MEMORY.md`
+(indeks riwayat sesi).
