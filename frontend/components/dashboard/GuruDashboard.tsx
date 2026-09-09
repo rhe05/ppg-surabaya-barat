@@ -86,6 +86,21 @@ function SkeletonKartuKelas() {
   );
 }
 
+/* Jumlah kartu kerangka = jumlah kelas guru ini pada pemuatan TERAKHIR
+   (disimpan di localStorage). Supaya kerangka langsung sebanyak kartu
+   asli -> tidak ada baris yang "nyusut/nambah" di bawah fade saat data
+   tiba. Default 2 utk kunjungan pertama. */
+const LS_JML_KELAS = 'guruDash.jmlKelasKerangka';
+function bacaJmlKelasKerangka(): number {
+  if (typeof window === 'undefined') return 2;
+  try {
+    const n = Number(window.localStorage.getItem(LS_JML_KELAS));
+    return Number.isFinite(n) && n >= 1 && n <= 6 ? n : 2;
+  } catch {
+    return 2;
+  }
+}
+
 function batasBulan(tahun: number, bulan: number) {
   const dua = (n: number) => String(n).padStart(2, '0');
   return {
@@ -123,6 +138,7 @@ export default function GuruDashboard() {
   const [statistik, setStatistik] = useState<Record<number, Statistik> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [jmlKerangka] = useState(bacaJmlKelasKerangka);
 
   const sekarangAwal = new Date();
   /* Bulan/tahun yang sedang ditampilkan — dipilih lewat ikon kalender di
@@ -247,6 +263,11 @@ export default function GuruDashboard() {
         (a.jam_mulai ?? '').localeCompare(b.jam_mulai ?? '')
       ) as unknown as Kelas[];
       setKelas(daftarKelas);
+      try {
+        window.localStorage.setItem(LS_JML_KELAS, String(daftarKelas.length));
+      } catch {
+        /* localStorage bisa dilempar (mode privat) — abaikan */
+      }
       await muatStatistik(
         daftarKelas.map((k) => k.id),
         bulan,
@@ -438,12 +459,8 @@ export default function GuruDashboard() {
           />
         )}
 
-        {loading && (
-          <>
-            <SkeletonKartuKelas />
-            <SkeletonKartuKelas />
-          </>
-        )}
+        {loading &&
+          Array.from({ length: jmlKerangka }, (_, i) => <SkeletonKartuKelas key={i} />)}
         {!loading && error && (
           <PesanGalat pesan={error} onCobaLagi={load} sedangMemuat={loading} className="mb-2.5" />
         )}

@@ -228,6 +228,43 @@ body:has([data-guru-nav]) .bilah-aksi-bawah {
   animation: konten-muncul 280ms ease-out;
 }
 
+/* Kerangka (skeleton) — kilau tipis kiri→kanan, lebih halus & "mahal"
+   dibanding animate-pulse (kedip opacity) bawaan Tailwind. Dipakai lewat
+   komponen ui/Skeleton.tsx. Warna dasar var(--panel-2), sorotan putih
+   sangat samar supaya tetap netral di tema terang. */
+@keyframes kerangka-kilau {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+.kerangka {
+  background-color: var(--panel-2);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: kerangka-kilau 1.6s ease-in-out infinite;
+}
+
+/* Hormati preferensi "kurangi gerak" OS/peramban — matikan semua animasi
+   dekoratif yang berulang/masuk. */
+@media (prefers-reduced-motion: reduce) {
+  .kerangka {
+    animation: none;
+  }
+  .animasi-konten-muncul,
+  .animasi-toast-masuk {
+    animation-duration: 1ms;
+  }
+}
+
 /* Toast masuk (ToastStack.tsx) — turun + fade halus dari atas. */
 @keyframes toast-masuk {
   from {
