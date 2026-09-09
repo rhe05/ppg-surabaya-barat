@@ -1217,6 +1217,38 @@ atas teks Prota SUNGGUHAN dari produksi dan mencetak hasil per kelas.
 
 ---
 
+## #37 — Kalender `TanggalPicker` kepotong di bottom-sheet Tabungan (2026-09-09)
+
+**Gejala** (video dari penghimpun Bu Ratna): di sheet Terima/Tarik
+Tabungan, ketuk field tanggal → kalender terbuka ke bawah dan baris
+tanggal 23–31 + tepi bawah kartu terpotong keluar layar. Field tanggal
+ada di dekat bawah bottom-sheet.
+
+**Akar masalah**: `components/ui/TanggalPicker.tsx` SENGAJA tidak punya
+logika flip/jepit — komentarnya: "selalu buka ke BAWAH pemicunya ...
+cukup utk ikon yang selalu dekat atas layar". Asumsi itu batal begitu
+dipakai di form yang field tanggalnya di bawah (Tabungan). Kartu
+`position: fixed` di `top = rect.bottom + 6` → menjulur lewat tepi bawah
+viewport.
+
+**Penanganan**: `TanggalPicker` mengukur tinggi kartu sungguhan
+(`useLayoutEffect` + `offsetHeight`, sebelum paint) lalu MENJEPIT `top`-nya
+ke atas: `top = clamp(8, posisi.top, innerHeight - 8 - tinggiKartu)`.
+Perbaikan di komponen bersama → berlaku utk SEMUA pemakai
+(Absensi, Form Generus, Tanggal Materi Rencana/Klasikal, Tabungan) &
+semua peran. Tidak ada perubahan di sisi pemanggil.
+
+**Cara verifikasi**: buka sheet Tabungan (Terima/Tarik), ketuk field
+tanggal — kartu kalender muncul utuh (tergeser ke atas) dgn semua baris
+tanggal kelihatan.
+
+Terkait #36 (`SelectKustom`/`FieldSaran`/combobox pakai
+`lib/usePanelMelayang.ts`). `TanggalPicker` SENGAJA tidak dimigrasi ke
+hook itu — pola prop `posisi` dari pemanggil beda, lebar tetap 296px;
+cukup tambah penjepit `top`.
+
+---
+
 ## #36 — Dropdown `SelectKustom` kepotong utk item paling bawah (Buku Jilid Tilawati) (2026-09-09)
 
 **Gejala** (tangkapan layar owner): di Pelaksanaan Pembelajaran → kartu

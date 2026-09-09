@@ -16,11 +16,14 @@
    header punya overflow-hidden (utk sudut bawah membulat), dan overflow-
    hidden tetap memotong keturunan `position: absolute`/`fixed` sekalipun
    — baru kelihatan setelah dicoba (terpotong separuh, dilaporkan owner).
-   Simplifikasi dari app lama: selalu buka ke BAWAH pemicunya (tidak ada
-   logika flip ke atas kalau ruang kurang) — cukup utk ikon yang selalu
-   dekat atas layar. */
 
-import { useState } from 'react';
+   Buka ke BAWAH pemicunya, TAPI kalau kartu bakal lewat tepi bawah
+   viewport (mis. dipakai di bottom-sheet Tabungan yg field tanggalnya
+   dekat bawah, dilaporkan penghimpun Bu Ratna 2026-09-09), `top`-nya
+   dijepit ke atas supaya kartu utuh -- diukur dari tinggi kartu sungguhan
+   (useLayoutEffect, sebelum paint, tanpa kedip). */
+
+import { useLayoutEffect, useRef, useState } from 'react';
 
 const NAMA_BULAN = [
   'Januari',
@@ -73,6 +76,19 @@ export default function TanggalPicker({
   const dasar = nilai ? new Date(nilai + 'T00:00:00') : new Date();
   const [tahun, setTahun] = useState(dasar.getFullYear());
   const [bulan, setBulan] = useState(dasar.getMonth());
+  const kartuRef = useRef<HTMLDivElement>(null);
+  const [topAkhir, setTopAkhir] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    if (!terbuka || !posisi) {
+      setTopAkhir(null);
+      return;
+    }
+    const el = kartuRef.current;
+    if (!el) return;
+    const maxTop = window.innerHeight - 8 - el.offsetHeight;
+    setTopAkhir(Math.max(8, Math.min(posisi.top, maxTop)));
+  }, [terbuka, posisi, bulan, tahun]);
 
   if (!terbuka || !posisi) return null;
 
@@ -119,8 +135,9 @@ export default function TanggalPicker({
       {/* Lapisan transparan penuh layar — klik di luar kartu menutup kalender. */}
       <div className="fixed inset-0 z-[1090]" onClick={onTutup} />
       <div
+        ref={kartuRef}
         className="fixed z-[1100] w-[296px] rounded-[var(--radius-lg)] border border-border bg-panel p-4 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
-        style={{ top: posisi.top, right: posisi.right }}
+        style={{ top: topAkhir ?? posisi.top, right: posisi.right }}
       >
         <div className="mb-3 flex items-center justify-between gap-1.5">
           <button
