@@ -11,6 +11,7 @@ import GuruAbsensiView, { KelasDetail } from '@/components/absensi/GuruAbsensiVi
 import StatusModal from '@/components/absensi/StatusModal';
 import { muatOverrideKelompok, buatCekNonaktif, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatKelasGuru, muatQuoteHarian } from '@/lib/dataGuru';
+import { useJedaAksi } from '@/lib/jedaAksi';
 
 const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diPuji';
 
@@ -544,6 +545,13 @@ function AbsensiContent() {
     }
   }
 
+  /* "Stun" sisi klien (2026-09-10): tombol Simpan sudah punya `disabled`,
+     tapi jeda tegas ini menutup celah double-fire selama await pra-simpan
+     & mencegah handler mana pun memicu badai request (lihat lib/jedaAksi
+     & migrasi 20260910100000 batasi_laju). */
+  const simpanAdminTerbatas = useJedaAksi(handleSimpan, { jedaMs: 2500 });
+  const simpanGuruTerbatas = useJedaAksi(handleSimpanGuru, { jedaMs: 2500 });
+
   if (!profile) {
     return (
       <main className="min-h-screen bg-bg p-6">
@@ -602,7 +610,7 @@ function AbsensiContent() {
              lagi, bukan sekadar menutup popup. */
           error={error || saveError}
           pesan={null}
-          onSimpan={handleSimpanGuru}
+          onSimpan={simpanGuruTerbatas}
         />
         <StatusModal
           terbuka={statusModal !== null}
@@ -691,7 +699,7 @@ function AbsensiContent() {
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-[17px] font-bold text-text">Daftar Santri</h2>
           <button
-            onClick={handleSimpan}
+            onClick={simpanAdminTerbatas}
             disabled={saving || loading || santri.length === 0}
             className="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
           >

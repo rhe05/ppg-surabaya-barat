@@ -1,5 +1,21 @@
 # Audit Resource Supabase — CPU/Compute 100%
 
+> **✅ AKAR MASALAH DITEMUKAN 2026-09-10** (audit keamanan/performa lanjutan).
+> Bukan Studio dashboard, bukan pola kode di file ini. Penyebabnya: **klien
+> "runaway"** (tab peramban lama, build ~26 Agt) memanggil
+> `simpan_absensi_kelas` **~550×/detik** tanpa henti selama 15 hari — tiap
+> panggilan kena error `40001` untuk tanggal 2026-08-26 lalu langsung
+> dicoba lagi. Bukti: `absensi.n_tup_ins` = 750 juta, `postgres_logs` 100%
+> error 40001.
+> **Detail + perbaikan**: `SECURITY_PERFORMANCE_AUDIT_2026-09-10.md` &
+> `ERROR_LOG.md #38`. Perbaikan: (1) owner tutup tab itu, (2) migrasi
+> `20260910100000_rate_limit.sql` (pagar `batasi_laju`), (3) `lib/jedaAksi.ts`.
+> Temuan #1–#5 di bawah tetap valid sebagai perbaikan kebersihan, tapi
+> prioritasnya turun drastis.
+
+---
+
+
 **Tanggal**: 2026-08-26
 **Project**: Ruang Ngaji (tpq-app)
 **Pemicu**: Dashboard Supabase menunjukkan Compute 100%, CPU 100%, Memory 68%, Disk I/O 1%, Database 35.5 MB, WAL 80 MB.

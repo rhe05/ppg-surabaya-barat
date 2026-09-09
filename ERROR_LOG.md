@@ -1388,6 +1388,47 @@ sesuai jenjang kelas dan bisa dicentang.
 
 ---
 
+## #38 — Klien "runaway" hammer `simpan_absensi_kelas` ~550/detik sejak 26 Agt = penyebab CPU Supabase 100% (ditemukan 2026-09-10 saat audit keamanan)
+
+**Gejala**: sejak 26 Agt, Compute/CPU Supabase 100% terus-menerus, tak
+terpecahkan (`SUPABASE_RESOURCE_AUDIT.md` — audit kode 26 Agt menebak
+"mungkin Studio dashboard", salah).
+
+**Akar masalah** (bukti dari produksi 2026-09-10):
+- `absensi.n_tup_ins` = **750 JUTA** (tabel cuma 3.450 baris hidup),
+  laju **~550 INSERT/detik saat diukur**.
+- `pg_stat_statements`: 1,4 MILIAR request PostgREST / 47 hari.
+- `postgres_logs`: **100%** isinya error `40001` "Data absensi tanggal
+  **2026-08-26** baru saja diubah dari sesi lain".
+- → Satu **tab peramban lama** (build ~26 Agt, sebelum perbaikan
+  konkurensi & `handleSimpan` sekarang yang TIDAK retry) terjebak:
+  panggil `simpan_absensi_kelas` dgn `updated_at:null` → baris sudah ada
+  → `unique_violation` → RPC `RAISE 40001` → build lama **coba lagi
+  seketika** → loop ~20×/detik selama 15 hari.
+- Kode `app/absensi/page.tsx` versi SEKARANG tidak punya loop ini —
+  makanya audit kode statis 26 Agt tidak menemukannya. Masalahnya
+  **JavaScript basi yang masih hidup di sebuah perangkat**.
+
+**Penanganan**:
+1. **Owner**: tutup / hard-refresh tab peramban yang membuka Input
+   Kehadiran (stuck di 26 Agt) di perangkat mana pun. Verifikasi:
+   `absensi.n_tup_ins` berhenti naik.
+2. **Pagar server** — migrasi `20260910100000_rate_limit.sql`: tabel
+   `laju_permintaan` + fungsi `batasi_laju(aksi, maks, detik)`;
+   `simpan_absensi_kelas` memanggil `batasi_laju('simpan_absensi',20,60)`
+   SEBELUM kerja berat. Panggilan berlebih ditolak dgn 1 upsert murah,
+   bukan seluruh RPC. ⚠️ Owner jalankan manual.
+3. **Pagar klien** — `lib/jedaAksi.ts` (`useJedaAksi`), dipasang di
+   tombol Simpan Input Kehadiran (`jedaMs: 2500`).
+
+**Pelajaran**: `pg_stat_user_tables.n_tup_ins` / `pg_stat_statements` /
+`postgres_logs` via Management API = cara TERCEPAT menemukan runaway
+client — jauh lebih cepat dari audit pola kode. Cek itu DULU kalau CPU
+tinggi tanpa sebab jelas. Laporan lengkap:
+`SECURITY_PERFORMANCE_AUDIT_2026-09-10.md`.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
