@@ -34,6 +34,7 @@ import {
   UserRoundX,
   Check,
   CalendarDays,
+  MoreVertical,
 } from 'lucide-react';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
@@ -817,67 +818,66 @@ function DataGenerusContent() {
           indigo. Popup KelasGate di atas tetap ada, tapi cuma kepakai
           otomatis sekali saat layar pertama dibuka (>1 kelas & belum ada
           pilihan) -- lihat efek muatKelas(). */}
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          <div className="pt-1.5 text-[17px] font-extrabold text-text">Data Generus</div>
-          {kelasList.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto">
-              {kelasList.map((k) => {
-                const aktif = k.id === kelasId;
-                return (
-                  <button
-                    key={k.id}
-                    type="button"
-                    onClick={() => setKelasId(k.id)}
-                    className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
-                      aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
-                    }`}
-                    style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
-                  >
-                    {k.nama}
-                  </button>
-                );
-              })}
+      <div className="mb-4">
+        {/* Judul + tombol menu SATU BARIS, rata tengah presisi. */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-[17px] font-extrabold text-text">Data Generus</div>
+          {/* Mode aksi massal aktif -> tombol "Batal"; selain itu -> tombol
+              titik-tiga (menu Tambah/Pindah/Naik/Non Aktif). */}
+          {kelasAktif && (
+            <div className="relative shrink-0">
+              {modeMassal ? (
+                <button
+                  type="button"
+                  onClick={batalModeMassal}
+                  className="cursor-pointer rounded-full border border-border bg-panel-2 px-4 py-1.5 text-[13px] font-bold text-text active:scale-[0.96]"
+                >
+                  Batal
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Menu Data Generus"
+                  onClick={() => setMenuTambahTerbuka((v) => !v)}
+                  className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-[0.92]"
+                >
+                  <MoreVertical size={18} strokeWidth={2} />
+                </button>
+              )}
+              <TambahMenu
+                terbuka={menuTambahTerbuka}
+                onTutup={() => setMenuTambahTerbuka(false)}
+                onTambah={bukaTambah}
+                onPindahKelas={() => mulaiModeMassal('pindah')}
+                onPindahDomisili={() => mulaiModeMassal('pindah_domisili')}
+                onNaikKelas={() => mulaiModeMassal('naik')}
+                onNonAktif={() => mulaiModeMassal('non_aktif')}
+                bisaPindahKelas={
+                  (kelasKelompok.length ? kelasKelompok : kelasList).filter((k) => k.id !== kelasId)
+                    .length > 0
+                }
+              />
             </div>
           )}
         </div>
-        {/* Mode aksi massal aktif (Pindah/Naik Kelas) -> tombol jadi "Batal"
-            (keluar mode centang). Selain itu -> tombol ikon orang bulat,
-            sejajar judul, di bawah lonceng top bar (pengganti tombol teks
-            "+ Generus" sebelumnya + popup 3 pilihan). */}
-        {kelasAktif && (
-          <div className="relative mt-1.5 shrink-0">
-            {modeMassal ? (
-              <button
-                type="button"
-                onClick={batalModeMassal}
-                className="cursor-pointer rounded-full border border-border bg-panel-2 px-4 py-2 text-[13px] font-bold text-text active:scale-[0.96]"
-              >
-                Batal
-              </button>
-            ) : (
-              <button
-                type="button"
-                aria-label="Tambah / Pindah / Naik Kelas"
-                onClick={() => setMenuTambahTerbuka((v) => !v)}
-                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border-none bg-brass text-white shadow-[0_4px_12px_rgba(217,119,6,0.28)] active:scale-[0.92]"
-              >
-                <User size={19} strokeWidth={2} />
-              </button>
-            )}
-            <TambahMenu
-              terbuka={menuTambahTerbuka}
-              onTutup={() => setMenuTambahTerbuka(false)}
-              onTambah={bukaTambah}
-              onPindahKelas={() => mulaiModeMassal('pindah')}
-              onPindahDomisili={() => mulaiModeMassal('pindah_domisili')}
-              onNaikKelas={() => mulaiModeMassal('naik')}
-              onNonAktif={() => mulaiModeMassal('non_aktif')}
-              bisaPindahKelas={
-                (kelasKelompok.length ? kelasKelompok : kelasList).filter((k) => k.id !== kelasId)
-                  .length > 0
-              }
-            />
+        {kelasList.length > 1 && (
+          <div className="mt-2 flex gap-2 overflow-x-auto">
+            {kelasList.map((k) => {
+              const aktif = k.id === kelasId;
+              return (
+                <button
+                  key={k.id}
+                  type="button"
+                  onClick={() => setKelasId(k.id)}
+                  className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13.5px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
+                    aktif ? 'border-indigo text-indigo' : 'border-border bg-panel text-text'
+                  }`}
+                  style={aktif ? { background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)' } : undefined}
+                >
+                  {k.nama}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
