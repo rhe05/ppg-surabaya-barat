@@ -6,6 +6,7 @@
 import { useRouter } from 'next/navigation';
 import { Users, CalendarCheck, History, Layers } from 'lucide-react';
 import JamaahChrome from '@/components/jamaah/JamaahChrome';
+import RingkasanKehadiranCard from '@/components/jamaah/RingkasanKehadiranCard';
 
 const PINTASAN = [
   { label: 'Data Jamaah', desk: 'Daftar & kelola data jamaah', href: '/jamaah/data', ikon: Users },
@@ -20,6 +21,7 @@ export default function JamaahBerandaPage() {
     <main className="min-h-screen bg-bg">
       <JamaahChrome tampilkanHero />
       <div className="px-[18px] pt-4 pb-10">
+        <RingkasanKehadiranCard />
         <div className="mb-3 text-[15px] font-extrabold text-text">Menu</div>
         <div className="grid grid-cols-1 gap-2.5">
           {PINTASAN.map((p) => {
