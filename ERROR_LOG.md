@@ -1471,6 +1471,47 @@ owner yang memintanya (2026-09-03). Tombol hapus menutupi risikonya.
 
 ---
 
+## #40 — Registrasi/Login Google gagal "Unable to exchange external code: 4/0A" (2026-09-10)
+
+**Gejala** (screenshot owner, halaman callback Supabase): setelah pilih akun
+Google & setujui consent, redirect balik ke `.../auth/v1/callback` menampilkan
+**"Unable to exchange external code: 4/0A..."**. User tak pernah masuk.
+
+**Akar masalah**: error ini muncul di langkah SERVER-SIDE Supabase menukar
+`authorization code` ke Google (butuh client_id + **client_secret** +
+redirect_uri). Redirect URI di OAuth client sudah benar
+(`https://fnhqtkqswxsqmjxynldg.supabase.co/auth/v1/callback`), Client ID cocok
+— jadi tersangkanya **client secret di Supabase basi/keliru** (mungkin
+ke-truncate saat disalin dulu, atau secret lama sudah dirotasi di Google).
+
+**Penanganan** (via Claude extension, owner authorize — TIDAK ada perubahan
+kode/commit; semua di dashboard):
+1. Google Cloud Console → Auth Platform → Clients → client Web
+   (`963569997767-lk0ue2sd83i1l22repk6t54i47vqqbmi`) → **Add secret** →
+   secret baru `GOCSPX-...oG6u`.
+2. Supabase → Authentication → Sign In / Providers → Google → tempel secret
+   baru di **Client Secret (for OAuth)**, Client ID dipastikan cocok, Save.
+3. Secret lama (`****ISFS`) di Google → **Disable** (belum di-Delete, jaga2
+   rollback ~beberapa jam propagasi).
+4. Verifikasi: sign-out app → "Masuk dengan Google" (akun rheza354) → consent
+   → **berhasil mendarat di /dashboard**, tanpa error. ✅
+
+**Masih terbuka / catatan**:
+- OAuth consent screen masih **Testing** (bukan Production). "Publish app"
+  ke-block: butuh **Application home page URL + Privacy policy URL** diisi di
+  Branding (tooltip Google eksplisit). Homepage `ruang-ngaji.vercel.app`,
+  tapi `vercel.app` tak bisa jadi Authorized Domain (public-suffix) →
+  butuh keputusan owner (domain sendiri / halaman privasi).
+- Selama Testing + **0 test users**: hanya anggota project Google Cloud
+  (mis. rheza354) yang bisa lolos consent. Generus/guru dgn akun Google acak
+  akan kena `access_denied` (BUKAN error exchange di atas) sampai app
+  dipublish atau akunnya ditambah sbg test user (Audience → Test users →
+  Add users, maks 100).
+- Kalau error exchange muncul lagi: cek secret Supabase vs secret aktif di
+  Google belum di-rotate/hapus; pastikan cuma 1 secret enabled yang dipakai.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
