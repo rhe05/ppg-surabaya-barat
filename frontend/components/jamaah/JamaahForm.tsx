@@ -183,7 +183,7 @@ export default function JamaahForm({
 }: {
   jamaah: JamaahRow | null;
   /* Semua jamaah sekelompok yg sudah dimuat JamaahList — sumber saran ketik
-     Nama Panggilan (nol query tambahan). */
+     Nama Lengkap + Nama Panggilan (nol query tambahan). */
   jamaahList: JamaahRow[];
   subKelpList: SubKelp[];
   /* Dari jamaah_konfig: kalau true, Sub Kelp wajib dipilih. */
@@ -225,7 +225,21 @@ export default function JamaahForm({
     };
   }, [kelompokId]);
 
-  const saranNama = useMemo(() => saranNamaGabungan(riwayatGenerus), [riwayatGenerus]);
+  /* Saran Nama Lengkap: nama jamaah yang SUDAH pernah diinput (dari
+     jamaahList, nol query) didahulukan, lalu nama keluarga generus
+     sekelompok. Unik case-insensitive. */
+  const saranNama = useMemo(() => {
+    const dariGenerus = saranNamaGabungan(riwayatGenerus);
+    const dilihat = new Set(dariGenerus.map((s) => s.teks.toLowerCase()));
+    const dariJamaah: SaranItem<PilihanNama>[] = [];
+    for (const j of jamaahList) {
+      const t = (j.nama ?? '').trim();
+      if (!t || j.id === jamaah?.id || dilihat.has(t.toLowerCase())) continue;
+      dilihat.add(t.toLowerCase());
+      dariJamaah.push({ teks: t });
+    }
+    return [...dariJamaah, ...dariGenerus];
+  }, [riwayatGenerus, jamaahList, jamaah?.id]);
   const saranKota = useMemo(() => KOTA_INDONESIA.map((k) => ({ teks: k })), []);
   const saranKelurahan = useMemo<SaranItem<WilayahSurabaya>[]>(
     () => WILAYAH_SURABAYA.map((w) => ({ teks: w.kelurahan, rec: w })),
@@ -426,7 +440,7 @@ export default function JamaahForm({
             onChange={(v) => ubah('nama', v)}
             onPilih={(item) => item.rec && isiDariGenerus(item.rec)}
             saran={saranNama}
-            placeholder="Ketik nama — saran muncul dari data generus"
+            placeholder="Ketik nama — saran dari jamaah & data generus"
           />
 
           <div className="grid grid-cols-2 gap-3">
