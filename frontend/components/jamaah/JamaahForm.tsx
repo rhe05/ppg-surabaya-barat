@@ -22,6 +22,7 @@ import FieldTanggal from '@/components/ui/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { type SaranItem } from '@/lib/saran';
 import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
+import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
@@ -209,8 +210,28 @@ export default function JamaahForm({
 
   const saranNama = useMemo(() => saranNamaGabungan(riwayatGenerus), [riwayatGenerus]);
   const saranKota = useMemo(() => KOTA_INDONESIA.map((k) => ({ teks: k })), []);
+  const saranKelurahan = useMemo<SaranItem<WilayahSurabaya>[]>(
+    () => WILAYAH_SURABAYA.map((w) => ({ teks: w.kelurahan, rec: w })),
+    [],
+  );
 
   const ubah = <K extends keyof Isian>(k: K, v: Isian[K]) => setIsian((s) => ({ ...s, [k]: v }));
+
+  /* Klik saran Kelurahan -> isi Kecamatan/Kab-Kota/Provinsi/Kode Pos dari
+     lib/wilayahSurabaya.ts. MENIMPA field terkait (itu maksud "otomatis
+     terisi"); tetap editable kalau datanya meleset / bukan Surabaya.
+     Sama persis SantriForm. */
+  function isiDariWilayah(rec: WilayahSurabaya | undefined) {
+    if (!rec) return;
+    setIsian((s) => ({
+      ...s,
+      kelurahan: rec.kelurahan,
+      kecamatan: rec.kecamatan,
+      kabupaten_kota: rec.kabupaten_kota,
+      provinsi: rec.provinsi,
+      kode_pos: rec.kode_pos,
+    }));
+  }
 
   /* Klik saran nama -> tarik data keluarga generus yang menyertainya.
      Field yang ADA isinya di baris generus MENIMPA nilai di form (itu
@@ -520,11 +541,15 @@ export default function JamaahForm({
               />
             </div>
             <div className="col-span-2">
-              <label className={LABEL}>Kelurahan</label>
-              <input
-                className={INPUT}
+              <FieldSaran
+                inputClass={INPUT}
+                labelClass={LABEL}
+                label="Kelurahan"
                 value={isian.kelurahan}
-                onChange={(e) => ubah('kelurahan', e.target.value)}
+                onChange={(v) => ubah('kelurahan', v)}
+                onPilih={(item) => isiDariWilayah(item.rec)}
+                saran={saranKelurahan}
+                placeholder="Ketik kelurahan (Surabaya) — kecamatan dst. ikut terisi"
               />
             </div>
           </div>
