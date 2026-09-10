@@ -35,6 +35,7 @@ const KOSONG: KpiJamaah = {
   mt: 0,
   mukim: 0,
   musiman: 0,
+  pindah: 0,
 };
 
 export default function RingkasanJamaahCard() {
@@ -122,9 +123,10 @@ export default function RingkasanJamaahCard() {
       </div>
 
       {/* Domisili */}
-      <div className="mt-4 grid grid-cols-2 border-t border-border pt-4">
+      <div className="mt-4 grid grid-cols-3 gap-y-4 border-t border-border pt-4">
         <Stat n={k.mukim} l="Mukim" />
         <Stat n={k.musiman} l="Musiman" />
+        <Stat n={k.pindah} l="Pindah" />
       </div>
 
       <p className="mt-3.5 border-t border-border pt-2.5 text-[10px] leading-relaxed text-text-faint">

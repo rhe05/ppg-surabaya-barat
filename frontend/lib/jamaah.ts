@@ -87,6 +87,7 @@ export type KpiJamaah = {
   /* status_domisili */
   mukim: number;
   musiman: number;
+  pindah: number;
 };
 
 export type JamaahKpiRow = Pick<
@@ -129,6 +130,7 @@ export function hitungKpiJamaah(
     mt: mtGuru,
     mukim: 0,
     musiman: 0,
+    pindah: 0,
   };
   for (const r of rows) {
     if (r.status_keluarga === 'Duda') k.duda++;
@@ -137,6 +139,7 @@ export function hitungKpiJamaah(
     if (r.status_keluarga === 'Kepala Keluarga') k.kk++;
     if (r.status_domisili === 'Mukim') k.mukim++;
     else if (r.status_domisili === 'Musiman') k.musiman++;
+    else if (r.status_domisili === 'Pindah') k.pindah++;
     if (r.gender === 'L') k.lakiLaki++;
     else if (r.gender === 'P') k.perempuan++;
     const u = usiaTahun(r.tanggal_lahir);
