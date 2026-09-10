@@ -4,15 +4,15 @@
    sama SantriForm/GuruForm, tapi lebih ringkas — jamaah = dewasa, tanpa
    jenjang/kelas ngaji. kelompok_id dikunci ke scope penerobos.
 
-   Tanggal lahir pakai <input type="date"> bawaan (BUKAN TanggalPicker):
-   rentang lahir jamaah dewasa puluhan tahun ke belakang, navigasi tahun
-   native lebih enak; form ini modal penuh (tanpa hero overflow-hidden)
-   jadi tak kena masalah keterpotongan yg jadi alasan TanggalPicker ada. */
+   Tanggal Lahir pakai kalender custom (TanggalPicker), BUKAN <input
+   type="date"> bawaan browser — tampilannya seragam di semua perangkat,
+   pola sama GuruForm/SantriForm (diminta owner 2026-09-10). */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
@@ -27,6 +27,17 @@ import {
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-navy focus:outline-none';
 const LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+const NAMA_BULAN_SINGKAT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
+];
+/* 'YYYY-MM-DD' -> "21 Agu 2026" utk tombol pemicu TanggalPicker. */
+function formatTanggalTampil(v: string): string {
+  if (!v) return '';
+  const [y, m, d] = v.split('-').map(Number);
+  if (!y || !m || !d) return v;
+  return `${String(d).padStart(2, '0')} ${NAMA_BULAN_SINGKAT[m - 1] ?? ''} ${y}`;
+}
 
 type Isian = {
   sub_kelp_id: string;
@@ -128,6 +139,17 @@ export default function JamaahForm({
   const [hapusKonfirmasi, setHapusKonfirmasi] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /* Tanggal Lahir — kalender custom (pola GuruForm). */
+  const [tglTerbuka, setTglTerbuka] = useState(false);
+  const [posisiTgl, setPosisiTgl] = useState<PosisiPicker | null>(null);
+  const tglLahirRef = useRef<HTMLButtonElement>(null);
+
+  function bukaTgl() {
+    const rect = tglLahirRef.current?.getBoundingClientRect();
+    if (rect) setPosisiTgl({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+    setTglTerbuka(true);
+  }
+
   useEffect(() => {
     setIsian(jamaah ? dariBaris(jamaah) : KOSONG);
   }, [jamaah]);
@@ -219,6 +241,14 @@ export default function JamaahForm({
           </button>
         </div>
 
+        <TanggalPicker
+          terbuka={tglTerbuka}
+          posisi={posisiTgl}
+          nilai={isian.tanggal_lahir}
+          onPilih={(v) => ubah('tanggal_lahir', v)}
+          onTutup={() => setTglTerbuka(false)}
+        />
+
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <div>
             <label className={LABEL}>Sub Kelp</label>
@@ -275,12 +305,14 @@ export default function JamaahForm({
             </div>
             <div>
               <label className={LABEL}>Tanggal Lahir</label>
-              <input
-                type="date"
-                className={INPUT}
-                value={isian.tanggal_lahir}
-                onChange={(e) => ubah('tanggal_lahir', e.target.value)}
-              />
+              <button
+                type="button"
+                ref={tglLahirRef}
+                onClick={bukaTgl}
+                className={`${INPUT} text-left ${isian.tanggal_lahir ? '' : 'text-text-faint'}`}
+              >
+                {isian.tanggal_lahir ? formatTanggalTampil(isian.tanggal_lahir) : 'Pilih tanggal'}
+              </button>
             </div>
           </div>
 
