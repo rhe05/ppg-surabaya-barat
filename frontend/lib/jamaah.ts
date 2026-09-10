@@ -99,6 +99,28 @@ export type JamaahKehadiran = {
   catatan: string | null;
 };
 
+/* ------------------------------------------------------------------ */
+/* Data Pengurus (susunan kepengurusan majlis taklim jamaah).
+   Tabel: jamaah_pengurus (migrasi 20260910150000).
+   sub_kelp_id NULL = pengurus tingkat kelompok; terisi = pengurus Sub Kelp.
+   jamaah_id dipilih dari tabel `jamaah`; `jabatan` diketik bebas.        */
+
+export type JamaahPengurus = {
+  id: number;
+  kelompok_id: number;
+  sub_kelp_id: number | null;
+  jamaah_id: number;
+  jabatan: string;
+  urutan: number;
+  mulai_menjabat: string | null;
+  keterangan: string | null;
+  jamaah?: { nama: string; no_wa: string | null } | null;
+};
+
+export const KOLOM_PENGURUS =
+  'id, kelompok_id, sub_kelp_id, jamaah_id, jabatan, urutan, mulai_menjabat, keterangan, ' +
+  'jamaah:jamaah_id(nama, no_wa)';
+
 export const STATUS_HADIR: { kunci: StatusHadir; label: string; warna: string; pill: string }[] = [
   { kunci: 'hadir', label: 'HADIR', warna: '#059669', pill: 'rgba(5, 150, 105, 0.12)' },
   { kunci: 'izin', label: 'IZIN', warna: '#1D4ED8', pill: 'rgba(29, 78, 216, 0.12)' },

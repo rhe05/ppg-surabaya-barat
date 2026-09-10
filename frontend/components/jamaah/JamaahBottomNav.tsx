@@ -8,7 +8,7 @@
 import { createPortal } from 'react-dom';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { House, Users, CalendarCheck, Layers, LogOut, X, History } from 'lucide-react';
+import { House, Users, CalendarCheck, Layers, LogOut, X, History, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 type Tab = { label: string; ikon: typeof House; href: string; cocok: string[] };
@@ -21,6 +21,7 @@ const TAB: Tab[] = [
 
 const LAINNYA: { label: string; href: string; ikon: typeof House }[] = [
   { label: 'Riwayat Kehadiran', href: '/jamaah/riwayat', ikon: History },
+  { label: 'Data Pengurus', href: '/jamaah/pengurus', ikon: ClipboardList },
   { label: 'Kelola Sub Kelp', href: '/jamaah/sub-kelp', ikon: Layers },
 ];
 
