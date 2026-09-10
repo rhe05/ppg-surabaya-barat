@@ -1,96 +1,112 @@
 'use client';
 
-/* Bottom sheet "Unduh Data Generus" — dipakai dari menu titik-tiga di
-   /santri-saya (guru mobile) & Data Generus admin kelp mobile. Pengguna
-   memilih format (Excel / PDF) + kolom apa saja yang ikut, lalu berkas
-   dibuat 100% di peramban. Baris selalu diberi nomor urut (kolom "No").
+/* Bottom sheet "Unduh Data …" — generik. Dipakai untuk Data Generus
+   (guru mobile /santri-saya & admin kelp mobile) dan Data Jamaah
+   (Penerobos Kelp). Pengguna memilih format (Excel / PDF) + kolom apa
+   saja yang ikut, lalu berkas dibuat 100% di peramban. Baris selalu
+   diberi nomor urut ("No").
 
-   Mode admin kelp (`daftarKelas` diisi): tambah pemilih kelas — boleh
-   pilih > 1 kelas, datanya digabung jadi satu berkas, diurutkan
-   kelas → nama.
+   Mode "banyak kelas" (`daftarKelas` diisi, khusus admin kelp generus):
+   tambah pemilih kelas — boleh > 1, datanya digabung jadi satu berkas,
+   diurutkan kelas → nama (lewat `ambilKelas`).
 
-   HEMAT SUPABASE: komponen ini TIDAK query apa pun. Data generus sudah ada
-   di memori halaman pemanggil (state `santri`, hasil satu SELECT saat kelas
-   dibuka) dan dioper lewat prop `data`. Membuka/menutup sheet & mencentang
-   kolom = nol permintaan jaringan.
+   HEMAT SUPABASE: komponen ini TIDAK query apa pun. Data sudah ada di
+   memori halaman pemanggil dan dioper lewat prop `data`.
 
-   Pustaka PDF (jspdf ±350 KB) di-import dinamis di dalam lib/unduhPdf.ts,
-   jadi tidak membebani bundel awal — baru diunduh saat tombol PDF ditekan. */
+   Pustaka PDF (jspdf ±350 KB) di-import dinamis di lib/unduhPdf.ts. */
 
 import { useEffect, useMemo, useState } from 'react';
 import { X, FileSpreadsheet, FileText, Check } from 'lucide-react';
-import type { SantriRow } from '@/components/santri/SantriForm';
-import { KOLOM_EKSPOR_SANTRI, GRUP_URUT } from '@/lib/kolomEksporSantri';
 import { unduhXlsx } from '@/lib/xlsx';
 import { unduhPdf } from '@/lib/unduhPdf';
 
+export type KolomEkspor<T> = {
+  judul: string;
+  grup: string;
+  /* Ikut tercentang saat sheet pertama kali dibuka (belum ada pilihan). */
+  baku: boolean;
+  ambil: (row: T) => unknown;
+};
+
 type Format = 'excel' | 'pdf';
 
-const LS_KOLOM = 'unduhDataGenerus.kolom.v1';
-const LS_FORMAT = 'unduhDataGenerus.format.v1';
-
-function kolomBaku(): Set<string> {
-  return new Set(KOLOM_EKSPOR_SANTRI.filter((k) => k.baku).map((k) => k.judul));
-}
-
-function bacaPilihanKolom(): Set<string> {
-  if (typeof window === 'undefined') return kolomBaku();
-  try {
-    const mentah = window.localStorage.getItem(LS_KOLOM);
-    if (mentah) {
-      const arr = JSON.parse(mentah) as string[];
-      const sah = new Set(KOLOM_EKSPOR_SANTRI.map((k) => k.judul));
-      const hasil = new Set(arr.filter((j) => sah.has(j)));
-      if (hasil.size > 0) return hasil;
-    }
-  } catch {
-    /* localStorage bisa dilempar (mode privat) — pakai baku. */
-  }
-  return kolomBaku();
-}
-
-function bacaFormat(): Format {
-  if (typeof window === 'undefined') return 'excel';
-  try {
-    return window.localStorage.getItem(LS_FORMAT) === 'pdf' ? 'pdf' : 'excel';
-  } catch {
-    return 'excel';
-  }
-}
-
 function nilaiTeks(v: unknown): string {
-  if (v == null) return '';
-  return String(v);
+  return v == null ? '' : String(v);
 }
 
-export default function UnduhDataSheet({
+export default function UnduhDataSheet<T extends { nama: string }>({
   terbuka,
   onTutup,
   data,
+  kolom,
+  grupUrut,
+  entitas,
+  entitasJamak,
+  lsNamespace,
   namaKelas,
   namaKelompok,
   daftarKelas,
+  ambilKelas,
 }: {
   terbuka: boolean;
   onTutup: () => void;
-  data: SantriRow[];
-  /* Nama kelas ngaji yang sedang dibuka, mis. "1 & 2" atau "PAUD/TK".
-     Dipakai mode guru (satu kelas). Diabaikan kalau `daftarKelas` ada. */
+  data: T[];
+  /* Spesifikasi kolom — satu sumber kebenaran per entitas. */
+  kolom: KolomEkspor<T>[];
+  /* Urutan tampilan grup sakelar kolom. */
+  grupUrut: string[];
+  /* Nama entitas utk judul sheet / judul PDF / nama berkas, mis. "Data Generus". */
+  entitas: string;
+  /* Kata jamak utk hitungan ("· 12 generus"), mis. "generus" / "jamaah". */
+  entitasJamak: string;
+  /* Namespace localStorage (pilihan kolom & format), mis. "unduhDataGenerus". */
+  lsNamespace: string;
+  /* Label saringan yang sedang aktif (kelas ngaji / "Semua" / sub kelp).
+     Diabaikan kalau `daftarKelas` ada. */
   namaKelas?: string;
-  /* Nama kelompok (tanpa awalan "Kelp") — utk kop PDF & nama berkas. */
+  /* Nama kelompok (boleh ber-awalan "Kelp") — kop PDF & nama berkas. */
   namaKelompok?: string | null;
-  /* MODE ADMIN KELP: daftar kelas kelompok. Kalau diisi, sheet menampilkan
-     pemilih kelas (boleh > 1); `data` = SELURUH generus kelompok, disaring
-     di sini berdasarkan `kelas_ngaji`. Kalau undefined = mode guru. */
+  /* MODE BANYAK KELAS (admin kelp generus): pemilih kelas; `data` = seluruh
+     baris, disaring di sini via `ambilKelas`. */
   daftarKelas?: { id: number; nama: string }[];
+  /* Ambil "kelas" satu baris utk saring & urutkan mode banyak-kelas. */
+  ambilKelas?: (row: T) => string;
 }) {
-  const modeAdmin = Array.isArray(daftarKelas) && daftarKelas.length > 0;
+  const LS_KOLOM = `${lsNamespace}.kolom.v1`;
+  const LS_FORMAT = `${lsNamespace}.format.v1`;
 
-  /* Nama kelompok di DB umumnya sudah ber-awalan "Kelp " (mis. "Kelp
-     Petemon") — buang semua awalan "Kelp" berulang supaya tidak jadi
-     "Kelp Kelp Petemon" saat kita menambahkan awalannya sendiri. */
+  const kolomBaku = () => new Set(kolom.filter((k) => k.baku).map((k) => k.judul));
+
+  function bacaPilihanKolom(): Set<string> {
+    if (typeof window === 'undefined') return kolomBaku();
+    try {
+      const mentah = window.localStorage.getItem(LS_KOLOM);
+      if (mentah) {
+        const arr = JSON.parse(mentah) as string[];
+        const sah = new Set(kolom.map((k) => k.judul));
+        const hasil = new Set(arr.filter((j) => sah.has(j)));
+        if (hasil.size > 0) return hasil;
+      }
+    } catch {
+      /* localStorage bisa dilempar (mode privat) — pakai baku. */
+    }
+    return kolomBaku();
+  }
+
+  function bacaFormat(): Format {
+    if (typeof window === 'undefined') return 'excel';
+    try {
+      return window.localStorage.getItem(LS_FORMAT) === 'pdf' ? 'pdf' : 'excel';
+    } catch {
+      return 'excel';
+    }
+  }
+
+  const modeBanyakKelas = Array.isArray(daftarKelas) && daftarKelas.length > 0;
+  const kelasDari = ambilKelas ?? ((r: T) => nilaiTeks((r as { kelas_ngaji?: unknown }).kelas_ngaji));
+
   const kelompokBersih = (namaKelompok ?? '')
-    .replace(/^(?:[\s ]*kelp\b[.\s ]*)+/i, '')
+    .replace(/^(?:[\s ]*kelp\b[.\s ]*)+/i, '')
     .trim();
 
   const [format, setFormat] = useState<Format>(bacaFormat);
@@ -101,45 +117,37 @@ export default function UnduhDataSheet({
   const [sedangBuat, setSedangBuat] = useState(false);
   const [galat, setGalat] = useState<string | null>(null);
 
-  /* `daftarKelas` sering datang belakangan (query async di pemanggil).
-     Begitu terisi & belum ada pilihan, centang semua kelas. */
   const kunciKelas = (daftarKelas ?? []).map((k) => k.nama).join('|');
   useEffect(() => {
-    if (modeAdmin && kelasDipilih.size === 0) {
+    if (modeBanyakKelas && kelasDipilih.size === 0) {
       setKelasDipilih(new Set((daftarKelas ?? []).map((k) => k.nama)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kunciKelas, modeAdmin]);
+  }, [kunciKelas, modeBanyakKelas]);
 
-  /* Urutan kolom terpilih SELALU mengikuti urutan KOLOM_EKSPOR_SANTRI,
-     bukan urutan klik — supaya berkas rapi & konsisten. */
   const kolomTerpilih = useMemo(
-    () => KOLOM_EKSPOR_SANTRI.filter((k) => dipilih.has(k.judul)),
-    [dipilih],
+    () => kolom.filter((k) => dipilih.has(k.judul)),
+    [kolom, dipilih],
   );
 
-  /* Data efektif: mode admin → saring per kelas terpilih lalu urutkan
-     kelas → nama (supaya gabungan beberapa kelas tetap rapi). Mode guru →
-     apa adanya (sudah urut nama dari query). */
   const dataEfektif = useMemo(() => {
-    if (!modeAdmin) return data;
-    const rows = data.filter((s) => kelasDipilih.has(s.kelas_ngaji ?? ''));
+    if (!modeBanyakKelas) return data;
+    const rows = data.filter((s) => kelasDipilih.has(kelasDari(s)));
     return [...rows].sort(
       (a, b) =>
-        (a.kelas_ngaji ?? '').localeCompare(b.kelas_ngaji ?? '', 'id') ||
-        a.nama.localeCompare(b.nama, 'id'),
+        kelasDari(a).localeCompare(kelasDari(b), 'id') || a.nama.localeCompare(b.nama, 'id'),
     );
-  }, [modeAdmin, data, kelasDipilih]);
+  }, [modeBanyakKelas, data, kelasDipilih]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const labelKelas = useMemo(() => {
-    if (!modeAdmin) return namaKelas ?? '';
+  const labelSaring = useMemo(() => {
+    if (!modeBanyakKelas) return namaKelas ?? '';
     const total = daftarKelas!.length;
     const n = kelasDipilih.size;
     if (n === 0) return 'Belum ada kelas dipilih';
     if (n === total) return 'Semua Kelas';
     if (n === 1) return [...kelasDipilih][0];
     return `${n} Kelas`;
-  }, [modeAdmin, namaKelas, daftarKelas, kelasDipilih]);
+  }, [modeBanyakKelas, namaKelas, daftarKelas, kelasDipilih]);
 
   if (!terbuka) return null;
 
@@ -161,7 +169,7 @@ export default function UnduhDataSheet({
 
   function toggleGrup(grup: string, semua: boolean) {
     const next = new Set(dipilih);
-    for (const k of KOLOM_EKSPOR_SANTRI) {
+    for (const k of kolom) {
       if (k.grup !== grup) continue;
       if (semua) next.add(k.judul);
       else next.delete(k.judul);
@@ -196,30 +204,26 @@ export default function UnduhDataSheet({
     setSedangBuat(true);
     setGalat(null);
     try {
-      /* Kolom pertama = nomor urut (1..N), selalu ada. */
       const headers = ['No', ...kolomTerpilih.map((k) => k.judul)];
-      /* Nama berkas: "Data Generus - Kelp Petemon - 1A - 09-09-2026"
-         (tanggal-bulan-tahun). Segmen kelompok dilewati kalau tak ada. */
       const now = new Date();
       const dd = String(now.getDate()).padStart(2, '0');
       const mm = String(now.getMonth() + 1).padStart(2, '0');
       const tgl = `${dd}-${mm}-${now.getFullYear()}`;
       const namaBerkas = [
-        'Data Generus',
+        entitas,
         kelompokBersih ? `Kelp ${kelompokBersih}` : null,
-        labelKelas,
+        labelSaring || null,
         tgl,
       ]
         .filter(Boolean)
         .join(' - ');
 
       if (format === 'excel') {
-        /* Satu lintasan O(baris × kolom), tanpa await di dalam loop. */
         const rows = dataEfektif.map((s, i) => [
           String(i + 1),
           ...kolomTerpilih.map((k) => k.ambil(s)),
         ]);
-        unduhXlsx('Data Generus', headers, rows, namaBerkas);
+        unduhXlsx(entitas, headers, rows, namaBerkas);
       } else {
         const rows = dataEfektif.map((s, i) => [
           String(i + 1),
@@ -227,8 +231,8 @@ export default function UnduhDataSheet({
         ]);
         await unduhPdf({
           namaBerkas,
-          judul: 'Data Generus',
-          subjudul: `${labelKelas} · ${dataEfektif.length} generus`,
+          judul: entitas,
+          subjudul: `${labelSaring ? labelSaring + ' · ' : ''}${dataEfektif.length} ${entitasJamak}`,
           kelompok: kelompokBersih || undefined,
           headers,
           rows,
@@ -246,18 +250,14 @@ export default function UnduhDataSheet({
 
   return (
     <div className="fixed inset-0 z-[600] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4">
-      <div
-        className="absolute inset-0"
-        onClick={sedangBuat ? undefined : onTutup}
-        aria-hidden
-      />
+      <div className="absolute inset-0" onClick={sedangBuat ? undefined : onTutup} aria-hidden />
       <div className="relative flex max-h-[92vh] w-full max-w-[460px] flex-col rounded-t-[26px] border border-border bg-panel shadow-[0_-16px_48px_rgba(0,0,0,0.28)] sm:rounded-card">
-        {/* Kepala */}
         <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-[17px] font-extrabold text-text">Unduh Data Generus</h2>
+            <h2 className="text-[17px] font-extrabold text-text">Unduh {entitas}</h2>
             <p className="mt-0.5 text-[12px] text-text-dim">
-              {labelKelas} · {dataEfektif.length} generus
+              {labelSaring ? labelSaring + ' · ' : ''}
+              {dataEfektif.length} {entitasJamak}
             </p>
           </div>
           <button
@@ -271,8 +271,7 @@ export default function UnduhDataSheet({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* MODE ADMIN: pilih kelas (boleh > 1, digabung jadi satu berkas) */}
-          {modeAdmin && (
+          {modeBanyakKelas && (
             <div className="mb-5">
               <div className="mb-2 flex items-center justify-between">
                 <p className="text-[12px] font-bold tracking-wide text-text-dim uppercase">Kelas</p>
@@ -305,7 +304,6 @@ export default function UnduhDataSheet({
             </div>
           )}
 
-          {/* Pilih format */}
           <p className="mb-2 text-[12px] font-bold tracking-wide text-text-dim uppercase">Format</p>
           <div className="grid grid-cols-2 gap-3">
             <KartuFormat
@@ -326,7 +324,6 @@ export default function UnduhDataSheet({
             />
           </div>
 
-          {/* Pilih kolom */}
           <div className="mt-5 mb-2 flex items-center justify-between">
             <p className="text-[12px] font-bold tracking-wide text-text-dim uppercase">Kolom Data</p>
             <span className="text-[12px] font-semibold text-text-faint">
@@ -335,8 +332,8 @@ export default function UnduhDataSheet({
           </div>
 
           <div className="flex flex-col gap-3">
-            {GRUP_URUT.map((grup) => {
-              const kolomGrup = KOLOM_EKSPOR_SANTRI.filter((k) => k.grup === grup);
+            {grupUrut.map((grup) => {
+              const kolomGrup = kolom.filter((k) => k.grup === grup);
               if (kolomGrup.length === 0) return null;
               const jumlahAktif = kolomGrup.filter((k) => dipilih.has(k.judul)).length;
               const semuaAktif = jumlahAktif === kolomGrup.length;
@@ -361,9 +358,7 @@ export default function UnduhDataSheet({
                           type="button"
                           onClick={() => toggleKolom(k.judul)}
                           className={`flex cursor-pointer items-center gap-1.5 rounded-full border-[1.5px] px-3 py-1.5 text-[12.5px] font-semibold transition-all active:scale-95 ${
-                            on
-                              ? 'border-indigo bg-[#EEF2FF] text-indigo'
-                              : 'border-border bg-panel text-text-dim'
+                            on ? 'border-indigo bg-[#EEF2FF] text-indigo' : 'border-border bg-panel text-text-dim'
                           }`}
                         >
                           {on && <Check size={13} strokeWidth={3} />}
@@ -378,7 +373,6 @@ export default function UnduhDataSheet({
           </div>
         </div>
 
-        {/* CTA lengket bawah */}
         <div className="border-t border-border px-5 py-4">
           {galat && <p className="mb-2 text-[12.5px] font-semibold text-red">{galat}</p>}
           <button
@@ -389,7 +383,7 @@ export default function UnduhDataSheet({
           >
             {sedangBuat
               ? 'Menyiapkan berkas…'
-              : `Unduh ${format === 'excel' ? 'Excel' : 'PDF'} · ${dataEfektif.length} generus`}
+              : `Unduh ${format === 'excel' ? 'Excel' : 'PDF'} · ${dataEfektif.length} ${entitasJamak}`}
           </button>
         </div>
       </div>

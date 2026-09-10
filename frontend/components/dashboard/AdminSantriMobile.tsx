@@ -30,6 +30,7 @@ import { useToast } from '@/components/ui/useToast';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
 import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
+import { KOLOM_EKSPOR_SANTRI, GRUP_URUT } from '@/lib/kolomEksporSantri';
 
 type AksiMassal = 'pindah' | 'naik' | 'pindah_domisili' | 'non_aktif';
 type KelasRingkas = { id: number; nama: string };
@@ -377,8 +378,14 @@ export default function AdminSantriMobile() {
         terbuka={unduhTerbuka}
         onTutup={() => setUnduhTerbuka(false)}
         data={santri}
+        kolom={KOLOM_EKSPOR_SANTRI}
+        grupUrut={GRUP_URUT}
+        entitas="Data Generus"
+        entitasJamak="generus"
+        lsNamespace="unduhDataGenerus"
         namaKelompok={namaKelompok}
         daftarKelas={kelasList}
+        ambilKelas={(s) => s.kelas_ngaji ?? ''}
       />
 
       {modalKonfirmasi && modeMassal === 'pindah' && (

@@ -47,6 +47,7 @@ import SantriForm, { SantriRow, KOLOM_SANTRI } from '@/components/santri/SantriF
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
 import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
+import { KOLOM_EKSPOR_SANTRI, GRUP_URUT } from '@/lib/kolomEksporSantri';
 
 type Kelas = { id: number; nama: string; santri_count: number };
 
@@ -822,6 +823,11 @@ function DataGenerusContent() {
           terbuka={unduhTerbuka}
           onTutup={() => setUnduhTerbuka(false)}
           data={santri}
+          kolom={KOLOM_EKSPOR_SANTRI}
+          grupUrut={GRUP_URUT}
+          entitas="Data Generus"
+          entitasJamak="generus"
+          lsNamespace="unduhDataGenerus"
           namaKelas={kelasAktif.nama}
           namaKelompok={namaKelompok}
         />

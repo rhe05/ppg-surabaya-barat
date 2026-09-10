@@ -13,10 +13,12 @@ import EmptyState from '@/components/ui/EmptyState';
 import KebabMenu from '@/components/ui/KebabMenu';
 import PesanGalat from '@/components/ui/PesanGalat';
 import JamaahForm from '@/components/jamaah/JamaahForm';
+import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
+import { KOLOM_EKSPOR_JAMAAH, GRUP_URUT_JAMAAH, type JamaahEkspor } from '@/lib/kolomEksporJamaah';
 import { KOLOM_JAMAAH, type JamaahRow, type SubKelp } from '@/lib/jamaah';
 
 export default function JamaahList() {
-  const { profile } = useAuth();
+  const { profile, namaKelompok } = useAuth();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
   const [subKelp, setSubKelp] = useState<SubKelp[]>([]);
@@ -29,6 +31,7 @@ export default function JamaahList() {
 
   const [formTerbuka, setFormTerbuka] = useState(false);
   const [jamaahDiubah, setJamaahDiubah] = useState<JamaahRow | null>(null);
+  const [unduhTerbuka, setUnduhTerbuka] = useState(false);
 
   const muat = useCallback(async () => {
     if (!kelompokId) {
@@ -88,6 +91,28 @@ export default function JamaahList() {
     });
   }, [jamaah, cari, subAktif]);
 
+  /* Data unduh: ikut saringan Sub Kelp yang sedang aktif (bukan kotak cari),
+     + nama Sub Kelp di-resolve dari `namaSub`. */
+  const dataUnduh = useMemo<JamaahEkspor[]>(() => {
+    const rows =
+      subAktif === 'semua'
+        ? jamaah
+        : jamaah.filter((j) =>
+            subAktif === 'tanpa' ? j.sub_kelp_id == null : j.sub_kelp_id === subAktif,
+          );
+    return rows.map((j) => ({
+      ...j,
+      sub_kelp_nama: j.sub_kelp_id != null ? (namaSub.get(j.sub_kelp_id) ?? '') : '',
+    }));
+  }, [jamaah, subAktif, namaSub]);
+
+  const labelUnduh =
+    subAktif === 'semua'
+      ? 'Semua'
+      : subAktif === 'tanpa'
+        ? 'Tanpa Sub Kelp'
+        : (namaSub.get(subAktif) ?? 'Sub Kelp');
+
   function bukaTambah() {
     setJamaahDiubah(null);
     setFormTerbuka(true);
@@ -105,7 +130,12 @@ export default function JamaahList() {
     <div className="px-[18px] pt-4 pb-10">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[17px] font-extrabold text-text">Data Jamaah ({jamaah.length})</div>
-        <KebabMenu item={[{ label: 'Tambah Jamaah', onClick: bukaTambah }]} />
+        <KebabMenu
+          item={[
+            { label: 'Tambah Jamaah', onClick: bukaTambah },
+            { label: 'Unduh Data', onClick: () => setUnduhTerbuka(true) },
+          ]}
+        />
       </div>
 
       <div className="relative mb-3">
@@ -201,6 +231,19 @@ export default function JamaahList() {
           onBatal={() => setFormTerbuka(false)}
         />
       )}
+
+      <UnduhDataSheet
+        terbuka={unduhTerbuka}
+        onTutup={() => setUnduhTerbuka(false)}
+        data={dataUnduh}
+        kolom={KOLOM_EKSPOR_JAMAAH}
+        grupUrut={GRUP_URUT_JAMAAH}
+        entitas="Data Jamaah"
+        entitasJamak="jamaah"
+        lsNamespace="unduhDataJamaah"
+        namaKelas={labelUnduh}
+        namaKelompok={namaKelompok}
+      />
     </div>
   );
 }
