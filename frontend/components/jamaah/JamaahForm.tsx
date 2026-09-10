@@ -6,13 +6,21 @@
 
    Tanggal Lahir pakai kalender custom (TanggalPicker), BUKAN <input
    type="date"> bawaan browser — tampilannya seragam di semua perangkat,
-   pola sama GuruForm/SantriForm (diminta owner 2026-09-10). */
+   pola sama GuruForm/SantriForm (diminta owner 2026-09-10).
 
-import { useEffect, useState } from 'react';
+   Nama Lengkap punya saran ketik "seperti Google" dari data GENERUS
+   sekelompok (nama generus + nama ayah + nama ibu). Klik satu saran =
+   autofill alamat/RT-RW/wilayah/WA keluarganya + tebak gender & status
+   keluarga (diminta owner 2026-09-10). Sumber baca `santri` butuh RLS
+   penerobos — migrasi 20260910160000. */
+
+import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import FieldTanggal from '@/components/jamaah/FieldTanggal';
+import { FieldSaran } from '@/components/ui/FieldSaran';
+import { type SaranItem } from '@/lib/saran';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
@@ -27,6 +35,50 @@ import {
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-navy focus:outline-none';
 const LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
+
+/* Satu baris generus sekelompok — sumber saran & autofill di field Nama. */
+type RiwayatGenerus = {
+  nama: string;
+  gender: string | null;
+  nama_ayah: string | null;
+  nama_ibu: string | null;
+  nomor_wa: string | null;
+  nomor_wa_ayah: string | null;
+  nomor_wa_ibu: string | null;
+  alamat: string | null;
+  rt: string | null;
+  rw: string | null;
+  kelurahan: string | null;
+  kecamatan: string | null;
+  kabupaten_kota: string | null;
+  provinsi: string | null;
+  kode_pos: string | null;
+};
+
+const KOLOM_RIWAYAT_GENERUS =
+  'nama, gender, nama_ayah, nama_ibu, nomor_wa, nomor_wa_ayah, nomor_wa_ibu, ' +
+  'alamat, rt, rw, kelurahan, kecamatan, kabupaten_kota, provinsi, kode_pos';
+
+/* peran = posisi orang ini dalam keluarga generus -> menentukan field WA
+   mana yang dipakai + tebakan gender/status. */
+type PilihanNama = { generus: RiwayatGenerus; peran: 'generus' | 'ayah' | 'ibu' };
+
+/* Bangun daftar saran gabungan: nama generus + nama ayah + nama ibu, unik
+   case-insensitive (generus didahulukan bila namanya sama). */
+function saranNamaGabungan(daftar: RiwayatGenerus[]): SaranItem<PilihanNama>[] {
+  const dilihat = new Set<string>();
+  const hasil: SaranItem<PilihanNama>[] = [];
+  const tambah = (teks: string | null, generus: RiwayatGenerus, peran: PilihanNama['peran']) => {
+    const t = (teks ?? '').trim();
+    if (!t || dilihat.has(t.toLowerCase())) return;
+    dilihat.add(t.toLowerCase());
+    hasil.push({ teks: t, rec: { generus, peran } });
+  };
+  for (const r of daftar) tambah(r.nama, r, 'generus');
+  for (const r of daftar) tambah(r.nama_ayah, r, 'ayah');
+  for (const r of daftar) tambah(r.nama_ibu, r, 'ibu');
+  return hasil;
+}
 
 type Isian = {
   sub_kelp_id: string;
@@ -127,12 +179,60 @@ export default function JamaahForm({
   const [menyimpan, setMenyimpan] = useState(false);
   const [hapusKonfirmasi, setHapusKonfirmasi] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [riwayatGenerus, setRiwayatGenerus] = useState<RiwayatGenerus[]>([]);
 
   useEffect(() => {
     setIsian(jamaah ? dariBaris(jamaah) : KOSONG);
   }, [jamaah]);
 
+  /* Data generus sekelompok — sumber saran ketik & autofill di field Nama.
+     Kalau RLS penerobos belum aktif (migrasi 20260910160000), query balik
+     kosong tanpa error -> fitur saran cuma tak muncul, form tetap jalan. */
+  useEffect(() => {
+    if (!kelompokId) return;
+    let batal = false;
+    (async () => {
+      const { data } = await supabase
+        .from('santri')
+        .select(KOLOM_RIWAYAT_GENERUS)
+        .eq('kelompok_id', kelompokId)
+        .is('deleted_at', null)
+        .order('id', { ascending: false })
+        .limit(500);
+      if (!batal) setRiwayatGenerus((data ?? []) as unknown as RiwayatGenerus[]);
+    })();
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
+  const saranNama = useMemo(() => saranNamaGabungan(riwayatGenerus), [riwayatGenerus]);
+
   const ubah = <K extends keyof Isian>(k: K, v: Isian[K]) => setIsian((s) => ({ ...s, [k]: v }));
+
+  /* Klik saran nama -> tarik data keluarga generus yang menyertainya.
+     Field yang ADA isinya di baris generus MENIMPA nilai di form (itu
+     maksud "otomatis masuk"); yang kosong di generus dibiarkan apa adanya
+     supaya penerobos tinggal isi sisanya. */
+  function isiDariGenerus({ generus: g, peran }: PilihanNama) {
+    const wa =
+      peran === 'ayah' ? g.nomor_wa_ayah : peran === 'ibu' ? g.nomor_wa_ibu : g.nomor_wa;
+    setIsian((s) => ({
+      ...s,
+      gender: peran === 'ayah' ? 'L' : peran === 'ibu' ? 'P' : (g.gender as Isian['gender']) || s.gender,
+      status_keluarga:
+        peran === 'ayah' ? 'Kepala Keluarga' : peran === 'ibu' ? 'Istri' : s.status_keluarga,
+      no_wa: wa ?? s.no_wa,
+      alamat: g.alamat ?? s.alamat,
+      rt: g.rt ?? s.rt,
+      rw: g.rw ?? s.rw,
+      kelurahan: g.kelurahan ?? s.kelurahan,
+      kecamatan: g.kecamatan ?? s.kecamatan,
+      kabupaten_kota: g.kabupaten_kota ?? s.kabupaten_kota,
+      provinsi: g.provinsi ?? s.provinsi,
+      kode_pos: g.kode_pos ?? s.kode_pos,
+    }));
+  }
 
   async function simpan() {
     if (!kelompokId) {
@@ -236,10 +336,17 @@ export default function JamaahForm({
             </select>
           </div>
 
-          <div>
-            <label className={LABEL}>Nama Lengkap *</label>
-            <input className={INPUT} value={isian.nama} onChange={(e) => ubah('nama', e.target.value)} />
-          </div>
+          <FieldSaran
+            inputClass={INPUT}
+            labelClass={LABEL}
+            label="Nama Lengkap"
+            wajib
+            value={isian.nama}
+            onChange={(v) => ubah('nama', v)}
+            onPilih={(item) => item.rec && isiDariGenerus(item.rec)}
+            saran={saranNama}
+            placeholder="Ketik nama — saran muncul dari data generus"
+          />
 
           <div className="grid grid-cols-2 gap-3">
             <div>

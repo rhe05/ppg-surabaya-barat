@@ -14,11 +14,12 @@
      kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
      (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
-import { usePanelMelayang } from '@/lib/usePanelMelayang';
+import { FieldSaran } from '@/components/ui/FieldSaran';
+import { saranTeksUnik, saranUnikDenganRec, type SaranItem } from '@/lib/saran';
 import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 
 export type SantriRow = {
@@ -90,44 +91,6 @@ type RiwayatKeluarga = {
   provinsi: string | null;
   kode_pos: string | null;
 };
-
-/* Generik supaya satu bentuk saran dipakai ulang utk dua sumber beda:
-   riwayat santri lain (RiwayatKeluarga, dari DB) & daftar wilayah
-   Surabaya statis (WilayahSurabaya, dari lib/wilayahSurabaya.ts). */
-type SaranItem<T = unknown> = { teks: string; rec?: T };
-
-/* Daftar nilai unik (case-insensitive) dari satu kolom riwayat, urutan
-   terbaru dulu (riwayat sudah di-order id desc) -- dipakai utk Nama &
-   Nama Panggilan yang cuma butuh saran teks, tanpa autofill lanjutan. */
-function saranTeksUnik(daftar: (string | null)[]): SaranItem[] {
-  const dilihat = new Set<string>();
-  const hasil: SaranItem[] = [];
-  for (const v of daftar) {
-    const t = (v ?? '').trim();
-    if (!t || dilihat.has(t.toLowerCase())) continue;
-    dilihat.add(t.toLowerCase());
-    hasil.push({ teks: t });
-  }
-  return hasil;
-}
-
-/* Sama seperti saranTeksUnik, tapi tiap saran membawa baris riwayat
-   sumbernya (rec) -- dipakai utk Nama Ayah & Nama Ibu supaya klik satu
-   saran bisa langsung menarik seluruh data keluarga yang menyertainya. */
-function saranKeluargaUnik(
-  daftar: RiwayatKeluarga[],
-  ambil: (r: RiwayatKeluarga) => string | null,
-): SaranItem<RiwayatKeluarga>[] {
-  const dilihat = new Set<string>();
-  const hasil: SaranItem<RiwayatKeluarga>[] = [];
-  for (const r of daftar) {
-    const t = (ambil(r) ?? '').trim();
-    if (!t || dilihat.has(t.toLowerCase())) continue;
-    dilihat.add(t.toLowerCase());
-    hasil.push({ teks: t, rec: r });
-  }
-  return hasil;
-}
 
 /* Hanya angka -- dipakai RT/RW supaya tidak bisa diisi huruf, sama pola
    dgn formatNomorWa (non-angka dibuang tiap ketikan). */
@@ -232,83 +195,6 @@ function Bagian({ judul, children }: { judul: string; children: React.ReactNode 
       <legend className="px-2 text-[13px] font-bold text-text">{judul}</legend>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
     </fieldset>
-  );
-}
-
-/* Input teks + dropdown saran ketik (nama/nama panggilan/nama ayah/nama
-   ibu) -- menyaring `saran` terhadap apa yang sudah diketik, mirip kotak
-   pencarian: dibuka saat fokus, disaring tiap ketikan, klik = terpilih.
-   `onPilih` opsional dipanggil dgn item terpilih (bawa `.rec` kalau ada)
-   -- Nama Ayah/Ibu memakainya utk menarik seluruh data keluarga
-   (lihat isiDariKeluarga di bawah), Nama/Nama Panggilan tidak perlu. */
-function FieldSaran<T = unknown>({
-  label,
-  wajib,
-  value,
-  onChange,
-  onPilih,
-  saran,
-  placeholder,
-  colSpan,
-}: {
-  label: string;
-  wajib?: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  onPilih?: (item: SaranItem<T>) => void;
-  saran: SaranItem<T>[];
-  placeholder?: string;
-  colSpan?: boolean;
-}) {
-  const [terbuka, setTerbuka] = useState(false);
-  const tutup = useCallback(() => setTerbuka(false), []);
-  const { anchorRef, panelRef, gaya } = usePanelMelayang<HTMLInputElement>(terbuka, tutup);
-  const q = value.trim().toLowerCase();
-  const cocok = (q ? saran.filter((s) => s.teks.toLowerCase().includes(q)) : saran).slice(0, 8);
-
-  return (
-    <div className={colSpan ? 'relative sm:col-span-2' : 'relative'}>
-      <label className={KELAS_LABEL}>
-        {label}
-        {wajib ? ' *' : ''}
-      </label>
-      <input
-        ref={anchorRef}
-        className={KELAS_INPUT}
-        value={value}
-        autoComplete="off"
-        onChange={(e) => onChange(e.target.value)}
-        onFocus={() => setTerbuka(true)}
-        onBlur={() => setTimeout(() => setTerbuka(false), 150)}
-        placeholder={placeholder}
-      />
-      {terbuka && gaya && cocok.length > 0 && (
-        <div
-          ref={panelRef}
-          style={gaya}
-          className="z-20 rounded-[var(--radius)] border border-border bg-panel shadow-[0_10px_25px_-8px_rgba(15,23,42,0.35)]"
-        >
-          {cocok.map((item, i) => (
-            <button
-              key={`${item.teks}-${i}`}
-              type="button"
-              /* mousedown+preventDefault supaya klik terdaftar SEBELUM
-                 onBlur input menutup dropdown -- kalau tidak, blur
-                 keburu menutup dropdown & klik jatuh ke tempat kosong. */
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => {
-                onChange(item.teks);
-                onPilih?.(item);
-                setTerbuka(false);
-              }}
-              className="block w-full cursor-pointer px-3 py-2 text-left text-[13px] text-text hover:bg-panel-2"
-            >
-              {item.teks}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -441,11 +327,11 @@ export default function SantriForm({
     [riwayatKeluarga],
   );
   const saranAyah = useMemo(
-    () => saranKeluargaUnik(riwayatKeluarga, (r) => r.nama_ayah),
+    () => saranUnikDenganRec(riwayatKeluarga, (r) => r.nama_ayah),
     [riwayatKeluarga],
   );
   const saranIbu = useMemo(
-    () => saranKeluargaUnik(riwayatKeluarga, (r) => r.nama_ibu),
+    () => saranUnikDenganRec(riwayatKeluarga, (r) => r.nama_ibu),
     [riwayatKeluarga],
   );
 
@@ -667,6 +553,8 @@ export default function SantriForm({
             />
           </div>
           <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
             label="Nama"
             wajib
             value={isian.nama}
@@ -675,6 +563,8 @@ export default function SantriForm({
             placeholder="Nama lengkap"
           />
           <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
             label="Nama Panggilan"
             value={isian.nama_panggilan}
             onChange={(v) => ubah('nama_panggilan', v)}
@@ -832,6 +722,8 @@ export default function SantriForm({
 
         <Bagian judul="Orang Tua & Kontak">
           <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
             label="Nama Ayah"
             value={isian.nama_ayah}
             onChange={(v) => ubah('nama_ayah', v)}
@@ -849,6 +741,8 @@ export default function SantriForm({
             />
           </div>
           <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
             label="Nama Ibu"
             value={isian.nama_ibu}
             onChange={(v) => ubah('nama_ibu', v)}
@@ -911,6 +805,8 @@ export default function SantriForm({
             />
           </div>
           <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
             label="Kelurahan"
             value={isian.kelurahan}
             onChange={(v) => ubah('kelurahan', v)}
