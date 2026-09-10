@@ -1496,19 +1496,25 @@ kode/commit; semua di dashboard):
 4. Verifikasi: sign-out app → "Masuk dengan Google" (akun rheza354) → consent
    → **berhasil mendarat di /dashboard**, tanpa error. ✅
 
-**Masih terbuka / catatan**:
-- OAuth consent screen masih **Testing** (bukan Production). "Publish app"
-  ke-block: butuh **Application home page URL + Privacy policy URL** diisi di
-  Branding (tooltip Google eksplisit). Homepage `ruang-ngaji.vercel.app`,
-  tapi `vercel.app` tak bisa jadi Authorized Domain (public-suffix) →
-  butuh keputusan owner (domain sendiri / halaman privasi).
-- Selama Testing + **0 test users**: hanya anggota project Google Cloud
-  (mis. rheza354) yang bisa lolos consent. Generus/guru dgn akun Google acak
-  akan kena `access_denied` (BUKAN error exchange di atas) sampai app
-  dipublish atau akunnya ditambah sbg test user (Audience → Test users →
-  Add users, maks 100).
-- Kalau error exchange muncul lagi: cek secret Supabase vs secret aktif di
-  Google belum di-rotate/hapus; pastikan cuma 1 secret enabled yang dipakai.
+**Lanjutan — consent screen dipublish (2026-09-10, sesi sama)**:
+- Dibuat halaman **`/kebijakan-privasi`** (server component publik, tanpa
+  auth, `frontend/app/kebijakan-privasi/page.tsx` + tautan footer di
+  `/auth/login`) — commit `dd67722`. Wajib krn Google minta Homepage +
+  Privacy policy URL sebelum "Publish app".
+- Google Auth Platform → Branding: Application home page
+  `https://ruang-ngaji.vercel.app`, Privacy policy
+  `https://ruang-ngaji.vercel.app/kebijakan-privasi`. **Authorized domain**
+  ke-2 = `ruang-ngaji.vercel.app` (Google MINTA host lengkap, bukan
+  `vercel.app` — krn `vercel.app` public-suffix, host penuh-nya yang jadi
+  "registrable domain"). Save OK.
+- Audience → **Publish app → Confirm → status "In production"**. User type
+  External, scope cuma email+profile (non-sensitive) → **TIDAK butuh
+  verifikasi Google**. Sekarang akun Google mana pun bisa daftar/login.
+- Secret lama `****ISFS` masih **Disabled** di Google (belum di-Delete).
+  Boleh dihapus setelah beberapa hari kalau login lancar.
+
+**Kalau error exchange muncul lagi**: cek secret Supabase vs secret aktif di
+Google belum di-rotate/hapus; pastikan cuma 1 secret enabled yang dipakai.
 
 ---
 
