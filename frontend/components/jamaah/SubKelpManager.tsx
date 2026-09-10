@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/auth-context';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
 import PesanGalat from '@/components/ui/PesanGalat';
-import type { SubKelp } from '@/lib/jamaah';
+import type { SubKelp, JamaahKonfig } from '@/lib/jamaah';
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text focus:border-navy focus:outline-none';
@@ -30,6 +30,9 @@ export default function SubKelpManager() {
   const [editNama, setEditNama] = useState('');
   const [editKet, setEditKet] = useState('');
 
+  const [wajib, setWajib] = useState(false);
+  const [simpanKonfig, setSimpanKonfig] = useState(false);
+
   const muat = useCallback(async () => {
     if (!kelompokId) {
       setLoading(false);
@@ -37,16 +40,42 @@ export default function SubKelpManager() {
     }
     setLoading(true);
     setError(null);
-    const { data, error: err } = await supabase
-      .from('sub_kelp')
-      .select('id, kelompok_id, nama, keterangan')
-      .eq('kelompok_id', kelompokId)
-      .is('deleted_at', null)
-      .order('nama');
-    if (err) setError(err.message);
-    else setList((data ?? []) as unknown as SubKelp[]);
+    const [rSub, rKonfig] = await Promise.all([
+      supabase
+        .from('sub_kelp')
+        .select('id, kelompok_id, nama, keterangan')
+        .eq('kelompok_id', kelompokId)
+        .is('deleted_at', null)
+        .order('nama'),
+      supabase
+        .from('jamaah_konfig')
+        .select('kelompok_id, sub_kelp_wajib')
+        .eq('kelompok_id', kelompokId)
+        .maybeSingle(),
+    ]);
+    if (rSub.error) setError(rSub.error.message);
+    else setList((rSub.data ?? []) as unknown as SubKelp[]);
+    setWajib(!!(rKonfig.data as JamaahKonfig | null)?.sub_kelp_wajib);
     setLoading(false);
   }, [kelompokId]);
+
+  async function ubahWajib(nilai: boolean) {
+    if (!kelompokId || simpanKonfig) return;
+    setWajib(nilai); // optimis
+    setSimpanKonfig(true);
+    setError(null);
+    const { error: err } = await supabase
+      .from('jamaah_konfig')
+      .upsert(
+        { kelompok_id: kelompokId, sub_kelp_wajib: nilai, diubah_oleh: profile?.id ?? null },
+        { onConflict: 'kelompok_id' },
+      );
+    setSimpanKonfig(false);
+    if (err) {
+      setWajib(!nilai); // batalkan
+      setError(err.message);
+    }
+  }
 
   useEffect(() => {
     muat();
@@ -116,6 +145,31 @@ export default function SubKelpManager() {
       <p className="mb-4 text-[12px] text-text-dim">
         Pembagian Jamaah Dalam Sub Kelompok (mis. Jamaah Bapak, Jamaah Ibu, Umum).
       </p>
+
+      <div className="mb-4 flex items-center justify-between gap-3 rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
+        <div className="min-w-0">
+          <div className="text-[13px] font-bold text-text">Sub Kelp wajib dipilih</div>
+          <div className="mt-0.5 text-[11.5px] text-text-dim">
+            {wajib
+              ? 'Menambah jamaah tak bisa disimpan sebelum Sub Kelp dipilih.'
+              : 'Sub Kelp opsional saat menambah jamaah.'}
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={wajib}
+          disabled={simpanKonfig || loading || !kelompokId}
+          onClick={() => ubahWajib(!wajib)}
+          className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border-none p-0 transition-colors duration-150 disabled:opacity-50"
+          style={{ background: wajib ? 'var(--navy)' : 'var(--border)' }}
+        >
+          <span
+            className="block h-5 w-5 rounded-full bg-white shadow transition-transform duration-150"
+            style={{ transform: wajib ? 'translateX(22px)' : 'translateX(2px)' }}
+          />
+        </button>
+      </div>
 
       <div className="mb-4 rounded-card border border-border bg-panel-2 p-3.5">
         <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Nama Sub Kelp baru</label>

@@ -10,6 +10,13 @@ export type SubKelp = {
   deleted_at?: string | null;
 };
 
+/* Pengaturan per-kelompok (tabel jamaah_konfig, migrasi 20260910170000).
+   sub_kelp_wajib: form Data Jamaah wajib memilih Sub Kelp. */
+export type JamaahKonfig = {
+  kelompok_id: number;
+  sub_kelp_wajib: boolean;
+};
+
 export type JamaahRow = {
   id: number;
   kelompok_id: number;

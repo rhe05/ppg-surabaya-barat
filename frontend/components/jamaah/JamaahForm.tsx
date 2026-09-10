@@ -15,7 +15,8 @@
    penerobos — migrasi 20260910160000. */
 
 import { useEffect, useMemo, useState } from 'react';
-import { X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { X, Layers } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import FieldTanggal from '@/components/ui/FieldTanggal';
@@ -175,6 +176,7 @@ export default function JamaahForm({
   jamaah,
   jamaahList,
   subKelpList,
+  subKelpWajib = false,
   onSelesai,
   onBatal,
 }: {
@@ -183,9 +185,12 @@ export default function JamaahForm({
      Nama Panggilan (nol query tambahan). */
   jamaahList: JamaahRow[];
   subKelpList: SubKelp[];
+  /* Dari jamaah_konfig: kalau true, Sub Kelp wajib dipilih. */
+  subKelpWajib?: boolean;
   onSelesai: () => void;
   onBatal: () => void;
 }) {
+  const router = useRouter();
   const { profile } = useAuth();
   const kelompokId = profile?.scope_kelompok_id ?? null;
   const [isian, setIsian] = useState<Isian>(jamaah ? dariBaris(jamaah) : KOSONG);
@@ -275,6 +280,10 @@ export default function JamaahForm({
     }));
   }
 
+  /* Sub Kelp wajib TAPI kelompok belum punya Sub Kelp sama sekali —
+     form mengarahkan buat Sub Kelp dulu, tidak bisa menyimpan. */
+  const perluBuatSubKelp = subKelpWajib && subKelpList.length === 0;
+
   async function simpan() {
     if (!kelompokId) {
       setError('Akun Anda belum terhubung ke kelompok.');
@@ -282,6 +291,10 @@ export default function JamaahForm({
     }
     if (!isian.nama.trim()) {
       setError('Nama wajib diisi.');
+      return;
+    }
+    if (subKelpWajib && subKelpList.length > 0 && !isian.sub_kelp_id) {
+      setError('Sub Kelp wajib dipilih.');
       return;
     }
     setMenyimpan(true);
@@ -361,21 +374,47 @@ export default function JamaahForm({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div>
-            <label className={LABEL}>Sub Kelp</label>
-            <select
-              className={INPUT}
-              value={isian.sub_kelp_id}
-              onChange={(e) => ubah('sub_kelp_id', e.target.value)}
-            >
-              <option value="">— Belum ditentukan —</option>
-              {subKelpList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nama}
-                </option>
-              ))}
-            </select>
-          </div>
+          {perluBuatSubKelp ? (
+            <div className="rounded-card border border-navy-lembut-2 bg-navy-lembut p-3.5">
+              <div className="flex items-start gap-2.5">
+                <Layers size={16} strokeWidth={2} className="mt-0.5 shrink-0 text-navy" />
+                <div className="min-w-0">
+                  <div className="text-[12.5px] font-bold text-navy-tua">
+                    Sub Kelp wajib diisi, tapi kelompok Anda belum punya Sub Kelp.
+                  </div>
+                  <div className="mt-0.5 text-[11.5px] text-text-dim">
+                    Buat minimal satu Sub Kelp dulu, lalu tambahkan jamaah.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onBatal();
+                  router.push('/jamaah/sub-kelp');
+                }}
+                className="mt-3 w-full rounded-[var(--radius-button)] border-none bg-navy px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-[0.98]"
+              >
+                Buat Sub Kelp dulu
+              </button>
+            </div>
+          ) : (
+            <div>
+              <label className={LABEL}>Sub Kelp{subKelpWajib ? ' *' : ''}</label>
+              <select
+                className={INPUT}
+                value={isian.sub_kelp_id}
+                onChange={(e) => ubah('sub_kelp_id', e.target.value)}
+              >
+                <option value="">{subKelpWajib ? '— pilih Sub Kelp —' : '— Belum ditentukan —'}</option>
+                {subKelpList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <FieldSaran
             inputClass={INPUT}
@@ -660,7 +699,7 @@ export default function JamaahForm({
           <button
             type="button"
             onClick={simpan}
-            disabled={menyimpan}
+            disabled={menyimpan || perluBuatSubKelp}
             className="w-full rounded-[var(--radius-button)] border-none bg-navy px-5 py-3.5 text-[14px] font-extrabold text-white active:scale-[0.98] disabled:opacity-50"
           >
             {menyimpan ? 'Menyimpan…' : 'Simpan'}

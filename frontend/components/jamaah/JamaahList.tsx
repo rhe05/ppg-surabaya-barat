@@ -20,6 +20,7 @@ export default function JamaahList() {
 
   const [subKelp, setSubKelp] = useState<SubKelp[]>([]);
   const [jamaah, setJamaah] = useState<JamaahRow[]>([]);
+  const [subKelpWajib, setSubKelpWajib] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [cari, setCari] = useState('');
@@ -35,7 +36,7 @@ export default function JamaahList() {
     }
     setLoading(true);
     setError(null);
-    const [rSub, rJam] = await Promise.all([
+    const [rSub, rJam, rKonfig] = await Promise.all([
       supabase
         .from('sub_kelp')
         .select('id, kelompok_id, nama, keterangan')
@@ -48,10 +49,16 @@ export default function JamaahList() {
         .eq('kelompok_id', kelompokId)
         .is('deleted_at', null)
         .order('nama'),
+      supabase
+        .from('jamaah_konfig')
+        .select('sub_kelp_wajib')
+        .eq('kelompok_id', kelompokId)
+        .maybeSingle(),
     ]);
     if (rJam.error) setError(rJam.error.message);
     else setJamaah((rJam.data ?? []) as unknown as JamaahRow[]);
     setSubKelp((rSub.data ?? []) as unknown as SubKelp[]);
+    setSubKelpWajib(!!(rKonfig.data as { sub_kelp_wajib: boolean } | null)?.sub_kelp_wajib);
     setLoading(false);
   }, [kelompokId]);
 
@@ -194,6 +201,7 @@ export default function JamaahList() {
           jamaah={jamaahDiubah}
           jamaahList={jamaah}
           subKelpList={subKelp}
+          subKelpWajib={subKelpWajib}
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}
         />
