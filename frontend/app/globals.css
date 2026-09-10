@@ -420,6 +420,34 @@ body:has([data-jamaah-nav]) .bilah-aksi-bawah {
   );
 }
 
+/* Hero gelap app "Penerobos Kelp" (jamaah) — varian navy dari .kartu-saldo.
+   Idiom sama: gradien gelap + garis kilau tepi atas + sorotan lembut di
+   satu pojok, NOL aset gambar. Sorotan putih (bukan warna) supaya tetap
+   tenang & "mahal", tidak norak. Dipakai JamaahChrome (hero beranda). */
+.hero-navy {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(130% 130% at 100% 0%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 55%),
+    linear-gradient(160deg, var(--navy) 0%, var(--navy-tua) 82%);
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    0 20px 40px -20px rgba(23, 37, 84, 0.55);
+}
+.hero-navy::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.32) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
 .label-mikro {
   font-size: var(--fs-label);
   font-weight: 700;

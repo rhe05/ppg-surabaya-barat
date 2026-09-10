@@ -1,14 +1,27 @@
 'use client';
 
-/* Chrome header bersama app "Penerobos Kelp" (jamaah). Pola sama
-   JurnalHeaderChrome guru: top bar putih dikunci sticky + hero navy
-   opsional (nama/peran/kelompok). Tema navy. */
+/* Chrome header bersama app "Penerobos Kelp" (jamaah). Top bar putih sticky
+   (logo + "Ruang Ngaji", samakan dgn app guru/admin) + hero navy opsional
+   di beranda: kartu gelap berlapis (primitif .hero-navy), monogram inisial,
+   nama, chip peran, kelompok. Tema navy. */
 
 import Image from 'next/image';
+import { useMemo } from 'react';
 import { useAuth } from '@/lib/auth-context';
+
+function inisialDari(nama: string) {
+  const bagian = nama.split(/\s+/).filter(Boolean);
+  if (bagian.length === 0) return '·';
+  /* Dua kata PERTAMA — bukan pertama+terakhir (bisa membentuk singkatan
+     tak sengaja yg janggal). */
+  const huruf = (bagian[0][0] ?? '') + (bagian[1]?.[0] ?? '');
+  return huruf.toUpperCase() || '·';
+}
 
 export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?: boolean }) {
   const { profile, namaKelompok } = useAuth();
+  const nama = profile?.display_name ?? '-';
+  const inisial = useMemo(() => inisialDari(profile?.display_name ?? ''), [profile?.display_name]);
 
   return (
     <>
@@ -28,19 +41,26 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
       </div>
 
       {tampilkanHero && (
-        <div className="shrink-0 overflow-hidden rounded-b-3xl bg-panel shadow-[0_6px_20px_rgba(29,78,216,0.22)]">
-          <div className="bg-[linear-gradient(135deg,var(--navy)_0%,var(--navy-tua)_100%)] px-[18px] pt-4 pb-5">
-            <div className="text-[20px] leading-[1.2] font-bold text-white">
-              {profile?.display_name ?? '-'}
-            </div>
-            <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
-              Penerobos Kelp
-            </div>
-            {namaKelompok && (
-              <div className="mt-[3px] text-[12.5px] font-semibold tracking-[0.01em] text-white/[0.88]">
-                {namaKelompok}
+        <div className="px-[18px] pt-3.5">
+          <div className="hero-navy animasi-konten-muncul px-[18px] py-[18px]">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/[0.12] text-[14px] font-bold text-white ring-1 ring-white/15">
+                {inisial}
               </div>
-            )}
+              <div className="min-w-0">
+                <div className="truncate text-[19px] leading-tight font-bold text-white capitalize">
+                  {nama}
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="rounded-full bg-white/[0.14] px-2 py-[3px] text-[10px] font-bold tracking-[0.06em] text-white/90 uppercase">
+                    Penerobos Kelp
+                  </span>
+                  {namaKelompok && (
+                    <span className="text-[12px] font-medium text-white/70">{namaKelompok}</span>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}

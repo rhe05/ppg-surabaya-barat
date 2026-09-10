@@ -42,7 +42,7 @@ export default function RingkasanKehadiranCard() {
     };
   }, [kelompokId, tahun, bulan]);
 
-  if (loading) return <Skeleton className="mb-4 h-[132px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[142px] w-full rounded-card" />;
 
   const acaraTerakhir = data?.acara[0] ?? null;
 
@@ -50,27 +50,28 @@ export default function RingkasanKehadiranCard() {
     <button
       type="button"
       onClick={() => router.push('/jamaah/riwayat')}
-      className="animasi-konten-muncul mb-4 block w-full rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+      className="kartu-premium animasi-konten-muncul mb-4 block w-full p-4 text-left transition-transform active:scale-[0.99]"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-bold text-text">Ringkasan Kehadiran</span>
+        <span className="label-mikro">Ringkasan Kehadiran</span>
         <span className="flex items-center gap-0.5 text-[11px] font-semibold text-text-dim">
           {NAMA_BULAN[bulan - 1]} {tahun}
           <ChevronRight size={13} />
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <Tile nilai={String(data?.jumlahAcara ?? 0)} label="Acara" warna="var(--navy)" />
-        <Tile nilai={String(data?.totalKehadiran ?? 0)} label="Total Hadir" warna="var(--sage)" />
-        <Tile
+      <div className="mt-3.5 flex items-stretch">
+        <Metrik nilai={String(data?.jumlahAcara ?? 0)} label="Acara" />
+        <Pemisah />
+        <Metrik nilai={String(data?.totalKehadiran ?? 0)} label="Total Hadir" />
+        <Pemisah />
+        <Metrik
           nilai={data?.persenHadir != null ? `${data.persenHadir}%` : '—'}
           label="Rata-rata"
-          warna="var(--navy)"
         />
       </div>
 
-      <div className="mt-2.5 text-[11px] text-text-dim">
+      <div className="mt-3.5 border-t border-border pt-3 text-[11px] text-text-dim">
         {acaraTerakhir
           ? `Terakhir: ${acaraTerakhir.judul} — ${acaraTerakhir.hadir} hadir`
           : 'Belum ada acara bulan ini'}
@@ -79,15 +80,15 @@ export default function RingkasanKehadiranCard() {
   );
 }
 
-function Tile({ nilai, label, warna }: { nilai: string; label: string; warna: string }) {
+function Pemisah() {
+  return <div className="mx-1 w-px self-stretch bg-border" />;
+}
+
+function Metrik({ nilai, label }: { nilai: string; label: string }) {
   return (
-    <div className="flex flex-col items-center rounded-[10px] bg-panel-2 px-1 py-2.5">
-      <span className="text-[18px] leading-none font-extrabold tabular-nums" style={{ color: warna }}>
-        {nilai}
-      </span>
-      <span className="mt-1 text-center text-[9.5px] font-bold tracking-[0.02em] text-text-dim uppercase">
-        {label}
-      </span>
+    <div className="flex flex-1 flex-col items-center gap-1.5">
+      <span className="angka-metrik text-[20px] text-text">{nilai}</span>
+      <span className="label-mikro text-[9.5px] text-text-dim">{label}</span>
     </div>
   );
 }

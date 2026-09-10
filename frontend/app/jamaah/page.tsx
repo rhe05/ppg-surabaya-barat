@@ -1,10 +1,10 @@
 'use client';
 
-/* Beranda "Penerobos Kelp". Fase A: hero + pintasan. Card "Ringkasan
-   Kehadiran" ditambahkan di Fase C. */
+/* Beranda "Penerobos Kelp". Hero navy (JamaahChrome) + kartu Ringkasan
+   Kehadiran + menu (satu kartu premium, baris terbagi hairline). */
 
 import { useRouter } from 'next/navigation';
-import { Users, CalendarCheck, History, Layers } from 'lucide-react';
+import { Users, CalendarCheck, History, Layers, ClipboardList, ChevronRight } from 'lucide-react';
 import JamaahChrome from '@/components/jamaah/JamaahChrome';
 import RingkasanKehadiranCard from '@/components/jamaah/RingkasanKehadiranCard';
 
@@ -12,6 +12,7 @@ const PINTASAN = [
   { label: 'Data Jamaah', desk: 'Daftar & kelola data jamaah', href: '/jamaah/data', ikon: Users },
   { label: 'Input Kehadiran', desk: 'Catat kehadiran per acara', href: '/jamaah/kehadiran', ikon: CalendarCheck },
   { label: 'Riwayat Kehadiran', desk: 'Rekap kehadiran acara lalu', href: '/jamaah/riwayat', ikon: History },
+  { label: 'Data Pengurus', desk: 'Susunan kepengurusan pengajian', href: '/jamaah/pengurus', ikon: ClipboardList },
   { label: 'Kelola Sub Kelp', desk: 'Pembagian jamaah dalam kelompok', href: '/jamaah/sub-kelp', ikon: Layers },
 ];
 
@@ -22,8 +23,9 @@ export default function JamaahBerandaPage() {
       <JamaahChrome tampilkanHero />
       <div className="px-[18px] pt-4 pb-10">
         <RingkasanKehadiranCard />
-        <div className="mb-3 text-[15px] font-extrabold text-text">Menu</div>
-        <div className="grid grid-cols-1 gap-2.5">
+
+        <div className="label-mikro mb-2.5">Menu</div>
+        <div className="kartu-premium animasi-konten-muncul overflow-hidden">
           {PINTASAN.map((p) => {
             const Ikon = p.ikon;
             return (
@@ -31,15 +33,16 @@ export default function JamaahBerandaPage() {
                 key={p.href}
                 type="button"
                 onClick={() => router.push(p.href)}
-                className="flex items-center gap-3.5 rounded-card border border-border bg-panel p-4 text-left shadow-[var(--shadow-card)] active:scale-[0.99]"
+                className="baris-daftar flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors active:bg-panel-2"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-navy-lembut text-navy">
-                  <Ikon size={19} strokeWidth={2} />
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-navy-lembut text-navy">
+                  <Ikon size={17} strokeWidth={2} />
                 </span>
-                <span className="min-w-0">
-                  <span className="block text-[14px] font-bold text-text">{p.label}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[13.5px] font-semibold text-text">{p.label}</span>
                   <span className="block text-[11.5px] text-text-dim">{p.desk}</span>
                 </span>
+                <ChevronRight size={16} className="shrink-0 text-text-faint" />
               </button>
             );
           })}
