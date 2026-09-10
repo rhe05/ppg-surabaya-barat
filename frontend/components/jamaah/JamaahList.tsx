@@ -192,6 +192,7 @@ export default function JamaahList() {
       {formTerbuka && (
         <JamaahForm
           jamaah={jamaahDiubah}
+          jamaahList={jamaah}
           subKelpList={subKelp}
           onSelesai={selesaiForm}
           onBatal={() => setFormTerbuka(false)}

@@ -20,7 +20,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import FieldTanggal from '@/components/ui/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
-import { type SaranItem } from '@/lib/saran';
+import { saranTeksUnik, type SaranItem } from '@/lib/saran';
 import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
 import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 import {
@@ -173,11 +173,15 @@ const formatNomorWa = (v: string) => v.replace(/\D/g, '').replace(/(\d{4})(?=\d)
 
 export default function JamaahForm({
   jamaah,
+  jamaahList,
   subKelpList,
   onSelesai,
   onBatal,
 }: {
   jamaah: JamaahRow | null;
+  /* Semua jamaah sekelompok yg sudah dimuat JamaahList — sumber saran ketik
+     Nama Panggilan (nol query tambahan). */
+  jamaahList: JamaahRow[];
   subKelpList: SubKelp[];
   onSelesai: () => void;
   onBatal: () => void;
@@ -220,6 +224,13 @@ export default function JamaahForm({
   const saranKelurahan = useMemo<SaranItem<WilayahSurabaya>[]>(
     () => WILAYAH_SURABAYA.map((w) => ({ teks: w.kelurahan, rec: w })),
     [],
+  );
+  const saranPanggilan = useMemo(
+    () =>
+      saranTeksUnik(
+        jamaahList.filter((j) => j.id !== jamaah?.id).map((j) => j.nama_panggilan),
+      ),
+    [jamaahList, jamaah?.id],
   );
 
   const ubah = <K extends keyof Isian>(k: K, v: Isian[K]) => setIsian((s) => ({ ...s, [k]: v }));
@@ -379,14 +390,14 @@ export default function JamaahForm({
           />
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Nama Panggilan</label>
-              <input
-                className={INPUT}
-                value={isian.nama_panggilan}
-                onChange={(e) => ubah('nama_panggilan', e.target.value)}
-              />
-            </div>
+            <FieldSaran
+              inputClass={INPUT}
+              labelClass={LABEL}
+              label="Nama Panggilan"
+              value={isian.nama_panggilan}
+              onChange={(v) => ubah('nama_panggilan', v)}
+              saran={saranPanggilan}
+            />
             <div>
               <label className={LABEL}>Gender</label>
               <select
