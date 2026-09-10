@@ -13,7 +13,7 @@ const PINTASAN = [
   { label: 'Data Pengurus', desk: 'Susunan Kepengurusan Kelompok', href: '/jamaah/pengurus', ikon: ClipboardList },
   { label: 'Input Kehadiran', desk: 'Catat Kehadiran Per Kegiatan', href: '/jamaah/kehadiran', ikon: CalendarCheck },
   { label: 'Riwayat Kehadiran', desk: 'Rekap kehadiran acara lalu', href: '/jamaah/riwayat', ikon: History },
-  { label: 'Kelola Sub Kelp', desk: 'Pembagian jamaah dalam kelompok', href: '/jamaah/sub-kelp', ikon: Layers },
+  { label: 'Kelola Sub Kelp', desk: 'Pembagian Jamaah Dalam Sub Kelompok', href: '/jamaah/sub-kelp', ikon: Layers },
 ];
 
 export default function JamaahBerandaPage() {

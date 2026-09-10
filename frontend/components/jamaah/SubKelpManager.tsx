@@ -114,7 +114,7 @@ export default function SubKelpManager() {
     <div className="px-[18px] pt-4 pb-10">
       <div className="mb-1 text-[17px] font-extrabold text-text">Kelola Sub Kelp</div>
       <p className="mb-4 text-[12px] text-text-dim">
-        Pembagian jamaah dalam kelompok Anda (mis. Jamaah Bapak, Jamaah Ibu, Umum).
+        Pembagian Jamaah Dalam Sub Kelompok (mis. Jamaah Bapak, Jamaah Ibu, Umum).
       </p>
 
       <div className="mb-4 rounded-card border border-border bg-panel-2 p-3.5">
