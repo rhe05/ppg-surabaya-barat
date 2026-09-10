@@ -46,6 +46,10 @@ export type JamaahRow = {
      'Pindah'). NULL = masih aktif. Migrasi 20260910200000. */
   tanggal_pindah?: string | null;
   pindah_ke?: string | null;
+  /* Diisi saat jamaah dicatat meninggal. NULL = masih hidup/aktif.
+     Migrasi 20260910210000. */
+  tanggal_meninggal?: string | null;
+  catatan_meninggal?: string | null;
   deleted_at?: string | null;
 };
 
@@ -58,6 +62,13 @@ export const KOLOM_JAMAAH =
 /* + kolom kepindahan — dipakai layar "Jamaah Pindah" saja. Dipisah supaya
    sisa app tak ikut 400 kalau migrasi 20260910200000 belum dijalankan. */
 export const KOLOM_JAMAAH_PINDAH = KOLOM_JAMAAH + ', tanggal_pindah, pindah_ke';
+
+/* + kolom kematian — layar "Jamaah Meninggal" saja. Migrasi 20260910210000. */
+export const KOLOM_JAMAAH_MENINGGAL = KOLOM_JAMAAH + ', tanggal_meninggal, catatan_meninggal';
+
+/* Daftar Data Jamaah aktif: butuh `tanggal_meninggal` utk menyaring jamaah
+   yang sudah wafat (pindah cukup lewat status_domisili). Migrasi 20260910210000. */
+export const KOLOM_JAMAAH_LIST = KOLOM_JAMAAH + ', tanggal_meninggal';
 
 export const STATUS_KELUARGA = [
   'Kepala Keluarga',
@@ -100,10 +111,11 @@ export type KpiJamaah = {
 
 export type JamaahKpiRow = Pick<
   JamaahRow,
-  'status_keluarga' | 'status_domisili' | 'gender' | 'tanggal_lahir'
+  'status_keluarga' | 'status_domisili' | 'gender' | 'tanggal_lahir' | 'tanggal_meninggal'
 >;
 
-export const KOLOM_JAMAAH_KPI = 'status_keluarga, status_domisili, gender, tanggal_lahir';
+export const KOLOM_JAMAAH_KPI =
+  'status_keluarga, status_domisili, gender, tanggal_lahir, tanggal_meninggal';
 
 function usiaTahun(tanggalLahir: string | null): number | null {
   if (!tanggalLahir) return null;
@@ -141,6 +153,9 @@ export function hitungKpiJamaah(
     pindah: 0,
   };
   for (const r of rows) {
+    /* Jamaah meninggal = keluar dari daftar aktif sepenuhnya (tak
+       dihitung di mana pun). */
+    if (r.tanggal_meninggal) continue;
     /* Jamaah pindah = keluar dari daftar aktif: hanya masuk hitungan
        `pindah`, tidak ke total maupun rincian demografi. */
     if (r.status_domisili === 'Pindah') {

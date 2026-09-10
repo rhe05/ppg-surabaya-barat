@@ -16,7 +16,7 @@ import PesanGalat from '@/components/ui/PesanGalat';
 import JamaahForm from '@/components/jamaah/JamaahForm';
 import UnduhDataSheet from '@/components/ui/UnduhDataSheet';
 import { KOLOM_EKSPOR_JAMAAH, GRUP_URUT_JAMAAH, type JamaahEkspor } from '@/lib/kolomEksporJamaah';
-import { KOLOM_JAMAAH, type JamaahRow, type SubKelp } from '@/lib/jamaah';
+import { KOLOM_JAMAAH_LIST, type JamaahRow, type SubKelp } from '@/lib/jamaah';
 
 export default function JamaahList() {
   const router = useRouter();
@@ -51,7 +51,7 @@ export default function JamaahList() {
         .order('nama'),
       supabase
         .from('jamaah')
-        .select(KOLOM_JAMAAH)
+        .select(KOLOM_JAMAAH_LIST)
         .eq('kelompok_id', kelompokId)
         .is('deleted_at', null)
         .order('nama'),
@@ -63,11 +63,11 @@ export default function JamaahList() {
     ]);
     if (rJam.error) setError(rJam.error.message);
     else
-      /* Jamaah berstatus Pindah keluar dari daftar aktif — dikelola di
-         layar "Jamaah Pindah". */
+      /* Jamaah Pindah / Meninggal keluar dari daftar aktif — masing-masing
+         dikelola di layar "Jamaah Pindah" / "Jamaah Meninggal". */
       setJamaah(
         ((rJam.data ?? []) as unknown as JamaahRow[]).filter(
-          (j) => j.status_domisili !== 'Pindah',
+          (j) => j.status_domisili !== 'Pindah' && !j.tanggal_meninggal,
         ),
       );
     setSubKelp((rSub.data ?? []) as unknown as SubKelp[]);
@@ -143,6 +143,7 @@ export default function JamaahList() {
           item={[
             { label: 'Tambah Jamaah', onClick: bukaTambah },
             { label: 'Jamaah Pindah', onClick: () => router.push('/jamaah/pindah') },
+            { label: 'Jamaah Meninggal', onClick: () => router.push('/jamaah/meninggal') },
             { label: 'Unduh Data', onClick: () => setUnduhTerbuka(true) },
           ]}
         />
