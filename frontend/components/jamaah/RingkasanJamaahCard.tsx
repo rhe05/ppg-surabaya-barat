@@ -1,10 +1,10 @@
 'use client';
 
-/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp — Total + MS + GB
-   + rincian demografi. SELECT jamaah (kolom KPI) + SELECT guru (kategori),
-   hitung 100% di memori.
-   MS (Muballigh/ot Setempat) = jamaah.status_keluarga + guru.kategori.
-   GB (Guru Bantu) = guru.kategori saja. Tap → Data Jamaah. */
+/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp — Total + kategori
+   guru (MS/GB/MT) + rincian demografi. SELECT jamaah (kolom KPI) + SELECT
+   guru (kategori), hitung 100% di memori.
+   MS = jamaah.status_keluarga + guru.kategori. GB/MT = guru.kategori saja.
+   Tap → Data Jamaah. */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,7 @@ import {
   KOLOM_JAMAAH_KPI,
   STATUS_MS,
   KATEGORI_GB,
+  KATEGORI_MT,
   type KpiJamaah,
   type JamaahKpiRow,
 } from '@/lib/jamaah';
@@ -31,6 +32,7 @@ const KOSONG: KpiJamaah = {
   lansia: 0,
   ms: 0,
   gb: 0,
+  mt: 0,
 };
 
 export default function RingkasanJamaahCard() {
@@ -64,10 +66,14 @@ export default function RingkasanJamaahCard() {
       ]);
       if (batal) return;
       const guru = (rGuru.data ?? []) as { kategori: string | null }[];
-      const msGuru = guru.filter((g) => g.kategori === STATUS_MS).length;
-      const gbGuru = guru.filter((g) => g.kategori === KATEGORI_GB).length;
+      const hitung = (kat: string) => guru.filter((g) => g.kategori === kat).length;
       setKpi(
-        hitungKpiJamaah((rJam.data ?? []) as unknown as JamaahKpiRow[], msGuru, gbGuru),
+        hitungKpiJamaah(
+          (rJam.data ?? []) as unknown as JamaahKpiRow[],
+          hitung(STATUS_MS),
+          hitung(KATEGORI_GB),
+          hitung(KATEGORI_MT),
+        ),
       );
       setLoading(false);
     })();
@@ -76,7 +82,7 @@ export default function RingkasanJamaahCard() {
     };
   }, [kelompokId]);
 
-  if (loading) return <Skeleton className="mb-4 h-[248px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[264px] w-full rounded-card" />;
 
   const k = kpi ?? KOSONG;
 
@@ -91,16 +97,19 @@ export default function RingkasanJamaahCard() {
         <ChevronRight size={14} className="shrink-0 text-text-faint" />
       </div>
 
-      {/* Total + MS + GB */}
-      <div className="mt-3 flex items-stretch">
-        <Utama n={k.total} l="Total Jamaah" />
-        <div className="mx-2.5 w-px self-stretch bg-border" />
-        <Utama n={k.ms} l="MS" aksen />
-        <div className="mx-2.5 w-px self-stretch bg-border" />
-        <Utama n={k.gb} l="GB" aksen />
+      <div className="mt-3">
+        <span className="angka-metrik block text-[30px] leading-none text-text">{k.total}</span>
+        <span className="label-mikro mt-1.5 block text-[9.5px] text-text-dim">Total Jamaah</span>
       </div>
 
-      {/* Demografi */}
+      {/* Kategori guru sekelompok */}
+      <div className="mt-4 grid grid-cols-3 border-t border-border pt-4">
+        <Utama n={k.ms} l="MS" />
+        <Utama n={k.gb} l="GB" garis />
+        <Utama n={k.mt} l="MT" garis />
+      </div>
+
+      {/* Demografi jamaah */}
       <div className="mt-4 grid grid-cols-3 gap-y-4 border-t border-border pt-4">
         <Stat n={k.lakiLaki} l="Laki-laki" />
         <Stat n={k.perempuan} l="Perempuan" />
@@ -111,19 +120,17 @@ export default function RingkasanJamaahCard() {
       </div>
 
       <p className="mt-3.5 border-t border-border pt-2.5 text-[10px] leading-relaxed text-text-faint">
-        MS Muballigh/ot Setempat &nbsp;·&nbsp; GB Guru Bantu
+        MS Muballigh/ot Setempat &nbsp;·&nbsp; GB Guru Bantu &nbsp;·&nbsp; MT Muballigh/ot Tugasan
       </p>
     </button>
   );
 }
 
-function Utama({ n, l, aksen }: { n: number; l: string; aksen?: boolean }) {
+function Utama({ n, l, garis }: { n: number; l: string; garis?: boolean }) {
   return (
-    <div className="flex flex-1 flex-col">
-      <span className={`angka-metrik text-[26px] leading-none ${aksen ? 'text-navy' : 'text-text'}`}>
-        {n}
-      </span>
-      <span className="label-mikro mt-1.5 text-[9.5px] text-text-dim">{l}</span>
+    <div className={`flex flex-col items-center gap-1.5 ${garis ? 'border-l border-border' : ''}`}>
+      <span className="angka-metrik text-[22px] text-navy">{n}</span>
+      <span className="label-mikro text-[9.5px] text-text-dim">{l}</span>
     </div>
   );
 }

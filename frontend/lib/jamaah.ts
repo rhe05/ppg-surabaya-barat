@@ -66,6 +66,7 @@ export const STATUS_KELUARGA = [
    KPI jamaah. MS juga bisa jadi jamaah.status_keluarga; GB murni dari guru. */
 export const STATUS_MS = 'Muballigh Setempat'; // MS — Muballigh/ot Setempat
 export const KATEGORI_GB = 'Guru Bantu'; // GB — Guru Bantu
+export const KATEGORI_MT = 'Muballigh Tugasan'; // MT — Muballigh/ot Tugasan
 
 /* Usia (tahun) dianggap "lansia" (rujukan UU 13/1998: 60 th ke atas). */
 export const USIA_LANSIA = 60;
@@ -79,9 +80,10 @@ export type KpiJamaah = {
   perempuan: number;
   lansia: number;
   /* MS = Muballigh/ot Setempat (jamaah.status_keluarga + guru.kategori).
-     GB = Guru Bantu (murni dari guru.kategori). */
+     GB = Guru Bantu, MT = Muballigh/ot Tugasan (murni dari guru.kategori). */
   ms: number;
   gb: number;
+  mt: number;
 };
 
 export type JamaahKpiRow = Pick<JamaahRow, 'status_keluarga' | 'gender' | 'tanggal_lahir'>;
@@ -99,9 +101,15 @@ function usiaTahun(tanggalLahir: string | null): number | null {
   return u;
 }
 
-/* Hitung KPI dari daftar jamaah (100% di memori). `msGuru`/`gbGuru` =
-   jumlah Muballigh/ot Setempat & Guru Bantu dari tabel guru sekelompok. */
-export function hitungKpiJamaah(rows: JamaahKpiRow[], msGuru = 0, gbGuru = 0): KpiJamaah {
+/* Hitung KPI dari daftar jamaah (100% di memori). `msGuru`/`gbGuru`/`mtGuru`
+   = jumlah Muballigh Setempat / Guru Bantu / Muballigh Tugasan dari tabel
+   guru sekelompok. */
+export function hitungKpiJamaah(
+  rows: JamaahKpiRow[],
+  msGuru = 0,
+  gbGuru = 0,
+  mtGuru = 0,
+): KpiJamaah {
   const k: KpiJamaah = {
     total: rows.length,
     duda: 0,
@@ -112,6 +120,7 @@ export function hitungKpiJamaah(rows: JamaahKpiRow[], msGuru = 0, gbGuru = 0): K
     lansia: 0,
     ms: msGuru,
     gb: gbGuru,
+    mt: mtGuru,
   };
   for (const r of rows) {
     if (r.status_keluarga === 'Duda') k.duda++;
