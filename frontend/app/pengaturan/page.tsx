@@ -47,9 +47,24 @@ type Undangan = {
   id: number;
   nama_lengkap: string;
   kelompok_id: number;
+  peran: string;
   profile_id: string | null;
   claimed_at: string | null;
   kelompok: Tersemat;
+};
+
+/* Peran yang boleh dipra-registrasi lewat "Registrasi" (undangan). 'guru'
+   sengaja TIDAK ada -- guru dibuat lewat kartu "Registrasi Guru" (tabel
+   guru). Hanya admin_ppg yang boleh memilih selain Admin Kelp. */
+const PERAN_UNDANGAN: { nilai: string; label: string }[] = [
+  { nilai: 'admin_kelompok', label: 'Admin Kelp' },
+  { nilai: 'ketua_mudai', label: 'Ketua Muda-i' },
+  { nilai: 'penerobos', label: 'Penerobos Kelp' },
+];
+const LABEL_PERAN_UNDANGAN: Record<string, string> = {
+  admin_kelompok: 'Admin Kelp',
+  ketua_mudai: 'Ketua Muda-i',
+  penerobos: 'Penerobos Kelp',
 };
 type BarisKop = {
   baris_ke: number;
@@ -94,6 +109,9 @@ function PengaturanContent() {
      admin_kelp_undangan_tulis_ppg_desa (20260824110000) menegakkan hal yg
      sama di server, ini cuma cermin di UI. */
   const bolehUndangAdminKelp = ['admin_ppg', 'admin_desa'].includes(profile?.role ?? '');
+  /* Hanya admin_ppg bisa memilih peran selain Admin Kelp (ditegakkan jg
+     di WITH CHECK policy admin_kelp_undangan, migrasi 20260910130000). */
+  const bisaPilihPeranUndangan = profile?.role === 'admin_ppg';
   /* Registrasi Guru -- SAMA tiga peran dgn bolehAturKop (persis guru_insert_
      admin), const terpisah murni supaya namanya jelas dibaca di JSX guru. */
   const bolehDaftarGuru = bolehAturKop;
@@ -127,6 +145,7 @@ function PengaturanContent() {
   const [daftarUndangan, setDaftarUndangan] = useState<Undangan[]>([]);
   const [namaUndanganBaru, setNamaUndanganBaru] = useState('');
   const [kelompokUndanganBaru, setKelompokUndanganBaru] = useState<number | ''>('');
+  const [peranUndanganBaru, setPeranUndanganBaru] = useState('admin_kelompok');
   /* Daftar "Sudah Bergabung" auto-hide (collapsed) -- diminta owner:
      datanya akan terus bertambah seiring makin banyak admin kelp
      terdaftar, jadi TIDAK ditampilkan penuh spt "Menunggu" (yg memang
@@ -276,7 +295,7 @@ function PengaturanContent() {
     if (!bolehUndangAdminKelp) return;
     const { data, error: err } = await supabase
       .from('admin_kelp_undangan')
-      .select('id, nama_lengkap, kelompok_id, profile_id, claimed_at, kelompok:kelompok_id(nama)')
+      .select('id, nama_lengkap, kelompok_id, peran, profile_id, claimed_at, kelompok:kelompok_id(nama)')
       .order('created_at', { ascending: false });
     if (err) {
       setError(err.message);
@@ -298,11 +317,13 @@ function PengaturanContent() {
       const { error: err } = await supabase.from('admin_kelp_undangan').insert({
         nama_lengkap: namaUndanganBaru.trim(),
         kelompok_id: kelompokUndanganBaru,
+        peran: bisaPilihPeranUndangan ? peranUndanganBaru : 'admin_kelompok',
         dibuat_oleh: profile?.id ?? null,
       });
       if (err) throw new Error(err.message);
       setNamaUndanganBaru('');
       setKelompokUndanganBaru('');
+      setPeranUndanganBaru('admin_kelompok');
       setPesan('Undangan dibuat. Sampaikan nama kelompok & nama lengkap ini ke orangnya.');
       await muatUndangan();
     } catch (e) {
@@ -435,7 +456,7 @@ function PengaturanContent() {
                 placeholder="Nama sesuai KTP/yang biasa dipakai"
               />
             </div>
-            <div className="min-w-[200px] flex-1">
+            <div className="min-w-[160px] flex-1">
               <label className={KELAS_LABEL}>Kelompok</label>
               <select
                 className={KELAS_INPUT}
@@ -450,6 +471,22 @@ function PengaturanContent() {
                 ))}
               </select>
             </div>
+            {bisaPilihPeranUndangan && (
+              <div className="min-w-[160px] flex-1">
+                <label className={KELAS_LABEL}>Sebagai</label>
+                <select
+                  className={KELAS_INPUT}
+                  value={peranUndanganBaru}
+                  onChange={(e) => setPeranUndanganBaru(e.target.value)}
+                >
+                  {PERAN_UNDANGAN.map((p) => (
+                    <option key={p.nilai} value={p.nilai}>
+                      {p.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <button
               onClick={undangAdminKelp}
               disabled={sibuk || !namaUndanganBaru.trim() || !kelompokUndanganBaru}
@@ -475,9 +512,12 @@ function PengaturanContent() {
                       key={u.id}
                       className="mb-2 flex items-center justify-between gap-3 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center gap-2.5">
                         <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
                         <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
+                        <span className="rounded-full bg-[rgba(79,70,229,0.12)] px-2 py-0.5 text-[11px] font-bold text-indigo">
+                          {LABEL_PERAN_UNDANGAN[u.peran] ?? u.peran}
+                        </span>
                         <span className="rounded-full bg-[rgba(217,119,6,0.12)] px-2 py-0.5 text-[11px] font-bold text-brass">
                           Menunggu
                         </span>
@@ -515,7 +555,7 @@ function PengaturanContent() {
                                 <span className="text-[13px] font-semibold text-text">{u.nama_lengkap}</span>
                                 <span className="text-[12px] text-text-dim">{namaKelompok ?? '-'}</span>
                                 <span className="rounded-full bg-[rgba(79,70,229,0.12)] px-2 py-0.5 text-[11px] font-bold text-indigo">
-                                  Admin Kelp
+                                  {LABEL_PERAN_UNDANGAN[u.peran] ?? u.peran}
                                 </span>
                                 <span className="rounded-full bg-[rgba(5,150,105,0.12)] px-2 py-0.5 text-[11px] font-bold text-sage">
                                   Sudah Bergabung

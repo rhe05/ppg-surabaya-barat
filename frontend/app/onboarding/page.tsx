@@ -62,7 +62,12 @@ type KandidatAdminKelp = {
   kelompok_id: number;
   kelompok_nama: string;
   desa_nama: string;
+  peran: Peran;
 };
+
+/* Peran yang jalur registrasinya lewat undangan admin_ppg/desa
+   (admin_kelp_undangan) -- bukan lewat tabel guru. */
+const PERAN_LEWAT_UNDANGAN: Peran[] = ['admin_kelompok', 'ketua_mudai', 'penerobos'];
 
 type Pendaftaran = {
   nama_lengkap: string;
@@ -307,6 +312,7 @@ export default function OnboardingPage() {
   );
 
   const lingkup = PERAN.find((p) => p.nilai === peran)?.lingkup ?? null;
+  const peranLewatUndangan = !!peran && PERAN_LEWAT_UNDANGAN.includes(peran);
   const scopeTerisi =
     lingkup === 'kelompok'
       ? kelompokId !== null
@@ -703,7 +709,7 @@ export default function OnboardingPage() {
               nama lengkap), krn undangannya dibuat admin_ppg/admin_desa
               lewat /pengaturan (Undang Admin Kelp), bukan dari data yang
               sudah ada spt tabel guru. */}
-          {lingkup === 'kelompok' && peran === 'admin_kelompok' && carianAdminKelp !== 'manual' && (
+          {lingkup === 'kelompok' && peranLewatUndangan && carianAdminKelp !== 'manual' && (
             <div className="mb-5">
               <div className="mb-3">
                 <label className="mb-2 block text-[12px] font-medium text-text" htmlFor="kelompok-klaim">
@@ -737,13 +743,39 @@ export default function OnboardingPage() {
 
               {carianAdminKelp === 'hasil' && kandidatAdminKelp.length === 0 && (
                 <div className="mt-3 rounded-[var(--radius)] bg-panel-2 px-4 py-3 text-[12.5px] text-text">
-                  Tidak ditemukan nama &amp; kelompok ini. Periksa lagi ejaannya, atau hubungi admin
-                  aplikasi.
+                  Tidak ditemukan nama &amp; kelompok ini. Periksa lagi ejaannya
+                  {peran === 'admin_kelompok'
+                    ? ', atau hubungi admin aplikasi.'
+                    : '.'}
+                  {(peran === 'penerobos' || peran === 'ketua_mudai') && (
+                    <button
+                      type="button"
+                      onClick={() => setCarianAdminKelp('manual')}
+                      className="mt-2 block w-full cursor-pointer rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[12.5px] font-semibold text-text-dim"
+                    >
+                      Belum didaftarkan admin? Ajukan pendaftaran
+                    </button>
+                  )}
                 </div>
               )}
 
               {carianAdminKelp === 'hasil' && kandidatAdminKelp.length > 0 && (
                 <div className="mt-3">
+                  {/* Peran yang akan diberikan = yang ditentukan admin saat
+                      mendaftarkan (bukan kartu peran yang dipilih di atas) --
+                      ditampilkan jelas supaya tidak ada kejutan. */}
+                  {(() => {
+                    const k = kandidatAdminKelp[0];
+                    const labelPeran =
+                      PERAN.find((p) => p.nilai === k.peran)?.judul ?? k.peran;
+                    return (
+                      <p className="mb-3 rounded-[var(--radius)] bg-panel-2 px-3.5 py-3 text-[13px] text-text">
+                        Ditemukan: <b>{k.nama_lengkap}</b> didaftarkan sebagai{' '}
+                        <b>{labelPeran}</b> untuk <b>{k.kelompok_nama}</b>.
+                      </p>
+                    );
+                  })()}
+
                   {errorKlaimAdminKelp && (
                     <p className="mb-3 rounded-[var(--radius)] bg-[#FEF2F2] px-3.5 py-3 text-[13px] text-red">
                       {errorKlaimAdminKelp}
@@ -765,7 +797,7 @@ export default function OnboardingPage() {
 
           {lingkup === 'kelompok' &&
             (peran !== 'guru' || carianGuru === 'manual') &&
-            (peran !== 'admin_kelompok' || carianAdminKelp === 'manual') && (
+            (!peranLewatUndangan || carianAdminKelp === 'manual') && (
             <div className="mb-5">
               <p className="mb-2 text-[12px] font-medium text-text">Kelompok</p>
               <div className="grid gap-2">
@@ -826,7 +858,7 @@ export default function OnboardingPage() {
               membingungkan (dan scopeTerisi selalu false utk guru krn
               kelompokId sengaja tidak pernah diisi di jalur ini). */}
           {!(peran === 'guru' && carianGuru !== 'manual') &&
-            !(peran === 'admin_kelompok' && carianAdminKelp !== 'manual') && (
+            !(peranLewatUndangan && carianAdminKelp !== 'manual') && (
             <button
               type="button"
               disabled={!namaValid || !peran || !scopeTerisi}
