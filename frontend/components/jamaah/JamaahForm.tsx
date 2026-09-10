@@ -8,11 +8,12 @@
    type="date"> bawaan browser — tampilannya seragam di semua perangkat,
    pola sama GuruForm/SantriForm (diminta owner 2026-09-10).
 
-   Nama Lengkap punya saran ketik "seperti Google" dari data GENERUS
-   sekelompok (nama generus + nama ayah + nama ibu). Klik satu saran =
-   autofill alamat/RT-RW/wilayah/WA keluarganya + tebak gender & status
-   keluarga (diminta owner 2026-09-10). Sumber baca `santri` butuh RLS
-   penerobos — migrasi 20260910160000. */
+   Nama Lengkap punya saran ketik "seperti Google": nama jamaah yang sudah
+   diinput + nama ORANG TUA generus sekelompok (ayah + ibu — nama generus/
+   anak TIDAK ikut, jamaah = orang dewasa). Klik satu saran = autofill
+   alamat/RT-RW/wilayah/WA keluarganya + tebak gender & status keluarga
+   (diminta owner 2026-09-10). Sumber baca `santri` butuh RLS penerobos —
+   migrasi 20260910160000. */
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -42,11 +43,8 @@ const LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
 
 /* Satu baris generus sekelompok — sumber saran & autofill di field Nama. */
 type RiwayatGenerus = {
-  nama: string;
-  gender: string | null;
   nama_ayah: string | null;
   nama_ibu: string | null;
-  nomor_wa: string | null;
   nomor_wa_ayah: string | null;
   nomor_wa_ibu: string | null;
   alamat: string | null;
@@ -60,15 +58,16 @@ type RiwayatGenerus = {
 };
 
 const KOLOM_RIWAYAT_GENERUS =
-  'nama, gender, nama_ayah, nama_ibu, nomor_wa, nomor_wa_ayah, nomor_wa_ibu, ' +
+  'nama_ayah, nama_ibu, nomor_wa_ayah, nomor_wa_ibu, ' +
   'alamat, rt, rw, kelurahan, kecamatan, kabupaten_kota, provinsi, kode_pos';
 
 /* peran = posisi orang ini dalam keluarga generus -> menentukan field WA
    mana yang dipakai + tebakan gender/status. */
-type PilihanNama = { generus: RiwayatGenerus; peran: 'generus' | 'ayah' | 'ibu' };
+type PilihanNama = { generus: RiwayatGenerus; peran: 'ayah' | 'ibu' };
 
-/* Bangun daftar saran gabungan: nama generus + nama ayah + nama ibu, unik
-   case-insensitive (generus didahulukan bila namanya sama). */
+/* Bangun daftar saran dari nama ORANG TUA generus (ayah + ibu) saja — jamaah
+   = orang dewasa (majlis taklim), nama generus (anak) sendiri TIDAK relevan.
+   Unik case-insensitive. */
 function saranNamaGabungan(daftar: RiwayatGenerus[]): SaranItem<PilihanNama>[] {
   const dilihat = new Set<string>();
   const hasil: SaranItem<PilihanNama>[] = [];
@@ -78,7 +77,6 @@ function saranNamaGabungan(daftar: RiwayatGenerus[]): SaranItem<PilihanNama>[] {
     dilihat.add(t.toLowerCase());
     hasil.push({ teks: t, rec: { generus, peran } });
   };
-  for (const r of daftar) tambah(r.nama, r, 'generus');
   for (const r of daftar) tambah(r.nama_ayah, r, 'ayah');
   for (const r of daftar) tambah(r.nama_ibu, r, 'ibu');
   return hasil;
@@ -276,13 +274,11 @@ export default function JamaahForm({
      maksud "otomatis masuk"); yang kosong di generus dibiarkan apa adanya
      supaya penerobos tinggal isi sisanya. */
   function isiDariGenerus({ generus: g, peran }: PilihanNama) {
-    const wa =
-      peran === 'ayah' ? g.nomor_wa_ayah : peran === 'ibu' ? g.nomor_wa_ibu : g.nomor_wa;
+    const wa = peran === 'ayah' ? g.nomor_wa_ayah : g.nomor_wa_ibu;
     setIsian((s) => ({
       ...s,
-      gender: peran === 'ayah' ? 'L' : peran === 'ibu' ? 'P' : (g.gender as Isian['gender']) || s.gender,
-      status_keluarga:
-        peran === 'ayah' ? 'Kepala Keluarga' : peran === 'ibu' ? 'Istri' : s.status_keluarga,
+      gender: peran === 'ayah' ? 'L' : 'P',
+      status_keluarga: peran === 'ayah' ? 'Kepala Keluarga' : 'Istri',
       no_wa: wa ?? s.no_wa,
       alamat: g.alamat ?? s.alamat,
       rt: g.rt ?? s.rt,
@@ -440,7 +436,7 @@ export default function JamaahForm({
             onChange={(v) => ubah('nama', v)}
             onPilih={(item) => item.rec && isiDariGenerus(item.rec)}
             saran={saranNama}
-            placeholder="Ketik nama — saran dari jamaah & data generus"
+            placeholder="Ketik nama — saran dari jamaah & orang tua generus"
           />
 
           <div className="grid grid-cols-2 gap-3">
