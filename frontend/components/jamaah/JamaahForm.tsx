@@ -167,6 +167,10 @@ const kosongJadiNull = (v: string) => {
 /* Hanya angka — RT/RW tak boleh diisi huruf. Pola sama SantriForm. */
 const formatAngka = (v: string) => v.replace(/\D/g, '');
 
+/* Nomor WA: non-angka dibuang lalu digroup 4-4-4 ("0812-3456-7890").
+   Pola sama SantriForm. */
+const formatNomorWa = (v: string) => v.replace(/\D/g, '').replace(/(\d{4})(?=\d)/g, '$1-');
+
 export default function JamaahForm({
   jamaah,
   subKelpList,
@@ -514,7 +518,8 @@ export default function JamaahForm({
                 className={INPUT}
                 inputMode="numeric"
                 value={isian.no_wa}
-                onChange={(e) => ubah('no_wa', e.target.value)}
+                onChange={(e) => ubah('no_wa', formatNomorWa(e.target.value))}
+                placeholder="0812-3456-7890"
               />
             </div>
           </div>
