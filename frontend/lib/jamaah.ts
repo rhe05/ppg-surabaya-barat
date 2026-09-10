@@ -54,10 +54,63 @@ export const KOLOM_JAMAAH =
 export const STATUS_KELUARGA = [
   'Kepala Keluarga',
   'Istri',
+  'Duda',
+  'Janda',
   'Anak Dewasa',
   'Lajang',
   'Umum',
 ] as const;
+
+/* Usia (tahun) dianggap "lansia" (rujukan UU 13/1998: 60 th ke atas). */
+export const USIA_LANSIA = 60;
+
+export type KpiJamaah = {
+  total: number;
+  duda: number;
+  janda: number;
+  kk: number;
+  lakiLaki: number;
+  perempuan: number;
+  lansia: number;
+};
+
+export type JamaahKpiRow = Pick<JamaahRow, 'status_keluarga' | 'gender' | 'tanggal_lahir'>;
+
+export const KOLOM_JAMAAH_KPI = 'status_keluarga, gender, tanggal_lahir';
+
+function usiaTahun(tanggalLahir: string | null): number | null {
+  if (!tanggalLahir) return null;
+  const d = new Date(tanggalLahir);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  let u = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) u--;
+  return u;
+}
+
+/* Hitung KPI dari daftar jamaah (100% di memori, nol query tambahan). */
+export function hitungKpiJamaah(rows: JamaahKpiRow[]): KpiJamaah {
+  const k: KpiJamaah = {
+    total: rows.length,
+    duda: 0,
+    janda: 0,
+    kk: 0,
+    lakiLaki: 0,
+    perempuan: 0,
+    lansia: 0,
+  };
+  for (const r of rows) {
+    if (r.status_keluarga === 'Duda') k.duda++;
+    else if (r.status_keluarga === 'Janda') k.janda++;
+    if (r.status_keluarga === 'Kepala Keluarga') k.kk++;
+    if (r.gender === 'L') k.lakiLaki++;
+    else if (r.gender === 'P') k.perempuan++;
+    const u = usiaTahun(r.tanggal_lahir);
+    if (u != null && u >= USIA_LANSIA) k.lansia++;
+  }
+  return k;
+}
 
 export const STATUS_DOMISILI = ['Mukim', 'Musiman', 'Pindah'] as const;
 

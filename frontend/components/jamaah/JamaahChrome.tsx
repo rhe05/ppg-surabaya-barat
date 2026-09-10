@@ -12,7 +12,16 @@ import Image from 'next/image';
 import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
-import { MapPin, Menu, Users, ClipboardList, Layers, LogOut } from 'lucide-react';
+import {
+  MapPin,
+  Menu,
+  Users,
+  ClipboardList,
+  CalendarCheck,
+  History,
+  Layers,
+  LogOut,
+} from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 function inisialDari(nama: string) {
@@ -25,6 +34,8 @@ function inisialDari(nama: string) {
 const DRAWER: { label: string; href: string; ikon: typeof Users; desk: string }[] = [
   { label: 'Data Jamaah', href: '/jamaah/data', ikon: Users, desk: 'Daftar & kelola data jamaah' },
   { label: 'Data Pengurus', href: '/jamaah/pengurus', ikon: ClipboardList, desk: 'Susunan Kepengurusan Kelompok' },
+  { label: 'Input Kehadiran', href: '/jamaah/kehadiran', ikon: CalendarCheck, desk: 'Catat Kehadiran Per Kegiatan' },
+  { label: 'Riwayat Kehadiran', href: '/jamaah/riwayat', ikon: History, desk: 'Rekap kehadiran kegiatan lalu' },
   { label: 'Kelola Sub Kelp', href: '/jamaah/sub-kelp', ikon: Layers, desk: 'Pembagian Jamaah Dalam Sub Kelompok' },
 ];
 
