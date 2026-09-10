@@ -2,17 +2,17 @@
 
 /* Chrome header bersama app "Penerobos Kelp" (jamaah).
    - Top bar putih sticky: logo + "Ruang Ngaji" (kiri), hamburger (kanan).
-   - Hamburger membuka drawer bawah: layar sekunder (Data Jamaah / Data
-     Pengurus / Kelola Sub Kelp) + Keluar. Destinasi utama ada di
-     JamaahBottomNav — di sini yang "lain-lain" saja, satu jalan per tujuan.
+   - Hamburger membuka menu DROPDOWN dari kanan atas (di bawah tombolnya,
+     bukan bottom-sheet): layar sekunder (Data Jamaah / Data Pengurus /
+     Kelola Sub Kelp) + Keluar. Destinasi utama ada di JamaahBottomNav.
    - Hero navy opsional di beranda: kartu profil (monogram, nama, chip
      peran, kelompok). */
 
 import Image from 'next/image';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
-import { MapPin, Menu, X, Users, ClipboardList, Layers, LogOut } from 'lucide-react';
+import { MapPin, Menu, Users, ClipboardList, Layers, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 function inisialDari(nama: string) {
@@ -36,6 +36,14 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
   const inisial = useMemo(() => inisialDari(profile?.display_name ?? ''), [profile?.display_name]);
 
   const [drawer, setDrawer] = useState(false);
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+  const tombolRef = useRef<HTMLButtonElement>(null);
+
+  function bukaMenu() {
+    const r = tombolRef.current?.getBoundingClientRect();
+    if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
+    setDrawer(true);
+  }
 
   async function keluar() {
     setDrawer(false);
@@ -59,10 +67,14 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
           </span>
         </div>
         <button
+          ref={tombolRef}
           type="button"
           aria-label="Menu"
-          onClick={() => setDrawer(true)}
-          className="-mr-1.5 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-transparent text-text-dim active:bg-panel-2"
+          aria-expanded={drawer}
+          onClick={() => (drawer ? setDrawer(false) : bukaMenu())}
+          className={`-mr-1.5 flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-none transition-colors ${
+            drawer ? 'bg-panel-2 text-text' : 'bg-transparent text-text-dim'
+          } active:bg-panel-2`}
         >
           <Menu size={20} strokeWidth={2} />
         </button>
@@ -95,62 +107,55 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
       )}
 
       {drawer &&
+        pos &&
         createPortal(
           <>
-            <div className="fixed inset-0 z-[560] bg-black/40" onClick={() => setDrawer(false)} />
-            <div className="fixed inset-x-0 bottom-0 z-[561] mx-auto w-full max-w-[430px] rounded-t-[24px] border border-border bg-panel px-4 pt-3 pb-[calc(16px+env(safe-area-inset-bottom))] shadow-[0_-16px_48px_rgba(0,0,0,0.28)]">
-              <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-border" />
-              <div className="mb-1 flex items-center justify-between px-1">
-                <span className="text-[15px] font-extrabold text-text">Menu</span>
-                <button
-                  type="button"
-                  onClick={() => setDrawer(false)}
-                  aria-label="Tutup"
-                  className="flex h-7 w-7 cursor-pointer items-center justify-center rounded-full border-none bg-panel-2 text-text-dim active:scale-90"
-                >
-                  <X size={15} />
-                </button>
-              </div>
-              <div className="flex flex-col">
-                {DRAWER.map((m) => {
-                  const Ikon = m.ikon;
-                  const on = pathname === m.href || pathname.startsWith(m.href + '/');
-                  return (
-                    <button
-                      key={m.href}
-                      type="button"
-                      onClick={() => {
-                        setDrawer(false);
-                        router.push(m.href);
-                      }}
-                      className="flex cursor-pointer items-center gap-3.5 rounded-[12px] border-none bg-transparent px-2 py-3 text-left active:bg-bg"
+            <div className="fixed inset-0 z-[560]" onClick={() => setDrawer(false)} aria-hidden />
+            <div
+              role="menu"
+              style={{ top: pos.top, right: pos.right }}
+              className="animasi-toast-masuk fixed z-[561] w-[256px] origin-top-right overflow-hidden rounded-[14px] border border-border bg-panel p-1.5 shadow-[0_16px_44px_-8px_rgba(15,23,42,0.28)]"
+            >
+              {DRAWER.map((m) => {
+                const Ikon = m.ikon;
+                const on = pathname === m.href || pathname.startsWith(m.href + '/');
+                return (
+                  <button
+                    key={m.href}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setDrawer(false);
+                      router.push(m.href);
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left active:bg-bg"
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
+                        on ? 'bg-navy text-white' : 'bg-navy-lembut text-navy'
+                      }`}
                     >
-                      <span
-                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] ${
-                          on ? 'bg-navy text-white' : 'bg-navy-lembut text-navy'
-                        }`}
-                      >
-                        <Ikon size={17} strokeWidth={2} />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-[13.5px] font-semibold text-text">{m.label}</span>
-                        <span className="block text-[11.5px] text-text-dim">{m.desk}</span>
-                      </span>
-                    </button>
-                  );
-                })}
-                <div className="my-1.5 h-px bg-border" />
-                <button
-                  type="button"
-                  onClick={keluar}
-                  className="flex cursor-pointer items-center gap-3.5 rounded-[12px] border-none bg-transparent px-2 py-3 text-left text-[13.5px] font-semibold text-red active:bg-bg"
-                >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-red-lembut text-red">
-                    <LogOut size={17} strokeWidth={2} />
-                  </span>
-                  Keluar
-                </button>
-              </div>
+                      <Ikon size={16} strokeWidth={2} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-text">{m.label}</span>
+                      <span className="block truncate text-[11px] text-text-dim">{m.desk}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <div className="my-1 h-px bg-border" />
+              <button
+                type="button"
+                role="menuitem"
+                onClick={keluar}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left text-[13px] font-semibold text-red active:bg-bg"
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-red-lembut text-red">
+                  <LogOut size={16} strokeWidth={2} />
+                </span>
+                Keluar
+              </button>
             </div>
           </>,
           document.body,
