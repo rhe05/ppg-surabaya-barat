@@ -69,6 +69,14 @@
 ## Prinsip Data Supabase / RLS (WAJIB — tiap tambah/ubah fitur yang menyaring
 per-kelompok atau per-guru)
 
+> 📕 **`STANDAR_KEAMANAN.md`** (root repo) = pedoman keamanan & ketahanan
+> WAJIB: checklist tiap tabel/RPC/migrasi baru, pola RLS baku, rate
+> limiting (`batasi_laju` + `useJedaAksi` + fast-path), header keamanan,
+> kehematan Supabase, cara diagnosa CPU tinggi, model registrasi, dan
+> daftar "yang sengaja TIDAK dikerjakan". Baca sebelum menambah fitur
+> yang menyentuh data/auth. Laporan audit titik-waktu:
+> `SECURITY_PERFORMANCE_AUDIT_2026-09-10.md`.
+
 ### 1. Kurikulum = data BERSAMA di `kelompok_id = 1`
 - SELURUH baris `kurikulum_prota` / `kurikulum_promes` / `kurikulum_probul`
   (+ turunannya) hidup di `kelompok_id = 1` saja (sejak migrasi
@@ -166,6 +174,8 @@ per-kelompok atau per-guru)
   (composite key, query vs full read, counter O(1)) tetap dipakai — sudah
   diringkas di "Prinsip Data Supabase / RLS §3".
 
-**Related docs**: `frontend/AGENTS.md` (aturan Next.js versi ini),
+**Related docs**: `STANDAR_KEAMANAN.md` (pedoman keamanan WAJIB),
+`SECURITY_PERFORMANCE_AUDIT_2026-09-10.md` (audit),
+`frontend/AGENTS.md` (aturan Next.js versi ini),
 `frontend/AUTH_SETUP.md`, memory `~/.claude/projects/.../memory/MEMORY.md`
 (indeks riwayat sesi).
