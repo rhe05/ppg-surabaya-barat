@@ -67,8 +67,8 @@ export default function JamaahBottomNav() {
                 onClick={() => router.push(t.href)}
                 className="flex flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent px-1 pt-2 pb-1.5 active:opacity-60"
               >
-                <Ikon size={20} strokeWidth={on ? 2.4 : 2} className={on ? 'text-navy' : 'text-text-faint'} />
-                <span className={`text-[10px] font-bold ${on ? 'text-navy' : 'text-text-faint'}`}>
+                <Ikon size={20} strokeWidth={on ? 2.4 : 2} className={on ? 'text-hijau' : 'text-text-faint'} />
+                <span className={`text-[10px] font-bold ${on ? 'text-hijau' : 'text-text-faint'}`}>
                   {t.label}
                 </span>
               </button>
@@ -79,8 +79,8 @@ export default function JamaahBottomNav() {
             onClick={() => setMenuTerbuka(true)}
             className="flex flex-1 cursor-pointer flex-col items-center gap-1 border-none bg-transparent px-1 pt-2 pb-1.5 active:opacity-60"
           >
-            <Layers size={20} strokeWidth={menuAktif ? 2.4 : 2} className={menuAktif ? 'text-navy' : 'text-text-faint'} />
-            <span className={`text-[10px] font-bold ${menuAktif ? 'text-navy' : 'text-text-faint'}`}>Menu</span>
+            <Layers size={20} strokeWidth={menuAktif ? 2.4 : 2} className={menuAktif ? 'text-hijau' : 'text-text-faint'} />
+            <span className={`text-[10px] font-bold ${menuAktif ? 'text-hijau' : 'text-text-faint'}`}>Menu</span>
           </button>
         </div>
       </nav>

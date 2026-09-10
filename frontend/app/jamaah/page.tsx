@@ -33,14 +33,16 @@ export default function JamaahBerandaPage() {
                 key={p.href}
                 type="button"
                 onClick={() => router.push(p.href)}
-                className="baris-daftar flex w-full items-center gap-3.5 px-4 py-3.5 text-left transition-colors active:bg-panel-2"
+                className="baris-daftar flex w-full items-center gap-3.5 px-4 py-4 text-left transition-colors active:bg-panel-2"
               >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-navy-lembut text-navy">
-                  <Ikon size={17} strokeWidth={2} />
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-navy-lembut text-navy">
+                  <Ikon size={18} strokeWidth={2} />
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block text-[13.5px] font-semibold text-text">{p.label}</span>
-                  <span className="block text-[11.5px] text-text-dim">{p.desk}</span>
+                  <span className="block text-[14px] font-semibold tracking-[-0.01em] text-text">
+                    {p.label}
+                  </span>
+                  <span className="mt-0.5 block text-[12px] text-text-dim">{p.desk}</span>
                 </span>
                 <ChevronRight size={16} className="shrink-0 text-text-faint" />
               </button>

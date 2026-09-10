@@ -34,14 +34,23 @@
   --teal: #0D9488;
 
   /* ── Palet "Penerobos Kelp" (app jamaah majlis taklim) ───────────────
-     Biru tua / navy — SENGAJA beda dari hijau (guru) & indigo (identitas
-     kategori generus) supaya jelas ini aplikasi berbeda untuk pengguna
-     dewasa. --navy = aksen/aksi utama, --navy-tua = hero gelap,
-     --navy-lembut/-2 = permukaan isian muda (chip aktif, kartu terpilih). */
-  --navy: #1D4ED8;
-  --navy-tua: #172554;
-  --navy-lembut: #EFF4FF;
+     Deep navy = warna STRUKTURAL (hero/header), primary blue = aksen
+     interaktif (ikon, tombol, chip aktif), hijau logo dipakai strategis
+     utk identitas / active state / sukses. Diselaraskan 2026-09-10 supaya
+     navy + hijau terasa SATU brand, biru tidak lagi mendominasi.
+       --navy        = Primary Blue  (interaksi / ikon / elemen aktif)
+       --navy-tua    = Deep Navy     (struktur: hero, permukaan gelap)
+       --navy-lembut = Soft Blue     (wadah ikon, hover, permukaan muda)
+       --hijau       = green aksen yg WAJIB terbaca sbg teks/ikon
+                       (nav aktif, badge di atas navy) — beda dari
+                       --brand-green (khusus wordmark logo & isian avatar)
+       --hijau-lembut= Soft Green    (wadah ikon hijau, status tenang) */
+  --navy: #315DB5;
+  --navy-tua: #172B4D;
+  --navy-lembut: #EEF3FB;
   --navy-lembut-2: #DBE6FE;
+  --hijau: #4E7D62;
+  --hijau-lembut: #EAF3EE;
 
   --panel: #FFFFFF;
   --panel-2: #F9FAFB;
@@ -118,6 +127,8 @@
   --color-navy-tua: var(--navy-tua);
   --color-navy-lembut: var(--navy-lembut);
   --color-navy-lembut-2: var(--navy-lembut-2);
+  --color-hijau: var(--hijau);
+  --color-hijau-lembut: var(--hijau-lembut);
   --color-panel: var(--panel);
   --color-panel-2: var(--panel-2);
   --color-bg: var(--bg);
@@ -420,20 +431,18 @@ body:has([data-jamaah-nav]) .bilah-aksi-bawah {
   );
 }
 
-/* Hero gelap app "Penerobos Kelp" (jamaah) — varian navy dari .kartu-saldo.
-   Idiom sama: gradien gelap + garis kilau tepi atas + sorotan lembut di
-   satu pojok, NOL aset gambar. Sorotan putih (bukan warna) supaya tetap
-   tenang & "mahal", tidak norak. Dipakai JamaahChrome (hero beranda). */
+/* Hero/kartu profil app "Penerobos Kelp" (jamaah) — DEEP NAVY struktural.
+   Nyaris rata (pergeseran gelap 12% saja utk sedikit kedalaman, BUKAN
+   gradien mencolok) + garis kilau tepi atas sangat samar. NOL aset gambar.
+   Dipakai JamaahChrome (kartu profil beranda). */
 .hero-navy {
   position: relative;
   overflow: hidden;
   border-radius: var(--radius-lg);
-  background:
-    radial-gradient(130% 130% at 100% 0%, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 55%),
-    linear-gradient(160deg, var(--navy) 0%, var(--navy-tua) 82%);
+  background: linear-gradient(168deg, #1E3A63 0%, var(--navy-tua) 72%);
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.06),
-    0 20px 40px -20px rgba(23, 37, 84, 0.55);
+    0 1px 2px rgba(15, 23, 42, 0.05),
+    0 12px 28px -16px rgba(23, 43, 77, 0.4);
 }
 .hero-navy::before {
   content: '';
@@ -443,7 +452,7 @@ body:has([data-jamaah-nav]) .bilah-aksi-bawah {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.32) 45%,
+    rgba(255, 255, 255, 0.18) 50%,
     rgba(255, 255, 255, 0) 100%
   );
 }
