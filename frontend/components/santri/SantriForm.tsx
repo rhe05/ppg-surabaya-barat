@@ -20,6 +20,7 @@ import { useAuth } from '@/lib/auth-context';
 import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { saranTeksUnik, saranUnikDenganRec, type SaranItem } from '@/lib/saran';
+import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
 import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 
 export type SantriRow = {
@@ -318,6 +319,7 @@ export default function SantriForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isian.kelompok_id]);
 
+  const saranKota = useMemo(() => KOTA_INDONESIA.map((k) => ({ teks: k })), []);
   const saranNama = useMemo(
     () => saranTeksUnik(riwayatKeluarga.map((r) => r.nama)),
     [riwayatKeluarga],
@@ -606,15 +608,15 @@ export default function SantriForm({
               ))}
             </select>
           </div>
-          <div>
-            <label className={KELAS_LABEL}>Tempat Lahir</label>
-            <input
-              className={KELAS_INPUT}
-              value={isian.tempat_lahir}
-              onChange={(e) => ubah('tempat_lahir', e.target.value)}
-              placeholder="Misal: Surabaya"
-            />
-          </div>
+          <FieldSaran
+            inputClass={KELAS_INPUT}
+            labelClass={KELAS_LABEL}
+            label="Tempat Lahir"
+            value={isian.tempat_lahir}
+            onChange={(v) => ubah('tempat_lahir', v)}
+            saran={saranKota}
+            placeholder="Ketik nama kota / kabupaten"
+          />
           <div>
             <label className={KELAS_LABEL}>Tanggal Lahir *</label>
             <button
