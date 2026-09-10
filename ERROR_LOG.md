@@ -1518,6 +1518,37 @@ Google belum di-rotate/hapus; pastikan cuma 1 secret enabled yang dipakai.
 
 ---
 
+## #41 — Registrasi Penerobos Kelp / Ketua Muda-i gagal: `chk_profiles_scope` (2026-09-10)
+
+**Gejala**: saat calon Penerobos Kelp / Ketua Muda-i menyelesaikan
+registrasi (klaim undangan ATAU disetujui admin), muncul
+`new row for relation "profiles" violates check constraint "chk_profiles_scope"`.
+
+**Akar masalah**: peran `penerobos` & `ketua_mudai` ditambahkan bertahap:
+- `20260909150000`/`180000` — enum `app_role`.
+- `20260909190000` — `chk_pendaftaran_scope` (tabel `pendaftaran_akun`) +
+  `setujui_pendaftaran()` diperluas.
+- `20260910130000` — jalur undangan (`klaim_admin_kelp` set
+  `profiles.role = undangan.peran`).
+
+Tapi **`chk_profiles_scope` di tabel `profiles` sendiri tidak pernah ikut
+diperluas**. Cabang kelompok-scoped-nya hanya
+`role = ANY (ARRAY['admin_kelompok','guru'])`. Begitu RPC menulis
+`role='penerobos'|'ketua_mudai'` + `scope_kelompok_id`, CHECK menolak.
+
+**Penanganan** (migrasi `20260910140000_profiles_scope_peran_baru.sql`,
+⚠️ owner jalankan manual): tambahkan `penerobos` + `ketua_mudai` ke ARRAY
+cabang kelompok-scoped (keduanya koordinator se-kelompok — butuh
+`scope_kelompok_id`, `scope_ppg_id`/`desa_id` NULL). Definisi lama disalin
+dari produksi via `pg_get_constraintdef`.
+
+**Pelajaran**: menambah nilai `app_role` = audit SEMUA constraint/policy/RPC
+yang meng-hardcode daftar peran: `chk_profiles_scope`, `chk_pendaftaran_scope`,
+`chk_undangan_peran`, `auth_profile()`, policy per-tabel, `RequireAuth.tsx`.
+Grep `ARRAY\[.*app_role` + `= ANY`.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
