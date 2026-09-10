@@ -27,6 +27,7 @@ import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
+  STATUS_MS,
   STATUS_DOMISILI,
   JENIS_HUNIAN,
   STATUS_HUNIAN,
@@ -482,7 +483,7 @@ export default function JamaahForm({
                 <option value="">—</option>
                 {STATUS_KELUARGA.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {s === STATUS_MS ? 'Muballigh/ot Setempat (MS)' : s}
                   </option>
                 ))}
               </select>

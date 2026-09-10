@@ -1,8 +1,9 @@
 'use client';
 
-/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp — Total + rincian
-   demografi. Satu SELECT jamaah (kolom KPI saja), hitung 100% di memori.
-   Kerangka seukuran kartu supaya tak melompat. Tap → Data Jamaah. */
+/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp — Total + MS +
+   rincian demografi. SELECT jamaah (kolom KPI) + SELECT guru (kategori),
+   hitung 100% di memori. MS (Muballigh/ot Setempat) digabung dari
+   jamaah.status_keluarga + guru.kategori. Tap → Data Jamaah. */
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -13,6 +14,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import {
   hitungKpiJamaah,
   KOLOM_JAMAAH_KPI,
+  STATUS_MS,
   type KpiJamaah,
   type JamaahKpiRow,
 } from '@/lib/jamaah';
@@ -25,6 +27,7 @@ const KOSONG: KpiJamaah = {
   lakiLaki: 0,
   perempuan: 0,
   lansia: 0,
+  ms: 0,
 };
 
 export default function RingkasanJamaahCard() {
@@ -42,13 +45,25 @@ export default function RingkasanJamaahCard() {
     }
     let batal = false;
     (async () => {
-      const { data } = await supabase
-        .from('jamaah')
-        .select(KOLOM_JAMAAH_KPI)
-        .eq('kelompok_id', kelompokId)
-        .is('deleted_at', null);
+      const [rJam, rGuru] = await Promise.all([
+        supabase
+          .from('jamaah')
+          .select(KOLOM_JAMAAH_KPI)
+          .eq('kelompok_id', kelompokId)
+          .is('deleted_at', null),
+        /* MS dari data pokok (guru.kategori). Kalau RLS penerobos belum
+           aktif (migrasi 20260910180000) → balik kosong, MS jamaah tetap. */
+        supabase
+          .from('guru')
+          .select('id', { count: 'exact', head: true })
+          .eq('kelompok_id', kelompokId)
+          .eq('kategori', STATUS_MS)
+          .is('deleted_at', null),
+      ]);
       if (batal) return;
-      setKpi(hitungKpiJamaah((data ?? []) as unknown as JamaahKpiRow[]));
+      setKpi(
+        hitungKpiJamaah((rJam.data ?? []) as unknown as JamaahKpiRow[], rGuru.count ?? 0),
+      );
       setLoading(false);
     })();
     return () => {
@@ -56,7 +71,7 @@ export default function RingkasanJamaahCard() {
     };
   }, [kelompokId]);
 
-  if (loading) return <Skeleton className="mb-4 h-[216px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[236px] w-full rounded-card" />;
 
   const k = kpi ?? KOSONG;
 
@@ -71,9 +86,16 @@ export default function RingkasanJamaahCard() {
         <ChevronRight size={14} className="shrink-0 text-text-faint" />
       </div>
 
-      <div className="mt-3">
-        <span className="angka-metrik block text-[30px] leading-none text-text">{k.total}</span>
-        <span className="label-mikro mt-1.5 block text-[9.5px] text-text-dim">Total Jamaah</span>
+      <div className="mt-3 flex items-stretch">
+        <div className="flex flex-1 flex-col">
+          <span className="angka-metrik text-[30px] leading-none text-text">{k.total}</span>
+          <span className="label-mikro mt-1.5 text-[9.5px] text-text-dim">Total Jamaah</span>
+        </div>
+        <div className="mx-3 w-px self-stretch bg-border" />
+        <div className="flex flex-1 flex-col">
+          <span className="angka-metrik text-[30px] leading-none text-navy">{k.ms}</span>
+          <span className="label-mikro mt-1.5 text-[9.5px] text-text-dim">MS · Muballigh/ot Setempat</span>
+        </div>
       </div>
 
       <div className="mt-4 grid grid-cols-3 gap-y-4 border-t border-border pt-4">

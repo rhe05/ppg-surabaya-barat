@@ -56,10 +56,15 @@ export const STATUS_KELUARGA = [
   'Istri',
   'Duda',
   'Janda',
+  'Muballigh Setempat',
   'Anak Dewasa',
   'Lajang',
   'Umum',
 ] as const;
+
+/* Nilai kanonik "MS" — disimpan di jamaah.status_keluarga & guru.kategori
+   (lib/kategoriGuru.ts). Perempuan ditampilkan "Muballighot Setempat". */
+export const STATUS_MS = 'Muballigh Setempat';
 
 /* Usia (tahun) dianggap "lansia" (rujukan UU 13/1998: 60 th ke atas). */
 export const USIA_LANSIA = 60;
@@ -72,6 +77,9 @@ export type KpiJamaah = {
   lakiLaki: number;
   perempuan: number;
   lansia: number;
+  /* MS = Muballigh/ot Setempat. Digabung dari jamaah.status_keluarga +
+     guru.kategori (argumen `msGuru`). */
+  ms: number;
 };
 
 export type JamaahKpiRow = Pick<JamaahRow, 'status_keluarga' | 'gender' | 'tanggal_lahir'>;
@@ -89,8 +97,9 @@ function usiaTahun(tanggalLahir: string | null): number | null {
   return u;
 }
 
-/* Hitung KPI dari daftar jamaah (100% di memori, nol query tambahan). */
-export function hitungKpiJamaah(rows: JamaahKpiRow[]): KpiJamaah {
+/* Hitung KPI dari daftar jamaah (100% di memori). `msGuru` = jumlah
+   Muballigh/ot Setempat dari tabel guru sekelompok (digabung ke `ms`). */
+export function hitungKpiJamaah(rows: JamaahKpiRow[], msGuru = 0): KpiJamaah {
   const k: KpiJamaah = {
     total: rows.length,
     duda: 0,
@@ -99,10 +108,12 @@ export function hitungKpiJamaah(rows: JamaahKpiRow[]): KpiJamaah {
     lakiLaki: 0,
     perempuan: 0,
     lansia: 0,
+    ms: msGuru,
   };
   for (const r of rows) {
     if (r.status_keluarga === 'Duda') k.duda++;
     else if (r.status_keluarga === 'Janda') k.janda++;
+    else if (r.status_keluarga === STATUS_MS) k.ms++;
     if (r.status_keluarga === 'Kepala Keluarga') k.kk++;
     if (r.gender === 'L') k.lakiLaki++;
     else if (r.gender === 'P') k.perempuan++;
