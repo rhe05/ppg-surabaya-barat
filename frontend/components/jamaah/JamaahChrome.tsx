@@ -21,8 +21,8 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
             height={18}
             className="block shrink-0"
           />
-          <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-navy">
-            Penerobos Kelp
+          <span className="text-[15px] font-extrabold tracking-[0.01em] whitespace-nowrap text-brand-green">
+            Ruang Ngaji
           </span>
         </div>
       </div>
