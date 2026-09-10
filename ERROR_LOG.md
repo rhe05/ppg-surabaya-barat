@@ -1549,6 +1549,36 @@ Grep `ARRAY\[.*app_role` + `= ANY`.
 
 ---
 
+## #42 — Penerobos Kelp: bottom nav (JamaahBottomNav) tak pernah muncul di HP (2026-09-10)
+
+**Gejala** (owner, akun firman agus / penerobos): "tombol bawah di HP belum
+muncul". Header (JamaahChrome) tampil, isi halaman jalan, tapi TIDAK ada
+bottom nav. Di desktop kolom-nya lebar penuh (bukan 430px).
+
+**Akar masalah** — `RequireAuth.tsx` urutan cabang:
+```
+const tampilkanSidebar = !!profile?.role && profile.role !== 'guru';
+if (tampilkanSidebar) return <AdminSidebar>…</AdminSidebar>;   // <-- penerobos KENA di sini
+…
+if (profile?.role === 'penerobos') return <…><JamaahBottomNav/></…>;  // tak pernah tercapai
+```
+`tampilkanSidebar` hanya mengecualikan `'guru'`. `'penerobos'` (&
+`'ketua_mudai'`) lolos `!== 'guru'` → masuk cabang admin-sidebar, yang di HP
+`hidden md:flex` (sidebar transparan) sehingga isinya render lebar-penuh
+TANPA bottom nav. Cabang penerobos yang punya `<JamaahBottomNav/>` di-shadow.
+
+**Penanganan** (commit dgn entri ini): `RequireAuth.tsx` —
+`const PERAN_MOBILE = ['guru', 'penerobos', 'ketua_mudai'];`
+`tampilkanSidebar = !!profile?.role && !PERAN_MOBILE.includes(profile.role);`
+Sekarang penerobos & ketua_mudai turun ke cabang masing-masing (kolom 430px
++ bottom nav-nya sendiri).
+
+**Pelajaran**: `RequireAuth` pakai rantai `if…return` — peran baru yang
+punya layout sendiri WAJIB dikecualikan dari `tampilkanSidebar` (cek paling
+awal), bukan cuma ditambah cabang di bawahnya.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

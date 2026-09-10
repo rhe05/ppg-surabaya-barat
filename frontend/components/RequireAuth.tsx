@@ -143,13 +143,17 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
 
   /* Sidebar navigasi desktop — HANYA utk admin_ppg/admin_desa/admin_kelompok
      (diminta owner 20 Agt: perbaiki tampilan DESKTOP admin, jangan sentuh
-     mobile SAMA SEKALI). Peran 'guru' tidak pernah masuk cabang ini, jadi
-     seluruh app guru (mobile) taknya persis seperti sebelumnya.
+     mobile SAMA SEKALI). Peran mobile-only ('guru', 'penerobos',
+     'ketua_mudai') TIDAK boleh masuk cabang ini — mereka punya layout &
+     bottom nav sendiri di bawah. (Bug: 'penerobos'/'ketua_mudai' dulu
+     ke-shadow ke cabang admin ini sehingga JamaahBottomNav tak pernah
+     dirender di HP.)
      AdminSidebar sendiri `hidden md:flex` -- di bawah breakpoint md,
      wrapper flex ini transparan (sidebar tidak makan ruang), jadi tampilan
      admin di layar sempit pun tidak berubah, cuma dapat sidebar di layar
      lebar. */
-  const tampilkanSidebar = !!profile?.role && profile.role !== 'guru';
+  const PERAN_MOBILE = ['guru', 'penerobos', 'ketua_mudai'];
+  const tampilkanSidebar = !!profile?.role && !PERAN_MOBILE.includes(profile.role);
   if (tampilkanSidebar) {
     return (
       <div className="flex min-h-screen animasi-konten-muncul">
