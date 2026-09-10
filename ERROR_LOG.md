@@ -1579,6 +1579,35 @@ awal), bukan cuma ditambah cabang di bawahnya.
 
 ---
 
+## #43 — Dropdown saran (FieldSaran) tak muncul di form Jamaah pada HP (2026-09-10)
+
+**Gejala** (owner): di form Tambah Jamaah, ketik 1 huruf di "Nama Lengkap"
+→ tidak ada saran. Di form Generus (SantriForm) yang pakai komponen &
+sumber data sama (`santri` sekelompok) saran muncul normal.
+
+**Bukan** soal data/RLS: impersonasi RLS ke produksi membuktikan penerobos
+kelompok 1 bisa SELECT 67 baris `santri` (migrasi `20260910160000` live),
+semua kolom `KOLOM_RIWAYAT_GENERUS` ada.
+
+**Akar masalah** — `lib/usePanelMelayang.ts` menutup panel pada SETIAP
+event `scroll` (capture) di luar panel. Form Generus diisi owner di
+desktop (tak ada keyboard virtual). Form Jamaah diisi di HP: begitu input
+Nama difokus, keyboard virtual muncul & browser auto-scroll input ke atas
+keyboard → event scroll → panel ditutup sebelum sempat render. Dropdown
+"tak pernah muncul".
+
+**Penanganan** (commit dgn entri ini): `usePanelMelayang` — saat scroll,
+panel **ikut bergeser** mengikuti pemicu (`hitung()` ulang), bukan
+`tutup()`. Baru ditutup kalau rect pemicu keluar viewport, atau saat
+resize. Berlaku juga utk SelectKustom/combobox lain yang pakai hook ini
+(perbaikan bersih, bukan regresi).
+
+**Pelajaran**: fitur yang "jalan di desktop" belum tentu jalan di HP —
+keyboard virtual = viewport resize + auto-scroll. Handler `scroll` global
+untuk panel melayang harus REPOSISI, bukan tutup.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

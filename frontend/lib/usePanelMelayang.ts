@@ -9,8 +9,11 @@
    lihat komentar `konten-muncul` di globals.css).
 
    Yang di-handle di sini: hitung koordinat + lebar + tinggi maks, BALIK KE
-   ATAS kalau ruang bawah kurang, dan TUTUP saat halaman di-scroll/resize
-   (kecuali scroll di dalam panel sendiri). Deteksi klik-di-luar SENGAJA
+   ATAS kalau ruang bawah kurang. Saat halaman di-scroll panel IKUT BERGESER
+   mengikuti pemicu (bukan menutup) -- keyboard virtual HP kerap meng-auto-
+   scroll input yang baru difokus, kalau panel ditutup di sini dropdown tak
+   pernah sempat tampil. Panel baru ditutup kalau pemicunya keluar layar,
+   atau saat resize. Deteksi klik-di-luar SENGAJA
    tidak di sini -- tiap pemakai punya caranya sendiri (onBlur, mousedown
    ke wrapper, dst). */
 
@@ -54,7 +57,12 @@ export function usePanelMelayang<T extends HTMLElement = HTMLElement>(
     if (!terbuka) return;
     function saatScroll(e: Event) {
       if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
-      tutup();
+      const el = anchorRef.current;
+      if (!el) return tutup();
+      const r = el.getBoundingClientRect();
+      const terlihat = r.bottom > 0 && r.top < window.innerHeight;
+      if (terlihat) hitung();
+      else tutup();
     }
     window.addEventListener('scroll', saatScroll, true);
     window.addEventListener('resize', tutup);
@@ -62,7 +70,7 @@ export function usePanelMelayang<T extends HTMLElement = HTMLElement>(
       window.removeEventListener('scroll', saatScroll, true);
       window.removeEventListener('resize', tutup);
     };
-  }, [terbuka, tutup]);
+  }, [terbuka, tutup, hitung]);
 
   return { anchorRef, panelRef, gaya };
 }
