@@ -33,6 +33,8 @@ const KOSONG: KpiJamaah = {
   ms: 0,
   gb: 0,
   mt: 0,
+  mukim: 0,
+  musiman: 0,
 };
 
 export default function RingkasanJamaahCard() {
@@ -82,7 +84,7 @@ export default function RingkasanJamaahCard() {
     };
   }, [kelompokId]);
 
-  if (loading) return <Skeleton className="mb-4 h-[264px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[318px] w-full rounded-card" />;
 
   const k = kpi ?? KOSONG;
 
@@ -117,6 +119,12 @@ export default function RingkasanJamaahCard() {
         <Stat n={k.duda} l="Duda" />
         <Stat n={k.janda} l="Janda" />
         <Stat n={k.lansia} l="Lansia" />
+      </div>
+
+      {/* Domisili */}
+      <div className="mt-4 grid grid-cols-2 border-t border-border pt-4">
+        <Stat n={k.mukim} l="Mukim" />
+        <Stat n={k.musiman} l="Musiman" />
       </div>
 
       <p className="mt-3.5 border-t border-border pt-2.5 text-[10px] leading-relaxed text-text-faint">

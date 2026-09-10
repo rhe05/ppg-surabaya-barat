@@ -84,11 +84,17 @@ export type KpiJamaah = {
   ms: number;
   gb: number;
   mt: number;
+  /* status_domisili */
+  mukim: number;
+  musiman: number;
 };
 
-export type JamaahKpiRow = Pick<JamaahRow, 'status_keluarga' | 'gender' | 'tanggal_lahir'>;
+export type JamaahKpiRow = Pick<
+  JamaahRow,
+  'status_keluarga' | 'status_domisili' | 'gender' | 'tanggal_lahir'
+>;
 
-export const KOLOM_JAMAAH_KPI = 'status_keluarga, gender, tanggal_lahir';
+export const KOLOM_JAMAAH_KPI = 'status_keluarga, status_domisili, gender, tanggal_lahir';
 
 function usiaTahun(tanggalLahir: string | null): number | null {
   if (!tanggalLahir) return null;
@@ -121,12 +127,16 @@ export function hitungKpiJamaah(
     ms: msGuru,
     gb: gbGuru,
     mt: mtGuru,
+    mukim: 0,
+    musiman: 0,
   };
   for (const r of rows) {
     if (r.status_keluarga === 'Duda') k.duda++;
     else if (r.status_keluarga === 'Janda') k.janda++;
     else if (r.status_keluarga === STATUS_MS) k.ms++;
     if (r.status_keluarga === 'Kepala Keluarga') k.kk++;
+    if (r.status_domisili === 'Mukim') k.mukim++;
+    else if (r.status_domisili === 'Musiman') k.musiman++;
     if (r.gender === 'L') k.lakiLaki++;
     else if (r.gender === 'P') k.perempuan++;
     const u = usiaTahun(r.tanggal_lahir);
