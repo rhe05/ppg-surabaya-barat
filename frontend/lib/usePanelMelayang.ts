@@ -9,11 +9,11 @@
    lihat komentar `konten-muncul` di globals.css).
 
    Yang di-handle di sini: hitung koordinat + lebar + tinggi maks, BALIK KE
-   ATAS kalau ruang bawah kurang. Saat halaman di-scroll panel IKUT BERGESER
-   mengikuti pemicu (bukan menutup) -- keyboard virtual HP kerap meng-auto-
-   scroll input yang baru difokus, kalau panel ditutup di sini dropdown tak
-   pernah sempat tampil. Panel baru ditutup kalau pemicunya keluar layar,
-   atau saat resize. Deteksi klik-di-luar SENGAJA
+   ATAS kalau ruang bawah kurang. Saat halaman di-scroll ATAU di-resize panel
+   IKUT BERGESER mengikuti pemicu (bukan menutup) -- keyboard virtual HP
+   memicu resize + auto-scroll saat input baru difokus; kalau panel ditutup
+   di sini dropdown tak pernah sempat tampil. Panel baru ditutup kalau
+   pemicunya benar-benar keluar viewport. Deteksi klik-di-luar SENGAJA
    tidak di sini -- tiap pemakai punya caranya sendiri (onBlur, mousedown
    ke wrapper, dst). */
 
@@ -55,8 +55,12 @@ export function usePanelMelayang<T extends HTMLElement = HTMLElement>(
 
   useEffect(() => {
     if (!terbuka) return;
-    function saatScroll(e: Event) {
-      if (panelRef.current && panelRef.current.contains(e.target as Node)) return;
+    /* Scroll ATAU resize: panel IKUT pemicu (reposisi), tidak ditutup.
+       `resize` khususnya dipicu keyboard virtual HP saat input difokus —
+       kalau di sini `tutup()` dropdown lenyap sebelum sempat dipakai.
+       Ditutup hanya kalau pemicu benar-benar keluar viewport. */
+    function saatGeser(e: Event) {
+      if (e.type === 'scroll' && panelRef.current && panelRef.current.contains(e.target as Node)) return;
       const el = anchorRef.current;
       if (!el) return tutup();
       const r = el.getBoundingClientRect();
@@ -64,11 +68,11 @@ export function usePanelMelayang<T extends HTMLElement = HTMLElement>(
       if (terlihat) hitung();
       else tutup();
     }
-    window.addEventListener('scroll', saatScroll, true);
-    window.addEventListener('resize', tutup);
+    window.addEventListener('scroll', saatGeser, true);
+    window.addEventListener('resize', saatGeser);
     return () => {
-      window.removeEventListener('scroll', saatScroll, true);
-      window.removeEventListener('resize', tutup);
+      window.removeEventListener('scroll', saatGeser, true);
+      window.removeEventListener('resize', saatGeser);
     };
   }, [terbuka, tutup, hitung]);
 

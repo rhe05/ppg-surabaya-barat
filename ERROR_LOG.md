@@ -1589,22 +1589,28 @@ sumber data sama (`santri` sekelompok) saran muncul normal.
 kelompok 1 bisa SELECT 67 baris `santri` (migrasi `20260910160000` live),
 semua kolom `KOLOM_RIWAYAT_GENERUS` ada.
 
-**Akar masalah** — `lib/usePanelMelayang.ts` menutup panel pada SETIAP
-event `scroll` (capture) di luar panel. Form Generus diisi owner di
+**Akar masalah** — `lib/usePanelMelayang.ts` menutup panel pada event
+`scroll` (capture) DAN `resize` di luar panel. Form Generus diisi owner di
 desktop (tak ada keyboard virtual). Form Jamaah diisi di HP: begitu input
-Nama difokus, keyboard virtual muncul & browser auto-scroll input ke atas
-keyboard → event scroll → panel ditutup sebelum sempat render. Dropdown
-"tak pernah muncul".
+Nama difokus, keyboard virtual HP **memicu `resize`** (viewport menyusut) +
+browser auto-scroll input → handler `resize`/`scroll` → `tutup()` → panel
+ditutup sebelum sempat render. Dropdown "tak pernah muncul".
 
-**Penanganan** (commit dgn entri ini): `usePanelMelayang` — saat scroll,
-panel **ikut bergeser** mengikuti pemicu (`hitung()` ulang), bukan
-`tutup()`. Baru ditutup kalau rect pemicu keluar viewport, atau saat
-resize. Berlaku juga utk SelectKustom/combobox lain yang pakai hook ini
-(perbaikan bersih, bukan regresi).
+Direproduksi di harness (`app/uji-saran` sementara, dihapus): fokus input →
+panel muncul → `window.dispatchEvent(new Event('resize'))` → panel HILANG.
+Data & komponen 100% sehat (impersonasi RLS produksi: penerobos kelompok 1
+baca 67 santri + 159 kandidat nama).
+
+**Penanganan** (2 commit): (1) `7e86107` — `scroll` reposisi, bukan tutup;
+TAPI `resize` masih `tutup()` → belum sembuh di HP. (2) commit dgn entri
+ini — `resize` JUGA reposisi (`hitung()` ulang, visibility-aware), ditutup
+hanya kalau rect pemicu keluar viewport. Berlaku utk semua pemakai hook
+(SelectKustom/FieldSaran/combobox) — perbaikan bersih.
 
 **Pelajaran**: fitur yang "jalan di desktop" belum tentu jalan di HP —
-keyboard virtual = viewport resize + auto-scroll. Handler `scroll` global
-untuk panel melayang harus REPOSISI, bukan tutup.
+keyboard virtual = **`resize` + scroll**. Handler global panel melayang
+harus REPOSISI (`scroll` **dan** `resize`), bukan tutup. Verifikasi panel
+melayang WAJIB simulasikan `resize` juga, bukan cuma scroll.
 
 ---
 
