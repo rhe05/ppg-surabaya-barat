@@ -385,6 +385,12 @@ export default function LoginPage() {
             </button>
           </form>
         )}
+
+        <p className="mt-7 text-center text-[11.5px] text-text-faint">
+          <Link href="/kebijakan-privasi" className="hover:text-text-dim hover:underline">
+            Kebijakan Privasi
+          </Link>
+        </p>
       </div>
     </main>
   );
