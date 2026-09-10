@@ -5,6 +5,7 @@
    saat layar dibuka; saring & cari 100% di memori. */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserPlus, Search } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +19,7 @@ import { KOLOM_EKSPOR_JAMAAH, GRUP_URUT_JAMAAH, type JamaahEkspor } from '@/lib/
 import { KOLOM_JAMAAH, type JamaahRow, type SubKelp } from '@/lib/jamaah';
 
 export default function JamaahList() {
+  const router = useRouter();
   const { profile, namaKelompok } = useAuth();
   const kelompokId = profile?.scope_kelompok_id ?? null;
 
@@ -60,7 +62,14 @@ export default function JamaahList() {
         .maybeSingle(),
     ]);
     if (rJam.error) setError(rJam.error.message);
-    else setJamaah((rJam.data ?? []) as unknown as JamaahRow[]);
+    else
+      /* Jamaah berstatus Pindah keluar dari daftar aktif — dikelola di
+         layar "Jamaah Pindah". */
+      setJamaah(
+        ((rJam.data ?? []) as unknown as JamaahRow[]).filter(
+          (j) => j.status_domisili !== 'Pindah',
+        ),
+      );
     setSubKelp((rSub.data ?? []) as unknown as SubKelp[]);
     setSubKelpWajib(!!(rKonfig.data as { sub_kelp_wajib: boolean } | null)?.sub_kelp_wajib);
     setLoading(false);
@@ -133,6 +142,7 @@ export default function JamaahList() {
         <KebabMenu
           item={[
             { label: 'Tambah Jamaah', onClick: bukaTambah },
+            { label: 'Jamaah Pindah', onClick: () => router.push('/jamaah/pindah') },
             { label: 'Unduh Data', onClick: () => setUnduhTerbuka(true) },
           ]}
         />

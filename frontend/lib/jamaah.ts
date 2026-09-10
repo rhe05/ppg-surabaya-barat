@@ -42,6 +42,10 @@ export type JamaahRow = {
   provinsi: string | null;
   kode_pos: string | null;
   catatan: string | null;
+  /* Diisi saat jamaah dicatat pindah keluar kelompok (status_domisili =
+     'Pindah'). NULL = masih aktif. Migrasi 20260910200000. */
+  tanggal_pindah?: string | null;
+  pindah_ke?: string | null;
   deleted_at?: string | null;
 };
 
@@ -50,6 +54,10 @@ export const KOLOM_JAMAAH =
   'id, kelompok_id, sub_kelp_id, nama, nama_panggilan, gender, tempat_lahir, tanggal_lahir, ' +
   'status_keluarga, status_domisili, jenis_hunian, status_hunian, pekerjaan, pendidikan_terakhir, ' +
   'no_wa, alamat, rt, rw, kelurahan, kecamatan, kabupaten_kota, provinsi, kode_pos, catatan';
+
+/* + kolom kepindahan — dipakai layar "Jamaah Pindah" saja. Dipisah supaya
+   sisa app tak ikut 400 kalau migrasi 20260910200000 belum dijalankan. */
+export const KOLOM_JAMAAH_PINDAH = KOLOM_JAMAAH + ', tanggal_pindah, pindah_ke';
 
 export const STATUS_KELUARGA = [
   'Kepala Keluarga',
@@ -118,7 +126,7 @@ export function hitungKpiJamaah(
   mtGuru = 0,
 ): KpiJamaah {
   const k: KpiJamaah = {
-    total: rows.length,
+    total: 0,
     duda: 0,
     janda: 0,
     kk: 0,
@@ -133,13 +141,19 @@ export function hitungKpiJamaah(
     pindah: 0,
   };
   for (const r of rows) {
+    /* Jamaah pindah = keluar dari daftar aktif: hanya masuk hitungan
+       `pindah`, tidak ke total maupun rincian demografi. */
+    if (r.status_domisili === 'Pindah') {
+      k.pindah++;
+      continue;
+    }
+    k.total++;
     if (r.status_keluarga === 'Duda') k.duda++;
     else if (r.status_keluarga === 'Janda') k.janda++;
     else if (r.status_keluarga === STATUS_MS) k.ms++;
     if (r.status_keluarga === 'Kepala Keluarga') k.kk++;
     if (r.status_domisili === 'Mukim') k.mukim++;
     else if (r.status_domisili === 'Musiman') k.musiman++;
-    else if (r.status_domisili === 'Pindah') k.pindah++;
     if (r.gender === 'L') k.lakiLaki++;
     else if (r.gender === 'P') k.perempuan++;
     const u = usiaTahun(r.tanggal_lahir);
