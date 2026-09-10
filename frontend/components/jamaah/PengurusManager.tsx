@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
 import PesanGalat from '@/components/ui/PesanGalat';
+import FieldTanggal from '@/components/jamaah/FieldTanggal';
 import { KOLOM_PENGURUS, type JamaahPengurus, type SubKelp } from '@/lib/jamaah';
 
 type JamaahRingkas = { id: number; nama: string; sub_kelp_id: number | null; no_wa: string | null };
@@ -198,12 +199,7 @@ export default function PengurusManager() {
             ))}
           </select>
           <label className={`${LABEL} mt-2`}>Mulai menjabat (opsional)</label>
-          <input
-            type="date"
-            className={INPUT}
-            value={editMulai}
-            onChange={(e) => setEditMulai(e.target.value)}
-          />
+          <FieldTanggal nilai={editMulai} onPilih={setEditMulai} className={INPUT} />
           <input
             className={`${INPUT} mt-2`}
             value={editKet}
@@ -316,12 +312,7 @@ export default function PengurusManager() {
         />
 
         <label className={`${LABEL} mt-2`}>Mulai menjabat (opsional)</label>
-        <input
-          type="date"
-          className={INPUT}
-          value={mulaiBaru}
-          onChange={(e) => setMulaiBaru(e.target.value)}
-        />
+        <FieldTanggal nilai={mulaiBaru} onPilih={setMulaiBaru} className={INPUT} />
 
         <input
           className={`${INPUT} mt-2`}

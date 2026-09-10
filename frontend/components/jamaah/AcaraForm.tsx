@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import FieldTanggal from '@/components/jamaah/FieldTanggal';
 import { KOLOM_ACARA, type JamaahAcara, type SubKelp } from '@/lib/jamaah';
 
 const INPUT =
@@ -108,7 +109,7 @@ export default function AcaraForm({
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Tanggal *</label>
-              <input type="date" className={INPUT} value={tanggal} onChange={(e) => setTanggal(e.target.value)} />
+              <FieldTanggal nilai={tanggal} onPilih={setTanggal} className={INPUT} />
             </div>
             <div>
               <label className={LABEL}>Tempat</label>
