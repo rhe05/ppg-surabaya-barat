@@ -10,7 +10,7 @@ import RingkasanKehadiranCard from '@/components/jamaah/RingkasanKehadiranCard';
 
 const PINTASAN = [
   { label: 'Data Jamaah', desk: 'Daftar & kelola data jamaah', href: '/jamaah/data', ikon: Users },
-  { label: 'Data Pengurus', desk: 'Susunan kepengurusan pengajian', href: '/jamaah/pengurus', ikon: ClipboardList },
+  { label: 'Data Pengurus', desk: 'Susunan Kepengurusan Kelompok', href: '/jamaah/pengurus', ikon: ClipboardList },
   { label: 'Input Kehadiran', desk: 'Catat kehadiran per acara', href: '/jamaah/kehadiran', ikon: CalendarCheck },
   { label: 'Riwayat Kehadiran', desk: 'Rekap kehadiran acara lalu', href: '/jamaah/riwayat', ikon: History },
   { label: 'Kelola Sub Kelp', desk: 'Pembagian jamaah dalam kelompok', href: '/jamaah/sub-kelp', ikon: Layers },

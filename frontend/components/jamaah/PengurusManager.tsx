@@ -273,7 +273,7 @@ export default function PengurusManager() {
     <div className="px-[18px] pt-4 pb-10">
       <div className="mb-1 text-[17px] font-extrabold text-text">Data Pengurus</div>
       <p className="mb-4 text-[12px] text-text-dim">
-        Susunan kepengurusan pengajian — tingkat kelompok maupun per Sub Kelp.
+        Susunan Kepengurusan Kelompok — tingkat kelompok maupun per Sub Kelp.
       </p>
 
       {/* form tambah */}
