@@ -9,7 +9,7 @@
    SELECT jamaah (kolom KPI) + SELECT guru (kategori), hitung 100% di memori.
    Tap → Data Jamaah. */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronRight } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
@@ -92,7 +92,7 @@ export default function RingkasanJamaahCard() {
     };
   }, [kelompokId]);
 
-  if (loading) return <Skeleton className="mb-4 h-[513px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[607px] w-full rounded-card" />;
 
   const k = kpi ?? KOSONG;
   const lp = k.lakiLaki + k.perempuan;
@@ -135,26 +135,42 @@ export default function RingkasanJamaahCard() {
         </p>
       </div>
 
-      {/* Rincian — daftar bergaris rambut, bukan grid */}
-      <div className="mt-5 border-t border-border pt-1">
+      {/* Rincian — dikelompokkan, sub-judul tenang di ruang kosong
+          (tanpa kartu bersarang / ikon / pill warna). */}
+      <div className="mt-5 border-t border-border" />
+
+      <Grup judul="Peran">
+        <Baris l="Muballigh/ot setempat" n={k.ms} />
+        <Baris l="Guru bantu" n={k.gb} />
+        <Baris l="Muballigh/ot tugasan" n={k.mt} />
+      </Grup>
+
+      <Grup judul="Status Keluarga">
         <Baris l="Kepala keluarga" n={k.kk} />
         <Baris l="Duda" n={k.duda} />
         <Baris l="Janda" n={k.janda} />
         <Baris l="Lansia (60+)" n={k.lansia} />
-        <Baris l="Muballigh/ot setempat" n={k.ms} />
-        <Baris l="Guru bantu" n={k.gb} />
-        <Baris l="Muballigh/ot tugasan" n={k.mt} />
-      </div>
+      </Grup>
 
-      {/* Domisili — satu baris tenang di kaki */}
-      <p className="mt-4 border-t border-border pt-3.5 text-[11.5px] leading-relaxed text-text-dim">
-        Mukim <span className="font-semibold text-text">{tampil(k.mukim)}</span>
-        <span className="mx-1.5 text-text-faint">·</span>
-        Musiman <span className="font-semibold text-text">{tampil(k.musiman)}</span>
-        <span className="mx-1.5 text-text-faint">·</span>
-        Pindah <span className="font-semibold text-text">{tampil(k.pindah)}</span>
-      </p>
+      <Grup judul="Domisili">
+        <p className="pt-0.5 text-[12px] leading-relaxed text-text-dim">
+          Mukim <span className="font-semibold text-text">{tampil(k.mukim)}</span>
+          <span className="mx-1.5 text-text-faint">·</span>
+          Musiman <span className="font-semibold text-text">{tampil(k.musiman)}</span>
+          <span className="mx-1.5 text-text-faint">·</span>
+          Pindah <span className="font-semibold text-text">{tampil(k.pindah)}</span>
+        </p>
+      </Grup>
     </button>
+  );
+}
+
+function Grup({ judul, children }: { judul: string; children: ReactNode }) {
+  return (
+    <div className="mt-5">
+      <div className="label-mikro text-[10px] text-text-faint">{judul}</div>
+      <div className="mt-1.5">{children}</div>
+    </div>
   );
 }
 
