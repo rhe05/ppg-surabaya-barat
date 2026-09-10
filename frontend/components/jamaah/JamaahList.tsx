@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
+import KebabMenu from '@/components/ui/KebabMenu';
 import PesanGalat from '@/components/ui/PesanGalat';
 import JamaahForm from '@/components/jamaah/JamaahForm';
 import { KOLOM_JAMAAH, type JamaahRow, type SubKelp } from '@/lib/jamaah';
@@ -104,14 +105,7 @@ export default function JamaahList() {
     <div className="px-[18px] pt-4 pb-10">
       <div className="mb-3 flex items-center justify-between gap-3">
         <div className="text-[17px] font-extrabold text-text">Data Jamaah ({jamaah.length})</div>
-        <button
-          type="button"
-          aria-label="Tambah jamaah"
-          onClick={bukaTambah}
-          className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full border-none bg-navy text-white shadow-[0_4px_12px_rgba(29,78,216,0.28)] active:scale-[0.92]"
-        >
-          <UserPlus size={19} strokeWidth={2} />
-        </button>
+        <KebabMenu item={[{ label: 'Tambah Jamaah', onClick: bukaTambah }]} />
       </div>
 
       <div className="relative mb-3">
@@ -163,6 +157,7 @@ export default function JamaahList() {
             judul="Belum ada jamaah"
             deskripsi="Tambahkan data jamaah pengajian kelompok Anda."
             aksi={{ label: 'Tambah Jamaah', onClick: bukaTambah }}
+            warnaAksi="navy"
           />
         )
       ) : (

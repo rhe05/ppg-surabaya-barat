@@ -12,11 +12,15 @@ export default function EmptyState({
   judul,
   deskripsi,
   aksi,
+  warnaAksi = 'brass',
 }: {
   ikon: ReactNode;
   judul: string;
   deskripsi?: string;
   aksi?: { label: string; onClick: () => void };
+  /* Warna tombol aksi — 'brass' (default, layar guru/admin) atau 'navy'
+     (app Penerobos Kelp). */
+  warnaAksi?: 'brass' | 'navy';
 }) {
   return (
     <div className="flex flex-col items-center rounded-card border border-dashed border-border bg-panel px-6 py-10 text-center">
@@ -29,7 +33,9 @@ export default function EmptyState({
         <button
           type="button"
           onClick={aksi.onClick}
-          className="mt-4 cursor-pointer rounded-[var(--radius)] border border-brass bg-brass px-4 py-2 text-[12.5px] font-bold text-white active:scale-[0.97]"
+          className={`mt-4 cursor-pointer rounded-[var(--radius)] border px-4 py-2 text-[12.5px] font-bold text-white active:scale-[0.97] ${
+            warnaAksi === 'navy' ? 'border-navy bg-navy' : 'border-brass bg-brass'
+          }`}
         >
           {aksi.label}
         </button>
