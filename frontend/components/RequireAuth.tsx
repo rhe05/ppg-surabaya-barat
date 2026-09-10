@@ -40,7 +40,7 @@ const HALAMAN_GURU = [
 ];
 
 /* Peran 'penerobos' (Penerobos Kelp, migrasi 20260909150000) dikunci ke
-   app jamaah majlis taklim. Semua rute lain -> dialihkan ke /jamaah. */
+   app jamaah pengajian. Semua rute lain -> dialihkan ke /jamaah. */
 const HALAMAN_PENEROBOS = ['/jamaah'];
 
 /* Peran 'ketua_mudai' (Ketua Muda-i, migrasi 20260909180000) — untuk

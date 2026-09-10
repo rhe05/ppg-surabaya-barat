@@ -1,4 +1,4 @@
-/* Tipe & konstanta bersama fitur "Penerobos Kelp" (jamaah majlis taklim).
+/* Tipe & konstanta bersama fitur "Penerobos Kelp" (jamaah pengajian).
    Tabel: sub_kelp, jamaah, jamaah_acara, jamaah_kehadiran
    (migrasi 20260909150000 + 20260909160000). */
 

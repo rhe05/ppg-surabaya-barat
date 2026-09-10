@@ -1,6 +1,6 @@
 'use client';
 
-/* Kelola Sub Kelp (pembagian dalam satu kelompok utk majlis taklim).
+/* Kelola Sub Kelp (pembagian dalam satu kelompok utk pengajian).
    Daftar + tambah + rename + nonaktif (soft-delete via deleted_at). */
 
 import { useCallback, useEffect, useState } from 'react';

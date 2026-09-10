@@ -102,7 +102,7 @@ const PERAN: {
   {
     nilai: 'penerobos',
     judul: 'Penerobos Kelp',
-    ringkas: 'Mendata jamaah & kehadiran majlis taklim satu kelompok',
+    ringkas: 'Mendata jamaah & kehadiran pengajian satu kelompok',
     lingkup: 'kelompok',
   },
   {

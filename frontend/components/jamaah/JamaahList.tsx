@@ -154,7 +154,7 @@ export default function JamaahList() {
           <EmptyState
             ikon={<UserPlus size={22} />}
             judul="Belum ada jamaah"
-            deskripsi="Tambahkan data jamaah majlis taklim kelompok Anda."
+            deskripsi="Tambahkan data jamaah pengajian kelompok Anda."
             aksi={{ label: 'Tambah Jamaah', onClick: bukaTambah }}
           />
         )

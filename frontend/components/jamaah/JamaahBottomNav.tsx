@@ -1,6 +1,6 @@
 'use client';
 
-/* Bottom tab bar app "Penerobos Kelp" (jamaah majlis taklim). Pola sama
+/* Bottom tab bar app "Penerobos Kelp" (jamaah pengajian). Pola sama
    GuruBottomNav: dirender SEKALI di RequireAuth sebagai sibling <main>,
    dikunci max-w-[430px], padding bawah halaman diatur globals.css lewat
    body:has([data-jamaah-nav]) main. Tema navy. */
