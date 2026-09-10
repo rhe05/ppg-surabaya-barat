@@ -13,7 +13,7 @@ import { useAuth } from '@/lib/auth-context';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
 import PesanGalat from '@/components/ui/PesanGalat';
-import FieldTanggal from '@/components/jamaah/FieldTanggal';
+import FieldTanggal from '@/components/ui/FieldTanggal';
 import { KOLOM_PENGURUS, type JamaahPengurus, type SubKelp } from '@/lib/jamaah';
 
 type JamaahRingkas = { id: number; nama: string; sub_kelp_id: number | null; no_wa: string | null };

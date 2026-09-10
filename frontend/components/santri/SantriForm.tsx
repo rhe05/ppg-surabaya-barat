@@ -14,10 +14,10 @@
      kelas_ngaji); kelas_id-nya diturunkan trigger sinkron_santri_kelas
      (migrasi 20260819110000), jadi RPC tambah_santri tidak perlu diubah. */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import TanggalPicker, { PosisiPicker } from '@/components/ui/TanggalPicker';
+import FieldTanggal from '@/components/ui/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { saranTeksUnik, saranUnikDenganRec, type SaranItem } from '@/lib/saran';
 import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
@@ -166,18 +166,6 @@ function kosongJadiNull(v: string): string | null {
   return t === '' ? null : t;
 }
 
-const NAMA_BULAN_SINGKAT = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des',
-];
-/* 'YYYY-MM-DD' -> "21 Agu 2026", buat ditampilkan di tombol pemicu
-   TanggalPicker (menggantikan <input type="date"> bawaan browser). */
-function formatTanggalTampil(v: string): string {
-  if (!v) return '';
-  const [y, m, d] = v.split('-').map(Number);
-  if (!y || !m || !d) return v;
-  return `${String(d).padStart(2, '0')} ${NAMA_BULAN_SINGKAT[m - 1] ?? ''} ${y}`;
-}
-
 /* Nomor WA: hanya angka, digroup 4-4-4 dgn strip -- diketik apa pun,
    karakter non-angka dibuang lalu diformat ulang dari nol setiap kali. */
 function formatNomorWa(v: string): string {
@@ -230,21 +218,6 @@ export default function SantriForm({
   const [kelasList, setKelasList] = useState<KelasNgaji[]>([]);
   const [menyimpan, setMenyimpan] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  /* Kalender custom (TanggalPicker), sama persis yang dipakai layar Input
-     Kehadiran -- gantikan <input type="date"> bawaan browser yg tampilannya
-     beda-beda tiap perangkat. Satu instance dipakai bergantian utk kedua
-     field tanggal (tglAktif menandai field mana yang sedang dibuka). */
-  const [tglAktif, setTglAktif] = useState<'tanggal_lahir' | 'mulai_ngaji' | null>(null);
-  const [posisiTgl, setPosisiTgl] = useState<PosisiPicker | null>(null);
-  const tglLahirRef = useRef<HTMLButtonElement>(null);
-  const mulaiNgajiRef = useRef<HTMLButtonElement>(null);
-
-  function bukaTgl(field: 'tanggal_lahir' | 'mulai_ngaji', ref: React.RefObject<HTMLButtonElement | null>) {
-    const rect = ref.current?.getBoundingClientRect();
-    if (rect) setPosisiTgl({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
-    setTglAktif(field);
-  }
 
   /* admin_kelompok & guru terkunci ke kelompoknya sendiri; admin_desa/
      admin_ppg memilih bebas. Pilihan di luar scope tetap ditolak RPC
@@ -518,16 +491,6 @@ export default function SantriForm({
           {modeUbah ? 'Ubah Generus' : 'Tambah Generus'}
         </h2>
 
-        <TanggalPicker
-          terbuka={tglAktif !== null}
-          posisi={posisiTgl}
-          nilai={tglAktif ? isian[tglAktif] : ''}
-          onPilih={(v) => {
-            if (tglAktif) ubah(tglAktif, v);
-          }}
-          onTutup={() => setTglAktif(null)}
-        />
-
         <Bagian judul="Data Pokok">
           <div>
             <label className={KELAS_LABEL}>Kelompok *</label>
@@ -619,14 +582,11 @@ export default function SantriForm({
           />
           <div>
             <label className={KELAS_LABEL}>Tanggal Lahir *</label>
-            <button
-              type="button"
-              ref={tglLahirRef}
-              onClick={() => bukaTgl('tanggal_lahir', tglLahirRef)}
-              className={`${KELAS_INPUT} text-left ${isian.tanggal_lahir ? '' : 'text-text-faint'}`}
-            >
-              {isian.tanggal_lahir ? formatTanggalTampil(isian.tanggal_lahir) : 'Pilih tanggal'}
-            </button>
+            <FieldTanggal
+              nilai={isian.tanggal_lahir}
+              onPilih={(v) => ubah('tanggal_lahir', v)}
+              className={KELAS_INPUT}
+            />
           </div>
         </Bagian>
 
@@ -691,14 +651,11 @@ export default function SantriForm({
           </div>
           <div>
             <label className={KELAS_LABEL}>Mulai Ngaji</label>
-            <button
-              type="button"
-              ref={mulaiNgajiRef}
-              onClick={() => bukaTgl('mulai_ngaji', mulaiNgajiRef)}
-              className={`${KELAS_INPUT} text-left ${isian.mulai_ngaji ? '' : 'text-text-faint'}`}
-            >
-              {isian.mulai_ngaji ? formatTanggalTampil(isian.mulai_ngaji) : 'Pilih tanggal'}
-            </button>
+            <FieldTanggal
+              nilai={isian.mulai_ngaji}
+              onPilih={(v) => ubah('mulai_ngaji', v)}
+              className={KELAS_INPUT}
+            />
           </div>
           {/* Status Kesiapan (nikah) cuma relevan utk jenjang paling atas --
               "remaja pra nikah", di atas Remaja SMA. Jenjang lebih muda

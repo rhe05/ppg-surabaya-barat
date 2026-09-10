@@ -1,11 +1,11 @@
 'use client';
 
-/* Pembungkus TanggalPicker untuk app "Penerobos Kelp" — tombol pemicu +
-   kalender custom dalam satu komponen, mengurus posisinya sendiri
-   (getBoundingClientRect -> PosisiPicker, pola sama GuruForm). Dipakai di
-   JamaahForm (Tanggal Lahir), AcaraForm (Tanggal), PengurusManager (Mulai
-   menjabat) supaya tak ada <input type="date"> bawaan browser yang
-   tampilannya beda-beda tiap perangkat. */
+/* Pembungkus TanggalPicker — tombol pemicu + kalender custom dalam satu
+   komponen, mengurus posisinya sendiri (getBoundingClientRect ->
+   PosisiPicker). Pakai ini utk SEMUA field tanggal baru supaya tak ada
+   lagi <input type="date"> bawaan browser (tampilannya beda tiap
+   perangkat) dan tak perlu menyalin boilerplate ref/posisi.
+   Dipakai: SantriForm, JamaahForm, AcaraForm, PengurusManager. */
 
 import { useRef, useState } from 'react';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';

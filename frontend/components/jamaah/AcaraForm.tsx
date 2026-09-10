@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import FieldTanggal from '@/components/jamaah/FieldTanggal';
+import FieldTanggal from '@/components/ui/FieldTanggal';
 import { KOLOM_ACARA, type JamaahAcara, type SubKelp } from '@/lib/jamaah';
 
 const INPUT =

@@ -18,7 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import FieldTanggal from '@/components/jamaah/FieldTanggal';
+import FieldTanggal from '@/components/ui/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { type SaranItem } from '@/lib/saran';
 import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
