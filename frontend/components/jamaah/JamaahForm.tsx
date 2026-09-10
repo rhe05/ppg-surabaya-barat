@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 import FieldTanggal from '@/components/jamaah/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { type SaranItem } from '@/lib/saran';
+import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
@@ -207,6 +208,7 @@ export default function JamaahForm({
   }, [kelompokId]);
 
   const saranNama = useMemo(() => saranNamaGabungan(riwayatGenerus), [riwayatGenerus]);
+  const saranKota = useMemo(() => KOTA_INDONESIA.map((k) => ({ teks: k })), []);
 
   const ubah = <K extends keyof Isian>(k: K, v: Isian[K]) => setIsian((s) => ({ ...s, [k]: v }));
 
@@ -372,14 +374,15 @@ export default function JamaahForm({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Tempat Lahir</label>
-              <input
-                className={INPUT}
-                value={isian.tempat_lahir}
-                onChange={(e) => ubah('tempat_lahir', e.target.value)}
-              />
-            </div>
+            <FieldSaran
+              inputClass={INPUT}
+              labelClass={LABEL}
+              label="Tempat Lahir"
+              value={isian.tempat_lahir}
+              onChange={(v) => ubah('tempat_lahir', v)}
+              saran={saranKota}
+              placeholder="Ketik nama kota / kabupaten"
+            />
             <div>
               <label className={LABEL}>Tanggal Lahir</label>
               <FieldTanggal
