@@ -164,6 +164,9 @@ const kosongJadiNull = (v: string) => {
   return t === '' ? null : t;
 };
 
+/* Hanya angka — RT/RW tak boleh diisi huruf. Pola sama SantriForm. */
+const formatAngka = (v: string) => v.replace(/\D/g, '');
+
 export default function JamaahForm({
   jamaah,
   subKelpList,
@@ -528,7 +531,7 @@ export default function JamaahForm({
                 className={INPUT}
                 inputMode="numeric"
                 value={isian.rt}
-                onChange={(e) => ubah('rt', e.target.value)}
+                onChange={(e) => ubah('rt', formatAngka(e.target.value))}
               />
             </div>
             <div>
@@ -537,7 +540,7 @@ export default function JamaahForm({
                 className={INPUT}
                 inputMode="numeric"
                 value={isian.rw}
-                onChange={(e) => ubah('rw', e.target.value)}
+                onChange={(e) => ubah('rw', formatAngka(e.target.value))}
               />
             </div>
             <div className="col-span-2">
