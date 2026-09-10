@@ -1,9 +1,12 @@
 'use client';
 
-/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp — Total + kategori
-   guru (MS/GB/MT) + rincian demografi. SELECT jamaah (kolom KPI) + SELECT
-   guru (kategori), hitung 100% di memori.
-   MS = jamaah.status_keluarga + guru.kategori. GB/MT = guru.kategori saja.
+/* Card KPI "Ringkasan Jamaah" di beranda Penerobos Kelp.
+
+   Tata letak sengaja: SATU angka pahlawan (total jamaah aktif) + satu bar
+   komposisi L/P + daftar bergaris-rambut (bukan grid angka rata tengah) +
+   satu baris domisili di kaki. Pola dasbor SaaS premium — mengkurasi, bukan
+   menumpuk metrik. Data & query TIDAK berubah dari versi sebelumnya:
+   SELECT jamaah (kolom KPI) + SELECT guru (kategori), hitung 100% di memori.
    Tap → Data Jamaah. */
 
 import { useEffect, useState } from 'react';
@@ -37,6 +40,10 @@ const KOSONG: KpiJamaah = {
   musiman: 0,
   pindah: 0,
 };
+
+const nf = new Intl.NumberFormat('id-ID');
+/* Nol → "–" (teks-faint) supaya mata tak tertarik ke kategori kosong. */
+const tampil = (n: number) => (n === 0 ? '–' : nf.format(n));
 
 export default function RingkasanJamaahCard() {
   const router = useRouter();
@@ -85,71 +92,107 @@ export default function RingkasanJamaahCard() {
     };
   }, [kelompokId]);
 
-  if (loading) return <Skeleton className="mb-4 h-[318px] w-full rounded-card" />;
+  if (loading) return <Skeleton className="mb-4 h-[513px] w-full rounded-card" />;
 
   const k = kpi ?? KOSONG;
+  const lp = k.lakiLaki + k.perempuan;
+  const pctL = lp > 0 ? (k.lakiLaki / lp) * 100 : 0;
 
   return (
     <button
       type="button"
       onClick={() => router.push('/jamaah/data')}
-      className="kartu-premium animasi-konten-muncul mb-4 block w-full p-4 text-left transition-transform active:scale-[0.99]"
+      className="kartu-premium animasi-konten-muncul mb-4 block w-full p-5 text-left transition-transform active:scale-[0.99]"
     >
       <div className="flex items-center justify-between">
         <span className="label-mikro">Ringkasan Jamaah</span>
-        <ChevronRight size={14} className="shrink-0 text-text-faint" />
+        <ChevronRight size={15} className="shrink-0 text-text-faint" />
       </div>
 
-      <div className="mt-3">
-        <span className="angka-metrik block text-[30px] leading-none text-text">{k.total}</span>
-        <span className="label-mikro mt-1.5 block text-[9.5px] text-text-dim">Total Jamaah</span>
+      {/* Angka pahlawan */}
+      <div className="mt-3.5">
+        <AngkaHero nilai={k.total} />
+        <span className="mt-1.5 block text-[12px] text-text-dim">jamaah aktif</span>
       </div>
 
-      {/* Kategori guru sekelompok */}
-      <div className="mt-4 grid grid-cols-3 border-t border-border pt-4">
-        <Utama n={k.ms} l="MS" />
-        <Utama n={k.gb} l="GB" garis />
-        <Utama n={k.mt} l="MT" garis />
+      {/* Komposisi laki-laki / perempuan */}
+      <div className="mt-4">
+        {lp > 0 ? (
+          <div className="flex h-1.5 w-full overflow-hidden rounded-full">
+            <span className="h-full" style={{ width: `${pctL}%`, background: 'var(--hijau)' }} />
+            <span
+              className="h-full"
+              style={{ width: `${100 - pctL}%`, background: 'rgba(78, 125, 98, 0.32)' }}
+            />
+          </div>
+        ) : (
+          <div className="h-1.5 w-full rounded-full bg-border" />
+        )}
+        <p className="mt-2 text-[11.5px] text-text-dim">
+          Laki-laki <span className="font-semibold text-text">{tampil(k.lakiLaki)}</span>
+          <span className="mx-1.5 text-text-faint">·</span>
+          Perempuan <span className="font-semibold text-text">{tampil(k.perempuan)}</span>
+        </p>
       </div>
 
-      {/* Demografi jamaah */}
-      <div className="mt-4 grid grid-cols-3 gap-y-4 border-t border-border pt-4">
-        <Stat n={k.lakiLaki} l="Laki-laki" />
-        <Stat n={k.perempuan} l="Perempuan" />
-        <Stat n={k.kk} l="Kepala Keluarga" />
-        <Stat n={k.duda} l="Duda" />
-        <Stat n={k.janda} l="Janda" />
-        <Stat n={k.lansia} l="Lansia" />
+      {/* Rincian — daftar bergaris rambut, bukan grid */}
+      <div className="mt-5 border-t border-border pt-1">
+        <Baris l="Kepala keluarga" n={k.kk} />
+        <Baris l="Duda" n={k.duda} />
+        <Baris l="Janda" n={k.janda} />
+        <Baris l="Lansia (60+)" n={k.lansia} />
+        <Baris l="Muballigh/ot setempat" n={k.ms} />
+        <Baris l="Guru bantu" n={k.gb} />
+        <Baris l="Muballigh/ot tugasan" n={k.mt} />
       </div>
 
-      {/* Domisili */}
-      <div className="mt-4 grid grid-cols-3 gap-y-4 border-t border-border pt-4">
-        <Stat n={k.mukim} l="Mukim" />
-        <Stat n={k.musiman} l="Musiman" />
-        <Stat n={k.pindah} l="Pindah" />
-      </div>
-
-      <p className="mt-3.5 border-t border-border pt-2.5 text-[10px] leading-relaxed text-text-faint">
-        MS Muballigh/ot Setempat &nbsp;·&nbsp; GB Guru Bantu &nbsp;·&nbsp; MT Muballigh/ot Tugasan
+      {/* Domisili — satu baris tenang di kaki */}
+      <p className="mt-4 border-t border-border pt-3.5 text-[11.5px] leading-relaxed text-text-dim">
+        Mukim <span className="font-semibold text-text">{tampil(k.mukim)}</span>
+        <span className="mx-1.5 text-text-faint">·</span>
+        Musiman <span className="font-semibold text-text">{tampil(k.musiman)}</span>
+        <span className="mx-1.5 text-text-faint">·</span>
+        Pindah <span className="font-semibold text-text">{tampil(k.pindah)}</span>
       </p>
     </button>
   );
 }
 
-function Utama({ n, l, garis }: { n: number; l: string; garis?: boolean }) {
+/* Angka pahlawan dengan count-up 0→nilai sekali saat muncul (hormati
+   prefers-reduced-motion). */
+function AngkaHero({ nilai }: { nilai: number }) {
+  const [tampak, setTampak] = useState(0);
+
+  useEffect(() => {
+    const kurangiGerak =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (kurangiGerak || nilai === 0) {
+      setTampak(nilai);
+      return;
+    }
+    let raf = 0;
+    const t0 = performance.now();
+    const DURASI = 280;
+    const langkah = (t: number) => {
+      const p = Math.min(1, (t - t0) / DURASI);
+      setTampak(Math.round(nilai * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(langkah);
+    };
+    raf = requestAnimationFrame(langkah);
+    return () => cancelAnimationFrame(raf);
+  }, [nilai]);
+
   return (
-    <div className={`flex flex-col items-center gap-1.5 ${garis ? 'border-l border-border' : ''}`}>
-      <span className="angka-metrik text-[22px] text-navy">{n}</span>
-      <span className="label-mikro text-[9.5px] text-text-dim">{l}</span>
-    </div>
+    <span className="angka-metrik block text-[38px] leading-none text-text">{nf.format(tampak)}</span>
   );
 }
 
-function Stat({ n, l }: { n: number; l: string }) {
+function Baris({ l, n }: { l: string; n: number }) {
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="angka-metrik text-[19px] text-text">{n}</span>
-      <span className="label-mikro text-center text-[9px] leading-tight text-text-dim">{l}</span>
+    <div className="baris-daftar flex items-center justify-between py-2">
+      <span className="text-[13px] text-text-dim">{l}</span>
+      <span className="angka-metrik text-[14.5px] text-text">{tampil(n)}</span>
     </div>
   );
 }
