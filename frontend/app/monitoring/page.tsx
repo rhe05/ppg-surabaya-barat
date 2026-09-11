@@ -127,7 +127,7 @@ type TabMonitoring = 'kehadiran' | 'materi';
 
 function MonitoringContent() {
   const { profile } = useAuth();
-  const adalahGuru = profile?.role === 'guru';
+  const adalahGuru = profile?.role === 'guru' || profile?.role === 'pengunjung';
   const kini = new Date();
 
   const [tab, setTab] = useState<TabMonitoring>(adalahGuru ? 'materi' : 'kehadiran');

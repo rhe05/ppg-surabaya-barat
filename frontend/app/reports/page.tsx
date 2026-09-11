@@ -55,7 +55,7 @@ function ReportsContent() {
 
 function ReportsGate() {
   const { profile } = useAuth();
-  if (profile?.role === 'guru') return <GuruLaporanView />;
+  if (profile?.role === 'guru' || profile?.role === 'pengunjung') return <GuruLaporanView />;
   return <ReportsContent />;
 }
 

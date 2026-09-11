@@ -76,7 +76,7 @@ function fmtTgl(v: string) {
 
 function JurnalContent() {
   const { profile } = useAuth();
-  const adalahGuru = profile?.role === 'guru';
+  const adalahGuru = profile?.role === 'guru' || profile?.role === 'pengunjung';
 
   const [kelompokList, setKelompokList] = useState<Kelompok[]>([]);
   const [kelompokId, setKelompokId] = useState<number | null>(profile?.scope_kelompok_id ?? null);

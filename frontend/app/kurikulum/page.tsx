@@ -371,7 +371,7 @@ function KurikulumContent() {
      admin sudah py AdminSidebar (RequireAuth.tsx) di halaman ini yang
      sama -- menambahkan bar guru ini tanpa syarat akan menumpuk 2 bar
      navigasi sekaligus di layar admin. */
-  const adalahGuru = profile?.role === 'guru';
+  const adalahGuru = profile?.role === 'guru' || profile?.role === 'pengunjung';
 
   /* ⚠️ Tabel `kategori_kbm` MENCAMPUR dua namespace: 11 mata pelajaran KBM
      (yang dipakai kurikulum_prota) dan 4 kategori JENJANG "Cabe Rawit",

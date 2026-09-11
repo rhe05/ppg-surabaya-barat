@@ -18,7 +18,7 @@ const QUOTE_CADANGAN = 'Pejuang Tidak Mundur Karena diCaci Tidak Maju Karena diP
 const STATUS_OPTIONS = ['hadir', 'izin', 'sakit', 'alpa'] as const;
 type Status = (typeof STATUS_OPTIONS)[number];
 
-const ROLE_BERWENANG = ['guru', 'admin_kelompok', 'admin_desa', 'admin_ppg'];
+const ROLE_BERWENANG = ['guru', 'admin_kelompok', 'admin_desa', 'admin_ppg', 'pengunjung'];
 
 type Santri = {
   id: number;
@@ -128,7 +128,9 @@ function AbsensiContent() {
 
   const berwenang =
     !!profile && !!profile.role && profile.is_active && ROLE_BERWENANG.includes(profile.role);
-  const adalahGuru = profile?.role === 'guru';
+  /* 'pengunjung' (demo via link) mode "Guru" ikut cabang guru — guru_id-nya
+     diisi guru contoh saat klaim (lihat komentar sama di app/dashboard/page.tsx). */
+  const adalahGuru = profile?.role === 'guru' || profile?.role === 'pengunjung';
 
   useEffect(() => {
     let cancelled = false;

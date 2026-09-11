@@ -510,6 +510,6 @@ function PengumumanRouter() {
      menutup celah sisanya (mis. saat profileError terisi) dengan biaya
      satu baris. */
   if (!profile?.role) return null;
-  if (profile.role === 'guru') return <PengumumanGuruView />;
+  if (profile.role === 'guru' || profile.role === 'pengunjung') return <PengumumanGuruView />;
   return <PengumumanContent />;
 }

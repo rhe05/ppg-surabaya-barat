@@ -17,7 +17,7 @@ function PeringkatContent() {
   if (profile?.role === 'admin_kelompok') {
     return <PeringkatKelpMobile />;
   }
-  if (profile?.role === 'guru') {
+  if (profile?.role === 'guru' || profile?.role === 'pengunjung') {
     return <PeringkatKelpMobile hanyaLihat />;
   }
 

@@ -81,7 +81,14 @@ function DashboardContent() {
   if (profile.role === 'penerobos' || profile.role === 'ketua_mudai')
     return <LayarMemuatDashboard />;
 
-  if (profile.role === 'guru') return <GuruDashboard />;
+  /* 'pengunjung' (fitur demo via link, 2026-09-11) mode "Guru" harus
+     lihat GuruDashboard yang sama persis -- profile.guru_id-nya diisi
+     guru contoh saat klaim. Tanpa cabang ini, perannya bukan literal
+     'guru' -> jatuh ke fallback AdminDashboard (PohonWilayah, Santri
+     Teladan, dst) yang dipaksa masuk kolom mobile 430px, bukan dashboard
+     guru yang seharusnya (dilaporkan owner: kartu "Santri Teladan"
+     nyasar tampil di mode Pengunjung). */
+  if (profile.role === 'guru' || profile.role === 'pengunjung') return <GuruDashboard />;
 
   if (profile.role === 'admin_kelompok') {
     if (isMobile === null) return <LayarMemuatDashboard />;
