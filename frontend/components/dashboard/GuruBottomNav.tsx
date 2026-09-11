@@ -63,7 +63,7 @@ const TAB: Tab[] = [
 
 const LAINNYA: { label: string; href: string; ikon: typeof House }[] = [
   { label: 'Kurikulum', href: '/kurikulum', ikon: BookOpen },
-  { label: 'Tabungan', href: '/tabungan', ikon: Banknote },
+  { label: 'Keuangan', href: '/keuangan', ikon: Banknote },
   { label: 'Peringkat', href: '/peringkat', ikon: Trophy },
   { label: 'Pengumuman', href: '/pengumuman', ikon: Megaphone },
   { label: 'Guru Izin', href: '/guru-saya', ikon: CalendarDays },

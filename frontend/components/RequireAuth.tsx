@@ -31,6 +31,8 @@ const HALAMAN_GURU = [
   '/santri-saya',
   '/pengumuman',
   '/tabungan',
+  '/keuangan',
+  '/infaq-pengajian',
   '/peringkat',
   /* Ditambahkan 2026-09-02, dibuka lebar sore harinya: Monitoring kini
      fitur berdiri sendiri di menu utama guru (GuruBottomNav > Lainnya),
