@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import FieldTanggal from '@/components/ui/FieldTanggal';
 import { KOLOM_ACARA, type JamaahAcara, type SubKelp } from '@/lib/jamaah';
+import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-navy focus:outline-none';
@@ -56,6 +57,10 @@ export default function AcaraForm({
     }
     if (!judul.trim() || !tanggal) {
       setError('Judul dan tanggal wajib diisi.');
+      return;
+    }
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
       return;
     }
     setMenyimpan(true);

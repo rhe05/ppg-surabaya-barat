@@ -25,6 +25,7 @@ import { FieldSaran } from '@/components/ui/FieldSaran';
 import { saranTeksUnik, type SaranItem } from '@/lib/saran';
 import { KOTA_INDONESIA } from '@/lib/kotaIndonesia';
 import { WILAYAH_SURABAYA, type WilayahSurabaya } from '@/lib/wilayahSurabaya';
+import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 import {
   KOLOM_JAMAAH,
   STATUS_KELUARGA,
@@ -308,6 +309,10 @@ export default function JamaahForm({
       setError('Sub Kelp wajib dipilih.');
       return;
     }
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setMenyimpan(true);
     setError(null);
 
@@ -351,6 +356,10 @@ export default function JamaahForm({
 
   async function hapus() {
     if (!jamaah) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setMenyimpan(true);
     setError(null);
     /* Soft-delete: DELETE keras dikunci admin_ppg (RLS). deleted_at diisi

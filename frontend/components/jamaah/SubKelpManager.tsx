@@ -11,6 +11,7 @@ import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
 import EmptyState from '@/components/ui/EmptyState';
 import PesanGalat from '@/components/ui/PesanGalat';
 import type { SubKelp, JamaahKonfig } from '@/lib/jamaah';
+import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3 py-2 text-[13px] text-text focus:border-navy focus:outline-none';
@@ -61,6 +62,10 @@ export default function SubKelpManager() {
 
   async function ubahWajib(nilai: boolean) {
     if (!kelompokId || simpanKonfig) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setWajib(nilai); // optimis
     setSimpanKonfig(true);
     setError(null);
@@ -83,6 +88,10 @@ export default function SubKelpManager() {
 
   async function tambah() {
     if (!kelompokId || !namaBaru.trim()) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase.from('sub_kelp').insert({
@@ -108,6 +117,10 @@ export default function SubKelpManager() {
 
   async function simpanEdit() {
     if (editId == null || !editNama.trim()) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase
@@ -124,6 +137,10 @@ export default function SubKelpManager() {
   }
 
   async function nonaktif(id: number) {
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase

@@ -15,6 +15,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import PesanGalat from '@/components/ui/PesanGalat';
 import FieldTanggal from '@/components/ui/FieldTanggal';
 import { KOLOM_PENGURUS, type JamaahPengurus, type SubKelp } from '@/lib/jamaah';
+import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 
 type JamaahRingkas = { id: number; nama: string; sub_kelp_id: number | null; no_wa: string | null };
 
@@ -104,6 +105,10 @@ export default function PengurusManager() {
 
   async function tambah() {
     if (!kelompokId || jamaahBaru === '' || !jabatanBaru.trim()) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase.from('jamaah_pengurus').insert({
@@ -137,6 +142,10 @@ export default function PengurusManager() {
 
   async function simpanEdit() {
     if (editId == null || !editJabatan.trim()) return;
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase
@@ -158,6 +167,10 @@ export default function PengurusManager() {
   }
 
   async function nonaktif(id: number) {
+    if (profile?.role === 'pengunjung') {
+      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
+      return;
+    }
     setSimpan(true);
     setError(null);
     const { error: err } = await supabase
