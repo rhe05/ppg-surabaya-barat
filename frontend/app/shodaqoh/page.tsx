@@ -395,8 +395,11 @@ function ShodaqohContent() {
               const j = namaJenis.get(t.jenis_id);
               const bolehHapus = !isAdmin && t.dicatat_oleh === profile?.id && t.setoran_id == null;
               return (
-                <div key={t.id} className="baris-daftar flex items-center justify-between gap-2 px-4 py-3">
-                  <div className="min-w-0">
+                <div key={t.id} className="baris-daftar flex items-center gap-3 px-4 py-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-indigo-lembut text-indigo">
+                    <HandHeart size={15} />
+                  </span>
+                  <div className="min-w-0 flex-1">
                     <div className="truncate text-[13px] font-bold text-text">{j?.nama ?? `Jenis #${t.jenis_id}`}</div>
                     <div className="truncate text-[12px] text-text-dim">
                       {targetLabel(t)} · {fmtTgl(t.tanggal)}

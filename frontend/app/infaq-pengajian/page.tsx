@@ -192,8 +192,13 @@ function InfaqPengajianContent() {
                 type="button"
                 onClick={() => setKelasId(k.id)}
                 className={`flex shrink-0 items-center rounded-[var(--radius-button)] border-[1.5px] px-3.5 py-2 text-[13px] font-bold whitespace-nowrap transition-all duration-150 active:scale-[0.96] ${
-                  aktif ? 'border-brass text-brass' : 'border-border bg-panel text-text'
+                  aktif ? 'border-brass text-brass' : 'border-border bg-panel text-text-dim'
                 }`}
+                style={
+                  aktif
+                    ? { background: 'linear-gradient(135deg, var(--brass-lembut) 0%, var(--brass-lembut-2) 100%)' }
+                    : undefined
+                }
               >
                 {k.nama}
               </button>
@@ -219,6 +224,26 @@ function InfaqPengajianContent() {
               <HandCoins size={19} />
             </span>
           </div>
+
+          {!isAdmin && kelasId !== '' && (
+            <div className="mt-4 flex items-center justify-between gap-3 border-t border-white/15 pt-3">
+              <div className="min-w-0 flex-1">
+                <div className="text-[11px] text-white/55">
+                  {kelasList.length > 1 ? kelasList.find((k) => k.id === kelasId)?.nama : 'Bulan ini'}
+                </div>
+                <div className="truncate text-[13px] font-bold text-white">
+                  {list.length > 0 ? `${list.length} catatan` : 'Belum ada catatan'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={bukaTambah}
+                className="flex shrink-0 cursor-pointer items-center gap-1.5 self-center rounded-pill border-none bg-white px-4 py-2 text-[13px] font-extrabold text-text active:scale-95"
+              >
+                <Plus size={14} /> Catat
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -236,17 +261,6 @@ function InfaqPengajianContent() {
             ))}
           </div>
         </>
-      )}
-
-      {!isAdmin && kelasId !== '' && (
-        <button
-          type="button"
-          onClick={bukaTambah}
-          className="mb-5 flex w-full items-center justify-center gap-2 rounded-[var(--radius-button)] border-none bg-brass px-4 py-2.5 text-[13px] font-extrabold text-white active:scale-[0.98]"
-        >
-          <Plus size={15} strokeWidth={2.5} />
-          Catat Infaq
-        </button>
       )}
 
       <div className="label-mikro mb-3">Riwayat{list.length > 0 ? ` (${list.length})` : ''}</div>
@@ -268,12 +282,15 @@ function InfaqPengajianContent() {
       ) : (
         <div className="kartu-premium overflow-hidden">
           {list.map((r) => (
-            <div key={r.id} className="baris-daftar flex items-center justify-between gap-2 px-4 py-3">
-              <div className="min-w-0">
+            <div key={r.id} className="baris-daftar flex items-center gap-3 px-4 py-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brass-lembut text-brass">
+                <HandCoins size={15} />
+              </span>
+              <div className="min-w-0 flex-1">
                 <div className="truncate text-[13px] font-bold text-text">
                   {isAdmin ? (kelasNamaKelompok.get(r.kelas_id) ?? `Kelas #${r.kelas_id}`) : fmtTgl(r.tanggal)}
                 </div>
-                <div className="text-[12px] text-text-dim">
+                <div className="truncate text-[12px] text-text-dim">
                   {isAdmin ? fmtTgl(r.tanggal) : null}
                   {r.keterangan ? `${isAdmin ? ' · ' : ''}${r.keterangan}` : ''}
                 </div>
