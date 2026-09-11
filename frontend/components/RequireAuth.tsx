@@ -33,6 +33,7 @@ const HALAMAN_GURU = [
   '/tabungan',
   '/keuangan',
   '/infaq-pengajian',
+  '/shodaqoh',
   '/peringkat',
   /* Ditambahkan 2026-09-02, dibuka lebar sore harinya: Monitoring kini
      fitur berdiri sendiri di menu utama guru (GuruBottomNav > Lainnya),
@@ -55,8 +56,14 @@ const HALAMAN_KETUA_MUDAI = ['/ketua-mudai'];
 /* Peran 'pengunjung' (fitur demo via link, migrasi 20260911xxxxxx) — data
    FIKTIF di satu kelompok contoh, read-only. Boleh menjelajah KEDUA app
    mobile sekaligus (App Guru + Penerobos Kelp), gantian lewat
-   PengunjungBar — bukan dikunci ke satu app spt peran lain. */
-const HALAMAN_PENGUNJUNG = [...HALAMAN_GURU, ...HALAMAN_PENEROBOS];
+   PengunjungBar — bukan dikunci ke satu app spt peran lain.
+
+   '/shodaqoh' SENGAJA dikecualikan: RLS-nya (migrasi 20260911190000)
+   belum dibuka utk peran 'pengunjung' -- kalau dibiarkan ikut ke sini,
+   pengunjung akan mendarat di layar kosong/gagal simpan (dead-end),
+   bukan ditolak rapi. Infaq Pengajian & Keuangan aman, RLS-nya sudah
+   ada cabang pengunjung. */
+const HALAMAN_PENGUNJUNG = [...HALAMAN_GURU.filter((h) => h !== '/shodaqoh'), ...HALAMAN_PENEROBOS];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, profile, loading, profileError } = useAuth();

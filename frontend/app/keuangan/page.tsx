@@ -7,7 +7,7 @@
    dicampur jadi satu tabel/layar. */
 
 import { useRouter } from 'next/navigation';
-import { Banknote, HandCoins, ChevronRight } from 'lucide-react';
+import { Banknote, HandCoins, HandHeart, ChevronRight } from 'lucide-react';
 import RequireAuth from '@/components/RequireAuth';
 import AdminHeader from '@/components/dashboard/AdminHeader';
 import JurnalHeaderChrome from '@/components/jurnal/JurnalHeaderChrome';
@@ -29,6 +29,14 @@ const MENU = [
     ikon: HandCoins,
     warna: 'text-sage',
     bg: 'bg-sage-lembut',
+  },
+  {
+    label: 'Shodaqoh',
+    deskripsi: 'Jenis bebas diatur (Generus Sakit, Tali Asih Guru, dst) -- per anak atau global.',
+    href: '/shodaqoh',
+    ikon: HandHeart,
+    warna: 'text-indigo',
+    bg: 'bg-indigo-lembut',
   },
 ];
 
