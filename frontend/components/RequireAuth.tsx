@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
+import { LogOut, ShieldAlert } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { supabase } from '@/lib/supabase';
 import AdminSidebar from '@/components/dashboard/AdminSidebar';
 import GuruBottomNav from '@/components/dashboard/GuruBottomNav';
 import JamaahBottomNav from '@/components/jamaah/JamaahBottomNav';
@@ -109,6 +111,36 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       router.replace('/jamaah');
     }
   }, [loading, session, profile, pathname, router]);
+
+  /* Peran 'pengunjung' — cek masa berlaku link (30 hari) SENDIRI, sekali
+     per profil (diminta owner: "sudah 30 hari, akun tidak bisa dipakai,
+     harus izin lagi ke admin aplikasi"). Tanpa ini, akses yang kadaluwarsa
+     cuma ditahan RLS -- guru/kelas/jamaah dst balik nol tanpa penjelasan,
+     terbaca sbg aplikasi rusak, bukan "izin Anda berakhir". RPC
+     status_akses_pengunjung() (migrasi 20260911130000) SECURITY DEFINER
+     krn pengunjung_akses sendiri RLS-nya admin_ppg-only. Re-otorisasi =
+     admin_ppg buat link baru; begitu akun yg sama klaim ulang,
+     klaim_akses_pengunjung menimpa pengunjung_akses_id ke token baru --
+     "izin lagi ke admin" sudah otomatis lewat jalur klaim itu. */
+  const [statusPengunjung, setStatusPengunjung] = useState<'memuat' | 'aktif' | 'berakhir'>('memuat');
+  useEffect(() => {
+    if (profile?.role !== 'pengunjung') return;
+    let batal = false;
+    setStatusPengunjung('memuat');
+    supabase.rpc('status_akses_pengunjung').then(
+      ({ data }) => {
+        if (batal) return;
+        const baris = Array.isArray(data) ? data[0] : data;
+        setStatusPengunjung(baris?.valid ? 'aktif' : 'berakhir');
+      },
+      () => {
+        if (!batal) setStatusPengunjung('berakhir');
+      },
+    );
+    return () => {
+      batal = true;
+    };
+  }, [profile?.id, profile?.role]);
 
   const layarMemuat = (
     /* Logo berdenyut (bukan teks "Memuat sesi..." polos) -- diminta owner
@@ -262,6 +294,12 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
      bukan dikunci ke satu app spt peran lain — makanya dua bottom nav
      dirender bergantian, bukan satu tetap. */
   if (profile?.role === 'pengunjung') {
+    if (statusPengunjung === 'memuat') {
+      return layarMemuat;
+    }
+    if (statusPengunjung === 'berakhir') {
+      return <PengunjungBerakhir />;
+    }
     const modeJamaah = pathname?.startsWith('/jamaah');
     return (
       <div className="min-h-screen w-full bg-border">
@@ -280,5 +318,43 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       {children}
       <BannerOffline />
     </>
+  );
+}
+
+/* Layar blokir utk peran `pengunjung` yang link-nya sudah lewat 30 hari
+   atau dicabut admin_ppg. TIDAK merender {children} sama sekali --
+   pengunjung kadaluwarsa tak boleh menjelajah layar app apa pun, cuma
+   pesan + Keluar. Re-otorisasi: minta admin_ppg buat link baru, klaim
+   ulang dgn akun Google yang sama. */
+function PengunjungBerakhir() {
+  const router = useRouter();
+  const { signOut } = useAuth();
+
+  async function keluar() {
+    await signOut();
+    router.push('/auth/login');
+  }
+
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-bg p-5">
+      <div className="w-full max-w-[400px] rounded-[var(--radius-lg)] border border-border bg-panel px-7 py-9 text-center shadow-[var(--shadow-card)]">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-lembut text-red">
+          <ShieldAlert size={22} strokeWidth={2} />
+        </span>
+        <h1 className="mt-4 text-[17px] font-extrabold text-text">Akses Pengunjung Berakhir</h1>
+        <p className="mt-2.5 text-[13px] leading-relaxed text-text-dim">
+          Izin demo aplikasi Anda sudah lewat 30 hari atau dicabut. Hubungi admin PPG untuk
+          mendapatkan link akses yang baru.
+        </p>
+        <button
+          type="button"
+          onClick={keluar}
+          className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-button)] border border-border bg-panel px-4 py-2.5 text-[13px] font-bold text-text-dim active:scale-[0.98]"
+        >
+          <LogOut size={14} strokeWidth={2.2} />
+          Keluar
+        </button>
+      </div>
+    </main>
   );
 }
