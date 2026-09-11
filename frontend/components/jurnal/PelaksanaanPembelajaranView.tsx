@@ -369,6 +369,33 @@ export default function PelaksanaanPembelajaranView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan]);
 
+  /* Hapus baris materi (Klasikal / Peraga Tilawati / Ngaji) yang salah
+     input — pola sama tombol (x) di Riwayat Pembelajaran & Buku Jilid.
+     Soft-delete via UPDATE deleted_at (kebijakan UPDATE jurnal_materi
+     sudah membolehkan guru atas kelasnya, tak perlu migrasi). */
+  const [hapusMateriId, setHapusMateriId] = useState<number | null>(null);
+  const [menghapusMateri, setMenghapusMateri] = useState(false);
+
+  async function hapusMateri(id: number) {
+    if (kelasId === '') return;
+    setMenghapusMateri(true);
+    try {
+      const { error } = await supabase
+        .from('jurnal_materi')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+      setHapusMateriId(null);
+      tandaiMateriBerubah(kelasId, tahun, bulan);
+      push('Materi dihapus.', 'sukses');
+      await muat();
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal menghapus materi.', 'error');
+    } finally {
+      setMenghapusMateri(false);
+    }
+  }
+
   /* ── Kartu "Tilawati" (2026-09-03, diminta owner) ──────────────────
      Per santri di kelas: Buku Jilid / Halaman / Naik|Tetap, dicatat
      guru "hari ini". Tabel tilawati_pelaksanaan (migrasi 20260903120000),
@@ -890,7 +917,8 @@ export default function PelaksanaanPembelajaranView() {
     );
     return (
       <div key={b.uid} className="border-t border-border px-3.5 py-3">
-        <div className="min-w-0">
+        <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
           {(labelBaris || b.tanggalRencana) && (
             <span className="label-mikro block">
               {[labelBaris, b.tanggalRencana ? tanggalPendek(b.tanggalRencana) : null]
@@ -929,6 +957,41 @@ export default function PelaksanaanPembelajaranView() {
           {terkunci && (
             <span className="mt-1 block text-[12px] leading-snug text-text-faint">{terkunci}</span>
           )}
+        </div>
+
+        {/* Hapus materi — pola sama tombol (x) Buku Jilid / Riwayat. */}
+        {b.id != null && (
+          <span className="mt-0.5 flex shrink-0 items-center">
+            {hapusMateriId === b.id ? (
+              <span className="flex items-center gap-1">
+                <button
+                  type="button"
+                  disabled={menghapusMateri}
+                  onClick={() => b.id != null && hapusMateri(b.id)}
+                  className="rounded-full bg-red px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                >
+                  Hapus
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setHapusMateriId(null)}
+                  className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold text-text-dim"
+                >
+                  Batal
+                </button>
+              </span>
+            ) : (
+              <button
+                type="button"
+                aria-label="Hapus materi ini"
+                onClick={() => b.id != null && setHapusMateriId(b.id)}
+                className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </span>
+        )}
         </div>
 
         <div className="mt-2.5 flex gap-1.5">
