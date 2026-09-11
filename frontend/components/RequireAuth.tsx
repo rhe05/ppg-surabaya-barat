@@ -8,6 +8,7 @@ import AdminSidebar from '@/components/dashboard/AdminSidebar';
 import GuruBottomNav from '@/components/dashboard/GuruBottomNav';
 import JamaahBottomNav from '@/components/jamaah/JamaahBottomNav';
 import BannerOffline from '@/components/ui/BannerOffline';
+import PengunjungBar from '@/components/ui/PengunjungBar';
 
 /* Halaman yang boleh dibuka peran `guru`, menyalin menu mobile guru app lama
    (Markup_Screens.html:229-257): Dashboard, Pilih Kelas, Jurnal, Kurikulum,
@@ -46,6 +47,12 @@ const HALAMAN_PENEROBOS = ['/jamaah'];
 /* Peran 'ketua_mudai' (Ketua Muda-i, migrasi 20260909180000) — untuk
    sekarang belum punya aplikasi; diarahkan ke halaman "fitur menyusul". */
 const HALAMAN_KETUA_MUDAI = ['/ketua-mudai'];
+
+/* Peran 'pengunjung' (fitur demo via link, migrasi 20260911xxxxxx) — data
+   FIKTIF di satu kelompok contoh, read-only. Boleh menjelajah KEDUA app
+   mobile sekaligus (App Guru + Penerobos Kelp), gantian lewat
+   PengunjungBar — bukan dikunci ke satu app spt peran lain. */
+const HALAMAN_PENGUNJUNG = [...HALAMAN_GURU, ...HALAMAN_PENEROBOS];
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { session, profile, loading, profileError } = useAuth();
@@ -92,6 +99,14 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
       !HALAMAN_KETUA_MUDAI.some((h) => pathname === h || pathname.startsWith(h + '/'))
     ) {
       router.replace('/ketua-mudai');
+    }
+    if (
+      !loading &&
+      profile?.role === 'pengunjung' &&
+      pathname &&
+      !HALAMAN_PENGUNJUNG.some((h) => pathname === h || pathname.startsWith(h + '/'))
+    ) {
+      router.replace('/jamaah');
     }
   }, [loading, session, profile, pathname, router]);
 
@@ -152,7 +167,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
      wrapper flex ini transparan (sidebar tidak makan ruang), jadi tampilan
      admin di layar sempit pun tidak berubah, cuma dapat sidebar di layar
      lebar. */
-  const PERAN_MOBILE = ['guru', 'penerobos', 'ketua_mudai'];
+  const PERAN_MOBILE = ['guru', 'penerobos', 'ketua_mudai', 'pengunjung'];
   const tampilkanSidebar = !!profile?.role && !PERAN_MOBILE.includes(profile.role);
   if (tampilkanSidebar) {
     return (
@@ -237,6 +252,25 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
           {children}
         </div>
         <BannerOffline />
+      </div>
+    );
+  }
+
+  /* Peran 'pengunjung' — demo aplikasi via link (fitur 2026-09-11). Data
+     FIKTIF, read-only, satu kelompok contoh. Boleh gonta-ganti App Guru
+     <-> Penerobos Kelp lewat PengunjungBar (deteksi dari pathname),
+     bukan dikunci ke satu app spt peran lain — makanya dua bottom nav
+     dirender bergantian, bukan satu tetap. */
+  if (profile?.role === 'pengunjung') {
+    const modeJamaah = pathname?.startsWith('/jamaah');
+    return (
+      <div className="min-h-screen w-full bg-border">
+        <div className="animasi-konten-muncul mx-auto min-h-screen w-full max-w-[430px] bg-bg shadow-[0_0_40px_rgba(15,23,42,0.12)]">
+          <PengunjungBar aktif={modeJamaah ? 'jamaah' : 'guru'} />
+          {children}
+        </div>
+        {modeJamaah ? <JamaahBottomNav /> : <GuruBottomNav />}
+        <BannerOffline adaBottomNav />
       </div>
     );
   }

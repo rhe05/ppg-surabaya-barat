@@ -25,6 +25,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 import type { JenisOverride } from '@/lib/kalenderKelompok';
 import RegistrasiGuru, { formatWaktuBergabung } from '@/components/registrasi/RegistrasiGuru';
+import AksesPengunjungManager from '@/components/pengunjung/AksesPengunjungManager';
 
 /* MVP app lama baru memakai kategori 'cabe-rawit'; strukturnya sudah
    kategori-scoped sehingga menambah kategori lain nanti tidak perlu
@@ -813,6 +814,14 @@ function PengaturanContent() {
           ) : (
             <RegistrasiGuru kelompokId={kelompokId} />
           )}
+        </div>
+      )}
+
+      {/* ── Akses Pengunjung (demo aplikasi via link, admin_ppg saja) ── */}
+      {adalahPpg && (
+        <div className="mb-8 rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)]">
+          <div className="mb-4 text-[15px] font-bold text-text">Akses Pengunjung</div>
+          <AksesPengunjungManager />
         </div>
       )}
 

@@ -35,9 +35,27 @@ export default function AuthCallbackPage() {
     }
 
     let selesai = false;
-    function lanjut() {
+    /* Fitur Pengunjung (2026-09-11): token disimpan di localStorage oleh
+       /pengunjung/[token] SEBELUM redirect ke Google (redirectTo halaman
+       ini tetap satu untuk semua alur, tak bisa dibawa lewat query param
+       Google sendiri). Kalau ada token tertunda, klaim dulu lewat RPC
+       SECURITY DEFINER sebelum melempar ke /dashboard spt biasa. */
+    async function lanjut() {
       if (selesai) return;
       selesai = true;
+      const token = window.localStorage.getItem('pengunjung_token');
+      if (token) {
+        window.localStorage.removeItem('pengunjung_token');
+        const { error: errKlaim } = await supabase.rpc('klaim_akses_pengunjung', {
+          p_token: token,
+        });
+        if (errKlaim) {
+          setError(errKlaim.message);
+          return;
+        }
+        router.replace('/jamaah');
+        return;
+      }
       router.replace('/dashboard');
     }
 
