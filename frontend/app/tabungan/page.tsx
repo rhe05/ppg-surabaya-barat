@@ -25,6 +25,7 @@ import { useToast } from '@/components/ui/useToast';
 import TabunganSantriSheet from '@/components/tabungan/TabunganSantriSheet';
 import TabunganSetorSheet from '@/components/tabungan/TabunganSetorSheet';
 import TabunganHimpunanPanel from '@/components/tabungan/TabunganHimpunanPanel';
+import { JENJANG_URUT } from '@/lib/jenjang';
 import {
   muatJenis,
   muatTransaksiKelompok,
@@ -119,13 +120,17 @@ function TabunganContent() {
          bisa mencari & mencatat untuk anak mana pun; daftar yang cuma
          berisi kelasnya sendiri membuat jalur itu mustahil dipakai. */
       if (isAdmin || akuPenghimpun) {
+        /* Penghimpun (bukan admin) bisa dibatasi ke jenjang tertentu
+           (mis. Bu Ratna cuma menghimpun Cabe Rawit) -- diminta owner
+           2026-09-11, migrasi 20260911200000. NULL/kosong = semua
+           jenjang (perilaku lama). admin_kelompok TIDAK ikut disaring:
+           dia perlu lihat semua santri utk mengelola tabungan. */
+        let query = supabase.from('santri').select('id, nama').eq('kelompok_id', kelompokId).is('deleted_at', null);
+        if (akuPenghimpun && pHimp?.jenjang && pHimp.jenjang.length > 0) {
+          query = query.in('jenjang_saat_ini', pHimp.jenjang);
+        }
         const [{ data: dS }, txAll] = await Promise.all([
-          supabase
-            .from('santri')
-            .select('id, nama')
-            .eq('kelompok_id', kelompokId)
-            .is('deleted_at', null)
-            .order('nama'),
+          query.order('nama'),
           muatTransaksiKelompok(kelompokId),
         ]);
         setSantri((dS ?? []) as Santri[]);
@@ -719,14 +724,37 @@ function PenghimpunModal({
 }) {
   const [guruId, setGuruId] = useState<string>(awal?.guru_id != null ? String(awal.guru_id) : '');
   const [catatan, setCatatan] = useState(awal?.catatan ?? '');
+  /* Jenjang yang dihimpun -- kosong (tak satu pun dicentang) ATAU semua
+     dicentang, DUA-DUANYA berarti "semua jenjang" (disimpan null),
+     supaya admin yang belum pernah menyentuh pengaturan ini otomatis
+     tetap dapat perilaku lama. Hanya kalau SEBAGIAN dicentang baru
+     tersimpan sbg pembatas. */
+  const [jenjangDipilih, setJenjangDipilih] = useState<Set<string>>(
+    new Set(awal?.jenjang && awal.jenjang.length > 0 ? awal.jenjang : JENJANG_URUT),
+  );
   const [sibuk, setSibuk] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function toggleJenjang(j: string) {
+    setJenjangDipilih((prev) => {
+      const next = new Set(prev);
+      if (next.has(j)) next.delete(j);
+      else next.add(j);
+      return next;
+    });
+  }
+
   async function simpan() {
     setError(null);
+    if (jenjangDipilih.size === 0) {
+      setError('Pilih minimal satu jenjang, atau centang semua kalau tidak dibatasi.');
+      return;
+    }
     setSibuk(true);
     try {
-      await simpanPenghimpun(kelompokId, guruId ? Number(guruId) : null, catatan, olehId);
+      const jenjangUtkDisimpan =
+        jenjangDipilih.size === JENJANG_URUT.length ? null : [...jenjangDipilih];
+      await simpanPenghimpun(kelompokId, guruId ? Number(guruId) : null, catatan, olehId, jenjangUtkDisimpan);
       onSelesai();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
@@ -767,6 +795,36 @@ function PenghimpunModal({
             </option>
           ))}
         </select>
+
+        <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">
+          Jenjang yang dihimpun
+        </label>
+        <p className="mb-2 text-[11px] text-text-faint">
+          Batasi daftar Generus yang tampil di layar penghimpun ini — mis. Bu Ratna cuma menghimpun
+          Cabe Rawit, tak perlu melihat seluruh jenjang. Centang semua kalau tidak dibatasi.
+        </p>
+        <div className="mb-3 flex flex-wrap gap-1.5">
+          {JENJANG_URUT.map((j) => {
+            const dicentang = jenjangDipilih.has(j);
+            return (
+              <button
+                key={j}
+                type="button"
+                onClick={() => toggleJenjang(j)}
+                className={`cursor-pointer rounded-full border-[1.5px] px-3 py-1.5 text-[12px] font-bold transition-all duration-150 active:scale-[0.96] ${
+                  dicentang ? 'border-brass text-brass' : 'border-border bg-panel text-text-dim'
+                }`}
+                style={
+                  dicentang
+                    ? { background: 'linear-gradient(135deg, var(--brass-lembut) 0%, var(--brass-lembut-2) 100%)' }
+                    : undefined
+                }
+              >
+                {j}
+              </button>
+            );
+          })}
+        </div>
 
         <label className="mb-1.5 block text-[12px] font-semibold text-text-dim">Catatan (opsional)</label>
         <input

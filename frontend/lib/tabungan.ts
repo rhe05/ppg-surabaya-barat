@@ -63,6 +63,12 @@ export type Penghimpun = {
   kelompok_id: number;
   guru_id: number | null;
   catatan: string | null;
+  /* Jenjang yang dihimpun orang ini -- NULL/kosong = semua jenjang
+     (perilaku lama). Diminta owner 2026-09-11: Bu Ratna (penghimpun)
+     mengeluh daftar Generus yang tampil semua jenjang padahal dia cuma
+     menghimpun sebagian. Cuma menyaring TAMPILAN penghimpun sendiri --
+     admin_kelompok tetap lihat semua santri, bukan batas RLS. */
+  jenjang: string[] | null;
 };
 
 const KOLOM_TX =
@@ -276,7 +282,7 @@ export async function hapusTransaksi(id: number): Promise<void> {
 export async function muatPenghimpun(kelompokId: number): Promise<Penghimpun | null> {
   const { data, error } = await supabase
     .from('tabungan_penghimpun')
-    .select('kelompok_id, guru_id, catatan')
+    .select('kelompok_id, guru_id, catatan, jenjang')
     .eq('kelompok_id', kelompokId)
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -288,12 +294,14 @@ export async function simpanPenghimpun(
   guruId: number | null,
   catatan: string | null,
   olehId: string | null,
+  jenjang: string[] | null = null,
 ): Promise<void> {
   const { error } = await supabase.from('tabungan_penghimpun').upsert(
     {
       kelompok_id: kelompokId,
       guru_id: guruId,
       catatan: catatan?.trim() || null,
+      jenjang,
       updated_oleh: olehId,
       updated_at: new Date().toISOString(),
     },
