@@ -53,7 +53,16 @@ export default function AuthCallbackPage() {
           setError(errKlaim.message);
           return;
         }
-        router.replace('/jamaah');
+        /* Reload PENUH (bukan router.replace) -- WAJIB. AuthProvider
+           mengambil profil PERSIS saat sesi ini muncul, lomba melawan
+           UPDATE role='pengunjung' dari RPC di atas: kalau ambilnya
+           menang duluan, dia dapat baris trigger handle_new_auth_user()
+           yang role-nya masih NULL, dan tidak pernah mengambil ulang
+           saat pindah halaman -- RequireAuth melihat role NULL itu lalu
+           melempar ke /onboarding padahal baris di DB sudah benar
+           'pengunjung'. Reload penuh me-remount AuthProvider dari nol,
+           jadi profil yang diambil sudah pasti yang terbaru. */
+        window.location.href = '/jamaah';
         return;
       }
       router.replace('/dashboard');
