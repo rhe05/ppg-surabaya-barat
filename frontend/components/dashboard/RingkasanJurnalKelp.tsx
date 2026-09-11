@@ -14,12 +14,15 @@
    - kejujuran data basi ("data terakhir N hari lalu");
    - tombol "Kirim Pengingat" -> lonceng guru + jejak kapan terakhir. */
 
-import { useCallback, useEffect, useState } from 'react';
-import { ChevronDown, Send, AlertTriangle } from 'lucide-react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { ChevronDown, Send, AlertTriangle, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { useToast } from '@/components/ui/useToast';
 import Skeleton from '@/components/ui/Skeleton';
 import PemilihBulanTahun from '@/components/ui/PemilihBulanTahun';
+import { muatMateriBulan, type MateriJurnal } from '@/lib/dataGuru';
+import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
+import { pecahJudulMateri } from '@/lib/judulMateri';
 import {
   muatRingkasanJurnalPerKelas,
   ringkasKelompokDariKelas,
@@ -54,6 +57,132 @@ function KerangkaKartu() {
         {Array.from({ length: 5 }, (_, i) => (
           <Skeleton key={i} className="h-[76px] w-full rounded-[10px]" />
         ))}
+      </div>
+    </div>
+  );
+}
+
+const NAMA_BULAN = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+function formatTanggal(iso: string): string {
+  const d = new Date(iso + 'T00:00:00');
+  return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]}`;
+}
+const esPeragaTilawati = (judul: string) =>
+  /peraga tilawati/i.test(judul) || /^baca huruf al-?qur/i.test(judul.trim());
+
+/* Detail "Riwayat Pembelajaran" (Materi Klasikal / Materi Ngaji / Tilawati
+   -- Peraga + Buku Jilid) di dalam kartu Ringkasan Jurnal admin (diminta
+   owner 2026-09-11: admin ingin lihat isinya, bukan cuma angka ringkasan).
+   Read-only -- pola render sama dgn RiwayatPembelajaranView.tsx (guru),
+   TANPA tombol hapus (itu wewenang guru pemilik kelas). */
+function BarisMateriRingkas({ m }: { m: MateriJurnal }) {
+  const sudah = m.status === 'disampaikan';
+  const gagal = m.status === 'tidak_tersampaikan';
+  const { kategori, utama, rincian } = pecahJudulMateri(m.judul);
+  const tgl = m.tanggal_disampaikan ?? m.tanggal_rencana;
+  return (
+    <div className="flex items-start gap-2 py-1.5">
+      <span
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
+          sudah ? 'bg-sage-lembut text-sage' : gagal ? 'bg-red-lembut text-red' : 'bg-brass-lembut text-brass'
+        }`}
+      >
+        {sudah ? <CheckCircle2 size={12} /> : gagal ? <XCircle size={12} /> : <Clock size={12} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[12px] font-semibold text-text">{utama}</div>
+        <div className="text-[10.5px] text-text-faint">
+          {[kategori, tgl ? formatTanggal(tgl) : null].filter(Boolean).join(' · ') || '—'}
+        </div>
+        {rincian && <div className="text-[10.5px] leading-snug text-text-dim">{rincian}</div>}
+      </div>
+    </div>
+  );
+}
+
+function SubJudulRiwayat({ children }: { children: ReactNode }) {
+  return <div className="mb-1 text-[10.5px] font-bold tracking-[0.02em] text-text-dim uppercase">{children}</div>;
+}
+
+function DetailRiwayatKelas({
+  materi,
+  tilawati,
+  loading,
+}: {
+  materi: MateriJurnal[];
+  tilawati: TilawatiRingkas[];
+  loading: boolean;
+}) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Skeleton className="h-[36px] w-full rounded-[8px]" />
+        <Skeleton className="h-[36px] w-full rounded-[8px]" />
+      </div>
+    );
+  }
+  const klasikal = materi.filter((m) => m.jenis === 'klasikal');
+  const peraga = materi.filter((m) => m.jenis !== 'klasikal' && esPeragaTilawati(m.judul));
+  const ngaji = materi.filter((m) => m.jenis !== 'klasikal' && !esPeragaTilawati(m.judul));
+
+  return (
+    <div className="flex flex-col gap-3 rounded-[var(--radius-lg)] bg-panel p-3">
+      <div>
+        <SubJudulRiwayat>Materi Klasikal</SubJudulRiwayat>
+        {klasikal.length === 0 ? (
+          <p className="text-[11.5px] text-text-faint">Belum ada materi Klasikal.</p>
+        ) : (
+          klasikal.map((m) => <BarisMateriRingkas key={m.id} m={m} />)
+        )}
+      </div>
+      <div className="border-t border-border pt-2.5">
+        <SubJudulRiwayat>Materi Ngaji</SubJudulRiwayat>
+        {ngaji.length === 0 ? (
+          <p className="text-[11.5px] text-text-faint">Belum ada materi Ngaji.</p>
+        ) : (
+          ngaji.map((m) => <BarisMateriRingkas key={m.id} m={m} />)
+        )}
+      </div>
+      <div className="border-t border-border pt-2.5">
+        <SubJudulRiwayat>Tilawati — Peraga</SubJudulRiwayat>
+        {peraga.length === 0 ? (
+          <p className="text-[11.5px] text-text-faint">Belum ada catatan Peraga Tilawati.</p>
+        ) : (
+          peraga.map((m) => <BarisMateriRingkas key={m.id} m={m} />)
+        )}
+      </div>
+      <div className="border-t border-border pt-2.5">
+        <SubJudulRiwayat>Tilawati — Buku Jilid</SubJudulRiwayat>
+        {tilawati.length === 0 ? (
+          <p className="text-[11.5px] text-text-faint">Belum ada catatan Buku Jilid.</p>
+        ) : (
+          tilawati.map((s) => (
+            <div key={s.santriId} className="mb-2 last:mb-0">
+              <div className="text-[12px] font-bold text-text">{s.nama}</div>
+              {s.hari.map((h) => (
+                <div key={h.id} className="flex items-center justify-between gap-2 py-0.5 text-[11px]">
+                  <span className="min-w-0 truncate text-text-dim">
+                    {formatTanggal(h.tanggal)}
+                    {h.jilid ? ` · Jilid ${h.jilid}` : ''}
+                    {h.halaman ? ` hal ${h.halaman}` : ''}
+                  </span>
+                  {h.status && (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        h.status === 'naik' ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+                      }`}
+                    >
+                      {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -99,6 +228,15 @@ export default function RingkasanJurnalKelp({
   const [mengirim, setMengirim] = useState<number | null>(null);
   const [mengirimSemua, setMengirimSemua] = useState(false);
 
+  /* Detail "Riwayat Pembelajaran" per kelas -- dimuat LAZY hanya saat
+     kartu kelasnya dibuka, bukan sekaligus semua kelas (kartu ini bisa
+     menampilkan puluhan kelas). Dibuang setiap kali bulan/tahun/kelompok
+     ganti (lihat useEffect di bawah `muat`), supaya tidak menampilkan
+     detail bulan yang salah kalau admin ganti bulan lalu buka lagi. */
+  const [detailKelas, setDetailKelas] = useState<
+    Record<number, { materi: MateriJurnal[]; tilawati: TilawatiRingkas[]; loading: boolean }>
+  >({});
+
   const muat = useCallback(async () => {
     if (!kelompokId) {
       setList([]);
@@ -119,7 +257,33 @@ export default function RingkasanJurnalKelp({
 
   useEffect(() => {
     muat();
+    setDetailKelas({});
   }, [muat]);
+
+  async function muatDetailKelas(kelasId: number) {
+    setDetailKelas((prev) => ({
+      ...prev,
+      [kelasId]: { materi: prev[kelasId]?.materi ?? [], tilawati: prev[kelasId]?.tilawati ?? [], loading: true },
+    }));
+    try {
+      const mm = String(bulan).padStart(2, '0');
+      const akhirHari = new Date(tahun, bulan, 0).getDate();
+      const awal = `${tahun}-${mm}-01`;
+      const akhir = `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`;
+      const [materi, tilawati] = await Promise.all([
+        muatMateriBulan(kelasId, tahun, bulan),
+        muatTilawatiRingkas(kelasId, awal, akhir),
+      ]);
+      setDetailKelas((prev) => ({ ...prev, [kelasId]: { materi, tilawati, loading: false } }));
+    } catch {
+      setDetailKelas((prev) => ({ ...prev, [kelasId]: { materi: [], tilawati: [], loading: false } }));
+    }
+  }
+
+  function toggleKelas(kelasId: number) {
+    setKelasTerbuka((c) => (c === kelasId ? null : kelasId));
+    if (!detailKelas[kelasId]) muatDetailKelas(kelasId);
+  }
 
   /* Buka sendiri kalau ada kelas TERTINGGAL -- admin tidak perlu ingat
      mengetuk. Dihormati kalau admin sudah melipat manual. */
@@ -361,7 +525,7 @@ export default function RingkasanJurnalKelp({
               <div key={k.kelasId} className="rounded-[var(--radius-lg)] border border-border bg-panel-2 p-3.5">
                 <button
                   type="button"
-                  onClick={() => setKelasTerbuka((c) => (c === k.kelasId ? null : k.kelasId))}
+                  onClick={() => toggleKelas(k.kelasId)}
                   className="w-full cursor-pointer border-none bg-transparent p-0 text-left"
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -437,6 +601,16 @@ export default function RingkasanJurnalKelp({
                           ? `Jurnal terakhir diubah ${k.hariSejakDisentuh} hari lalu, belum ada yang disampaikan.`
                           : 'Guru belum membuat entri jurnal bulan ini.'}
                     </div>
+
+                    {/* Riwayat Pembelajaran lengkap (diminta owner
+                        2026-09-11) -- Materi Klasikal / Materi Ngaji /
+                        Tilawati (Peraga + Buku Jilid), sama isinya dgn
+                        layar guru, cuma read-only. */}
+                    <DetailRiwayatKelas
+                      materi={detailKelas[k.kelasId]?.materi ?? []}
+                      tilawati={detailKelas[k.kelasId]?.tilawati ?? []}
+                      loading={detailKelas[k.kelasId]?.loading ?? true}
+                    />
                   </div>
                 )}
 
