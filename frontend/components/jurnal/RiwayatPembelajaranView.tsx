@@ -116,8 +116,15 @@ export default function RiwayatPembelajaranView() {
   }, [muatTilawati]);
 
   async function hapusCatatanTilawati(id: number) {
+    /* Peran 'pengunjung' (demo via link, 2026-09-11) boleh input/edit data
+       (pengunjung_jejak mencatat & mengembalikannya otomatis 30 hari
+       kemudian) -- TAPI hapus di sini DELETE KERAS (bukan soft-delete via
+       kolom deleted_at), jadi mekanisme jejak/kembalikan itu tak berlaku
+       utknya (trigger cuma pasang di INSERT/UPDATE). Baris Buku Jilid
+       contoh yang terhapus keras tak bisa dipulihkan -- makanya TETAP
+       dicegat di sini, beda dari aksi tulis lain di app ini. */
     if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
+      push('Mode Pengunjung: menghapus permanen catatan ini belum tersedia.', 'info');
       setHapusTilawatiId(null);
       return;
     }
@@ -173,11 +180,6 @@ export default function RiwayatPembelajaranView() {
 
   async function hapusMateri(id: number) {
     if (kelasId === '') return;
-    if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-      setHapusMateriId(null);
-      return;
-    }
     setMenghapusMateri(true);
     try {
       const { error } = await supabase

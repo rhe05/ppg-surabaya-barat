@@ -378,10 +378,6 @@ export default function PelaksanaanPembelajaranView() {
 
   async function hapusMateri(id: number) {
     if (kelasId === '') return;
-    if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-      return;
-    }
     setMenghapusMateri(true);
     try {
       const { error } = await supabase
@@ -504,14 +500,6 @@ export default function PelaksanaanPembelajaranView() {
   const simpanTilawati = useCallback(
     async (santriId: number) => {
       if (kelasId === '') return;
-      /* Peran 'pengunjung' (demo via link) READ-ONLY -- RLS tabel
-         tilawati_pelaksanaan sengaja tak punya kebijakan tulis utknya.
-         Dicegat di sini dgn pesan jelas, bukan dibiarkan tembus ke error
-         RLS mentah "new row violates row-level security policy". */
-      if (profile?.role === 'pengunjung') {
-        push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-        return;
-      }
       const b = tilawatiRef.current[santriId] ?? { jilid: '', halaman: '', status: '' as const };
       try {
         const { error } = await supabase.from('tilawati_pelaksanaan').upsert(
@@ -569,13 +557,6 @@ export default function PelaksanaanPembelajaranView() {
   const simpanBaris = useCallback(
     async (uid: string) => {
       if (kelasId === '') return;
-      /* Peran 'pengunjung' (demo via link) READ-ONLY -- RLS jurnal_materi
-         sengaja tak punya kebijakan tulis utknya. Dicegat di sini dgn
-         pesan jelas, bukan tembus ke error RLS mentah. */
-      if (profile?.role === 'pengunjung') {
-        push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-        return;
-      }
       const b = barisRef.current.find((x) => x.uid === uid);
       if (!b) return;
       const status = b.status;

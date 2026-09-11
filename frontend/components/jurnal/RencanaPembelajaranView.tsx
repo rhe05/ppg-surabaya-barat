@@ -849,10 +849,6 @@ export default function RencanaPembelajaranView() {
 
   async function simpanKlasikalBaru() {
     if (kelasId === '' || tanggalKlasikalBaru === '' || hafalanSuratBaru.length === 0) return;
-    if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-      return;
-    }
     if (tanggalKlasikalAdalahAsad) {
       push('Tanggal ini Pencak Silat ASAD — tidak ada klasikal. Batalkan dulu penandanya bila keliru.', 'info');
       return;
@@ -967,10 +963,6 @@ export default function RencanaPembelajaranView() {
 
   async function simpanMateriBaru() {
     if (kelasId === '' || judulBaru.trim().length === 0 || tanggalRencanaBaru === '') return;
-    if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
-      return;
-    }
     let judul = judulBaru.trim();
     /* Peraga Tilawati (kondisi khusus di atas): rentang halaman jadi
        bagian judul supaya tampil di kartu Rencana & Pelaksanaan tanpa

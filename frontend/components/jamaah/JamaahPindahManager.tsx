@@ -16,7 +16,6 @@ import FieldTanggal from '@/components/ui/FieldTanggal';
 import { FieldSaran } from '@/components/ui/FieldSaran';
 import { saranUnikDenganRec } from '@/lib/saran';
 import { KOLOM_JAMAAH_PINDAH, type JamaahRow } from '@/lib/jamaah';
-import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] text-text focus:border-navy focus:outline-none';
@@ -78,11 +77,6 @@ export default function JamaahPindahManager() {
 
   async function kembalikan() {
     if (!pulihkan) return;
-    if (profile?.role === 'pengunjung') {
-      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
-      setPulihkan(null);
-      return;
-    }
     setProses(true);
     const { error: err } = await supabase
       .from('jamaah')
@@ -214,7 +208,6 @@ function CatatPindahForm({
   onSelesai: () => void;
   onBatal: () => void;
 }) {
-  const { profile } = useAuth();
   const [teksNama, setTeksNama] = useState('');
   const [terpilih, setTerpilih] = useState<JamaahRow | null>(null);
   const [tanggal, setTanggal] = useState('');
@@ -227,10 +220,6 @@ function CatatPindahForm({
   async function simpan() {
     if (!terpilih) {
       setError('Pilih jamaah dari daftar dulu.');
-      return;
-    }
-    if (profile?.role === 'pengunjung') {
-      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
       return;
     }
     setMenyimpan(true);

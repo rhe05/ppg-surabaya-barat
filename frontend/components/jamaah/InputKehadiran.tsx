@@ -21,7 +21,6 @@ import {
   type SubKelp,
   type StatusHadir,
 } from '@/lib/jamaah';
-import { PESAN_PENGUNJUNG_HANYA_LIHAT } from '@/lib/pengunjung';
 
 type JamaahRingkas = Pick<JamaahRow, 'id' | 'nama' | 'gender' | 'sub_kelp_id'>;
 
@@ -135,10 +134,6 @@ export default function InputKehadiran({ acaraId }: { acaraId: number }) {
 
   async function simpan() {
     if (!adaPerubahan) return;
-    if (profile?.role === 'pengunjung') {
-      setError(PESAN_PENGUNJUNG_HANYA_LIHAT);
-      return;
-    }
     setMenyimpan(true);
     setError(null);
 
