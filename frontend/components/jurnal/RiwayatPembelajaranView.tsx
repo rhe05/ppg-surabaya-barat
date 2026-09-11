@@ -116,6 +116,11 @@ export default function RiwayatPembelajaranView() {
   }, [muatTilawati]);
 
   async function hapusCatatanTilawati(id: number) {
+    if (profile?.role === 'pengunjung') {
+      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
+      setHapusTilawatiId(null);
+      return;
+    }
     setMenghapusTilawati(true);
     try {
       const { error } = await supabase.from('tilawati_pelaksanaan').delete().eq('id', id);
@@ -168,6 +173,11 @@ export default function RiwayatPembelajaranView() {
 
   async function hapusMateri(id: number) {
     if (kelasId === '') return;
+    if (profile?.role === 'pengunjung') {
+      push('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.', 'info');
+      setHapusMateriId(null);
+      return;
+    }
     setMenghapusMateri(true);
     try {
       const { error } = await supabase

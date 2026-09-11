@@ -417,6 +417,17 @@ function AbsensiContent() {
   async function handleSimpanGuru() {
     if (!kelasId || santri.length === 0) return;
 
+    /* Peran 'pengunjung' (demo via link, 2026-09-11) sengaja READ-ONLY —
+       RLS tabel `absensi` tidak punya kebijakan tulis utk peran itu (dan
+       memang tidak boleh ada, ini kelompok contoh publik). Tanpa penjagaan
+       ini, klik Simpan tembus sampai RPC lalu balik "new row violates
+       row-level security policy" mentah -- dicegat di sini dgn pesan yang
+       jelas SEBELUM RPC dipanggil, bukan menyembunyikan error itu. */
+    if (profile?.role === 'pengunjung') {
+      setSaveError('Mode Pengunjung hanya untuk melihat — perubahan tidak bisa disimpan.');
+      return;
+    }
+
     const kelasAktif = kelasDetail.find((k) => k.id === Number(kelasId));
     const hariIni = tanggalHariIni();
 
