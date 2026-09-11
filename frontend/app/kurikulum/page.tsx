@@ -80,15 +80,23 @@ const NAMA_BULAN = [
    penuh di atas tetap dipakai apa adanya di tempat lain (judul modal
    Ubah/Pencapaian, dst), tidak ikut disingkat. */
 const NAMA_BULAN_SINGKAT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agt', 'Sep', 'Okt', 'Nov', 'Des'];
-/* Label bulan Probul KHUSUS materi Bacaan Al-Qur'an PAUD/TK & kelas 1-3 -- murni
-   ganti NAMA yang ditampilkan (posisi ke-N dalam semester), TIDAK
-   menyentuh nomor `bulan` asli di DB, urutan, atau semester-nya sama
-   sekali. Semester 1 ditampilkan Jul-Des, semester 2 Jan-Jun (kalender
-   akademik: tahun ajaran mulai Juli) -- kebalikan dari semester1=bulan
-   1-6/semester2=bulan7-12 yang tersimpan di DB (dipertahankan apa
-   adanya krn urutan & pengelompokan tetap harus konsisten dgn
-   TargetBulanan.tsx). */
-const KELAS_BULAN_AKADEMIK_BACAAN = ['PAUD-TK', '1', '2', '3'];
+/* Label bulan Probul KHUSUS materi Bacaan Al-Qur'an -- murni ganti NAMA
+   yang ditampilkan (posisi ke-N dalam semester), TIDAK menyentuh nomor
+   `bulan` asli di DB, urutan, atau semester-nya sama sekali. Semester 1
+   ditampilkan Jul-Des, semester 2 Jan-Jun (kalender akademik: tahun
+   ajaran mulai Juli) -- kebalikan dari semester1=bulan 1-6/semester2=
+   bulan7-12 yang tersimpan di DB (dipertahankan apa adanya krn urutan &
+   pengelompokan tetap harus konsisten dgn TargetBulanan.tsx).
+
+   Awalnya (2026-08-23) cuma dipasang utk PAUD-TK s.d. 3 krn waktu itu
+   HANYA kelas itu yang sudah diisi Probul-nya. Diperluas ke SELURUH
+   kelas kategori ini (2026-09-11, diminta owner setelah mengisi Prota+
+   Probul kelas 4-9): baris Probul kelas 4-12 dites lewat Management
+   API, polanya SAMA PERSIS (12 baris/kelas, bulan 1-6 per semester) --
+   tanpa perluasan ini kelas 4-9 (dan 10-12 yg ternyata sudah lama
+   terisi jg) menampilkan "Jan..Jun" DUA KALI (sekali per semester),
+   bukan Jul-Des lalu Jan-Jun spt seharusnya. */
+const KELAS_BULAN_AKADEMIK_BACAAN = KELAS_LIST;
 const BULAN_AKADEMIK_SEMESTER: Record<number, string[]> = {
   1: ['Jul', 'Ags', 'Sep', 'Okt', 'Nop', 'Des'],
   2: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
