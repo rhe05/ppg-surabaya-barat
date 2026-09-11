@@ -137,6 +137,7 @@ BEGIN
   INSERT INTO profiles (id, display_name, role, scope_kelompok_id, guru_id, pengunjung_akses_id, is_active)
   VALUES (auth.uid(), COALESCE(v_nama, 'Pengunjung'), 'pengunjung', v_kelompok_id, v_guru_id, v_akses.id, true)
   ON CONFLICT (id) DO UPDATE SET
+    display_name = COALESCE(v_nama, profiles.display_name, 'Pengunjung'),
     role = 'pengunjung',
     scope_ppg_id = NULL,
     scope_desa_id = NULL,
