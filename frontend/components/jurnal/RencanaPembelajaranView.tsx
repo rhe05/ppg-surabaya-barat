@@ -668,7 +668,9 @@ export default function RencanaPembelajaranView() {
       ? {
           jilid: m.judul.match(/Jilid\s+(Paud|\d+)/i)?.[1] ?? '',
           hal: m.judul.match(/Peraga Tilawati hal\s+(\d+)(?:\s*[–-]\s*(\d+))?/i) ?? null,
-          teknik: m.judul.match(/Teknik\s+(\d+)/)?.[1] ?? '',
+          // Bisa lebih dari satu ("Teknik 1 & 2") -- diminta owner
+          // 2026-09-11: satu kelas kadang berjalan dua teknik sekaligus.
+          teknik: (m.judul.match(/Teknik\s+([\d\s&,]+)/)?.[1].match(/\d+/g) ?? []).join(','),
         }
       : null;
     if (peraga && (peraga.jilid || peraga.hal || peraga.teknik)) {
@@ -976,7 +978,7 @@ export default function RencanaPembelajaranView() {
       if (jilid) inti += ` — Jilid ${jilid}`;
       const bagian: string[] = [];
       if (rentang) bagian.push(`Peraga Tilawati hal ${rentang}`);
-      if (peragaTeknikBaru) bagian.push(`Teknik ${peragaTeknikBaru}`);
+      if (peragaTeknikBaru) bagian.push(`Teknik ${peragaTeknikBaru.split(',').join(' & ')}`);
       judul = bagian.length > 0 ? `${inti}: ${bagian.join(' · ')}` : inti;
     }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
@@ -1765,15 +1767,26 @@ export default function RencanaPembelajaranView() {
                         </label>
                         {/* Segmented 1/2/3 -- elegan, bukan <select>
                             bawaan browser (diminta owner 2026-09-03).
-                            Ketuk lagi utk batal pilih. */}
+                            MULTI-PILIH (diminta owner 2026-09-11: satu
+                            kelas kadang berjalan dua teknik sekaligus) --
+                            ketuk utk tambah/lepas, bisa lebih dari satu
+                            aktif bersamaan. */}
                         <div className="flex overflow-hidden rounded-[var(--radius)] border border-border">
                           {['1', '2', '3'].map((t) => {
-                            const aktif = peragaTeknikBaru === t;
+                            const dipilih = new Set(peragaTeknikBaru.split(',').filter(Boolean));
+                            const aktif = dipilih.has(t);
                             return (
                               <button
                                 key={t}
                                 type="button"
-                                onClick={() => setPeragaTeknikBaru((v) => (v === t ? '' : t))}
+                                onClick={() =>
+                                  setPeragaTeknikBaru((v) => {
+                                    const set = new Set(v.split(',').filter(Boolean));
+                                    if (set.has(t)) set.delete(t);
+                                    else set.add(t);
+                                    return [...set].sort().join(',');
+                                  })
+                                }
                                 className={`flex-1 py-2.5 text-[13px] font-bold transition-colors duration-100 ${
                                   t !== '1' ? 'border-l border-border' : ''
                                 } ${aktif ? 'bg-indigo text-white' : 'bg-panel text-text-dim active:bg-panel-2'}`}
