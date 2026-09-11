@@ -57,7 +57,7 @@ import SelectKustom, { type OpsiSelect } from '@/components/ui/SelectKustom';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
-import { namaMateriTampil, KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
+import { namaMateriTampil, KELAS_LABEL_BACA_HURUF, KATEGORI_BACAAN_ALQURAN } from '@/lib/kategori';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
@@ -418,7 +418,22 @@ export default function RencanaPembelajaranView() {
         return namaAsli ? namaMateriTampil(namaAsli, b.kelas) : null;
       })
       .filter((v): v is string => v !== null);
-    return [...new Set(daftar)].sort();
+    /* "Bacaan Al-Qur'an" bersumber dari SATU baris kurikulum PER KELAS
+       (PAUD-TK s.d. 12), tapi daftar di atas kumulatif PAUD-TK s.d. kelas
+       ruang ini -- utk guru kelas 4+ itu artinya baris kelas 1/2/3 (yang
+       tampil sbg "Baca Huruf Al-Qur'an") ikut lolos BERSAMAAN dgn baris
+       kelasnya sendiri (yang tampil sbg "Bacaan Al-Qur'an"). Dua-duanya
+       muncul jadi bikin guru bingung mana yang harus dipakai (diminta
+       owner 2026-09-11) -- saring supaya cuma SATU yang tampil, sesuai
+       jenjang RUANG ini sendiri (bukan kumulatif). */
+    const jenjangSaatIni = kelasTargetKumulatif(namaRuang).at(-1) ?? '';
+    const diFaseBacaHuruf = KELAS_LABEL_BACA_HURUF.includes(jenjangSaatIni);
+    const tersaring = daftar.filter((nama) => {
+      if (nama === "Baca Huruf Al-Qur'an") return diFaseBacaHuruf;
+      if (nama === KATEGORI_BACAAN_ALQURAN) return !diFaseBacaHuruf;
+      return true;
+    });
+    return [...new Set(tersaring)].sort();
   }, [protaKelompok, kelasId, kelasList]);
 
   /* Pengecualian kalender per kelompok (kalender_kelompok, 2026-08-24) --
