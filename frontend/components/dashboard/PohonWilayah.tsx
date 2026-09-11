@@ -68,8 +68,11 @@ export default function PohonWilayah() {
           .limit(1),
         lintasKelompok
           ? Promise.all([
-              supabase.from('desa').select('id, nama').order('nama'),
-              supabase.from('kelompok').select('id, nama, desa_id').order('nama'),
+              /* is_demo=false: kelompok/desa contoh milik fitur Pengunjung
+                 (migrasi 20260911110000) tak boleh numpang di navigasi
+                 admin sungguhan. */
+              supabase.from('desa').select('id, nama').eq('is_demo', false).order('nama'),
+              supabase.from('kelompok').select('id, nama, desa_id').eq('is_demo', false).order('nama'),
               supabase.from('santri').select('kelompok_id').is('deleted_at', null),
               supabase.from('guru').select('kelompok_id').is('deleted_at', null),
             ])
