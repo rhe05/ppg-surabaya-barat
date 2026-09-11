@@ -4,6 +4,13 @@
    sebagai sibling <main>, dikunci max-w-[430px]; padding bawah halaman
    diatur globals.css lewat body:has([data-jamaah-nav]) main.
 
+   max-w-[430px] mx-auto ada di elemen <nav> ITU SENDIRI (bukan cuma
+   pembungkus di dalamnya) -- kalau cuma pembungkusnya yg dibatasi,
+   LATAR PUTIH nav (bg-panel + border-t + shadow) tetap melebar penuh
+   ke tepi jendela di layar lebar (dilaporkan owner: beda dgn topbar yg
+   memang sudah terkunci 430px krn ada DI DALAM kolom). Pola disamakan
+   dgn bottom-sheet "Menu" di GuruBottomNav.tsx yg sudah benar sejak awal.
+
    4 destinasi utama. Layar sekunder (Data Jamaah / Data Pengurus / Kelola
    Sub Kelp / Keluar) lewat hamburger di header (JamaahChrome), bukan di
    sini — satu jalan per tujuan. Active state = hijau logo. */
@@ -35,9 +42,9 @@ export default function JamaahBottomNav() {
   return (
     <nav
       data-jamaah-nav
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(15,23,42,0.06)]"
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[430px] border-t border-border bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(15,23,42,0.06)]"
     >
-      <div className="mx-auto flex w-full max-w-[430px]">
+      <div className="flex w-full">
         {TAB.map((t) => {
           const on = aktif(t);
           const Ikon = t.ikon;

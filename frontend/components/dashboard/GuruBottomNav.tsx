@@ -119,11 +119,16 @@ export default function GuruBottomNav() {
       <KehadiranChooser terbuka={kehadiranTerbuka} onTutup={() => setKehadiranTerbuka(false)} />
       <JurnalChooser terbuka={jurnalTerbuka} onTutup={() => setJurnalTerbuka(false)} />
 
+      {/* max-w-[430px] mx-auto di <nav> ITU SENDIRI, bukan cuma pembungkus
+          di dalamnya -- kalau cuma isinya yg dibatasi, latar putih nav
+          (bg-panel+border-t+shadow) tetap melebar penuh ke tepi jendela di
+          layar lebar (dilaporkan owner). Pola disamakan dgn bottom-sheet
+          "Menu" di bawah yg sudah benar sejak awal. */}
       <nav
         data-guru-nav
-        className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(15,23,42,0.06)]"
+        className="fixed inset-x-0 bottom-0 z-40 mx-auto w-full max-w-[430px] border-t border-border bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(15,23,42,0.06)]"
       >
-        <div className="mx-auto flex w-full max-w-[430px]">
+        <div className="flex w-full">
           {TAB.map((t) => {
             const on = aktif(t);
             const Ikon = t.ikon;
