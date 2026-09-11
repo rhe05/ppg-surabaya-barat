@@ -26,7 +26,13 @@ import { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
-import { muatKelasGuru, muatMateriBulan, type MateriJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
+import {
+  muatKelasGuru,
+  muatMateriBulan,
+  tandaiMateriBerubah,
+  type MateriJurnal,
+  buangSemuaSinggahan,
+} from '@/lib/dataGuru';
 import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
@@ -153,6 +159,33 @@ export default function RiwayatPembelajaranView() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kelasId, tahun, bulan]);
 
+  /* Hapus baris materi (Klasikal / Peraga Tilawati / Ngaji) yang salah
+     input — pola sama tombol (x) di Buku Jilid. Soft-delete via UPDATE
+     deleted_at: kebijakan UPDATE `jurnal_materi` sudah membolehkan guru
+     atas kelasnya sendiri (guru_id / guru_id_2), tak perlu migrasi. */
+  const [hapusMateriId, setHapusMateriId] = useState<number | null>(null);
+  const [menghapusMateri, setMenghapusMateri] = useState(false);
+
+  async function hapusMateri(id: number) {
+    if (kelasId === '') return;
+    setMenghapusMateri(true);
+    try {
+      const { error } = await supabase
+        .from('jurnal_materi')
+        .update({ deleted_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw new Error(error.message);
+      setHapusMateriId(null);
+      tandaiMateriBerubah(kelasId, tahun, bulan);
+      push('Materi dihapus.', 'sukses');
+      await muat();
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal menghapus materi.', 'error');
+    } finally {
+      setMenghapusMateri(false);
+    }
+  }
+
   const total = materiList.length;
   const disampaikan = materiList.filter((m) => m.status === 'disampaikan').length;
   const belum = materiList.filter((m) => m.status === 'belum').length;
@@ -245,6 +278,38 @@ export default function RiwayatPembelajaranView() {
             </div>
           )}
         </div>
+
+        {/* Hapus materi — pola sama tombol (x) Buku Jilid. */}
+        <span className="mt-0.5 flex shrink-0 items-center">
+          {hapusMateriId === m.id ? (
+            <span className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={menghapusMateri}
+                onClick={() => hapusMateri(m.id)}
+                className="rounded-full bg-red px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+              >
+                Hapus
+              </button>
+              <button
+                type="button"
+                onClick={() => setHapusMateriId(null)}
+                className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold text-text-dim"
+              >
+                Batal
+              </button>
+            </span>
+          ) : (
+            <button
+              type="button"
+              aria-label="Hapus materi ini"
+              onClick={() => setHapusMateriId(m.id)}
+              className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </span>
       </div>
     );
   }
