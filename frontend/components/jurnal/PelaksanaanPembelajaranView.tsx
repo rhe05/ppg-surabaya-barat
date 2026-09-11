@@ -122,15 +122,27 @@ function todayStr() {
 }
 
 /* Tilawati (2026-09-03): Buku Jilid maks 6, Halaman maks 44 (diminta
-   owner). Angka di luar rentang dijepit; kosong tetap kosong. */
+   owner). Angka di luar rentang dijepit; kosong tetap kosong.
+
+   Lanjutan Al-Qur'an (2026-09-11, diminta owner -- keluhan Rifda/Kelp
+   Bangun Rejo: Almer khatam Jilid 6 lalu lanjut Al-Qur'an, tidak ada
+   opsi utk mencatatnya): setelah Jilid 6, tahap berikutnya "Juz 1"..
+   "Juz 30" -- nilainya string persis "Juz N" (dicek lib/tilawati.ts
+   labelBukuJilid() & lib/pedomanTilawati.ts posisiTilawati() supaya
+   tetap terurut & terformat benar di layar lain). */
 const TILAWATI_MAKS_JILID = 6;
+const TILAWATI_MAKS_JUZ = 30;
 const TILAWATI_MAKS_HALAMAN = 44;
-/* Buku Jilid: "Paud" (buku sebelum Jilid 1) atau Jilid 1-6. */
+/* Buku Jilid: "Paud" (buku sebelum Jilid 1), Jilid 1-6, lalu Juz 1-30. */
 const OPSI_BUKU_JILID = [
   { value: 'Paud', label: 'Paud' },
   ...Array.from({ length: TILAWATI_MAKS_JILID }, (_, i) => ({
     value: String(i + 1),
     label: `Jilid ${i + 1}`,
+  })),
+  ...Array.from({ length: TILAWATI_MAKS_JUZ }, (_, i) => ({
+    value: `Juz ${i + 1}`,
+    label: `Juz ${i + 1}`,
   })),
 ];
 function jepitTilawati(v: string, maks: number): string {
@@ -146,17 +158,35 @@ function lanjutkanTilawati(last: { jilid: string; halaman: string; status: strin
   halaman: string;
   status: '' | 'naik' | 'tetap';
 } {
-  let jil = Number(last.jilid);
+  const cocokJuz = last.jilid.match(/^Juz\s*(\d+)$/i);
+  let juz: number | null = cocokJuz ? Number(cocokJuz[1]) : null;
+  let jil: number | null = cocokJuz ? null : Number(last.jilid);
+  if (jil != null && !Number.isFinite(jil)) jil = null;
   let hal = Number(last.halaman);
   if (last.status === 'naik' && Number.isFinite(hal) && hal >= 1) {
     hal += 1;
     if (hal > TILAWATI_MAKS_HALAMAN) {
       hal = 1;
-      if (Number.isFinite(jil) && jil >= 1) jil = Math.min(jil + 1, TILAWATI_MAKS_JILID);
+      if (juz != null) {
+        juz = Math.min(juz + 1, TILAWATI_MAKS_JUZ);
+      } else if (jil != null && jil >= 1) {
+        if (jil >= TILAWATI_MAKS_JILID) {
+          juz = 1;
+          jil = null;
+        } else {
+          jil += 1;
+        }
+      }
     }
   }
+  const jilidBaru =
+    juz != null
+      ? `Juz ${juz}`
+      : jil != null && jil >= 1
+        ? String(Math.min(jil, TILAWATI_MAKS_JILID))
+        : last.jilid;
   return {
-    jilid: Number.isFinite(jil) && jil >= 1 ? String(Math.min(jil, TILAWATI_MAKS_JILID)) : last.jilid,
+    jilid: jilidBaru,
     halaman:
       Number.isFinite(hal) && hal >= 1 ? String(Math.min(hal, TILAWATI_MAKS_HALAMAN)) : last.halaman,
     status: '',

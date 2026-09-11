@@ -21,7 +21,7 @@ import { useToast } from '@/components/ui/useToast';
 import Skeleton from '@/components/ui/Skeleton';
 import PemilihBulanTahun from '@/components/ui/PemilihBulanTahun';
 import { muatMateriBulan, type MateriJurnal } from '@/lib/dataGuru';
-import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
+import { muatTilawatiRingkas, labelBukuJilid, type TilawatiRingkas } from '@/lib/tilawati';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import {
   muatRingkasanJurnalPerKelas,
@@ -166,7 +166,7 @@ function DetailRiwayatKelas({
                 <div key={h.id} className="flex items-center justify-between gap-2 py-0.5 text-[11px]">
                   <span className="min-w-0 truncate text-text-dim">
                     {formatTanggal(h.tanggal)}
-                    {h.jilid ? ` · Jilid ${h.jilid}` : ''}
+                    {h.jilid ? ` · ${labelBukuJilid(h.jilid)}` : ''}
                     {h.halaman ? ` hal ${h.halaman}` : ''}
                   </span>
                   {h.status && (

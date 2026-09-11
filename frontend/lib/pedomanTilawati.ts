@@ -223,13 +223,18 @@ export function targetTilawatiPeriode(
 }
 
 /** Posisi absolut sebuah capaian untuk dibandingkan: jilid × 44 + halaman.
-    "Paud" dihitung jilid 0. null kalau jilid & halaman dua-duanya kosong. */
+    "Paud" dihitung jilid 0. "Juz N" (lanjutan setelah khatam Jilid 6,
+    2026-09-11) dihitung jilid (6+N) -- terus naik di skala yang sama,
+    supaya tetap terurut & tetap terbaca "melebihi target" (BSB) di
+    Monitoring biarpun target pedoman memang berhenti di Jilid 6.
+    null kalau jilid & halaman dua-duanya kosong. */
 export function posisiTilawati(
   jilid: string | null | undefined,
   halaman: string | number | null | undefined,
 ): number | null {
   if ((jilid == null || jilid === '') && (halaman == null || halaman === '')) return null;
-  const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : Number(jilid) || 0;
+  const cocokJuz = jilid ? jilid.match(/^juz\s*(\d+)/i) : null;
+  const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : cocokJuz ? 6 + Number(cocokJuz[1]) : Number(jilid) || 0;
   const h = typeof halaman === 'number' ? halaman : Number(halaman) || 0;
   return j * HAL_PER_JILID + h;
 }

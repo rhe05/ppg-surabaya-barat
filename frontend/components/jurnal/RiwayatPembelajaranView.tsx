@@ -33,7 +33,7 @@ import {
   type MateriJurnal,
   buangSemuaSinggahan,
 } from '@/lib/dataGuru';
-import { muatTilawatiRingkas, type TilawatiRingkas } from '@/lib/tilawati';
+import { muatTilawatiRingkas, labelBukuJilid, type TilawatiRingkas } from '@/lib/tilawati';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 
 type Kelas = { id: number; nama: string };
@@ -690,7 +690,7 @@ export default function RiwayatPembelajaranView() {
                               >
                                 <span className="min-w-0 truncate text-text-dim">
                                   {formatTanggalHari(h.tanggal)}
-                                  {h.jilid ? ` · Jilid ${h.jilid}` : ''}
+                                  {h.jilid ? ` · ${labelBukuJilid(h.jilid)}` : ''}
                                   {h.halaman ? ` hal ${h.halaman}` : ''}
                                 </span>
                                 <span className="flex shrink-0 items-center gap-1.5">

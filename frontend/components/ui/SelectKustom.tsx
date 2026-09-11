@@ -70,7 +70,7 @@ export default function SelectKustom({
         <div
           ref={panelRef}
           style={gaya}
-          className="z-[1100] rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
+          className="z-[1100] max-h-[280px] overflow-y-auto rounded-[var(--radius-lg)] border border-border bg-panel p-1.5 shadow-[0_4px_6px_rgba(15,23,42,0.05),0_20px_40px_-12px_rgba(15,23,42,0.25)]"
         >
           {opsi.length === 0 && (
             <div className="px-3 py-2.5 text-[12.5px] text-text-faint">Tidak ada pilihan.</div>

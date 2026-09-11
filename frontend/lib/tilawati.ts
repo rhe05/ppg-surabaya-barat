@@ -9,6 +9,17 @@ import { posisiTilawati } from './pedomanTilawati';
 
 export type TilawatiStatus = 'naik' | 'tetap';
 
+/* Label tampil Buku Jilid -- "Paud" -> "Tilawati Paud", "Juz N" (lanjutan
+   Al-Qur'an setelah khatam Jilid 6, 2026-09-11) tampil apa adanya (JANGAN
+   diberi awalan "Jilid" -- akan jadi "Jilid Juz 3"), selain itu "Jilid N".
+   Satu sumber dipakai RiwayatPembelajaranView, RingkasanJurnalKelp,
+   PencapaianMateriView supaya format tidak drift antar layar. */
+export function labelBukuJilid(jilid: string): string {
+  if (jilid === 'Paud') return 'Tilawati Paud';
+  if (/^juz\s*\d+/i.test(jilid)) return jilid;
+  return `Jilid ${jilid}`;
+}
+
 export type TilawatiHari = {
   id: number;
   tanggal: string;

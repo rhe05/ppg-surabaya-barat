@@ -90,7 +90,7 @@ import { rentangBulan } from '@/lib/periodeAkademik';
    (1-20) di borang Rencana Pembelajaran. Peraga jilid dinyatakan KHATAM
    sekali kalau ada pertemuan yg halamannya mencapai angka ini. */
 const PERAGA_HAL_AKHIR = 20;
-import { muatBukuJilidKelas, type BukuJilidSantri } from '@/lib/tilawati';
+import { muatBukuJilidKelas, labelBukuJilid, type BukuJilidSantri } from '@/lib/tilawati';
 import {
   targetTilawatiPeriode,
   labelTargetPeriode,
@@ -762,7 +762,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                           s.terakhirJilid
                             ? /paud/i.test(s.terakhirJilid)
                               ? 'Paud'
-                              : `Jilid ${s.terakhirJilid}`
+                              : labelBukuJilid(s.terakhirJilid)
                             : null,
                           s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
                         ]
