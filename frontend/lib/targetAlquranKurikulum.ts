@@ -18,9 +18,23 @@ const KELOMPOK_KURIKULUM_BERSAMA_ID = 1;
 
 export type TargetAlquranPeriode = {
   target: string;
+  /** Kolom `jilid` di kurikulum_probul, dipakai ulang sbg "Juz" utk
+     kategori Bacaan Al-Qur'an (diminta owner 2026-09-12: "tampilkan
+     juga juz berapa"). Admin isi lewat borang "Ubah Probul" > field
+     "Jilid" yg sudah ada di /kurikulum (belum ada UI baru). null kalau
+     belum diisi. */
+  jilid: string | null;
   bulanKe: number;
   semester: 1 | 2;
 };
+
+/** "30" -> "Juz 30"; "Juz 30" dibiarkan apa adanya (admin sudah menulis
+ *  lengkap). Sama pola dgn `labelBukuJilid` di lib/tilawati.ts, tapi
+ *  utk sumber teks bebas (borang Kurikulum), bukan hasil pencatatan
+ *  Pelaksanaan yg formatnya sudah dijamin "Juz N". */
+export function labelJuzTarget(jilid: string): string {
+  return /juz/i.test(jilid) ? jilid : `Juz ${jilid}`;
+}
 
 type KategoriTersemat = { nama: string } | { nama: string }[] | null;
 
@@ -61,12 +75,12 @@ export async function targetAlquranPeriode(
 
   const { data: probul, error: eProbul } = await supabase
     .from('kurikulum_probul')
-    .select('target')
+    .select('target, jilid')
     .eq('promes_id', promes.id)
     .eq('bulan', bulanKe)
     .maybeSingle();
   if (eProbul) throw new Error(eProbul.message);
   if (!probul?.target) return null;
 
-  return { target: probul.target, bulanKe, semester };
+  return { target: probul.target, jilid: probul.jilid, bulanKe, semester };
 }

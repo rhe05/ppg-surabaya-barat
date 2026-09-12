@@ -105,7 +105,11 @@ import {
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
-import { targetAlquranPeriode, type TargetAlquranPeriode } from '@/lib/targetAlquranKurikulum';
+import {
+  targetAlquranPeriode,
+  labelJuzTarget,
+  type TargetAlquranPeriode,
+} from '@/lib/targetAlquranKurikulum';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -783,7 +787,10 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           )}
           {targetAlquran && (
             <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              Target {NAMA_BULAN[bulan - 1]}: {targetAlquran.target}
+              Target {NAMA_BULAN[bulan - 1]}:{' '}
+              {[targetAlquran.jilid ? labelJuzTarget(targetAlquran.jilid) : null, targetAlquran.target]
+                .filter(Boolean)
+                .join(' · ')}
             </div>
           )}
           {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
