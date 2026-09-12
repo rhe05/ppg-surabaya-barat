@@ -105,7 +105,12 @@ import {
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
-import { targetAlquranPeriode, type TargetAlquranPeriode } from '@/lib/targetAlquranKurikulum';
+import {
+  targetAlquranPeriode,
+  posisiJuzTerakhir,
+  statusPencapaianAlquran,
+  type TargetAlquranPeriode,
+} from '@/lib/targetAlquranKurikulum';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -813,11 +818,19 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                           .join(' ')
                       : null;
                   /* Rubrik 4 tingkat BB/MB/BSH/BSB terhadap pedoman
-                     (diminta owner 2026-09-03). */
+                     (diminta owner 2026-09-03). Kelas 4+ (Al-Qur'an,
+                     2026-09-12): target dari Kurikulum (Juz per
+                     semester), bukan pedoman statis Tilawati. */
                   const sPos = posisiTilawati(s.terakhirJilid, s.terakhirHalaman);
-                  const status: StatusPencapaian | null = s.adaCatatan
-                    ? statusPencapaianTilawati(kodeKelasTilawati, bulan, sPos)
-                    : null;
+                  const status: StatusPencapaian | null = !s.adaCatatan
+                    ? null
+                    : pakaiAlquran
+                      ? statusPencapaianAlquran(
+                          posisiJuzTerakhir(s.terakhirJilid),
+                          targetAlquran?.juz ?? null,
+                          targetAlquran?.juzSemesterLalu ?? null,
+                        )
+                      : statusPencapaianTilawati(kodeKelasTilawati, bulan, sPos);
                   return (
                     <div
                       key={s.santriId}
@@ -872,7 +885,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
               )}
             </div>
           )}
-          {targetTilawati && !loadingTilawati && !errorTilawati && (
+          {(targetTilawati || targetAlquran) && !loadingTilawati && !errorTilawati && (
             <div className="mb-5 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2.5">
               <div className="label-mikro mb-1.5">Keterangan</div>
               <ul className="space-y-0.5 text-[11px] leading-snug text-text-dim">
