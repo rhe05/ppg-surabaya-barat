@@ -105,6 +105,7 @@ import {
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
+import { targetAlquranPeriode, type TargetAlquranPeriode } from '@/lib/targetAlquranKurikulum';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -401,6 +402,27 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     () => targetTilawatiPeriode(kodeKelasTilawati, bulan),
     [kodeKelasTilawati, bulan],
   );
+  /* Target Bacaan Al-Qur'an kelas 4+ -- BEDA dari Tilawati di atas: bukan
+     pedoman statis, tapi diambil LANGSUNG dari Kurikulum (owner sendiri
+     yang input Prota/Promes/Probul per kelas, 2026-09-12). */
+  const [targetAlquran, setTargetAlquran] = useState<TargetAlquranPeriode | null>(null);
+  useEffect(() => {
+    if (!pakaiAlquran || kodeKelasTilawati === '') {
+      setTargetAlquran(null);
+      return;
+    }
+    let batal = false;
+    targetAlquranPeriode(kodeKelasTilawati, tahun, bulan)
+      .then((t) => {
+        if (!batal) setTargetAlquran(t);
+      })
+      .catch(() => {
+        if (!batal) setTargetAlquran(null);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [pakaiAlquran, kodeKelasTilawati, tahun, bulan]);
 
   /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
      Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
@@ -757,6 +779,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           {targetTilawati && (
             <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
               Target {NAMA_BULAN[bulan - 1]}: {labelTargetPeriode(targetTilawati)}
+            </div>
+          )}
+          {targetAlquran && (
+            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+              Target {NAMA_BULAN[bulan - 1]}: {targetAlquran.target}
             </div>
           )}
           {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
