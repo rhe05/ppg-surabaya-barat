@@ -25,6 +25,10 @@ export type TilawatiHari = {
   tanggal: string;
   jilid: string | null;
   halaman: string | null;
+  /* Surat/Ayat -- kelas 4+ "Al-Qur'an" (2026-09-12, migrasi 20260912100000).
+     null utk kelas 1-3 (Jilid/Halaman biasa). */
+  surat: string | null;
+  ayat: string | null;
   status: TilawatiStatus | '';
 };
 
@@ -49,6 +53,8 @@ type BarisMentah = {
   status: string | null;
   buku_jilid: string | null;
   halaman: string | null;
+  surat: string | null;
+  ayat: string | null;
   santri: { nama: string } | { nama: string }[] | null;
 };
 
@@ -61,7 +67,7 @@ export async function muatTilawatiRingkas(
 ): Promise<TilawatiRingkas[]> {
   const { data, error } = await supabase
     .from('tilawati_pelaksanaan')
-    .select('id, santri_id, tanggal, status, buku_jilid, halaman, santri:santri_id(nama)')
+    .select('id, santri_id, tanggal, status, buku_jilid, halaman, surat, ayat, santri:santri_id(nama)')
     .eq('kelas_id', kelasId)
     .in('status', ['naik', 'tetap'])
     .gte('tanggal', awal)
@@ -88,7 +94,15 @@ export async function muatTilawatiRingkas(
     const st = (r.status === 'naik' || r.status === 'tetap' ? r.status : '') as TilawatiStatus | '';
     if (st === 'naik') cur.naik += 1;
     else if (st === 'tetap') cur.tetap += 1;
-    cur.hari.push({ id: r.id, tanggal: r.tanggal, jilid: r.buku_jilid, halaman: r.halaman, status: st });
+    cur.hari.push({
+      id: r.id,
+      tanggal: r.tanggal,
+      jilid: r.buku_jilid,
+      halaman: r.halaman,
+      surat: r.surat,
+      ayat: r.ayat,
+      status: st,
+    });
     if (r.tanggal >= cur.terakhir) {
       cur.terakhir = r.tanggal;
       cur.terakhirStatus = (r.status as TilawatiStatus | null) ?? '';

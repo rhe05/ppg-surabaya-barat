@@ -713,6 +713,8 @@ export default function RiwayatPembelajaranView() {
                                   {formatTanggalHari(h.tanggal)}
                                   {h.jilid ? ` · ${labelBukuJilid(h.jilid)}` : ''}
                                   {h.halaman ? ` hal ${h.halaman}` : ''}
+                                  {h.surat ? ` · ${h.surat}` : ''}
+                                  {h.ayat ? ` ayat ${h.ayat}` : ''}
                                 </span>
                                 <span className="flex shrink-0 items-center gap-1.5">
                                   {h.status && (
