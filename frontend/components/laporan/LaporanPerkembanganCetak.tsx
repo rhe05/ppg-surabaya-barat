@@ -142,6 +142,18 @@ export type MateriKlasikal = {
   hafDoa: PengulanganDoaBaris[];
 };
 
+/* "Materi Ngaji" (2026-09-12, diminta owner, admin-desktop SAJA -- pola
+   sama `materiKlasikal`): PER SANTRI (bukan rincian per-materi spt
+   Klasikal), sumber "Buku Jilid Tilawati"/"Al-Qur'an" yang SAMA PERSIS
+   dgn kartu di Monitoring Pencapaian Materi (lib/tilawati.ts
+   `muatBukuJilidKelas` + lib/pedomanTilawati.ts / lib/
+   targetAlquranKurikulum.ts utk status BB/MB/BSH/BSB). `judul` = label
+   materi sesuai jenjang kelas ("Baca Huruf Al-Qur'an" PAUD-TK s.d. 3,
+   "Bacaan Al-Qur'an" kelas 4-9) -- SAMA batas `KELAS_LABEL_BACA_HURUF`
+   yg dipakai Pelaksanaan/Riwayat/Monitoring. */
+export type MateriNgajiBaris = { nama: string; pencapaian: string; keterangan: string };
+export type MateriNgaji = { judul: string; baris: MateriNgajiBaris[] };
+
 export type LaporanPerkembangan = {
   guruNama: string;
   periode: string;
@@ -158,6 +170,8 @@ export type LaporanPerkembangan = {
   /* Opsional & admin-desktop-only, lihat catatan PUTARAN KELIMA di
      kepala berkas. */
   materiKlasikal?: MateriKlasikal;
+  /* Opsional & admin-desktop-only jg, lihat komentar MateriNgaji di atas. */
+  materiNgaji?: MateriNgaji;
 };
 
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
@@ -295,6 +309,53 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Materi Ngaji -- SEPARATE dari Materi Klasikal (bukan hafalan
+          kelompok, per santri): "di bawah Hafalan Do'a" (diminta owner
+          2026-09-12). */}
+      {laporan.materiNgaji && (
+        <div className="cetak-jaga-utuh mt-5 sm:mt-6">
+          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
+            Materi Ngaji
+          </div>
+          <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
+            {laporan.materiNgaji.judul}
+          </div>
+          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
+            <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
+              <thead className="border-b border-border bg-panel-2">
+                <tr>
+                  {['Nama', 'Pencapaian', 'Keterangan'].map((h) => (
+                    <th
+                      key={h}
+                      className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {laporan.materiNgaji.baris.length === 0 ? (
+                  <tr>
+                    <td colSpan={3} className="px-4 py-8 text-center text-text-faint">
+                      Belum ada santri di kelas ini.
+                    </td>
+                  </tr>
+                ) : (
+                  laporan.materiNgaji.baris.map((b) => (
+                    <tr key={b.nama}>
+                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
+                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.pencapaian}</td>
+                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.keterangan}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

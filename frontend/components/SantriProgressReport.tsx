@@ -81,6 +81,19 @@ import {
   adalahAsmaulHusna,
 } from '@/lib/materiHafalanDoa';
 import { suratDariTargetProta, normalisasiNamaSurat } from '@/lib/hafalanSurat';
+import { muatBukuJilidKelas, labelBukuJilid } from '@/lib/tilawati';
+import {
+  targetTilawatiPeriode,
+  statusPencapaianTilawati,
+  posisiTilawati,
+  LABEL_STATUS_PENCAPAIAN,
+} from '@/lib/pedomanTilawati';
+import {
+  targetAlquranPeriode,
+  posisiJuzTerakhir,
+  statusPencapaianAlquran,
+} from '@/lib/targetAlquranKurikulum';
+import { KATEGORI_BACAAN_ALQURAN, KELAS_LABEL_BACA_HURUF, namaMateriTampil } from '@/lib/kategori';
 
 type Guru = { id: number; nama: string };
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
@@ -347,6 +360,59 @@ export default function SantriProgressReport() {
         materiKlasikal = undefined;
       }
 
+      /* Materi Ngaji (2026-09-12, diminta owner): "di bawah Hafalan
+         Do'a" -- PER SANTRI, sumber & rumus SAMA PERSIS dgn kartu
+         "Tilawati"/"Al-Qur'an" di Monitoring Pencapaian Materi
+         (muatBukuJilidKelas + status BB/MB/BSH/BSB). Kegagalan di sini
+         TIDAK menggagalkan seluruh laporan (pola sama materiKlasikal). */
+      let materiNgaji: LaporanPerkembangan['materiNgaji'];
+      try {
+        const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
+        if (kelasProta) {
+          const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(kelasProta);
+          const bukuJilid = await muatBukuJilidKelas(kelasId, awal, akhir);
+          const targetAlquran = pakaiAlquran
+            ? await targetAlquranPeriode(kelasProta, tahun, bulan)
+            : null;
+
+          materiNgaji = {
+            judul: namaMateriTampil(KATEGORI_BACAAN_ALQURAN, kelasProta),
+            baris: bukuJilid.map((s) => {
+              const pencapaian = s.adaCatatan
+                ? [
+                    s.terakhirJilid
+                      ? /paud/i.test(s.terakhirJilid)
+                        ? 'Paud'
+                        : labelBukuJilid(s.terakhirJilid)
+                      : null,
+                    s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
+                    s.terakhirSurat,
+                    s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')
+                : '—';
+
+              let keterangan = 'Belum ada catatan bulan ini';
+              if (s.adaCatatan) {
+                const status = pakaiAlquran
+                  ? statusPencapaianAlquran(
+                      posisiJuzTerakhir(s.terakhirJilid),
+                      targetAlquran?.juz ?? null,
+                      targetAlquran?.juzSemesterLalu ?? null,
+                    )
+                  : statusPencapaianTilawati(kelasProta, bulan, posisiTilawati(s.terakhirJilid, s.terakhirHalaman));
+                keterangan = status ? LABEL_STATUS_PENCAPAIAN[status].panjang : '—';
+              }
+
+              return { nama: s.nama, pencapaian, keterangan };
+            }),
+          };
+        }
+      } catch {
+        materiNgaji = undefined;
+      }
+
       const baris = santri.map((s) => {
         const milik = absensiHariKerja.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
@@ -406,6 +472,7 @@ export default function SantriProgressReport() {
         totalSakit: baris.filter((b) => b.status === 'Sakit').length,
         baris,
         materiKlasikal,
+        materiNgaji,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat laporan.');
