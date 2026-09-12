@@ -303,7 +303,31 @@ export default function RiwayatPembelajaranView() {
             {[kategori, m.tanggal ? formatTanggal(m.tanggal) : null].filter(Boolean).join(' · ') || '—'}
           </div>
           <div className="text-[15px] font-bold text-text">{utama}</div>
-          {rincian && <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>}
+          {/* Materi Klasikal Hafalan Surat/Do'a disimpan di kolom terpisah
+              (klasikal_hafalan_surat/klasikal_hafalan_doa), BUKAN di judul
+              -- sebelumnya cuma dibaca dari `rincian` (pecahJudulMateri),
+              jadi tak pernah tampil di sini walau muncul di Rencana &
+              Pelaksanaan (yang sudah baca kolom ini). Diminta owner
+              2026-09-13. Pola sama PelaksanaanPembelajaranView.tsx. */}
+          {m.jenis === 'klasikal' ? (
+            <>
+              {m.klasikal_hafalan_surat && (
+                <div className="mt-0.5 text-[12px] leading-snug text-text-dim">
+                  <span className="font-semibold text-text">Hafalan Surat:</span> {m.klasikal_hafalan_surat}
+                </div>
+              )}
+              {m.klasikal_hafalan_doa && (
+                <div className="mt-0.5 text-[12px] leading-snug text-text-dim">
+                  <span className="font-semibold text-text">Hafalan Do&rsquo;a:</span> {m.klasikal_hafalan_doa}
+                </div>
+              )}
+              {!m.klasikal_hafalan_surat && !m.klasikal_hafalan_doa && rincian && (
+                <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>
+              )}
+            </>
+          ) : (
+            rincian && <div className="mt-0.5 text-[12px] leading-snug text-text-dim">{rincian}</div>
+          )}
           <div className={`mt-0.5 text-[12px] font-semibold ${warna}`}>
             {sudah ? 'Disampaikan' : gagal ? 'Tidak tersampaikan' : 'Belum disampaikan'}
           </div>
