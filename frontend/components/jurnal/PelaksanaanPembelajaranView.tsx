@@ -150,6 +150,23 @@ function jepitTilawati(v: string, maks: number): string {
   if (d === '') return '';
   return String(Math.min(Math.max(Number(d), 1), maks));
 }
+/* Halaman Tilawati disimpan sbg SATU kolom teks di DB (tak berubah,
+   tanpa migrasi) -- tapi diedit lewat DUA kolom kecil "Dari"/"Sampai"
+   (diminta owner 2026-09-12: kadang generus baca lebih dari 1 halaman
+   dalam satu pertemuan). "24" (satu halaman) tetap tersimpan apa
+   adanya; "24-25" (rentang) cuma dipakai kalau dari != sampai --
+   backward-compatible dgn catatan lama yang masih satu angka polos. */
+function uraikanHalaman(h: string): { dari: string; sampai: string } {
+  const cocok = h.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (cocok) return { dari: cocok[1], sampai: cocok[2] };
+  return { dari: h, sampai: h };
+}
+function gabungHalaman(dari: string, sampai: string): string {
+  if (dari === '' && sampai === '') return '';
+  const d = dari || sampai;
+  const s = sampai || dari;
+  return d === s ? d : `${d}-${s}`;
+}
 /* Prefill hari ini dari catatan terakhir: kalau terakhir "naik", halaman
    maju satu; kalau lewat 44, pindah jilid berikutnya halaman 1 (maks
    jilid 6). Status hari ini dikosongkan -- guru yang memutuskan. */
@@ -162,7 +179,9 @@ function lanjutkanTilawati(last: { jilid: string; halaman: string; status: strin
   let juz: number | null = cocokJuz ? Number(cocokJuz[1]) : null;
   let jil: number | null = cocokJuz ? null : Number(last.jilid);
   if (jil != null && !Number.isFinite(jil)) jil = null;
-  let hal = Number(last.halaman);
+  /* Lanjutkan dari SISI "sampai" -- kalau kemarin rentang "24-25" (baca
+     2 halaman), besok mulai dari halaman 26, bukan dari 24 lagi. */
+  let hal = Number(uraikanHalaman(last.halaman).sampai);
   if (last.status === 'naik' && Number.isFinite(hal) && hal >= 1) {
     hal += 1;
     if (hal > TILAWATI_MAKS_HALAMAN) {
@@ -1437,7 +1456,7 @@ export default function PelaksanaanPembelajaranView() {
                             className="rounded-[var(--radius)] border border-border bg-panel p-3"
                           >
                             <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
                               <div>
                                 <label className="label-mikro mb-1 block">Buku Jilid</label>
                                 {/* Paud + Jilid 1-6 (diminta owner 2026-09-03):
@@ -1451,21 +1470,52 @@ export default function PelaksanaanPembelajaranView() {
                                   opsi={OPSI_BUKU_JILID}
                                 />
                               </div>
-                              <div>
-                                <label className="label-mikro mb-1 block">Halaman (1–44)</label>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min={1}
-                                  max={TILAWATI_MAKS_HALAMAN}
-                                  disabled={terkunci}
-                                  value={t.halaman}
-                                  onChange={(e) =>
-                                    ubahTilawati(s.id, { halaman: jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN) }, false)
-                                  }
-                                  className="w-full rounded-[var(--radius)] border border-border bg-panel px-2.5 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
-                                />
-                              </div>
+                              {/* Halaman DUA kolom kecil "Dari"/"Sampai"
+                                  (diminta owner 2026-09-12: kadang generus
+                                  baca lebih dari 1 halaman dalam satu
+                                  pertemuan). Tersimpan SATU kolom teks di DB
+                                  (gabungHalaman/uraikanHalaman di atas) --
+                                  tanpa migrasi, backward-compatible dgn
+                                  catatan lama yang cuma 1 angka. */}
+                              {(() => {
+                                const { dari, sampai } = uraikanHalaman(t.halaman);
+                                return (
+                                  <>
+                                    <div>
+                                      <label className="label-mikro mb-1 block">Dari</label>
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        max={TILAWATI_MAKS_HALAMAN}
+                                        disabled={terkunci}
+                                        value={dari}
+                                        onChange={(e) => {
+                                          const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
+                                          ubahTilawati(s.id, { halaman: gabungHalaman(baru, sampai) }, false);
+                                        }}
+                                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                      />
+                                    </div>
+                                    <div>
+                                      <label className="label-mikro mb-1 block">Sampai</label>
+                                      <input
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={1}
+                                        max={TILAWATI_MAKS_HALAMAN}
+                                        disabled={terkunci}
+                                        value={sampai}
+                                        onChange={(e) => {
+                                          const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
+                                          ubahTilawati(s.id, { halaman: gabungHalaman(dari, baru) }, false);
+                                        }}
+                                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                      />
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                             {/* Sakelar Naik / Tetap -- pil modern: track
                                 cekung, tombol aktif "terangkat" + ikon,

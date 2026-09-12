@@ -227,7 +227,10 @@ export function targetTilawatiPeriode(
     2026-09-11) dihitung jilid (6+N) -- terus naik di skala yang sama,
     supaya tetap terurut & tetap terbaca "melebihi target" (BSB) di
     Monitoring biarpun target pedoman memang berhenti di Jilid 6.
-    null kalau jilid & halaman dua-duanya kosong. */
+    Halaman bisa berupa rentang "24-25" (2026-09-12, generus baca lebih
+    dari 1 halaman sehari) -- dipakai angka TERBESAR (halaman terjauh
+    yang dicapai), bukan angka pertama. null kalau jilid & halaman
+    dua-duanya kosong. */
 export function posisiTilawati(
   jilid: string | null | undefined,
   halaman: string | number | null | undefined,
@@ -235,7 +238,10 @@ export function posisiTilawati(
   if ((jilid == null || jilid === '') && (halaman == null || halaman === '')) return null;
   const cocokJuz = jilid ? jilid.match(/^juz\s*(\d+)/i) : null;
   const j = !jilid ? 0 : /paud/i.test(jilid) ? 0 : cocokJuz ? 6 + Number(cocokJuz[1]) : Number(jilid) || 0;
-  const h = typeof halaman === 'number' ? halaman : Number(halaman) || 0;
+  const h =
+    typeof halaman === 'number'
+      ? halaman
+      : Math.max(0, ...[...(halaman ?? '').matchAll(/\d+/g)].map((m) => Number(m[0])));
   return j * HAL_PER_JILID + h;
 }
 
