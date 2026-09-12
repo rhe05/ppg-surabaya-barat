@@ -35,6 +35,8 @@ import {
 } from '@/lib/dataGuru';
 import { muatTilawatiRingkas, labelBukuJilid, type TilawatiRingkas } from '@/lib/tilawati';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
+import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
+import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 
 type Kelas = { id: number; nama: string };
 /* Tipe barisnya ikut sumber bersama (lib/dataGuru.ts) -- layar ini cuma
@@ -197,6 +199,12 @@ export default function RiwayatPembelajaranView() {
       setMenghapusMateri(false);
     }
   }
+
+  /* Kartu "Tilawati" jadi "Al-Qur'an" utk kelas 4+ (2026-09-12, diminta
+     owner) -- batas SAMA `KELAS_LABEL_BACA_HURUF` yg dipakai Pelaksanaan. */
+  const kelasAktif = kelasList.find((k) => k.id === kelasId);
+  const gradeRuangAktif = kelasTargetKumulatif(kelasAktif?.nama ?? '').at(-1) ?? '';
+  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
 
   const total = materiList.length;
   const disampaikan = materiList.filter((m) => m.status === 'disampaikan').length;
@@ -631,7 +639,9 @@ export default function RiwayatPembelajaranView() {
                     onClick={() => setTilawatiTerbuka((v) => !v)}
                     className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
                   >
-                    <span className="text-[15px] font-bold text-text">Tilawati</span>
+                    <span className="text-[15px] font-bold text-text">
+                      {pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}
+                    </span>
                     <span className="flex shrink-0 items-center gap-1.5">
                       <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
                         {tilawatiRingkas.length} Santri
@@ -649,23 +659,34 @@ export default function RiwayatPembelajaranView() {
                       {/* 1. Peraga Tilawati -- materi "Baca Huruf
                           Al-Qur'an" yg disusun guru di Rencana; DIPINDAH
                           ke sini dari kartu Materi Ngaji (diminta owner
-                          2026-09-03). */}
-                      <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
-                        Peraga Tilawati
-                      </div>
-                      {barisPeraga.length === 0 ? (
-                        <p className="px-4 py-3 text-[13px] text-text-dim">
-                          Tidak ada Peraga Tilawati yang cocok.
-                        </p>
-                      ) : (
-                        barisPeraga.map((m) => barisRiwayat(m))
+                          2026-09-03). Kelas 4+ pakai "Al-Qur'an" (Juz),
+                          bukan Peraga Tilawati -- seksi ini disembunyikan
+                          utk kelas itu (diminta owner 2026-09-12). */}
+                      {!pakaiAlquran && (
+                        <>
+                          <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
+                            Peraga Tilawati
+                          </div>
+                          {barisPeraga.length === 0 ? (
+                            <p className="px-4 py-3 text-[13px] text-text-dim">
+                              Tidak ada Peraga Tilawati yang cocok.
+                            </p>
+                          ) : (
+                            barisPeraga.map((m) => barisRiwayat(m))
+                          )}
+                        </>
                       )}
 
                       {/* 2. Buku Jilid -- catatan per santri (Naik/Tetap)
-                          dari kartu "Tilawati" di Pelaksanaan. */}
-                      <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
-                        Buku Jilid
-                      </div>
+                          dari kartu "Tilawati"/"Al-Qur'an" di Pelaksanaan.
+                          Label "Buku Jilid" tak relevan utk kelas 4+
+                          (Juz/Surat/Ayat) -- disembunyikan, daftar per
+                          santri tetap tampil (diminta owner 2026-09-12). */}
+                      {!pakaiAlquran && (
+                        <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
+                          Buku Jilid
+                        </div>
+                      )}
                       {loadingTilawati ? (
                         <div className="p-3">
                           <Skeleton className="h-[44px] w-full" />
