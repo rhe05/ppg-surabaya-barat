@@ -660,8 +660,8 @@ export default function PelaksanaanPembelajaranView() {
      berikutnya saat "naik" (sama alasan Al-Qur'an: urutan surat per
      kelas tidak seragam/gampang salah kalau ditebak) -- surat & status
      dibawa APA ADANYA dari catatan terakhir, guru pilih ulang manual. */
-  type BarisHafalanSurat = { surat: string; status: '' | 'naik' | 'tetap' };
-  const BARIS_HAFALAN_SURAT_KOSONG: BarisHafalanSurat = { surat: '', status: '' };
+  type BarisHafalanSurat = { surat: string; ayat: string; status: '' | 'naik' | 'tetap' };
+  const BARIS_HAFALAN_SURAT_KOSONG: BarisHafalanSurat = { surat: '', ayat: '', status: '' };
   const [hafalanSuratCardTerbuka, setHafalanSuratCardTerbuka] = useState(false);
   const [hafalanSuratSantri, setHafalanSuratSantri] = useState<{ id: number; nama: string }[]>([]);
   const [hafalanSurat, setHafalanSurat] = useState<Record<number, BarisHafalanSurat>>({});
@@ -694,7 +694,7 @@ export default function PelaksanaanPembelajaranView() {
         supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
         supabase
           .from('hafalan_surat_pelaksanaan')
-          .select('santri_id, tanggal, surat, status')
+          .select('santri_id, tanggal, surat, ayat, status')
           .eq('kelas_id', kelasId)
           .lte('tanggal', hariIni)
           .order('tanggal', { ascending: true }),
@@ -708,21 +708,31 @@ export default function PelaksanaanPembelajaranView() {
         santri_id: number;
         tanggal: string;
         surat: string | null;
+        ayat: string | null;
         status: string | null;
       }[]) {
         const arr = perSantri.get(r.santri_id) ?? [];
-        arr.push({ tanggal: r.tanggal, surat: r.surat ?? '', status: (r.status as '' | 'naik' | 'tetap') || '' });
+        arr.push({
+          tanggal: r.tanggal,
+          surat: r.surat ?? '',
+          ayat: r.ayat ?? '',
+          status: (r.status as '' | 'naik' | 'tetap') || '',
+        });
         perSantri.set(r.santri_id, arr);
       }
       const peta: Record<number, BarisHafalanSurat> = {};
       for (const [sid, arr] of perSantri) {
         const todayRow = arr.find((x) => x.tanggal === hariIni);
         const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
-        const adaIsiTgl = !!todayRow && (todayRow.surat !== '' || todayRow.status !== '');
+        const adaIsiTgl =
+          !!todayRow && (todayRow.surat !== '' || todayRow.ayat !== '' || todayRow.status !== '');
         if (adaIsiTgl) {
-          peta[sid] = { surat: todayRow!.surat, status: todayRow!.status };
+          peta[sid] = { surat: todayRow!.surat, ayat: todayRow!.ayat, status: todayRow!.status };
         } else if (last) {
-          peta[sid] = { surat: last.surat, status: '' };
+          /* Surat & Ayat dibawa apa adanya (TANPA tebak lanjutan) --
+             sama alasan Al-Qur'an: rentang ayat per surat tidak
+             seragam. */
+          peta[sid] = { surat: last.surat, ayat: last.ayat, status: '' };
         }
       }
       setHafalanSurat(peta);
@@ -748,6 +758,7 @@ export default function PelaksanaanPembelajaranView() {
             santri_id: santriId,
             tanggal: hafalanSuratTanggal,
             surat: b.surat.trim() === '' ? null : b.surat.trim(),
+            ayat: b.ayat.trim() === '' ? null : b.ayat.trim(),
             status: b.status === '' ? null : b.status,
             dibuat_oleh: profile?.id ?? null,
           },
@@ -1955,21 +1966,68 @@ export default function PelaksanaanPembelajaranView() {
                         {hafalanSuratSantri.map((s) => {
                           const t = hafalanSurat[s.id] ?? BARIS_HAFALAN_SURAT_KOSONG;
                           const terkunci = alasanHafalanSuratTerkunci !== null;
+                          const maksAyatSurat = jumlahAyatSurat(t.surat) ?? 300;
                           return (
                             <div
                               key={s.id}
                               className="rounded-[var(--radius)] border border-border bg-panel p-3"
                             >
                               <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
-                              <div>
-                                <label className="label-mikro mb-1 block">Surat</label>
-                                <SelectKustom
-                                  value={t.surat}
-                                  onChange={(v) => ubahHafalanSurat(s.id, { surat: v }, true)}
-                                  disabled={terkunci}
-                                  placeholder="Pilih Surat"
-                                  opsi={opsiHafalanSurat}
-                                />
+                              <div className="space-y-2">
+                                <div>
+                                  <label className="label-mikro mb-1 block">Surat</label>
+                                  <SelectKustom
+                                    value={t.surat}
+                                    onChange={(v) => ubahHafalanSurat(s.id, { surat: v, ayat: '' }, true)}
+                                    disabled={terkunci}
+                                    placeholder="Pilih Surat"
+                                    opsi={opsiHafalanSurat}
+                                  />
+                                </div>
+                                {/* Ayat dari s/d Ayat sampai (diminta owner
+                                    2026-09-13, contoh: "setoran ayat 1 s/d
+                                    ayat 10") -- pola & jepit angka SAMA PERSIS
+                                    Ayat di kartu Al-Qur'an di atas, dijepit ke
+                                    jumlah ayat surat terpilih. */}
+                                <div>
+                                  <label className="label-mikro mb-1 block">
+                                    Ayat{t.surat ? ` (1–${maksAyatSurat})` : ''}
+                                  </label>
+                                  {(() => {
+                                    const { dari, sampai } = uraikanHalaman(t.ayat);
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={maksAyatSurat}
+                                          disabled={terkunci}
+                                          value={dari}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, maksAyatSurat);
+                                            ubahHafalanSurat(s.id, { ayat: gabungHalaman(baru, sampai) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                        <span className="shrink-0 text-[12px] text-text-faint">s/d</span>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={maksAyatSurat}
+                                          disabled={terkunci}
+                                          value={sampai}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, maksAyatSurat);
+                                            ubahHafalanSurat(s.id, { ayat: gabungHalaman(dari, baru) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
                               <div className="mt-2.5 flex gap-1.5 rounded-full bg-panel-2 p-1">
                                 {([
