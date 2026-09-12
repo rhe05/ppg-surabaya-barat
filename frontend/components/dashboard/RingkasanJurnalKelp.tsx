@@ -168,6 +168,8 @@ function DetailRiwayatKelas({
                     {formatTanggal(h.tanggal)}
                     {h.jilid ? ` · ${labelBukuJilid(h.jilid)}` : ''}
                     {h.halaman ? ` hal ${h.halaman}` : ''}
+                    {h.surat ? ` · ${h.surat}` : ''}
+                    {h.ayat ? ` ayat ${h.ayat}` : ''}
                   </span>
                   {h.status && (
                     <span

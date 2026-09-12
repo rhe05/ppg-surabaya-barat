@@ -128,6 +128,9 @@ export type BukuJilidSantri = {
   halProgres: number;
   terakhirJilid: string | null;
   terakhirHalaman: string | null;
+  /* Surat/Ayat -- kelas 4+ "Al-Qur'an" (2026-09-12). null utk kelas 1-3. */
+  terakhirSurat: string | null;
+  terakhirAyat: string | null;
   adaCatatan: boolean;
 };
 
@@ -145,7 +148,7 @@ export async function muatBukuJilidKelas(
       .order('nama'),
     supabase
       .from('tilawati_pelaksanaan')
-      .select('santri_id, tanggal, status, buku_jilid, halaman')
+      .select('santri_id, tanggal, status, buku_jilid, halaman, surat, ayat')
       .eq('kelas_id', kelasId)
       .gte('tanggal', awal)
       .lte('tanggal', akhir)
@@ -156,16 +159,24 @@ export async function muatBukuJilidKelas(
 
   const perSantri = new Map<
     number,
-    { status: string | null; jilid: string | null; halaman: string | null }[]
+    {
+      status: string | null;
+      jilid: string | null;
+      halaman: string | null;
+      surat: string | null;
+      ayat: string | null;
+    }[]
   >();
   for (const r of (tRes.data ?? []) as {
     santri_id: number;
     status: string | null;
     buku_jilid: string | null;
     halaman: string | null;
+    surat: string | null;
+    ayat: string | null;
   }[]) {
     const arr = perSantri.get(r.santri_id) ?? [];
-    arr.push({ status: r.status, jilid: r.buku_jilid, halaman: r.halaman });
+    arr.push({ status: r.status, jilid: r.buku_jilid, halaman: r.halaman, surat: r.surat, ayat: r.ayat });
     perSantri.set(r.santri_id, arr);
   }
 
@@ -196,6 +207,8 @@ export async function muatBukuJilidKelas(
       halProgres,
       terakhirJilid: last?.jilid ?? null,
       terakhirHalaman: last?.halaman ?? null,
+      terakhirSurat: last?.surat ?? null,
+      terakhirAyat: last?.ayat ?? null,
       adaCatatan: arr.length > 0,
     };
   });

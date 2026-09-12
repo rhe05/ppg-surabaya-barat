@@ -765,6 +765,8 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                               : labelBukuJilid(s.terakhirJilid)
                             : null,
                           s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
+                          s.terakhirSurat,
+                          s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null,
                         ]
                           .filter(Boolean)
                           .join(' ')
