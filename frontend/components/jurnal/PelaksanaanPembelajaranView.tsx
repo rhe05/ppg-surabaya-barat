@@ -1564,15 +1564,31 @@ export default function PelaksanaanPembelajaranView() {
                 di layar ini) donat 0% cuma dekorasi. Donat tetap dipakai
                 di Riwayat, tempat angkanya besar & perbandingannya
                 bermakna. */}
-            <div className="kartu-premium mb-5 px-4 py-3.5">
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="text-[13px] text-text-dim">
-                  <span className="angka-metrik text-[15px] text-text">{disampaikan}</span> dari{' '}
-                  <span className="angka-metrik text-[15px] text-text">{direncanakan}</span> materi disampaikan
+            {/* Kemajuan pertemuan dipindah ke kartu gelap `.kartu-saldo`
+                (2026-09-13, diminta owner "hyper premium seperti aplikasi
+                mahal") -- pola SAMA PERSIS kartu saldo Tabungan, supaya
+                angka kemajuan hari ini jadi elemen paling menonjol di
+                layar (dulu kotak putih datar, bobotnya sama dgn kartu
+                lain di bawahnya walau ini info paling penting). */}
+            <div className="kartu-saldo mb-5 p-4">
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-[10.5px] font-bold tracking-[0.06em] text-white/60 uppercase">
+                    Materi disampaikan hari ini
+                  </div>
+                  <div className="angka-metrik mt-1.5 text-[26px] text-white">
+                    {disampaikan}
+                    <span className="text-[14px] text-white/50"> / {direncanakan}</span>
+                  </div>
                 </div>
-                <div className="angka-metrik shrink-0 text-[12px] text-text-dim">{persen}%</div>
+                <div className="shrink-0 text-right">
+                  <div className="angka-metrik text-[20px] text-white">{persen}%</div>
+                  <div className="text-[10.5px] text-white/50">
+                    {direncanakan === 0 ? 'belum ada materi' : persen === 100 ? 'selesai' : 'berjalan'}
+                  </div>
+                </div>
               </div>
-              <div className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-panel-2">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/15">
                 <div
                   className="h-full rounded-full bg-sage transition-[width] duration-300"
                   style={{ width: `${persen}%` }}
@@ -1584,14 +1600,29 @@ export default function PelaksanaanPembelajaranView() {
                 Rencana Pembelajaran (diminta owner 2026-09-03). Isi tiap
                 kartu = daftar kartu Minggu N milik jenis itu (helper
                 daftarMinggu di atas). Keduanya terbuka bawaan. */}
-            <div className="kartu-premium mb-4 overflow-hidden">
+            {/* Aksen kiri per kategori (2026-09-13, diminta owner) --
+                keempat kartu materi di bawah tadinya berbobot visual
+                identik; garis tipis ini biar mata bisa scan cepat tanpa
+                membaca satu-satu, sengaja TIPIS (3px) & bukan warna
+                badge supaya tidak ramai. Badge "0/0" jg dibedakan dari
+                progres sungguhan -- hijau utk 0/0 sebelumnya salah
+                kaprah terbaca "sudah beres", padahal artinya "belum ada
+                materi sama sekali". */}
+            <div
+              className="kartu-premium mb-4 overflow-hidden"
+              style={{ borderLeftWidth: 3, borderLeftColor: 'var(--indigo)' }}
+            >
               <button
                 type="button"
                 onClick={() => setKlasikalCardTerbuka((v) => !v)}
                 className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
               >
                 <span className="text-[15px] font-bold text-text">Materi Klasikal</span>
-                <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    nKlasikal.total === 0 ? 'bg-panel-2 text-text-dim' : 'bg-[rgba(5,150,105,0.12)] text-sage'
+                  }`}
+                >
                   {nKlasikal.sudah}/{nKlasikal.total} Materi
                 </span>
               </button>
@@ -1602,14 +1633,21 @@ export default function PelaksanaanPembelajaranView() {
               )}
             </div>
 
-            <div className="kartu-premium mb-4 overflow-hidden">
+            <div
+              className="kartu-premium mb-4 overflow-hidden"
+              style={{ borderLeftWidth: 3, borderLeftColor: 'var(--sage)' }}
+            >
               <button
                 type="button"
                 onClick={() => setNgajiCardTerbuka((v) => !v)}
                 className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
               >
                 <span className="text-[15px] font-bold text-text">Materi Ngaji</span>
-                <span className="shrink-0 rounded-full bg-[rgba(5,150,105,0.12)] px-2.5 py-1 text-[11px] font-bold text-sage">
+                <span
+                  className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                    nNgaji.total === 0 ? 'bg-panel-2 text-text-dim' : 'bg-[rgba(5,150,105,0.12)] text-sage'
+                  }`}
+                >
                   {nNgaji.sudah}/{nNgaji.total} Materi
                 </span>
               </button>
@@ -1623,7 +1661,10 @@ export default function PelaksanaanPembelajaranView() {
             {/* Kartu "Tilawati" (2026-09-03, diminta owner) -- per santri
                 di kelas: Buku Jilid / Halaman / Naik|Tetap, simpan
                 otomatis. */}
-            <div className="kartu-premium mb-4 overflow-hidden">
+            <div
+              className="kartu-premium mb-4 overflow-hidden"
+              style={{ borderLeftWidth: 3, borderLeftColor: 'var(--teal)' }}
+            >
               <div className="flex items-center justify-between gap-2 p-4">
                 <button
                   type="button"
@@ -1901,7 +1942,10 @@ export default function PelaksanaanPembelajaranView() {
                 kurikulum kelas ini, sama sumber Materi Klasikal) + sakelar
                 Naik/Tetap. Tabel hafalan_surat_pelaksanaan terpisah dari
                 tilawati_pelaksanaan (bukan Buku Jilid/Juz). */}
-            <div className="kartu-premium mb-4 overflow-hidden">
+            <div
+              className="kartu-premium mb-4 overflow-hidden"
+              style={{ borderLeftWidth: 3, borderLeftColor: 'var(--brass)' }}
+            >
               <div className="flex items-center justify-between gap-2 p-4">
                 <button
                   type="button"
@@ -2091,9 +2135,15 @@ export default function PelaksanaanPembelajaranView() {
         <div className="bilah-aksi-bawah">
           <div className="mx-auto flex w-full max-w-[430px] items-center justify-between gap-3 px-[18px] py-3">
             {statusSimpan === 'menyimpan' ? (
-              <span className="text-[13px] text-text-dim">Menyimpan...</span>
+              <span className="flex items-center gap-1.5 text-[13px] text-text-dim">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-brass" />
+                Menyimpan...
+              </span>
             ) : adaTertinggal || statusSimpan === 'gagal' ? (
-              <span className="text-[13px] font-semibold text-red">Ada yang belum tersimpan</span>
+              <span className="flex items-center gap-1.5 text-[13px] font-semibold text-red">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-red" />
+                Ada yang belum tersimpan
+              </span>
             ) : statusSimpan === 'tersimpan' ? (
               <span className="flex items-center gap-1.5 text-[13px] text-text-dim">
                 <Check size={15} strokeWidth={2.6} className="text-sage" />
@@ -2101,8 +2151,13 @@ export default function PelaksanaanPembelajaranView() {
               </span>
             ) : (
               /* Keadaan istirahat: sekalian memberi tahu guru bahwa
-                 memang TIDAK ADA tombol simpan yang harus ia cari. */
-              <span className="text-[13px] text-text-faint">Perubahan tersimpan otomatis</span>
+                 memang TIDAK ADA tombol simpan yang harus ia cari. Dot
+                 hijau (2026-09-13) -- penanda status sehat, bukan cuma
+                 teks polos. */
+              <span className="flex items-center gap-1.5 text-[13px] text-text-faint">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-sage" />
+                Perubahan tersimpan otomatis
+              </span>
             )}
             {(adaTertinggal || statusSimpan === 'gagal') && statusSimpan !== 'menyimpan' && (
               <button
