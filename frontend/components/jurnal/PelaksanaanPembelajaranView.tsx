@@ -61,6 +61,9 @@ import { pecahJudulMateri } from '@/lib/judulMateri';
 import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
 import { muatTanggalAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
+import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
+import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
+import { DAFTAR_SURAT, jumlahAyatSurat } from '@/lib/suratAlQuran';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -145,6 +148,23 @@ const OPSI_BUKU_JILID = [
     label: `Juz ${i + 1}`,
   })),
 ];
+/* Kartu "Al-Qur'an" kelas 4+ (2026-09-12, diminta owner): Juz 1-30 polos
+   (tanpa Paud/Jilid -- itu punya OPSI_BUKU_JILID di atas, khusus kartu
+   Tilawati kelas PAUD-TK s.d. 3) + 114 Surat (lib/suratAlQuran.ts). */
+/* value HARUS format "Juz N" (bukan angka polos) -- disimpan langsung ke
+   kolom `buku_jilid` yang sama dgn dipakai OPSI_BUKU_JILID/
+   lanjutkanTilawati/labelBukuJilid/posisiTilawati, yang semuanya
+   mengenali pola persis "Juz N" via regex. Angka polos akan salah
+   dibaca sbg Jilid N biasa di layar lain (Riwayat/Ringkasan/Monitoring). */
+const OPSI_JUZ_ALQURAN = Array.from({ length: TILAWATI_MAKS_JUZ }, (_, i) => ({
+  value: `Juz ${i + 1}`,
+  label: `Juz ${i + 1}`,
+}));
+const OPSI_SURAT_ALQURAN = DAFTAR_SURAT.map((s) => ({
+  value: s.nama,
+  label: `${s.nomor}. ${s.nama}`,
+  sublabel: `${s.jumlahAyat} ayat`,
+}));
 function jepitTilawati(v: string, maks: number): string {
   const d = v.replace(/[^0-9]/g, '');
   if (d === '') return '';
@@ -173,6 +193,8 @@ function gabungHalaman(dari: string, sampai: string): string {
 function lanjutkanTilawati(last: { jilid: string; halaman: string; status: string }): {
   jilid: string;
   halaman: string;
+  surat: string;
+  ayat: string;
   status: '' | 'naik' | 'tetap';
 } {
   const cocokJuz = last.jilid.match(/^Juz\s*(\d+)$/i);
@@ -208,6 +230,8 @@ function lanjutkanTilawati(last: { jilid: string; halaman: string; status: strin
     jilid: jilidBaru,
     halaman:
       Number.isFinite(hal) && hal >= 1 ? String(Math.min(hal, TILAWATI_MAKS_HALAMAN)) : last.halaman,
+    surat: '',
+    ayat: '',
     status: '',
   };
 }
@@ -450,7 +474,18 @@ export default function PelaksanaanPembelajaranView() {
      guru "hari ini". Tabel tilawati_pelaksanaan (migrasi 20260903120000),
      UNIQUE (santri_id, tanggal) -> upsert. Auto-save 700ms setelah
      berhenti mengetik; langsung utk pilihan Naik/Tetap. */
-  type BarisTilawati = { jilid: string; halaman: string; status: '' | 'naik' | 'tetap' };
+  /* `jilid`/`halaman` dipakai kartu Tilawati (kelas PAUD-TK s.d. 3).
+     `surat`/`ayat` BARU (2026-09-12) dipakai kartu Al-Qur'an (kelas 4+)
+     -- `jilid` DIPAKAI ULANG utk simpan "Juz N" di sana (satu kolom DB
+     yang sama, `buku_jilid`), `halaman` selalu kosong utk kelas 4+. */
+  type BarisTilawati = {
+    jilid: string;
+    halaman: string;
+    surat: string;
+    ayat: string;
+    status: '' | 'naik' | 'tetap';
+  };
+  const BARIS_KOSONG: BarisTilawati = { jilid: '', halaman: '', surat: '', ayat: '', status: '' };
   const [tilawatiCardTerbuka, setTilawatiCardTerbuka] = useState(false);
   const [tilawatiSantri, setTilawatiSantri] = useState<{ id: number; nama: string }[]>([]);
   const [tilawati, setTilawati] = useState<Record<number, BarisTilawati>>({});
@@ -486,7 +521,7 @@ export default function PelaksanaanPembelajaranView() {
         supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
         supabase
           .from('tilawati_pelaksanaan')
-          .select('santri_id, tanggal, buku_jilid, halaman, status')
+          .select('santri_id, tanggal, buku_jilid, halaman, surat, ayat, status')
           .eq('kelas_id', kelasId)
           .lte('tanggal', hariIni)
           .order('tanggal', { ascending: true }),
@@ -496,15 +531,17 @@ export default function PelaksanaanPembelajaranView() {
       setTilawatiSantri((sRes.data ?? []) as { id: number; nama: string }[]);
 
       /* Kumpulkan riwayat per santri. Kalau hari ini belum ada catatan
-         DAN catatan terakhir "naik" -> halaman OTOMATIS pindah ke
-         berikutnya (diminta owner 2026-09-03). Prefill ini display-only
-         sampai guru menekan Naik/Tetap. */
-      const perSantri = new Map<number, { tanggal: string; jilid: string; halaman: string; status: string }[]>();
+         DAN catatan terakhir "naik" -> halaman/ayat OTOMATIS pindah ke
+         berikutnya (diminta owner 2026-09-03, ayat 2026-09-12). Prefill
+         ini display-only sampai guru menekan Naik/Tetap. */
+      const perSantri = new Map<number, (BarisTilawati & { tanggal: string })[]>();
       for (const r of (tRes.data ?? []) as {
         santri_id: number;
         tanggal: string;
         buku_jilid: string | null;
         halaman: string | null;
+        surat: string | null;
+        ayat: string | null;
         status: string | null;
       }[]) {
         const arr = perSantri.get(r.santri_id) ?? [];
@@ -512,7 +549,9 @@ export default function PelaksanaanPembelajaranView() {
           tanggal: r.tanggal,
           jilid: r.buku_jilid ?? '',
           halaman: r.halaman ?? '',
-          status: r.status ?? '',
+          surat: r.surat ?? '',
+          ayat: r.ayat ?? '',
+          status: (r.status as '' | 'naik' | 'tetap') || '',
         });
         perSantri.set(r.santri_id, arr);
       }
@@ -520,18 +559,27 @@ export default function PelaksanaanPembelajaranView() {
       for (const [sid, arr] of perSantri) {
         const todayRow = arr.find((x) => x.tanggal === hariIni);
         const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
-        const stTgl = (todayRow?.status as '' | 'naik' | 'tetap') || '';
         const adaIsiTgl =
-          !!todayRow && (todayRow.jilid !== '' || todayRow.halaman !== '' || stTgl !== '');
+          !!todayRow &&
+          (todayRow.jilid !== '' || todayRow.halaman !== '' || todayRow.surat !== '' ||
+            todayRow.ayat !== '' || todayRow.status !== '');
         if (adaIsiTgl) {
-          peta[sid] = { jilid: todayRow!.jilid, halaman: todayRow!.halaman, status: stTgl };
+          peta[sid] = {
+            jilid: todayRow!.jilid,
+            halaman: todayRow!.halaman,
+            surat: todayRow!.surat,
+            ayat: todayRow!.ayat,
+            status: todayRow!.status,
+          };
         } else if (last) {
-          /* Buku jilid & halaman IKUT dari catatan terakhir (diminta
-             owner 2026-09-03: "jika sudah pernah di input maka hari
-             berikutnya otomatis sudah muncul"). Kalau terakhir "naik",
-             halaman maju satu (lanjutkanTilawati). Status hari ini
-             dikosongkan -- guru yang memutuskan. */
-          peta[sid] = lanjutkanTilawati(last);
+          /* Buku jilid & halaman/Juz+Surat+Ayat IKUT dari catatan
+             terakhir (diminta owner 2026-09-03: "jika sudah pernah di
+             input maka hari berikutnya otomatis sudah muncul"). Kalau
+             terakhir "naik", halaman maju satu (lanjutkanTilawati) --
+             utk Al-Qur'an (kelas 4+) Juz/Surat/Ayat dibawa apa adanya,
+             TANPA tebak ayat/surat berikutnya (rentang ayat per surat
+             tidak seragam, gampang salah kalau ditebak otomatis). */
+          peta[sid] = pakaiAlquran ? { ...last, status: '' } : lanjutkanTilawati(last);
         }
       }
       setTilawati(peta);
@@ -549,7 +597,7 @@ export default function PelaksanaanPembelajaranView() {
   const simpanTilawati = useCallback(
     async (santriId: number) => {
       if (kelasId === '') return;
-      const b = tilawatiRef.current[santriId] ?? { jilid: '', halaman: '', status: '' as const };
+      const b = tilawatiRef.current[santriId] ?? BARIS_KOSONG;
       try {
         const { error } = await supabase.from('tilawati_pelaksanaan').upsert(
           {
@@ -558,6 +606,8 @@ export default function PelaksanaanPembelajaranView() {
             tanggal: tilawatiTanggal,
             buku_jilid: b.jilid.trim() === '' ? null : b.jilid.trim(),
             halaman: b.halaman.trim() === '' ? null : b.halaman.trim(),
+            surat: b.surat.trim() === '' ? null : b.surat.trim(),
+            ayat: b.ayat.trim() === '' ? null : b.ayat.trim(),
             status: b.status === '' ? null : b.status,
             dibuat_oleh: profile?.id ?? null,
           },
@@ -573,7 +623,7 @@ export default function PelaksanaanPembelajaranView() {
 
   function ubahTilawati(santriId: number, patch: Partial<BarisTilawati>, langsung: boolean) {
     setTilawati((prev) => {
-      const cur: BarisTilawati = prev[santriId] ?? { jilid: '', halaman: '', status: '' };
+      const cur: BarisTilawati = prev[santriId] ?? BARIS_KOSONG;
       return { ...prev, [santriId]: { ...cur, ...patch } };
     });
     const timers = tundaTilawatiRef.current;
@@ -848,6 +898,14 @@ export default function PelaksanaanPembelajaranView() {
   const kelasAktif = kelasList.find((k) => k.id === kelasId) ?? null;
   const jamMulaiKelas = kelasAktif?.jam_mulai ? kelasAktif.jam_mulai.slice(0, 5) : null;
   const kelasIniIkutAsad = kelasAktif != null && kelasIkutAsad(kelasAktif.nama);
+  /* Kartu "Tilawati" (Jilid/Halaman) vs "Al-Qur'an" (Juz/Surat/Ayat) --
+     diminta owner 2026-09-12: kelas PAUD-TK s.d. 3 tetap Buku Jilid,
+     kelas 4+ (sudah lewat fase Jilid) ganti jadi Juz/Surat/Ayat per
+     santri, konsep sama (ada Naik/Tetap). Batas SAMA PERSIS dgn yang
+     dipakai Rencana Pembelajaran (namaMateriTampil/opsiMateriKurikulum)
+     & Kurikulum -- jangan drift, satu sumber KELAS_LABEL_BACA_HURUF. */
+  const gradeRuangAktif = kelasTargetKumulatif(kelasAktif?.nama ?? '').at(-1) ?? '';
+  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
 
   function alasanTerkunci(b: Baris): string | null {
     const hariIni = todayStr();
@@ -1374,7 +1432,9 @@ export default function PelaksanaanPembelajaranView() {
                   onClick={() => setTilawatiCardTerbuka((v) => !v)}
                   className="flex min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
                 >
-                  <span className="text-[15px] font-bold text-text">Tilawati</span>
+                  <span className="text-[15px] font-bold text-text">
+                    {pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}
+                  </span>
                   <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
                     {tilawatiSantri.length} Santri
                   </span>
@@ -1413,24 +1473,32 @@ export default function PelaksanaanPembelajaranView() {
               />
               {tilawatiCardTerbuka && (
                 <div className="border-t border-border">
-                  {/* Dua tampilan (diminta owner 2026-09-03, pola sama
-                      Riwayat Pembelajaran):
-                      1. Peraga Tilawati -- materi "Baca Huruf Al-Qur'an"
-                         yg disusun guru di Rencana, DIPINDAH ke sini dari
-                         kartu Materi Ngaji. */}
-                  <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
-                    Peraga Tilawati
-                  </div>
-                  {barisPeraga.length === 0 ? (
-                    <p className="px-4 py-3 text-[13px] text-text-dim">
-                      Belum ada Peraga Tilawati untuk periode ini.
-                    </p>
-                  ) : (
-                    barisPeraga.map((b) => barisMateri(b))
+                  {!pakaiAlquran && (
+                    /* Dua tampilan (diminta owner 2026-09-03, pola sama
+                       Riwayat Pembelajaran):
+                       1. Peraga Tilawati -- materi "Baca Huruf Al-Qur'an"
+                          yg disusun guru di Rencana, DIPINDAH ke sini dari
+                          kartu Materi Ngaji. Cuma relevan kelas PAUD-TK
+                          s.d. 3 -- kelas 4+ tidak pernah punya materi ini
+                          (namaMateriTampil), jadi disembunyikan sekalian. */
+                    <>
+                      <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
+                        Peraga Tilawati
+                      </div>
+                      {barisPeraga.length === 0 ? (
+                        <p className="px-4 py-3 text-[13px] text-text-dim">
+                          Belum ada Peraga Tilawati untuk periode ini.
+                        </p>
+                      ) : (
+                        barisPeraga.map((b) => barisMateri(b))
+                      )}
+                    </>
                   )}
-                  {/* 2. Buku Jilid -- catatan per santri (Naik/Tetap). */}
+                  {/* 2. Buku Jilid (kelas PAUD-TK s.d. 3) ATAU Al-Qur'an
+                      (kelas 4+, diminta owner 2026-09-12) -- catatan per
+                      santri (Naik/Tetap). */}
                   <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
-                    Buku Jilid
+                    {pakaiAlquran ? "Al-Qur'an" : 'Buku Jilid'}
                   </div>
                   <div className="p-3">
                   {loadingTilawati && tilawatiSantri.length === 0 ? (
@@ -1448,79 +1516,155 @@ export default function PelaksanaanPembelajaranView() {
                         </p>
                       )}
                       {tilawatiSantri.map((s) => {
-                        const t = tilawati[s.id] ?? { jilid: '', halaman: '', status: '' as const };
+                        const t = tilawati[s.id] ?? BARIS_KOSONG;
                         const terkunci = alasanTilawatiTerkunci !== null;
+                        const maksAyat = jumlahAyatSurat(t.surat) ?? 300;
                         return (
                           <div
                             key={s.id}
                             className="rounded-[var(--radius)] border border-border bg-panel p-3"
                           >
                             <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
-                            <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
-                              <div>
-                                <label className="label-mikro mb-1 block">Buku Jilid</label>
-                                {/* Paud + Jilid 1-6 (diminta owner 2026-09-03):
-                                    sebagian santri pakai buku "Paud" sebelum
-                                    masuk Jilid 1. Kolom text di DB. */}
-                                <SelectKustom
-                                  value={t.jilid}
-                                  onChange={(v) => ubahTilawati(s.id, { jilid: v }, true)}
-                                  disabled={terkunci}
-                                  placeholder="Pilih"
-                                  opsi={OPSI_BUKU_JILID}
-                                />
+                            {pakaiAlquran ? (
+                              /* Kartu "Al-Qur'an" kelas 4+ (2026-09-12,
+                                 diminta owner) -- Juz + Surat (dropdown
+                                 custom, BUKAN <select> bawaan browser) +
+                                 rentang Ayat (pola sama Halaman Dari/
+                                 Sampai di atas, dijepit ke jumlah ayat
+                                 surat terpilih). `jilid` DIPAKAI ULANG utk
+                                 simpan "Juz N" -- satu kolom DB yang sama
+                                 dgn Buku Jilid, TIDAK butuh kolom baru. */
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <label className="label-mikro mb-1 block">Juz</label>
+                                    <SelectKustom
+                                      value={t.jilid}
+                                      onChange={(v) => ubahTilawati(s.id, { jilid: v }, true)}
+                                      disabled={terkunci}
+                                      placeholder="Pilih Juz"
+                                      opsi={OPSI_JUZ_ALQURAN}
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="label-mikro mb-1 block">Surat</label>
+                                    <SelectKustom
+                                      value={t.surat}
+                                      onChange={(v) => ubahTilawati(s.id, { surat: v, ayat: '' }, true)}
+                                      disabled={terkunci}
+                                      placeholder="Pilih Surat"
+                                      opsi={OPSI_SURAT_ALQURAN}
+                                    />
+                                  </div>
+                                </div>
+                                <div>
+                                  <label className="label-mikro mb-1 block">
+                                    Ayat{t.surat ? ` (1–${maksAyat})` : ''}
+                                  </label>
+                                  {(() => {
+                                    const { dari, sampai } = uraikanHalaman(t.ayat);
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={maksAyat}
+                                          disabled={terkunci}
+                                          value={dari}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, maksAyat);
+                                            ubahTilawati(s.id, { ayat: gabungHalaman(baru, sampai) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                        <span className="shrink-0 text-[12px] text-text-faint">s/d</span>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={maksAyat}
+                                          disabled={terkunci}
+                                          value={sampai}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, maksAyat);
+                                            ubahTilawati(s.id, { ayat: gabungHalaman(dari, baru) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
                               </div>
-                              {/* Halaman DUA kolom kecil "Dari"/"Sampai"
-                                  (diminta owner 2026-09-12: kadang generus
-                                  baca lebih dari 1 halaman dalam satu
-                                  pertemuan). Tersimpan SATU kolom teks di DB
-                                  (gabungHalaman/uraikanHalaman di atas) --
-                                  tanpa migrasi, backward-compatible dgn
-                                  catatan lama yang cuma 1 angka. */}
-                              {(() => {
-                                const { dari, sampai } = uraikanHalaman(t.halaman);
-                                return (
-                                  <>
-                                    <div>
-                                      <label className="label-mikro mb-1 block">Dari</label>
-                                      <input
-                                        type="number"
-                                        inputMode="numeric"
-                                        min={1}
-                                        max={TILAWATI_MAKS_HALAMAN}
-                                        disabled={terkunci}
-                                        value={dari}
-                                        onChange={(e) => {
-                                          const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
-                                          ubahTilawati(s.id, { halaman: gabungHalaman(baru, sampai) }, false);
-                                        }}
-                                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
-                                      />
-                                    </div>
-                                    <div>
-                                      <label className="label-mikro mb-1 block">Sampai</label>
-                                      <input
-                                        type="number"
-                                        inputMode="numeric"
-                                        min={1}
-                                        max={TILAWATI_MAKS_HALAMAN}
-                                        disabled={terkunci}
-                                        value={sampai}
-                                        onChange={(e) => {
-                                          const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
-                                          ubahTilawati(s.id, { halaman: gabungHalaman(dari, baru) }, false);
-                                        }}
-                                        className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
-                                      />
-                                    </div>
-                                  </>
-                                );
-                              })()}
-                            </div>
+                            ) : (
+                              <div className="grid grid-cols-[2fr_1fr_1fr] gap-2">
+                                <div>
+                                  <label className="label-mikro mb-1 block">Buku Jilid</label>
+                                  {/* Paud + Jilid 1-6 (diminta owner 2026-09-03):
+                                      sebagian santri pakai buku "Paud" sebelum
+                                      masuk Jilid 1. Kolom text di DB. */}
+                                  <SelectKustom
+                                    value={t.jilid}
+                                    onChange={(v) => ubahTilawati(s.id, { jilid: v }, true)}
+                                    disabled={terkunci}
+                                    placeholder="Pilih"
+                                    opsi={OPSI_BUKU_JILID}
+                                  />
+                                </div>
+                                {/* Halaman DUA kolom kecil "Dari"/"Sampai"
+                                    (diminta owner 2026-09-12: kadang generus
+                                    baca lebih dari 1 halaman dalam satu
+                                    pertemuan). Tersimpan SATU kolom teks di DB
+                                    (gabungHalaman/uraikanHalaman di atas) --
+                                    tanpa migrasi, backward-compatible dgn
+                                    catatan lama yang cuma 1 angka. */}
+                                {(() => {
+                                  const { dari, sampai } = uraikanHalaman(t.halaman);
+                                  return (
+                                    <>
+                                      <div>
+                                        <label className="label-mikro mb-1 block">Dari</label>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={TILAWATI_MAKS_HALAMAN}
+                                          disabled={terkunci}
+                                          value={dari}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
+                                            ubahTilawati(s.id, { halaman: gabungHalaman(baru, sampai) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                      </div>
+                                      <div>
+                                        <label className="label-mikro mb-1 block">Sampai</label>
+                                        <input
+                                          type="number"
+                                          inputMode="numeric"
+                                          min={1}
+                                          max={TILAWATI_MAKS_HALAMAN}
+                                          disabled={terkunci}
+                                          value={sampai}
+                                          onChange={(e) => {
+                                            const baru = jepitTilawati(e.target.value, TILAWATI_MAKS_HALAMAN);
+                                            ubahTilawati(s.id, { halaman: gabungHalaman(dari, baru) }, false);
+                                          }}
+                                          className="w-full rounded-[var(--radius)] border border-border bg-panel px-2 py-2 text-center text-[13px] text-text focus:border-brass focus:outline-none disabled:opacity-60"
+                                        />
+                                      </div>
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
                             {/* Sakelar Naik / Tetap -- pil modern: track
                                 cekung, tombol aktif "terangkat" + ikon,
                                 ketuk lagi utk batal (diminta owner
-                                2026-09-03). */}
+                                2026-09-03). Konsep SAMA dipakai kartu
+                                Al-Qur'an (diminta owner 2026-09-12). */}
                             <div className="mt-2.5 flex gap-1.5 rounded-full bg-panel-2 p-1">
                               {([
                                 { opt: 'naik', label: 'Naik', Ikon: ArrowUp, warna: 'var(--sage)' },
