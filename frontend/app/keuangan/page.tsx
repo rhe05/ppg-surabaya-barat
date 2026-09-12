@@ -45,6 +45,13 @@ function KeuanganContent() {
   const isAdmin = profile?.role === 'admin_kelompok';
   const router = useRouter();
 
+  /* Shodaqoh sengaja TIDAK didukung utk pengunjung (RLS-nya tak punya
+     cabang pengunjung, & RequireAuth mengecualikan /shodaqoh dari
+     HALAMAN_PENGUNJUNG) -- kartunya disaring di sini jg supaya
+     pengunjung tak menekan kartu yg berujung dilempar ke app lain
+     (/jamaah) tanpa penjelasan (temuan audit 2026-09-12). */
+  const menu = MENU.filter((m) => !(m.href === '/shodaqoh' && profile?.role === 'pengunjung'));
+
   return (
     <main className="relative flex min-h-screen flex-col bg-bg">
       {isAdmin ? <AdminHeader judul="Keuangan" /> : <JurnalHeaderChrome tampilkanHero={false} />}
@@ -53,7 +60,7 @@ function KeuanganContent() {
         <h1 className="mb-4 text-[17px] font-extrabold tracking-[-0.01em] text-text">Keuangan</h1>
 
         <div className="flex flex-col gap-3">
-          {MENU.map((m) => {
+          {menu.map((m) => {
             const Ikon = m.ikon;
             return (
               <button
