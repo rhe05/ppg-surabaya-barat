@@ -1633,9 +1633,6 @@ export default function PelaksanaanPembelajaranView() {
                   <span className="text-[15px] font-bold text-text">
                     {pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}
                   </span>
-                  <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                    {tilawatiSantri.length} Santri
-                  </span>
                 </button>
                 {/* Tanggal input Tilawati -- diklik utk buka kalender
                     (diminta owner 2026-09-03). */}
@@ -1912,9 +1909,6 @@ export default function PelaksanaanPembelajaranView() {
                   className="flex min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
                 >
                   <span className="text-[15px] font-bold text-text">Hafalan Surat-Surat Al-Qur&apos;an</span>
-                  <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                    {hafalanSuratSantri.length} Santri
-                  </span>
                 </button>
                 <button
                   ref={hafalanSuratTanggalBtnRef}
