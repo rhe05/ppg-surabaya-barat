@@ -58,6 +58,7 @@ import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker'
 import { useToast } from '@/components/ui/useToast';
 import { rentangMinggu, labelRentangMinggu, mingguKeDariTanggal } from '@/lib/mingguBulan';
 import { namaMateriTampil, KELAS_LABEL_BACA_HURUF, KATEGORI_BACAAN_ALQURAN } from '@/lib/kategori';
+import { DAFTAR_SURAT, jumlahAyatSurat } from '@/lib/suratAlQuran';
 import { LIBUR_NASIONAL_2026 } from '@/lib/liburNasional';
 import { muatOverrideKelompok, buatCekNonaktif, type PetaOverride } from '@/lib/kalenderKelompok';
 import { muatTanggalAsad, tandaiAsad, batalkanAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
@@ -86,6 +87,19 @@ function jepitHalPeraga(v: string): string {
   if (d === '') return '';
   return String(Math.min(Math.max(Number(d), 1), PERAGA_HAL_MAKS));
 }
+
+/* "Bacaan Al-Qur'an" kelas 4-9 (diminta owner 2026-09-12): Juz 1-30 +
+   Surat (114, dari lib/suratAlQuran.ts) + rentang Ayat -- dropdown
+   custom (SelectKustom), BUKAN <select> bawaan browser. */
+const OPSI_JUZ: OpsiSelect[] = Array.from({ length: 30 }, (_, i) => ({
+  value: String(i + 1),
+  label: `Juz ${i + 1}`,
+}));
+const OPSI_SURAT: OpsiSelect[] = DAFTAR_SURAT.map((s) => ({
+  value: s.nama,
+  label: `${s.nomor}. ${s.nama}`,
+  sublabel: `${s.jumlahAyat} ayat`,
+}));
 
 type Kelas = { id: number; nama: string };
 type Materi = {
@@ -645,12 +659,28 @@ export default function RencanaPembelajaranView() {
   const [peragaTilawatiSampai, setPeragaTilawatiSampai] = useState('');
   const [peragaJilidBaru, setPeragaJilidBaru] = useState('');
   const [peragaTeknikBaru, setPeragaTeknikBaru] = useState('');
+  /* "Bacaan Al-Qur'an" kelas 4-9 (diminta owner 2026-09-12): Juz + Surat
+     + rentang Ayat, GANTIKAN field "Pertemuan ke-" biasa selama kondisi
+     ini aktif (sama pola Peraga Tilawati di atas). Disimpan sbg bagian
+     `judul`: "Bacaan Al-Qur'an — Juz N: Surat X · Ayat A-B". */
+  const [bacaanJuzBaru, setBacaanJuzBaru] = useState('');
+  const [bacaanSuratBaru, setBacaanSuratBaru] = useState('');
+  const [bacaanAyatDariBaru, setBacaanAyatDariBaru] = useState('');
+  const [bacaanAyatSampaiBaru, setBacaanAyatSampaiBaru] = useState('');
   /* null = mode Tambah materi ngaji; angka = mode Ubah baris itu
      (2026-09-03, "samakan seperti materi klasikal"). */
   const [editNgajiId, setEditNgajiId] = useState<number | null>(null);
   const gradeRuangAktif = kelasTargetKumulatif(namaRuangAktif).at(-1) ?? '';
   const tampilPeragaTilawati =
     judulBaru.trim() === "Baca Huruf Al-Qur'an" && KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
+  const tampilBacaanAlQuran =
+    judulBaru.trim() === KATEGORI_BACAAN_ALQURAN && !KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
+  const maksAyatTerpilih = jumlahAyatSurat(bacaanSuratBaru) ?? 300;
+  function jepitAyat(v: string): string {
+    const d = v.replace(/[^0-9]/g, '');
+    if (d === '') return '';
+    return String(Math.min(Math.max(Number(d), 1), maksAyatTerpilih));
+  }
 
   function bukaFormTambah() {
     setEditNgajiId(null);
@@ -662,6 +692,10 @@ export default function RencanaPembelajaranView() {
     setPeragaTilawatiSampai('');
     setPeragaJilidBaru('');
     setPeragaTeknikBaru('');
+    setBacaanJuzBaru('');
+    setBacaanSuratBaru('');
+    setBacaanAyatDariBaru('');
+    setBacaanAyatSampaiBaru('');
     setCatatanBaru('');
     setPengingatBaru(false);
     setTambahTerbuka(true);
@@ -688,18 +722,43 @@ export default function RencanaPembelajaranView() {
           teknik: (m.judul.match(/Teknik\s+([\d\s&,]+)/)?.[1].match(/\d+/g) ?? []).join(','),
         }
       : null;
+    const bacaan = m.judul.startsWith(KATEGORI_BACAAN_ALQURAN)
+      ? {
+          juz: m.judul.match(/Juz\s+(\d+)/i)?.[1] ?? '',
+          surat: m.judul.match(/Surat\s+(.+?)(?:\s*·|$)/i)?.[1]?.trim() ?? '',
+          ayat: m.judul.match(/Ayat\s+(\d+)(?:\s*-\s*(\d+))?/i) ?? null,
+        }
+      : null;
     if (peraga && (peraga.jilid || peraga.hal || peraga.teknik)) {
       setJudulBaru("Baca Huruf Al-Qur'an");
       setPeragaJilidBaru(peraga.jilid);
       setPeragaTilawatiDari(peraga.hal?.[1] ?? '');
       setPeragaTilawatiSampai(peraga.hal?.[2] ?? '');
       setPeragaTeknikBaru(peraga.teknik);
+      setBacaanJuzBaru('');
+      setBacaanSuratBaru('');
+      setBacaanAyatDariBaru('');
+      setBacaanAyatSampaiBaru('');
+    } else if (bacaan && (bacaan.juz || bacaan.surat || bacaan.ayat)) {
+      setJudulBaru(KATEGORI_BACAAN_ALQURAN);
+      setBacaanJuzBaru(bacaan.juz);
+      setBacaanSuratBaru(bacaan.surat);
+      setBacaanAyatDariBaru(bacaan.ayat?.[1] ?? '');
+      setBacaanAyatSampaiBaru(bacaan.ayat?.[2] ?? '');
+      setPeragaJilidBaru('');
+      setPeragaTilawatiDari('');
+      setPeragaTilawatiSampai('');
+      setPeragaTeknikBaru('');
     } else {
       setJudulBaru(m.judul);
       setPeragaJilidBaru('');
       setPeragaTilawatiDari('');
       setPeragaTilawatiSampai('');
       setPeragaTeknikBaru('');
+      setBacaanJuzBaru('');
+      setBacaanSuratBaru('');
+      setBacaanAyatDariBaru('');
+      setBacaanAyatSampaiBaru('');
     }
     setTambahTerbuka(true);
   }
@@ -994,6 +1053,22 @@ export default function RencanaPembelajaranView() {
       const bagian: string[] = [];
       if (rentang) bagian.push(`Peraga Tilawati hal ${rentang}`);
       if (peragaTeknikBaru) bagian.push(`Teknik ${peragaTeknikBaru.split(',').join(' & ')}`);
+      judul = bagian.length > 0 ? `${inti}: ${bagian.join(' · ')}` : inti;
+    } else if (tampilBacaanAlQuran) {
+      /* "Bacaan Al-Qur'an" kelas 4-9 (diminta owner 2026-09-12): Juz +
+         Surat + rentang Ayat jadi bagian judul, pola sama Peraga
+         Tilawati di atas -- TANPA "Pertemuan ke" (sengaja tidak ada
+         field itu di blok khusus ini). */
+      const juz = bacaanJuzBaru.trim();
+      const surat = bacaanSuratBaru.trim();
+      const ad = bacaanAyatDariBaru.trim();
+      const as = bacaanAyatSampaiBaru.trim();
+      const rentangAyat = ad && as ? (ad === as ? ad : `${ad}-${as}`) : ad || as;
+      let inti = KATEGORI_BACAAN_ALQURAN;
+      if (juz) inti += ` — Juz ${juz}`;
+      const bagian: string[] = [];
+      if (surat) bagian.push(`Surat ${surat}`);
+      if (rentangAyat) bagian.push(`Ayat ${rentangAyat}`);
       judul = bagian.length > 0 ? `${inti}: ${bagian.join(' · ')}` : inti;
     }
     /* Minggu + bulan/tahun diturunkan dari Tanggal, sama spt Materi
@@ -1856,6 +1931,77 @@ export default function RencanaPembelajaranView() {
                       </label>
                       <div className="rounded-[var(--radius)] border border-dashed border-border bg-panel-2 px-3 py-2.5 text-[13px] text-text-dim">
                         Sesuai Kondisi Setiap Santri
+                      </div>
+                    </div>
+                  </div>
+                ) : tampilBacaanAlQuran ? (
+                  /* "Bacaan Al-Qur'an" kelas 4-9 (diminta owner
+                     2026-09-12): Juz + Surat (dropdown custom -- BUKAN
+                     <select> bawaan browser, pola sama Jilid Peraga di
+                     atas) + rentang Ayat (dijepit otomatis ke jumlah
+                     ayat surat terpilih). Tanpa "Pertemuan ke" -- sengaja
+                     dihapus dari blok khusus ini. */
+                  <div className="mb-3.5 space-y-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
+                          Juz
+                        </label>
+                        <SelectKustom
+                          value={bacaanJuzBaru}
+                          onChange={setBacaanJuzBaru}
+                          opsi={OPSI_JUZ}
+                          placeholder="Pilih Juz"
+                        />
+                      </div>
+                      <div>
+                        <label className="mb-1.5 block text-[12px] font-semibold whitespace-nowrap text-text">
+                          Surat
+                        </label>
+                        <SelectKustom
+                          value={bacaanSuratBaru}
+                          onChange={(v) => {
+                            setBacaanSuratBaru(v);
+                            setBacaanAyatDariBaru('');
+                            setBacaanAyatSampaiBaru('');
+                          }}
+                          opsi={OPSI_SURAT}
+                          placeholder="Pilih Surat"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold text-text">
+                        Ayat{bacaanSuratBaru ? ` (1–${maksAyatTerpilih})` : ''}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {([
+                          [bacaanAyatDariBaru, setBacaanAyatDariBaru] as const,
+                          [bacaanAyatSampaiBaru, setBacaanAyatSampaiBaru] as const,
+                        ]).map(([nilai, set], i) => (
+                          <Fragment key={i}>
+                            {i === 1 && <span className="shrink-0 text-[12px] text-text-faint">s/d</span>}
+                            <div className="relative flex-1">
+                              {!nilai && (
+                                <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[12px] text-text-faint">
+                                  ayat
+                                </span>
+                              )}
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={1}
+                                max={maksAyatTerpilih}
+                                value={nilai}
+                                onChange={(e) => set(jepitAyat(e.target.value))}
+                                className={`w-full rounded-[var(--radius)] border border-border bg-panel py-2.5 text-[13px] text-text focus:border-brass focus:outline-none ${
+                                  nilai ? 'px-3 text-center' : 'pr-3 pl-9'
+                                }`}
+                              />
+                            </div>
+                          </Fragment>
+                        ))}
                       </div>
                     </div>
                   </div>
