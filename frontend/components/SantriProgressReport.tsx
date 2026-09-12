@@ -86,6 +86,7 @@ import {
   targetTilawatiPeriode,
   statusPencapaianTilawati,
   posisiTilawati,
+  labelTargetPeriode,
   LABEL_STATUS_PENCAPAIAN,
 } from '@/lib/pedomanTilawati';
 import {
@@ -374,9 +375,21 @@ export default function SantriProgressReport() {
           const targetAlquran = pakaiAlquran
             ? await targetAlquranPeriode(kelasProta, tahun, bulan)
             : null;
+          const targetTilawati = pakaiAlquran ? null : targetTilawatiPeriode(kelasProta, bulan);
+
+          /* Teks target bulan ini -- KONSEP SAMA PERSIS dgn kotak
+             "Target [Bulan]: ..." di Monitoring Pencapaian Materi
+             (diminta owner 2026-09-12). null kalau kelas di luar
+             pedoman Tilawati & belum ada data Kurikulum Al-Qur'an. */
+          const targetTeks = pakaiAlquran
+            ? [targetAlquran?.juz, targetAlquran?.target].filter(Boolean).join(' · ') || null
+            : targetTilawati
+              ? labelTargetPeriode(targetTilawati)
+              : null;
 
           materiNgaji = {
             judul: namaMateriTampil(KATEGORI_BACAAN_ALQURAN, kelasProta),
+            target: targetTeks ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetTeks}` : null,
             baris: bukuJilid.map((s) => {
               const pencapaian = s.adaCatatan
                 ? [

@@ -152,7 +152,16 @@ export type MateriKlasikal = {
    "Bacaan Al-Qur'an" kelas 4-9) -- SAMA batas `KELAS_LABEL_BACA_HURUF`
    yg dipakai Pelaksanaan/Riwayat/Monitoring. */
 export type MateriNgajiBaris = { nama: string; pencapaian: string; keterangan: string };
-export type MateriNgaji = { judul: string; baris: MateriNgajiBaris[] };
+export type MateriNgaji = {
+  judul: string;
+  /* "Target September: Jilid 2 · Hal 10-18 (Total 8 Halaman)" / "Target
+     September: Juz 30 · 2 Lbr" -- kotak sama persis dgn Monitoring
+     Pencapaian Materi (diminta owner 2026-09-12). null kalau kelas di
+     luar pedoman Tilawati & belum ada data Kurikulum Al-Qur'an bulan
+     itu. */
+  target: string | null;
+  baris: MateriNgajiBaris[];
+};
 
 export type LaporanPerkembangan = {
   guruNama: string;
@@ -323,6 +332,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
             {laporan.materiNgaji.judul}
           </div>
+          {laporan.materiNgaji.target && (
+            <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+              {laporan.materiNgaji.target}
+            </div>
+          )}
           <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
             <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
               <thead className="border-b border-border bg-panel-2">
