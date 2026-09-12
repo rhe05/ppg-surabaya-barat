@@ -204,6 +204,15 @@ body:has([data-jamaah-nav]) main {
   z-index: 40;
   border-top: 1px solid var(--border);
   background: var(--panel);
+  /* Dikunci ke kolom mobile 430px + ditengahkan (diminta owner
+     2026-09-12: melebar penuh layar saat dibuka di laptop, padahal
+     top bar & bottom nav sudah dikunci 430px) -- pola SAMA PERSIS
+     GuruBottomNav.tsx/JamaahBottomNav.tsx (mx-auto + max-w-[430px]
+     LANGSUNG di elemen fixed-nya sendiri, bukan cuma di wrapper
+     dalam -- itu sebabnya dulu nav bawah lebar penuh juga, lihat
+     ERROR_LOG & memory terkait). */
+  margin-inline: auto;
+  max-width: 430px;
 }
 
 body:has([data-guru-nav]) .bilah-aksi-bawah,
