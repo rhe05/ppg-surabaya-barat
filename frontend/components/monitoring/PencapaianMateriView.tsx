@@ -104,6 +104,7 @@ import {
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
+import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -392,6 +393,10 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     () => kelasKurikulumSampai(namaKelasAktif).at(-1) ?? '',
     [namaKelasAktif],
   );
+  /* Kelas 4+ pakai kartu "Al-Qur'an" (Juz/Surat/Ayat), bukan Tilawati
+     Buku Jilid -- batas SAMA `KELAS_LABEL_BACA_HURUF` yg dipakai
+     Pelaksanaan & Riwayat (diminta owner 2026-09-12). */
+  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(kodeKelasTilawati);
   const targetTilawati = useMemo(
     () => targetTilawatiPeriode(kodeKelasTilawati, bulan),
     [kodeKelasTilawati, bulan],
@@ -697,50 +702,58 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          {/* ── Tilawati -- dua bagian spt Riwayat Pembelajaran
+          {/* ── Tilawati/Al-Qur'an -- dua bagian spt Riwayat Pembelajaran
               (2026-09-03, diminta owner): "Peraga Tilawati" (pengulangan
               materi) + "Buku Jilid" (Naik/Tetap per santri). Keduanya
-              tampil utk guru & admin. ── */}
-          <div className="label-mikro mb-2">Tilawati</div>
+              tampil utk guru & admin. Kelas 4+: judul jadi "Al-Qur'an",
+              Peraga Tilawati & label "Buku Jilid Tilawati" disembunyikan
+              (diminta owner 2026-09-12, sama pola Riwayat Pembelajaran). ── */}
+          <div className="label-mikro mb-2">{pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}</div>
 
-          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Peraga Tilawati</div>
-          {loadingPeraga && <Skeleton className="mb-5 h-[52px] w-full" />}
-          {!loadingPeraga && (
-            <div className="kartu-premium mb-5 overflow-hidden">
-              {peragaTampil.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada Peraga Tilawati yang disampaikan pada periode ini.
-                </p>
-              ) : (
-                peragaTampil.map((b) => (
-                  <div
-                    key={b.jilid}
-                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                  >
-                    <span className="min-w-0 truncate text-[13px] font-semibold text-text">
-                      Peraga Tilawati {b.jilid === 'Paud' ? 'Paud' : `Jilid ${b.jilid}`}
-                    </span>
-                    <span className="flex shrink-0 items-baseline gap-1.5">
-                      {b.khatam > 0 ? (
-                        <span className="angka-metrik text-[15px] text-sage">{b.khatam}×</span>
-                      ) : (
-                        <span className="text-[11px] whitespace-nowrap text-text-faint">
-                          sedang berjalan
+          {!pakaiAlquran && (
+            <>
+              <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Peraga Tilawati</div>
+              {loadingPeraga && <Skeleton className="mb-5 h-[52px] w-full" />}
+              {!loadingPeraga && (
+                <div className="kartu-premium mb-5 overflow-hidden">
+                  {peragaTampil.length === 0 ? (
+                    <p className="px-4 py-3 text-[13px] text-text-dim">
+                      Belum ada Peraga Tilawati yang disampaikan pada periode ini.
+                    </p>
+                  ) : (
+                    peragaTampil.map((b) => (
+                      <div
+                        key={b.jilid}
+                        className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                      >
+                        <span className="min-w-0 truncate text-[13px] font-semibold text-text">
+                          Peraga Tilawati {b.jilid === 'Paud' ? 'Paud' : `Jilid ${b.jilid}`}
                         </span>
-                      )}
-                      {b.terakhir && (
-                        <span className="text-[11px] whitespace-nowrap text-text-faint">
-                          terakhir {tanggalPendek(b.terakhir)}
+                        <span className="flex shrink-0 items-baseline gap-1.5">
+                          {b.khatam > 0 ? (
+                            <span className="angka-metrik text-[15px] text-sage">{b.khatam}×</span>
+                          ) : (
+                            <span className="text-[11px] whitespace-nowrap text-text-faint">
+                              sedang berjalan
+                            </span>
+                          )}
+                          {b.terakhir && (
+                            <span className="text-[11px] whitespace-nowrap text-text-faint">
+                              terakhir {tanggalPendek(b.terakhir)}
+                            </span>
+                          )}
                         </span>
-                      )}
-                    </span>
-                  </div>
-                ))
+                      </div>
+                    ))
+                  )}
+                </div>
               )}
-            </div>
+            </>
           )}
 
-          <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid Tilawati</div>
+          {!pakaiAlquran && (
+            <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid Tilawati</div>
+          )}
           {targetTilawati && (
             <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
               Target {NAMA_BULAN[bulan - 1]}: {labelTargetPeriode(targetTilawati)}
