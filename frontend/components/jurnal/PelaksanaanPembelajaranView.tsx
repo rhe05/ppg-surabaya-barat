@@ -58,12 +58,21 @@ import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker'
 import { useToast } from '@/components/ui/useToast';
 import { mingguKeDariTanggal, rentangMinggu, labelRentangMinggu } from '@/lib/mingguBulan';
 import { pecahJudulMateri } from '@/lib/judulMateri';
-import { muatKelasGuru, muatMateriBulan, tandaiMateriBerubah, type KelasJurnal , buangSemuaSinggahan } from '@/lib/dataGuru';
+import {
+  muatKelasGuru,
+  muatMateriBulan,
+  tandaiMateriBerubah,
+  muatProtaKelompok,
+  namaKategori,
+  type KelasJurnal,
+  buangSemuaSinggahan,
+} from '@/lib/dataGuru';
 import { muatTanggalAsad, kelasIkutAsad } from '@/lib/klasikalAsad';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
 import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 import { DAFTAR_SURAT, jumlahAyatSurat } from '@/lib/suratAlQuran';
+import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
 
 const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -641,6 +650,145 @@ export default function PelaksanaanPembelajaranView() {
     );
   }
 
+  /* ── Kartu "Hafalan Surat-Surat Al-Qur'an" (2026-09-13, diminta owner:
+     "model cardnya kurang lebih samakan seperti card Al-Qur'an") ──────
+     Per santri di kelas: Surat + Naik|Tetap, dicatat guru per tanggal --
+     mekanik & tabel PERSIS pola Tilawati/Al-Qur'an di atas, BEDA hanya
+     kolomnya (surat, bukan jilid/halaman/juz/ayat). Tabel
+     hafalan_surat_pelaksanaan (migrasi 20260913110000), UNIQUE
+     (santri_id, tanggal) -> upsert. TIDAK ada tebak-otomatis surat
+     berikutnya saat "naik" (sama alasan Al-Qur'an: urutan surat per
+     kelas tidak seragam/gampang salah kalau ditebak) -- surat & status
+     dibawa APA ADANYA dari catatan terakhir, guru pilih ulang manual. */
+  type BarisHafalanSurat = { surat: string; status: '' | 'naik' | 'tetap' };
+  const BARIS_HAFALAN_SURAT_KOSONG: BarisHafalanSurat = { surat: '', status: '' };
+  const [hafalanSuratCardTerbuka, setHafalanSuratCardTerbuka] = useState(false);
+  const [hafalanSuratSantri, setHafalanSuratSantri] = useState<{ id: number; nama: string }[]>([]);
+  const [hafalanSurat, setHafalanSurat] = useState<Record<number, BarisHafalanSurat>>({});
+  const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
+  const [hafalanSuratTanggal, setHafalanSuratTanggal] = useState(todayStr());
+  const [hafalanSuratPickerTerbuka, setHafalanSuratPickerTerbuka] = useState(false);
+  const [posisiHafalanSuratPicker, setPosisiHafalanSuratPicker] = useState<PosisiPicker | null>(null);
+  const hafalanSuratTanggalBtnRef = useRef<HTMLButtonElement>(null);
+  const hafalanSuratRef = useRef<Record<number, BarisHafalanSurat>>({});
+  hafalanSuratRef.current = hafalanSurat;
+  const tundaHafalanSuratRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const timers = tundaHafalanSuratRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  const muatHafalanSurat = useCallback(async () => {
+    if (kelasId === '') {
+      setHafalanSuratSantri([]);
+      setHafalanSurat({});
+      return;
+    }
+    setLoadingHafalanSurat(true);
+    try {
+      const hariIni = hafalanSuratTanggal;
+      const [sRes, hRes] = await Promise.all([
+        supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
+        supabase
+          .from('hafalan_surat_pelaksanaan')
+          .select('santri_id, tanggal, surat, status')
+          .eq('kelas_id', kelasId)
+          .lte('tanggal', hariIni)
+          .order('tanggal', { ascending: true }),
+      ]);
+      if (sRes.error) throw new Error(sRes.error.message);
+      if (hRes.error) throw new Error(hRes.error.message);
+      setHafalanSuratSantri((sRes.data ?? []) as { id: number; nama: string }[]);
+
+      const perSantri = new Map<number, (BarisHafalanSurat & { tanggal: string })[]>();
+      for (const r of (hRes.data ?? []) as {
+        santri_id: number;
+        tanggal: string;
+        surat: string | null;
+        status: string | null;
+      }[]) {
+        const arr = perSantri.get(r.santri_id) ?? [];
+        arr.push({ tanggal: r.tanggal, surat: r.surat ?? '', status: (r.status as '' | 'naik' | 'tetap') || '' });
+        perSantri.set(r.santri_id, arr);
+      }
+      const peta: Record<number, BarisHafalanSurat> = {};
+      for (const [sid, arr] of perSantri) {
+        const todayRow = arr.find((x) => x.tanggal === hariIni);
+        const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
+        const adaIsiTgl = !!todayRow && (todayRow.surat !== '' || todayRow.status !== '');
+        if (adaIsiTgl) {
+          peta[sid] = { surat: todayRow!.surat, status: todayRow!.status };
+        } else if (last) {
+          peta[sid] = { surat: last.surat, status: '' };
+        }
+      }
+      setHafalanSurat(peta);
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal memuat Hafalan Surat.', 'error');
+    } finally {
+      setLoadingHafalanSurat(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, hafalanSuratTanggal]);
+  useEffect(() => {
+    muatHafalanSurat();
+  }, [muatHafalanSurat]);
+
+  const simpanHafalanSurat = useCallback(
+    async (santriId: number) => {
+      if (kelasId === '') return;
+      const b = hafalanSuratRef.current[santriId] ?? BARIS_HAFALAN_SURAT_KOSONG;
+      try {
+        const { error } = await supabase.from('hafalan_surat_pelaksanaan').upsert(
+          {
+            kelas_id: kelasId,
+            santri_id: santriId,
+            tanggal: hafalanSuratTanggal,
+            surat: b.surat.trim() === '' ? null : b.surat.trim(),
+            status: b.status === '' ? null : b.status,
+            dibuat_oleh: profile?.id ?? null,
+          },
+          { onConflict: 'santri_id,tanggal' },
+        );
+        if (error) throw new Error(error.message);
+      } catch (e) {
+        push(e instanceof Error ? e.message : 'Gagal menyimpan Hafalan Surat.', 'error');
+      }
+    },
+    [kelasId, hafalanSuratTanggal, profile?.id, push],
+  );
+
+  function ubahHafalanSurat(santriId: number, patch: Partial<BarisHafalanSurat>, langsung: boolean) {
+    setHafalanSurat((prev) => {
+      const cur: BarisHafalanSurat = prev[santriId] ?? BARIS_HAFALAN_SURAT_KOSONG;
+      return { ...prev, [santriId]: { ...cur, ...patch } };
+    });
+    const timers = tundaHafalanSuratRef.current;
+    const lama = timers.get(santriId);
+    if (lama) clearTimeout(lama);
+    timers.set(
+      santriId,
+      setTimeout(
+        () => {
+          timers.delete(santriId);
+          void simpanHafalanSurat(santriId);
+        },
+        langsung ? 0 : 700,
+      ),
+    );
+  }
+
+  /* Kurikulum "Hafalan Surat-Surat Al-Qur'an" (data BERSAMA, kelompok_id
+     tetap = 1, sama pola SantriProgressReport.tsx/RencanaPembelajaranView.tsx
+     -- lihat opsiHafalanSurat di bawah). */
+  const [protaHafalanSurat, setProtaHafalanSurat] = useState<Awaited<ReturnType<typeof muatProtaKelompok>>>([]);
+  useEffect(() => {
+    muatProtaKelompok(1, tahun).then(setProtaHafalanSurat);
+  }, [tahun]);
+
   /* ── Penyimpanan OTOMATIS (2026-09-02, diminta owner) ──────────────
      Tombol "Simpan Pelaksanaan" dihapus: tiap centang langsung ditulis,
      catatan ditulis 900ms setelah guru berhenti mengetik. Alasannya
@@ -907,6 +1055,36 @@ export default function PelaksanaanPembelajaranView() {
   const gradeRuangAktif = kelasTargetKumulatif(kelasAktif?.nama ?? '').at(-1) ?? '';
   const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
 
+  /* Opsi Surat utk kartu "Hafalan Surat-Surat Al-Qur'an" (2026-09-13,
+     diminta owner: "isi target suratnya kurang lebih meniru atau
+     sesuai klasikal hafalan surat") -- SUMBER & LOGIKA SAMA PERSIS
+     `opsiHafalanSurat` di RencanaPembelajaranView.tsx (borang Tambah
+     Materi Klasikal): kumulatif PAUD-TK s.d. kelas ruang guru, dari
+     kurikulum_prota kategori "Hafalan Surat-Surat Al-Qur'an". */
+  const opsiHafalanSurat = useMemo(() => {
+    if (kelasAktif == null || protaHafalanSurat.length === 0) return [];
+    const kelasTarget = kelasTargetKumulatif(kelasAktif.nama);
+    const urutKelas = (k: string | null) => {
+      const i = kelasTarget.indexOf(k ?? '');
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const barisTerurut = [...protaHafalanSurat]
+      .filter((b) => kelasTarget.includes(b.kelas ?? ''))
+      .sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
+    const peta = new Map<string, { value: string; label: string }>();
+    for (const b of barisTerurut) {
+      if (namaKategori(b.kategori_kbm) !== "Hafalan Surat-Surat Al-Qur'an") continue;
+      for (const teks of [b.target, b.target2]) {
+        for (const baris of barisHafalanDariTeks(teks)) {
+          for (const surat of uraikanBarisHafalan(baris)) {
+            if (!peta.has(surat)) peta.set(surat, { value: surat, label: surat });
+          }
+        }
+      }
+    }
+    return [...peta.values()];
+  }, [kelasAktif, protaHafalanSurat]);
+
   function alasanTerkunci(b: Baris): string | null {
     const hariIni = todayStr();
     const tgl = b.tanggalRencana;
@@ -928,6 +1106,15 @@ export default function PelaksanaanPembelajaranView() {
       ? `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`
       : tilawatiTanggal > todayStr()
         ? `Baru bisa diisi ${tanggalPanjang(tilawatiTanggal)}.`
+        : null;
+
+  /* Kunci input Hafalan Surat -- konsep & aturan SAMA PERSIS Tilawati
+     di atas. */
+  const alasanHafalanSuratTerkunci: string | null =
+    hafalanSuratTanggal === todayStr() && jamMulaiKelas && jamKini < jamMulaiKelas
+      ? `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`
+      : hafalanSuratTanggal > todayStr()
+        ? `Baru bisa diisi ${tanggalPanjang(hafalanSuratTanggal)}.`
         : null;
 
   /* Tanggal yang dicatat saat guru mencentang: tanggal RENCANA-nya
@@ -968,7 +1155,7 @@ export default function PelaksanaanPembelajaranView() {
      satu-satunya cara memuat ulang adalah menutup app. */
   async function segarkan() {
     buangSemuaSinggahan();
-    await Promise.all([muat(), muatAsad(), muatTilawati()]);
+    await Promise.all([muat(), muatAsad(), muatTilawati(), muatHafalanSurat()]);
   }
 
   /* ── Dua kartu "Materi Klasikal" / "Materi Ngaji" (2026-09-03, diminta
@@ -1695,6 +1882,125 @@ export default function PelaksanaanPembelajaranView() {
                       })}
                     </div>
                   )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Kartu "Hafalan Surat-Surat Al-Qur'an" (2026-09-13, diminta
+                owner: "model cardnya kurang lebih samakan seperti card
+                Al-Qur'an") -- per santri: Surat (opsi = kumulatif target
+                kurikulum kelas ini, sama sumber Materi Klasikal) + sakelar
+                Naik/Tetap. Tabel hafalan_surat_pelaksanaan terpisah dari
+                tilawati_pelaksanaan (bukan Buku Jilid/Juz). */}
+            <div className="kartu-premium mb-4 overflow-hidden">
+              <div className="flex items-center justify-between gap-2 p-4">
+                <button
+                  type="button"
+                  onClick={() => setHafalanSuratCardTerbuka((v) => !v)}
+                  className="flex min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                >
+                  <span className="text-[15px] font-bold text-text">Hafalan Surat-Surat Al-Qur&apos;an</span>
+                  <span className="shrink-0 rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
+                    {hafalanSuratSantri.length} Santri
+                  </span>
+                </button>
+                <button
+                  ref={hafalanSuratTanggalBtnRef}
+                  type="button"
+                  onClick={() => {
+                    const rect = hafalanSuratTanggalBtnRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setPosisiHafalanSuratPicker({
+                        top: rect.bottom + 6,
+                        right: window.innerWidth - rect.right,
+                      });
+                    }
+                    setHafalanSuratPickerTerbuka((v) => !v);
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-semibold text-text active:scale-[0.97]"
+                >
+                  {tanggalPanjang(hafalanSuratTanggal)}
+                  <Calendar size={13} className="text-text-faint" />
+                </button>
+              </div>
+              <TanggalPicker
+                terbuka={hafalanSuratPickerTerbuka}
+                posisi={posisiHafalanSuratPicker}
+                nilai={hafalanSuratTanggal}
+                onPilih={(v) => {
+                  setHafalanSuratTanggal(v);
+                  setHafalanSuratPickerTerbuka(false);
+                }}
+                onTutup={() => setHafalanSuratPickerTerbuka(false)}
+                tanggalNonaktif={(tglStr) => (tglStr > todayStr() ? { alasan: 'Belum terjadi' } : null)}
+              />
+              {hafalanSuratCardTerbuka && (
+                <div className="border-t border-border">
+                  <div className="p-3">
+                    {loadingHafalanSurat && hafalanSuratSantri.length === 0 ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-[92px] w-full" />
+                        <Skeleton className="h-[92px] w-full" />
+                      </div>
+                    ) : hafalanSuratSantri.length === 0 ? (
+                      <p className="text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        {alasanHafalanSuratTerkunci && (
+                          <p className="rounded-[var(--radius)] bg-panel-2 px-3 py-2 text-[12px] leading-snug text-text-dim">
+                            {alasanHafalanSuratTerkunci}
+                          </p>
+                        )}
+                        {hafalanSuratSantri.map((s) => {
+                          const t = hafalanSurat[s.id] ?? BARIS_HAFALAN_SURAT_KOSONG;
+                          const terkunci = alasanHafalanSuratTerkunci !== null;
+                          return (
+                            <div
+                              key={s.id}
+                              className="rounded-[var(--radius)] border border-border bg-panel p-3"
+                            >
+                              <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
+                              <div>
+                                <label className="label-mikro mb-1 block">Surat</label>
+                                <SelectKustom
+                                  value={t.surat}
+                                  onChange={(v) => ubahHafalanSurat(s.id, { surat: v }, true)}
+                                  disabled={terkunci}
+                                  placeholder="Pilih Surat"
+                                  opsi={opsiHafalanSurat}
+                                />
+                              </div>
+                              <div className="mt-2.5 flex gap-1.5 rounded-full bg-panel-2 p-1">
+                                {([
+                                  { opt: 'naik', label: 'Naik', Ikon: ArrowUp, warna: 'var(--sage)' },
+                                  { opt: 'tetap', label: 'Tetap', Ikon: Equal, warna: 'var(--indigo)' },
+                                ] as const).map(({ opt, label, Ikon, warna }) => {
+                                  const aktif = t.status === opt;
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      disabled={terkunci}
+                                      onClick={() => ubahHafalanSurat(s.id, { status: aktif ? '' : opt }, true)}
+                                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
+                                        aktif
+                                          ? 'text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                                          : 'bg-transparent text-text-dim'
+                                      }`}
+                                      style={aktif ? { background: warna } : undefined}
+                                    >
+                                      <Ikon size={15} strokeWidth={2.6} />
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
