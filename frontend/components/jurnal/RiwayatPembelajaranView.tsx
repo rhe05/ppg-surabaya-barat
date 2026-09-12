@@ -132,8 +132,23 @@ export default function RiwayatPembelajaranView() {
     }
     setMenghapusTilawati(true);
     try {
-      const { error } = await supabase.from('tilawati_pelaksanaan').delete().eq('id', id);
+      /* .select() setelah delete WAJIB -- tanpa ini, DELETE yang
+         ditolak diam-diam oleh RLS (baris tidak cocok kebijakan
+         tilawati_delete_guru_admin) TIDAK memunculkan error sama
+         sekali (PostgREST: 0 baris cocok bukan error), jadi toast
+         "sukses" tetap muncul padahal tidak ada yang terhapus --
+         gejala persis "klik hapus, baris tidak hilang" (dilaporkan
+         owner 2026-09-13). `data` kosong = RLS menolak / baris sudah
+         tidak ada, bedakan dari error koneksi sungguhan. */
+      const { data, error } = await supabase
+        .from('tilawati_pelaksanaan')
+        .delete()
+        .eq('id', id)
+        .select('id');
       if (error) throw new Error(error.message);
+      if (!data || data.length === 0) {
+        throw new Error('Baris tidak terhapus -- kemungkinan bukan kelas Anda, atau sudah dihapus dari perangkat lain.');
+      }
       setHapusTilawatiId(null);
       push('Catatan Buku Jilid dihapus.', 'sukses');
       await muatTilawati();
