@@ -415,7 +415,7 @@ export default function SantriProgressReport() {
                       targetAlquran?.juzSemesterLalu ?? null,
                     )
                   : statusPencapaianTilawati(kelasProta, bulan, posisiTilawati(s.terakhirJilid, s.terakhirHalaman));
-                keterangan = status ? LABEL_STATUS_PENCAPAIAN[status].panjang : '—';
+                keterangan = status ? LABEL_STATUS_PENCAPAIAN[status].singkat : '—';
               }
 
               return { nama: s.nama, pencapaian, keterangan };
