@@ -88,7 +88,10 @@ function jepitHalPeraga(v: string): string {
   return String(Math.min(Math.max(Number(d), 1), PERAGA_HAL_MAKS));
 }
 
-type Kelas = { id: number; nama: string };
+/* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
+   "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
+   lib/kelasGabungGilir.ts. */
+type Kelas = { id: number; nama: string; anggotaId?: number[] };
 type Materi = {
   id: number;
   minggu_ke: number;
@@ -320,6 +323,14 @@ export default function RencanaPembelajaranView() {
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
+  /* Semua kelas_id FISIK tergabung ke kelasId yang sedang dipilih (Gabung
+     Kelas "tanpa batas waktu", 2026-09-13) -- WAJIB dipakai query BACA
+     jurnal (`.in('kelas_id', anggotaId)`), BUKAN kelasId polos. useMemo
+     -- referensinya WAJIB stabil selama kelasId/kelasList sama. */
+  const anggotaId = useMemo(
+    () => (kelasId === '' ? [] : (kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId])),
+    [kelasId, kelasList],
+  );
 
   const sekarang = new Date();
   const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
@@ -942,14 +953,14 @@ export default function RencanaPembelajaranView() {
     }
     setLoading(true);
     try {
-      setMateriList(await muatMateriBulan(kelasId, tahun, bulan));
+      setMateriList(await muatMateriBulan(anggotaId, tahun, bulan));
       setKunciMateriSiap(kunci);
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat rencana.', 'error');
     } finally {
       setLoading(false);
     }
-  }, [kelasId, tahun, bulan, push]);
+  }, [kelasId, tahun, bulan, push, anggotaId]);
 
   useEffect(() => {
     muatMateri();

@@ -39,7 +39,10 @@ import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
 import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
 
-type Kelas = { id: number; nama: string };
+/* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
+   "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
+   lib/kelasGabungGilir.ts. */
+type Kelas = { id: number; nama: string; anggotaId?: number[] };
 /* Tipe barisnya ikut sumber bersama (lib/dataGuru.ts) -- layar ini cuma
    memakai sebagian kolomnya, dan itu tidak apa-apa: satu query gemuk yang
    dipakai tiga layar lebih murah drpd tiga query ramping yang mengulang. */
@@ -70,6 +73,18 @@ export default function RiwayatPembelajaranView() {
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
+  /* Semua kelas_id FISIK tergabung ke kelasId yang sedang dipilih (Gabung
+     Kelas "tanpa batas waktu", 2026-09-13) -- WAJIB dipakai query
+     santri/jurnal/tilawati/hafalan-surat (`.in('kelas_id', anggotaId)`),
+     BUKAN kelasId polos, supaya data kelas yang digabung ikut terbaca.
+     useMemo (BUKAN dihitung polos tiap render) -- referensinya WAJIB
+     stabil selama kelasId/kelasList sama, dipakai jadi dependency
+     useCallback/useEffect di bawah (array baru tiap render = efek
+     terpanggil ulang tanpa henti). */
+  const anggotaId = useMemo(
+    () => (kelasId === '' ? [] : (kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId])),
+    [kelasId, kelasList],
+  );
 
   const sekarang = new Date();
   const [bulan, setBulan] = useState(sekarang.getMonth() + 1);
@@ -105,7 +120,7 @@ export default function RiwayatPembelajaranView() {
       const mm = String(bulan).padStart(2, '0');
       const akhirHari = new Date(tahun, bulan, 0).getDate();
       setTilawatiRingkas(
-        await muatTilawatiRingkas(kelasId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
+        await muatTilawatiRingkas(anggotaId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
       );
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat Tilawati.', 'error');
@@ -113,7 +128,7 @@ export default function RiwayatPembelajaranView() {
       setLoadingTilawati(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
   useEffect(() => {
     muatTilawati();
   }, [muatTilawati]);
@@ -180,7 +195,7 @@ export default function RiwayatPembelajaranView() {
       const mm = String(bulan).padStart(2, '0');
       const akhirHari = new Date(tahun, bulan, 0).getDate();
       setHafalanSuratRingkas(
-        await muatHafalanSuratRingkas(kelasId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
+        await muatHafalanSuratRingkas(anggotaId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
       );
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat Hafalan Surat.', 'error');
@@ -188,7 +203,7 @@ export default function RiwayatPembelajaranView() {
       setLoadingHafalanSurat(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
   useEffect(() => {
     muatHafalanSurat();
   }, [muatHafalanSurat]);
@@ -235,19 +250,19 @@ export default function RiwayatPembelajaranView() {
     }
     setLoading(true);
     try {
-      setMateriList(await muatMateriBulan(kelasId, tahun, bulan));
+      setMateriList(await muatMateriBulan(anggotaId, tahun, bulan));
     } catch (e) {
       push(e instanceof Error ? e.message : 'Gagal memuat riwayat.', 'error');
     } finally {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
 
   useEffect(() => {
     muat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
 
   /* Hapus baris materi (Klasikal / Peraga Tilawati / Ngaji) yang salah
      input — pola sama tombol (x) di Buku Jilid. Soft-delete via UPDATE

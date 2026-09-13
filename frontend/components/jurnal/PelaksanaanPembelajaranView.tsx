@@ -275,6 +275,16 @@ export default function PelaksanaanPembelajaranView() {
 
   const [kelasList, setKelasList] = useState<Kelas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
+  /* Semua kelas_id FISIK tergabung ke kelasId yang sedang dipilih (Gabung
+     Kelas "tanpa batas waktu", 2026-09-13) -- WAJIB dipakai query BACA
+     santri/jurnal/tilawati/hafalan-surat (`.in('kelas_id', anggotaId)`),
+     BUKAN kelasId polos. useMemo -- referensinya WAJIB stabil selama
+     kelasId/kelasList sama (dipakai jadi dependency useCallback/
+     useEffect di bawah). */
+  const anggotaId = useMemo(
+    () => (kelasId === '' ? [] : (kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId])),
+    [kelasId, kelasList],
+  );
 
   const sekarang = new Date();
   const tanggalLabel = sekarang.toLocaleDateString('id-ID', {
@@ -418,7 +428,7 @@ export default function PelaksanaanPembelajaranView() {
     }
     setLoading(true);
     try {
-      const data = await muatMateriBulan(kelasId, tahun, bulan);
+      const data = await muatMateriBulan(anggotaId, tahun, bulan);
       setBaris(
         data.map((m) => ({
           uid: `db-${m.id}`,
@@ -444,12 +454,12 @@ export default function PelaksanaanPembelajaranView() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
 
   useEffect(() => {
     muat();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
 
   /* Hapus baris materi (Klasikal / Peraga Tilawati / Ngaji) yang salah
      input — pola sama tombol (x) di Riwayat Pembelajaran & Buku Jilid.
@@ -497,6 +507,12 @@ export default function PelaksanaanPembelajaranView() {
   const BARIS_KOSONG: BarisTilawati = { jilid: '', halaman: '', surat: '', ayat: '', status: '' };
   const [tilawatiCardTerbuka, setTilawatiCardTerbuka] = useState(false);
   const [tilawatiSantri, setTilawatiSantri] = useState<{ id: number; nama: string }[]>([]);
+  /* Kelas_id ASLI tiap santri (2026-09-13, Gabung Kelas "tanpa batas
+     waktu", diminta owner: "sesuaikan dengan kelasnya" -- walau roster
+     digabung utk ditampilkan/diisi bersama, catatan tetap diatribusikan
+     ke kelas FISIK santri itu sendiri, bukan ke kelas gabungan/induk,
+     supaya tidak salah kelas kalau gabungannya nanti dibatalkan). */
+  const kelasAsliSantriRef = useRef<Map<number, number>>(new Map());
   const [tilawati, setTilawati] = useState<Record<number, BarisTilawati>>({});
   const [loadingTilawati, setLoadingTilawati] = useState(false);
   /* Tanggal yang dipakai kartu Tilawati -- bisa diganti guru lewat
@@ -527,17 +543,19 @@ export default function PelaksanaanPembelajaranView() {
     try {
       const hariIni = tilawatiTanggal;
       const [sRes, tRes] = await Promise.all([
-        supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
+        supabase.from('santri').select('id, nama, kelas_id').in('kelas_id', anggotaId).is('deleted_at', null).order('nama'),
         supabase
           .from('tilawati_pelaksanaan')
           .select('santri_id, tanggal, buku_jilid, halaman, surat, ayat, status')
-          .eq('kelas_id', kelasId)
+          .in('kelas_id', anggotaId)
           .lte('tanggal', hariIni)
           .order('tanggal', { ascending: true }),
       ]);
       if (sRes.error) throw new Error(sRes.error.message);
       if (tRes.error) throw new Error(tRes.error.message);
-      setTilawatiSantri((sRes.data ?? []) as { id: number; nama: string }[]);
+      const santriRows = (sRes.data ?? []) as { id: number; nama: string; kelas_id: number }[];
+      setTilawatiSantri(santriRows.map((s) => ({ id: s.id, nama: s.nama })));
+      kelasAsliSantriRef.current = new Map(santriRows.map((s) => [s.id, s.kelas_id]));
 
       /* Kumpulkan riwayat per santri. Kalau hari ini belum ada catatan
          DAN catatan terakhir "naik" -> halaman/ayat OTOMATIS pindah ke
@@ -598,7 +616,7 @@ export default function PelaksanaanPembelajaranView() {
       setLoadingTilawati(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tilawatiTanggal]);
+  }, [kelasId, tilawatiTanggal, anggotaId]);
   useEffect(() => {
     muatTilawati();
   }, [muatTilawati]);
@@ -610,7 +628,10 @@ export default function PelaksanaanPembelajaranView() {
       try {
         const { error } = await supabase.from('tilawati_pelaksanaan').upsert(
           {
-            kelas_id: kelasId,
+            /* Diatribusikan ke kelas FISIK santri itu sendiri (2026-09-13,
+               "sesuaikan dengan kelasnya"), BUKAN kelasId gabungan --
+               fallback ke kelasId kalau petanya belum sempat termuat. */
+            kelas_id: kelasAsliSantriRef.current.get(santriId) ?? kelasId,
             santri_id: santriId,
             tanggal: tilawatiTanggal,
             buku_jilid: b.jilid.trim() === '' ? null : b.jilid.trim(),
@@ -664,6 +685,9 @@ export default function PelaksanaanPembelajaranView() {
   const BARIS_HAFALAN_SURAT_KOSONG: BarisHafalanSurat = { surat: '', ayat: '', status: '' };
   const [hafalanSuratCardTerbuka, setHafalanSuratCardTerbuka] = useState(false);
   const [hafalanSuratSantri, setHafalanSuratSantri] = useState<{ id: number; nama: string }[]>([]);
+  /* Kelas_id ASLI tiap santri -- sama alasan `kelasAsliSantriRef` di
+     kartu Tilawati di atas ("sesuaikan dengan kelasnya"). */
+  const kelasAsliSantriHafalanSuratRef = useRef<Map<number, number>>(new Map());
   const [hafalanSurat, setHafalanSurat] = useState<Record<number, BarisHafalanSurat>>({});
   const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
   const [hafalanSuratTanggal, setHafalanSuratTanggal] = useState(todayStr());
@@ -691,17 +715,19 @@ export default function PelaksanaanPembelajaranView() {
     try {
       const hariIni = hafalanSuratTanggal;
       const [sRes, hRes] = await Promise.all([
-        supabase.from('santri').select('id, nama').eq('kelas_id', kelasId).is('deleted_at', null).order('nama'),
+        supabase.from('santri').select('id, nama, kelas_id').in('kelas_id', anggotaId).is('deleted_at', null).order('nama'),
         supabase
           .from('hafalan_surat_pelaksanaan')
           .select('santri_id, tanggal, surat, ayat, status')
-          .eq('kelas_id', kelasId)
+          .in('kelas_id', anggotaId)
           .lte('tanggal', hariIni)
           .order('tanggal', { ascending: true }),
       ]);
       if (sRes.error) throw new Error(sRes.error.message);
       if (hRes.error) throw new Error(hRes.error.message);
-      setHafalanSuratSantri((sRes.data ?? []) as { id: number; nama: string }[]);
+      const santriRows = (sRes.data ?? []) as { id: number; nama: string; kelas_id: number }[];
+      setHafalanSuratSantri(santriRows.map((s) => ({ id: s.id, nama: s.nama })));
+      kelasAsliSantriHafalanSuratRef.current = new Map(santriRows.map((s) => [s.id, s.kelas_id]));
 
       const perSantri = new Map<number, (BarisHafalanSurat & { tanggal: string })[]>();
       for (const r of (hRes.data ?? []) as {
@@ -742,7 +768,7 @@ export default function PelaksanaanPembelajaranView() {
       setLoadingHafalanSurat(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, hafalanSuratTanggal]);
+  }, [kelasId, hafalanSuratTanggal, anggotaId]);
   useEffect(() => {
     muatHafalanSurat();
   }, [muatHafalanSurat]);
@@ -754,7 +780,9 @@ export default function PelaksanaanPembelajaranView() {
       try {
         const { error } = await supabase.from('hafalan_surat_pelaksanaan').upsert(
           {
-            kelas_id: kelasId,
+            /* Diatribusikan ke kelas FISIK santri (2026-09-13, "sesuaikan
+               dengan kelasnya"), BUKAN kelasId gabungan. */
+            kelas_id: kelasAsliSantriHafalanSuratRef.current.get(santriId) ?? kelasId,
             santri_id: santriId,
             tanggal: hafalanSuratTanggal,
             surat: b.surat.trim() === '' ? null : b.surat.trim(),

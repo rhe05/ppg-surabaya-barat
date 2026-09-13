@@ -207,16 +207,17 @@ type BarisHafalanSuratMentah = {
 };
 
 /** Per santri: jumlah "Naik" & "Tetap" di rentang + surat/ayat/status
- *  terakhir. Hanya santri yang punya minimal satu catatan naik/tetap. */
+ *  terakhir. Hanya santri yang punya minimal satu catatan naik/tetap.
+ *  `kelasId` boleh array (2026-09-13, Gabung Kelas "tanpa batas waktu"). */
 export async function muatHafalanSuratRingkas(
-  kelasId: number,
+  kelasId: number | number[],
   awal: string,
   akhir: string,
 ): Promise<HafalanSuratRingkas[]> {
   const { data, error } = await supabase
     .from('hafalan_surat_pelaksanaan')
     .select('id, santri_id, tanggal, status, surat, ayat, santri:santri_id(nama)')
-    .eq('kelas_id', kelasId)
+    .in('kelas_id', Array.isArray(kelasId) ? kelasId : [kelasId])
     .in('status', ['naik', 'tetap'])
     .gte('tanggal', awal)
     .lte('tanggal', akhir)
@@ -270,22 +271,24 @@ export type HafalanSuratSantri = {
   adaCatatan: boolean;
 };
 
+/* `kelasId` boleh array (2026-09-13, Gabung Kelas "tanpa batas waktu"). */
 export async function muatHafalanSuratKelas(
-  kelasId: number,
+  kelasId: number | number[],
   awal: string,
   akhir: string,
 ): Promise<HafalanSuratSantri[]> {
+  const ids = Array.isArray(kelasId) ? kelasId : [kelasId];
   const [sRes, hRes] = await Promise.all([
     supabase
       .from('santri')
       .select('id, nama, nama_panggilan')
-      .eq('kelas_id', kelasId)
+      .in('kelas_id', ids)
       .is('deleted_at', null)
       .order('nama'),
     supabase
       .from('hafalan_surat_pelaksanaan')
       .select('santri_id, tanggal, status, surat, ayat')
-      .eq('kelas_id', kelasId)
+      .in('kelas_id', ids)
       .gte('tanggal', awal)
       .lte('tanggal', akhir)
       .order('tanggal', { ascending: true }),

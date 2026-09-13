@@ -136,15 +136,24 @@ export type MateriJurnal = {
   klasikal_hafalan_doa: string | null;
 };
 
-/** Seluruh materi satu kelas dalam satu bulan (semua minggu sekaligus). */
-export function muatMateriBulan(kelasId: number, tahun: number, bulan: number): Promise<MateriJurnal[]> {
-  return ambil(`materi:${kelasId}:${tahun}:${bulan}`, async () => {
+/** Seluruh materi satu kelas dalam satu bulan (semua minggu sekaligus).
+ *  `kelasId` boleh array (2026-09-13, Gabung Kelas "tanpa batas waktu")
+ *  -- dipakai kalau kelasnya sedang gabung aktif, pakai `anggotaId` dari
+ *  muatKelasGuru(), supaya materi kelas yang digabung ikut terbaca. */
+export function muatMateriBulan(
+  kelasId: number | number[],
+  tahun: number,
+  bulan: number,
+): Promise<MateriJurnal[]> {
+  const ids = Array.isArray(kelasId) ? kelasId : [kelasId];
+  const kunci = [...ids].sort((a, b) => a - b).join(',');
+  return ambil(`materi:${kunci}:${tahun}:${bulan}`, async () => {
     const { data, error } = await supabase
       .from('jurnal_materi')
       .select(
         'id, minggu_ke, judul, status, jenis, catatan, pertemuan_ke, pengingat_aktif, tanggal_rencana, tanggal_disampaikan, klasikal_hafalan_surat, klasikal_hafalan_doa, updated_at'
       )
-      .eq('kelas_id', kelasId)
+      .in('kelas_id', ids)
       .eq('tahun', tahun)
       .eq('bulan', bulan)
       .is('deleted_at', null)
@@ -155,9 +164,17 @@ export function muatMateriBulan(kelasId: number, tahun: number, bulan: number): 
   });
 }
 
-/** WAJIB dipanggil setiap kali materi ditulis/diubah/dihapus. */
+/** WAJIB dipanggil setiap kali materi ditulis/diubah/dihapus. Kunci
+ *  singgahan `muatMateriBulan` sekarang bisa memuat GABUNGAN beberapa
+ *  kelas_id (Gabung Kelas) yang tidak diketahui persis di sini -- dibuang
+ *  SEMUA singgahan `materi:*` (bukan cuma satu kelas/bulan) drpd
+ *  menebak kunci gabungannya; tabelnya kecil & TTL sudah 60 detik,
+ *  ongkosnya kecil. */
 export function tandaiMateriBerubah(kelasId: number, tahun: number, bulan: number) {
-  buang(`materi:${kelasId}:${tahun}:${bulan}`);
+  void kelasId;
+  void tahun;
+  void bulan;
+  buang('materi:');
 }
 
 /* Dipakai tarik-untuk-segarkan: guru menarik layar justru KARENA ia
