@@ -33,16 +33,15 @@ import {
   type MateriJurnal,
   buangSemuaSinggahan,
 } from '@/lib/dataGuru';
-import { muatTilawatiRingkas, labelBukuJilid, type TilawatiRingkas } from '@/lib/tilawati';
 import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
-import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
-import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
+import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
+import KartuRiwayatTilawati from '@/components/jurnal/KartuRiwayatTilawati';
 
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
    "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
    lib/kelasGabungGilir.ts. */
-type Kelas = { id: number; nama: string; anggotaId?: number[] };
+type Kelas = { id: number; nama: string; anggotaId?: number[]; anggotaDetail?: { id: number; nama: string }[] };
 /* Tipe barisnya ikut sumber bersama (lib/dataGuru.ts) -- layar ini cuma
    memakai sebagian kolomnya, dan itu tidak apa-apa: satu query gemuk yang
    dipakai tiga layar lebih murah drpd tiga query ramping yang mengulang. */
@@ -93,87 +92,21 @@ export default function RiwayatPembelajaranView() {
   const [pemilihBulanTerbuka, setPemilihBulanTerbuka] = useState(false);
   const [posisiPemilihBulan, setPosisiPemilihBulan] = useState<PosisiPicker | null>(null);
   const ikonKalenderRef = useRef<HTMLButtonElement>(null);
+  /* Rentang bulan terpilih -- dioper ke KartuRiwayatTilawati.tsx
+     (2026-09-13, satu/dua kartu tergantung gabungan lintas-grade). */
+  const { rentangAwal, rentangAkhir } = useMemo(() => {
+    const mm = String(bulan).padStart(2, '0');
+    const akhirHari = new Date(tahun, bulan, 0).getDate();
+    return {
+      rentangAwal: `${tahun}-${mm}-01`,
+      rentangAkhir: `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`,
+    };
+  }, [tahun, bulan]);
 
   const [materiList, setMateriList] = useState<Materi[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<Filter>('semua');
   const [cari, setCari] = useState('');
-
-  /* Laporan Tilawati (Naik/Tetap) per santri bulan ini (2026-09-03,
-     diminta owner) -- sumber kartu "Tilawati" di Pelaksanaan. */
-  const [tilawatiRingkas, setTilawatiRingkas] = useState<TilawatiRingkas[]>([]);
-  const [loadingTilawati, setLoadingTilawati] = useState(false);
-  const [tilawatiTerbuka, setTilawatiTerbuka] = useState(true);
-  /* Koreksi catatan Buku Jilid yang salah -- id baris yg sedang
-     dikonfirmasi hapus (2026-09-10, keluhan guru Ratna: pencapaian
-     Tilawati tak bisa diperbaiki). DELETE ditahan RLS ke kelas guru
-     sendiri (migrasi 20260910120000). */
-  const [hapusTilawatiId, setHapusTilawatiId] = useState<number | null>(null);
-  const [menghapusTilawati, setMenghapusTilawati] = useState(false);
-  const muatTilawati = useCallback(async () => {
-    if (kelasId === '') {
-      setTilawatiRingkas([]);
-      return;
-    }
-    setLoadingTilawati(true);
-    try {
-      const mm = String(bulan).padStart(2, '0');
-      const akhirHari = new Date(tahun, bulan, 0).getDate();
-      setTilawatiRingkas(
-        await muatTilawatiRingkas(anggotaId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
-      );
-    } catch (e) {
-      push(e instanceof Error ? e.message : 'Gagal memuat Tilawati.', 'error');
-    } finally {
-      setLoadingTilawati(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kelasId, tahun, bulan, anggotaId]);
-  useEffect(() => {
-    muatTilawati();
-  }, [muatTilawati]);
-
-  async function hapusCatatanTilawati(id: number) {
-    /* Peran 'pengunjung' (demo via link, 2026-09-11) boleh input/edit data
-       (pengunjung_jejak mencatat & mengembalikannya otomatis 30 hari
-       kemudian) -- TAPI hapus di sini DELETE KERAS (bukan soft-delete via
-       kolom deleted_at), jadi mekanisme jejak/kembalikan itu tak berlaku
-       utknya (trigger cuma pasang di INSERT/UPDATE). Baris Buku Jilid
-       contoh yang terhapus keras tak bisa dipulihkan -- makanya TETAP
-       dicegat di sini, beda dari aksi tulis lain di app ini. */
-    if (profile?.role === 'pengunjung') {
-      push('Mode Pengunjung: menghapus permanen catatan ini belum tersedia.', 'info');
-      setHapusTilawatiId(null);
-      return;
-    }
-    setMenghapusTilawati(true);
-    try {
-      /* .select() setelah delete WAJIB -- tanpa ini, DELETE yang
-         ditolak diam-diam oleh RLS (baris tidak cocok kebijakan
-         tilawati_delete_guru_admin) TIDAK memunculkan error sama
-         sekali (PostgREST: 0 baris cocok bukan error), jadi toast
-         "sukses" tetap muncul padahal tidak ada yang terhapus --
-         gejala persis "klik hapus, baris tidak hilang" (dilaporkan
-         owner 2026-09-13). `data` kosong = RLS menolak / baris sudah
-         tidak ada, bedakan dari error koneksi sungguhan. */
-      const { data, error } = await supabase
-        .from('tilawati_pelaksanaan')
-        .delete()
-        .eq('id', id)
-        .select('id');
-      if (error) throw new Error(error.message);
-      if (!data || data.length === 0) {
-        throw new Error('Baris tidak terhapus -- kemungkinan bukan kelas Anda, atau sudah dihapus dari perangkat lain.');
-      }
-      setHapusTilawatiId(null);
-      push('Catatan Buku Jilid dihapus.', 'sukses');
-      await muatTilawati();
-    } catch (e) {
-      push(e instanceof Error ? e.message : 'Gagal menghapus catatan.', 'error');
-    } finally {
-      setMenghapusTilawati(false);
-    }
-  }
 
   /* Laporan Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13, diminta
      owner: "sudah ada card di Pelaksanaan, munculkan di Riwayat
@@ -291,11 +224,15 @@ export default function RiwayatPembelajaranView() {
     }
   }
 
-  /* Kartu "Tilawati" jadi "Al-Qur'an" utk kelas 4+ (2026-09-12, diminta
-     owner) -- batas SAMA `KELAS_LABEL_BACA_HURUF` yg dipakai Pelaksanaan. */
+  /* Kartu "Tilawati" vs "Al-Qur'an" DIPISAH per anggota fisik (2026-09-13,
+     diminta owner: kelas Gabung Kelas bisa lintas-grade) -- lihat
+     catatan lengkap di KartuTilawatiAlquran.tsx (Pelaksanaan). Dulu SATU
+     `pakaiAlquran` polos dari grade tertinggi kelas. */
   const kelasAktif = kelasList.find((k) => k.id === kelasId);
-  const gradeRuangAktif = kelasTargetKumulatif(kelasAktif?.nama ?? '').at(-1) ?? '';
-  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(gradeRuangAktif);
+  const { tilawatiIds, alquranIds } = useMemo(
+    () => pisahTilawatiAlquran(kelasAktif?.anggotaDetail ?? []),
+    [kelasAktif],
+  );
 
   const total = materiList.length;
   const disampaikan = materiList.filter((m) => m.status === 'disampaikan').length;
@@ -335,6 +272,19 @@ export default function RiwayatPembelajaranView() {
   const barisPeraga = useMemo(
     () => baris.filter((m) => m.jenis !== 'klasikal' && esPeragaTilawati(m.judul)),
     [baris],
+  );
+  /* Dioper ke KartuRiwayatTilawati.tsx (2026-09-13) sbg prop `peragaNode`
+     -- sumbernya (jurnal_materi) & renderernya (barisRiwayat, function
+     declaration di bawah, sudah di-hoist) tetap milik komponen induk. */
+  const peragaNode = (
+    <>
+      <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">Peraga Tilawati</div>
+      {barisPeraga.length === 0 ? (
+        <p className="px-4 py-3 text-[13px] text-text-dim">Tidak ada Peraga Tilawati yang cocok.</p>
+      ) : (
+        barisPeraga.map((m) => barisRiwayat(m))
+      )}
+    </>
   );
   const barisNgaji = useMemo(
     () => baris.filter((m) => m.jenis !== 'klasikal' && !esPeragaTilawati(m.judul)),
@@ -462,10 +412,16 @@ export default function RiwayatPembelajaranView() {
      sudah ada & dipakai Dashboard guru, tapi tiga layar jurnal belum.
      Penting khusus di app yang dipasang ke Layar Utama -- di mode
      standalone Chrome TIDAK menyediakan tarik-bawaan, jadi tanpa ini
-     satu-satunya cara memuat ulang adalah menutup app. */
+     satu-satunya cara memuat ulang adalah menutup app.
+
+     KartuRiwayatTilawati.tsx (2026-09-13) memuat datanya sendiri --
+     tidak ada lagi muatTilawati() di sini utk dipanggil manual, jadi
+     kartunya di-REMOUNT paksa lewat `key` (tilawatiRefreshKey). */
+  const [tilawatiRefreshKey, setTilawatiRefreshKey] = useState(0);
   async function segarkan() {
     buangSemuaSinggahan();
-    await Promise.all([muat(), muatTilawati(), muatHafalanSurat()]);
+    setTilawatiRefreshKey((k) => k + 1);
+    await Promise.all([muat(), muatHafalanSurat()]);
   }
 
   return (
@@ -745,141 +701,36 @@ export default function RiwayatPembelajaranView() {
                   )}
                 </div>
 
-                {/* Tilawati -- kartu ke-3 (2026-09-03, diminta owner):
-                    laporan otomatis dari kartu "Tilawati" (Pelaksanaan).
-                    Naik & Tetap dua keterangan warna beda. */}
-                <div className="kartu-premium mb-4 overflow-hidden">
-                  <button
-                    type="button"
-                    onClick={() => setTilawatiTerbuka((v) => !v)}
-                    className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
-                  >
-                    <span className="text-[15px] font-bold text-text">
-                      {pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}
-                    </span>
-                    <span className="flex shrink-0 items-center gap-1.5">
-                      <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                        {tilawatiRingkas.length} Santri
-                      </span>
-                      <ChevronDown
-                        size={16}
-                        className={`text-text-faint transition-transform duration-150 ${
-                          tilawatiTerbuka ? 'rotate-180' : ''
-                        }`}
-                      />
-                    </span>
-                  </button>
-                  {tilawatiTerbuka && (
-                    <div className="border-t border-border">
-                      {/* 1. Peraga Tilawati -- materi "Baca Huruf
-                          Al-Qur'an" yg disusun guru di Rencana; DIPINDAH
-                          ke sini dari kartu Materi Ngaji (diminta owner
-                          2026-09-03). Kelas 4+ pakai "Al-Qur'an" (Juz),
-                          bukan Peraga Tilawati -- seksi ini disembunyikan
-                          utk kelas itu (diminta owner 2026-09-12). */}
-                      {!pakaiAlquran && (
-                        <>
-                          <div className="label-mikro border-b border-border bg-panel-2 px-4 py-2">
-                            Peraga Tilawati
-                          </div>
-                          {barisPeraga.length === 0 ? (
-                            <p className="px-4 py-3 text-[13px] text-text-dim">
-                              Tidak ada Peraga Tilawati yang cocok.
-                            </p>
-                          ) : (
-                            barisPeraga.map((m) => barisRiwayat(m))
-                          )}
-                        </>
-                      )}
-
-                      {/* 2. Buku Jilid -- catatan per santri (Naik/Tetap)
-                          dari kartu "Tilawati"/"Al-Qur'an" di Pelaksanaan.
-                          Label "Buku Jilid" tak relevan utk kelas 4+
-                          (Juz/Surat/Ayat) -- disembunyikan, daftar per
-                          santri tetap tampil (diminta owner 2026-09-12). */}
-                      {!pakaiAlquran && (
-                        <div className="label-mikro border-y border-border bg-panel-2 px-4 py-2">
-                          Buku Jilid
-                        </div>
-                      )}
-                      {loadingTilawati ? (
-                        <div className="p-3">
-                          <Skeleton className="h-[44px] w-full" />
-                        </div>
-                      ) : tilawatiRingkas.length === 0 ? (
-                        <p className="px-4 py-3 text-[13px] text-text-dim">
-                          Belum ada catatan Buku Jilid pada {NAMA_BULAN[bulan - 1]} {tahun}.
-                        </p>
-                      ) : (
-                        tilawatiRingkas.map((s) => (
-                          <div
-                            key={s.santriId}
-                            className="border-b border-border pb-2 last:border-b-0"
-                          >
-                            <div className="px-4 pt-2.5 pb-1 text-[13px] font-bold text-text">
-                              {s.nama}
-                            </div>
-                            {s.hari.map((h) => (
-                              <div
-                                key={h.id}
-                                className="flex items-center justify-between gap-2 px-4 py-1 text-[12px]"
-                              >
-                                <span className="min-w-0 truncate text-text-dim">
-                                  {formatTanggalHari(h.tanggal)}
-                                  {h.jilid ? ` · ${labelBukuJilid(h.jilid)}` : ''}
-                                  {h.halaman ? ` hal ${h.halaman}` : ''}
-                                  {h.surat ? ` · ${h.surat}` : ''}
-                                  {h.ayat ? ` ayat ${h.ayat}` : ''}
-                                </span>
-                                <span className="flex shrink-0 items-center gap-1.5">
-                                  {h.status && (
-                                    <span
-                                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                                        h.status === 'naik'
-                                          ? 'bg-sage-lembut text-sage'
-                                          : 'bg-brass-lembut text-brass'
-                                      }`}
-                                    >
-                                      {h.status === 'naik' ? 'Naik' : 'Tetap'}
-                                    </span>
-                                  )}
-                                  {hapusTilawatiId === h.id ? (
-                                    <span className="flex items-center gap-1">
-                                      <button
-                                        type="button"
-                                        disabled={menghapusTilawati}
-                                        onClick={() => hapusCatatanTilawati(h.id)}
-                                        className="rounded-full bg-red px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
-                                      >
-                                        Hapus
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => setHapusTilawatiId(null)}
-                                        className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold text-text-dim"
-                                      >
-                                        Batal
-                                      </button>
-                                    </span>
-                                  ) : (
-                                    <button
-                                      type="button"
-                                      aria-label="Hapus catatan ini"
-                                      onClick={() => setHapusTilawatiId(h.id)}
-                                      className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
-                                    >
-                                      <X size={13} />
-                                    </button>
-                                  )}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  )}
-                </div>
+                {/* Tilawati / Al-Qur'an -- DIPISAH ke KartuRiwayatTilawati.tsx
+                    (2026-09-13): kelas GABUNGAN bisa lintas-grade, render
+                    satu kartu per grade yang ada anggotanya. */}
+                {tilawatiIds.length > 0 && (
+                  <KartuRiwayatTilawati
+                    key={`tilawati-${tilawatiRefreshKey}`}
+                    judul="Tilawati"
+                    pakaiAlquran={false}
+                    anggotaIds={tilawatiIds}
+                    awal={rentangAwal}
+                    akhir={rentangAkhir}
+                    bulanLabel={NAMA_BULAN[bulan - 1]}
+                    tahun={tahun}
+                    adalahPengunjung={profile?.role === 'pengunjung'}
+                    peragaNode={peragaNode}
+                  />
+                )}
+                {alquranIds.length > 0 && (
+                  <KartuRiwayatTilawati
+                    key={`alquran-${tilawatiRefreshKey}`}
+                    judul="Al-Qur'an"
+                    pakaiAlquran={true}
+                    anggotaIds={alquranIds}
+                    awal={rentangAwal}
+                    akhir={rentangAkhir}
+                    bulanLabel={NAMA_BULAN[bulan - 1]}
+                    tahun={tahun}
+                    adalahPengunjung={profile?.role === 'pengunjung'}
+                  />
+                )}
 
                 {/* Hafalan Surat-Surat Al-Qur'an -- kartu ke-4 (2026-09-13,
                     diminta owner): laporan otomatis dari kartu "Hafalan
