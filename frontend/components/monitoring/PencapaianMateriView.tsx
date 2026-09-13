@@ -91,6 +91,7 @@ import { rentangBulan } from '@/lib/periodeAkademik';
    sekali kalau ada pertemuan yg halamannya mencapai angka ini. */
 const PERAGA_HAL_AKHIR = 20;
 import { muatBukuJilidKelas, labelBukuJilid, type BukuJilidSantri } from '@/lib/tilawati';
+import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
 import {
   targetTilawatiPeriode,
   labelTargetPeriode,
@@ -119,6 +120,10 @@ const NAMA_BULAN = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
 ];
+function formatTanggalHari(iso: string) {
+  const d = new Date(iso + 'T00:00:00');
+  return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]}`;
+}
 
 const INPUT =
   'w-full rounded-[var(--radius)] border border-border bg-panel px-3.5 py-2.5 text-[13px] ' +
@@ -283,6 +288,37 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       })
       .finally(() => {
         if (!batal) setLoadingTilawati(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, periode.awal, periode.akhir]);
+
+  /* ── Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13, diminta
+     owner: sudah ada di Riwayat Pembelajaran & Ringkasan Jurnal admin,
+     tampilkan juga di sini) -- kembar dari Buku Jilid Tilawati di atas,
+     tabel beda (hafalan_surat_pelaksanaan, bukan tilawati_pelaksanaan).
+     Tampil utk guru & admin, sama seperti Buku Jilid Tilawati. ── */
+  const [hafalanSuratRingkas, setHafalanSuratRingkas] = useState<HafalanSuratRingkas[]>([]);
+  const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
+  const [errorHafalanSurat, setErrorHafalanSurat] = useState<string | null>(null);
+  useEffect(() => {
+    if (kelasId === '') {
+      setHafalanSuratRingkas([]);
+      return;
+    }
+    let batal = false;
+    setLoadingHafalanSurat(true);
+    setErrorHafalanSurat(null);
+    muatHafalanSuratRingkas(kelasId, periode.awal, periode.akhir)
+      .then((d) => {
+        if (!batal) setHafalanSuratRingkas(d);
+      })
+      .catch((e) => {
+        if (!batal) setErrorHafalanSurat(e instanceof Error ? e.message : 'Gagal memuat data.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingHafalanSurat(false);
       });
     return () => {
       batal = true;
@@ -896,6 +932,48 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                   </li>
                 ))}
               </ul>
+            </div>
+          )}
+
+          {/* ── Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13,
+              diminta owner) -- kembar Buku Jilid Tilawati di atas, daftar
+              apa adanya per hari (TANPA rubrik BB/MB/BSH/BSB -- pedoman
+              posisi/target sekuensial Tilawati/Al-Qur'an tidak berlaku di
+              sini, surat dipilih bebas oleh guru per santri). ── */}
+          <div className="label-mikro mb-2">Hafalan Surat-Surat Al-Qur&rsquo;an</div>
+          {loadingHafalanSurat && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {errorHafalanSurat && <p className="mb-5 text-[13px] text-red">{errorHafalanSurat}</p>}
+          {!loadingHafalanSurat && !errorHafalanSurat && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {hafalanSuratRingkas.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada catatan Hafalan Surat pada periode ini.
+                </p>
+              ) : (
+                hafalanSuratRingkas.map((s) => (
+                  <div key={s.santriId} className="border-b border-border px-4 py-2.5 last:border-b-0">
+                    <div className="mb-1 text-[13px] font-semibold text-text">{s.nama}</div>
+                    {s.hari.map((h) => (
+                      <div key={h.id} className="flex items-center justify-between gap-2 py-0.5 text-[11.5px]">
+                        <span className="min-w-0 truncate text-text-dim">
+                          {formatTanggalHari(h.tanggal)}
+                          {h.surat ? ` · ${h.surat}` : ''}
+                          {h.ayat ? ` ayat ${h.ayat}` : ''}
+                        </span>
+                        {h.status && (
+                          <span
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
+                              h.status === 'naik' ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+                            }`}
+                          >
+                            {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))
+              )}
             </div>
           )}
 
