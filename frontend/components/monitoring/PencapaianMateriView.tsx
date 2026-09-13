@@ -75,9 +75,7 @@ import {
   muatPengulanganKelasDoa,
   muatPengulanganSantri,
   muatProtaKelompok,
-  muatMateriBulan,
   namaKategori,
-  type MateriJurnal,
   type PengulanganKelas,
   type PengulanganKelasDoa,
   type PengulanganSantri,
@@ -85,33 +83,14 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
-
-/* Halaman terakhir Peraga Tilawati = batas "Halaman Peraga Tilawati"
-   (1-20) di borang Rencana Pembelajaran. Peraga jilid dinyatakan KHATAM
-   sekali kalau ada pertemuan yg halamannya mencapai angka ini. */
-const PERAGA_HAL_AKHIR = 20;
-import { muatBukuJilidKelas, labelBukuJilid, type BukuJilidSantri } from '@/lib/tilawati';
 import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
-import {
-  targetTilawatiPeriode,
-  labelTargetPeriode,
-  posisiTilawati,
-  statusPencapaianTilawati,
-  LABEL_STATUS_PENCAPAIAN,
-  type StatusPencapaian,
-} from '@/lib/pedomanTilawati';
 import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
-import { KELAS_LABEL_BACA_HURUF } from '@/lib/kategori';
-import {
-  targetAlquranPeriode,
-  posisiJuzTerakhir,
-  statusPencapaianAlquran,
-  type TargetAlquranPeriode,
-} from '@/lib/targetAlquranKurikulum';
+import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
+import KartuMonitoringTilawati from '@/components/monitoring/KartuMonitoringTilawati';
 
 type KelasRingkas = { id: number; nama: string };
 type Kelompok = { id: number; nama: string };
@@ -275,134 +254,6 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     };
   }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
-  /* ── Tilawati "Naik" per santri (2026-09-03, diminta owner) --
-     laporan otomatis dari kartu "Tilawati" di Pelaksanaan. Tampil utk
-     guru & admin (beda dari sisi Per Santri Hafalan Surat yang masih
-     admin-only). ── */
-  const [tilawatiRingkas, setTilawatiRingkas] = useState<BukuJilidSantri[]>([]);
-  const [loadingTilawati, setLoadingTilawati] = useState(false);
-  const [errorTilawati, setErrorTilawati] = useState<string | null>(null);
-  useEffect(() => {
-    if (kelasId === '') {
-      setTilawatiRingkas([]);
-      return;
-    }
-    let batal = false;
-    setLoadingTilawati(true);
-    setErrorTilawati(null);
-    muatBukuJilidKelas(anggotaId, periode.awal, periode.akhir)
-      .then((d) => {
-        if (!batal) setTilawatiRingkas(d);
-      })
-      .catch((e) => {
-        if (!batal) setErrorTilawati(e instanceof Error ? e.message : 'Gagal memuat data.');
-      })
-      .finally(() => {
-        if (!batal) setLoadingTilawati(false);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
-
-  /* ── Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13, diminta
-     owner: sudah ada di Riwayat Pembelajaran & Ringkasan Jurnal admin,
-     tampilkan juga di sini) -- kembar dari Buku Jilid Tilawati di atas,
-     tabel beda (hafalan_surat_pelaksanaan, bukan tilawati_pelaksanaan).
-     Tampil utk guru & admin, sama seperti Buku Jilid Tilawati. ── */
-  const [hafalanSuratRingkas, setHafalanSuratRingkas] = useState<HafalanSuratRingkas[]>([]);
-  const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
-  const [errorHafalanSurat, setErrorHafalanSurat] = useState<string | null>(null);
-  useEffect(() => {
-    if (kelasId === '') {
-      setHafalanSuratRingkas([]);
-      return;
-    }
-    let batal = false;
-    setLoadingHafalanSurat(true);
-    setErrorHafalanSurat(null);
-    muatHafalanSuratRingkas(anggotaId, periode.awal, periode.akhir)
-      .then((d) => {
-        if (!batal) setHafalanSuratRingkas(d);
-      })
-      .catch((e) => {
-        if (!batal) setErrorHafalanSurat(e instanceof Error ? e.message : 'Gagal memuat data.');
-      })
-      .finally(() => {
-        if (!batal) setLoadingHafalanSurat(false);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
-
-  /* ── Peraga Tilawati (2026-09-03, diminta owner) -- materi ngaji
-     ber-judul "Baca Huruf Al-Qur'an"/"Peraga Tilawati" yg disampaikan
-     pada periode, dihitung pengulangannya spt Hafalan Surat. Sumber:
-     jurnal_materi bulan ini (rentangBulan = 1 bulan penuh). ── */
-  const [peragaMateri, setPeragaMateri] = useState<MateriJurnal[]>([]);
-  const [loadingPeraga, setLoadingPeraga] = useState(false);
-  useEffect(() => {
-    if (kelasId === '') {
-      setPeragaMateri([]);
-      return;
-    }
-    let batal = false;
-    setLoadingPeraga(true);
-    muatMateriBulan(anggotaId, tahun, bulan)
-      .then((d) => {
-        if (batal) return;
-        setPeragaMateri(
-          d.filter(
-            (m) =>
-              m.jenis !== 'klasikal' &&
-              (/peraga tilawati/i.test(m.judul) || /^baca huruf al-?qur/i.test(m.judul.trim())),
-          ),
-        );
-      })
-      .finally(() => {
-        if (!batal) setLoadingPeraga(false);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [kelasId, tahun, bulan, anggotaId]);
-
-  /* Dikelompokkan per JILID, angkanya = berapa kali jilid itu KHATAM
-     (diminta owner 2026-09-03: "5x adalah pengulangan khatamnya", bukan
-     jumlah pertemuan). Satu khatam = ada pertemuan peraga jilid itu yg
-     halamannya mencapai halaman terakhir peraga (20 -- batas "Halaman
-     Peraga Tilawati" di borang Rencana, PERAGA_HAL_MAKS). Jilid yg sudah
-     ada pertemuan tapi belum khatam tetap ditampilkan ("sedang berjalan"). */
-  const peragaTampil = useMemo(() => {
-    const peta = new Map<
-      string,
-      { jilid: string; khatam: number; terakhir: string; urut: number }
-    >();
-    for (const m of peragaMateri) {
-      if (m.status !== 'disampaikan') continue;
-      const mj = m.judul.match(/Jilid\s+(\d+)/i);
-      const jilid = mj ? mj[1] : /paud/i.test(m.judul) ? 'Paud' : '—';
-      let maxHal = 0;
-      for (const h of m.judul.matchAll(/hal\s+(\d+)(?:\s*[–-]\s*(\d+))?/gi)) {
-        maxHal = Math.max(maxHal, Number(h[1]), h[2] ? Number(h[2]) : 0);
-      }
-      const tgl = m.tanggal_disampaikan ?? '';
-      const cur =
-        peta.get(jilid) ??
-        {
-          jilid,
-          khatam: 0,
-          terakhir: '',
-          urut: mj ? Number(mj[1]) : jilid === 'Paud' ? 0 : 99,
-        };
-      if (maxHal >= PERAGA_HAL_AKHIR) cur.khatam += 1;
-      if (tgl > cur.terakhir) cur.terakhir = tgl;
-      peta.set(jilid, cur);
-    }
-    return [...peta.values()].sort((a, b) => a.urut - b.urut);
-  }, [peragaMateri]);
-
   /* ── Target Asmaul Husna dari Kurikulum (Prota) kelas ini ──
      Diminta owner 2026-09-03: Asmaul Husna DIGABUNG jadi satu baris di
      Monitoring, dan satu klasikal cuma dihitung 1× kalau rentang yang
@@ -440,41 +291,21 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return dariGuru ?? dariAdmin ?? '';
   }, [kelasId, kelasGuru, kelasAdmin]);
 
-  /* Target Buku Jilid Tilawati bulan ini utk kelas terpilih (pedoman
-     lib/pedomanTilawati.ts). null kalau kelas di luar pedoman (kelas 4+). */
-  const kodeKelasTilawati = useMemo(
-    () => kelasKurikulumSampai(namaKelasAktif).at(-1) ?? '',
-    [namaKelasAktif],
-  );
-  /* Kelas 4+ pakai kartu "Al-Qur'an" (Juz/Surat/Ayat), bukan Tilawati
-     Buku Jilid -- batas SAMA `KELAS_LABEL_BACA_HURUF` yg dipakai
-     Pelaksanaan & Riwayat (diminta owner 2026-09-12). */
-  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(kodeKelasTilawati);
-  const targetTilawati = useMemo(
-    () => targetTilawatiPeriode(kodeKelasTilawati, bulan),
-    [kodeKelasTilawati, bulan],
-  );
-  /* Target Bacaan Al-Qur'an kelas 4+ -- BEDA dari Tilawati di atas: bukan
-     pedoman statis, tapi diambil LANGSUNG dari Kurikulum (owner sendiri
-     yang input Prota/Promes/Probul per kelas, 2026-09-12). */
-  const [targetAlquran, setTargetAlquran] = useState<TargetAlquranPeriode | null>(null);
-  useEffect(() => {
-    if (!pakaiAlquran || kodeKelasTilawati === '') {
-      setTargetAlquran(null);
-      return;
-    }
-    let batal = false;
-    targetAlquranPeriode(kodeKelasTilawati, tahun, bulan)
-      .then((t) => {
-        if (!batal) setTargetAlquran(t);
-      })
-      .catch(() => {
-        if (!batal) setTargetAlquran(null);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [pakaiAlquran, kodeKelasTilawati, tahun, bulan]);
+  /* Kartu "Tilawati" vs "Al-Qur'an" DIPISAH per anggota fisik (2026-09-13,
+     diminta owner: kelas Gabung Kelas bisa lintas-grade) -- lihat
+     catatan lengkap di KartuTilawatiAlquran.tsx (Pelaksanaan). Dulu SATU
+     `pakaiAlquran`/`kodeKelasTilawati` polos dari grade tertinggi
+     gabungan (target & rubrik jadi salah utk anggota grade rendah).
+     Utk admin (kelasAdmin, tidak lewat muatKelasGuru) anggotaDetail
+     jatuh ke [{id: kelasId, nama: namaKelasAktif}] -- satu kelas fisik
+     apa adanya, tidak digabung. */
+  const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = useMemo(() => {
+    if (kelasId === '') return { tilawatiIds: [], alquranIds: [], tilawatiGrade: '', alquranGrade: '' };
+    const detail = kelasGuru.find((k) => k.id === kelasId)?.anggotaDetail ?? [
+      { id: kelasId, nama: namaKelasAktif },
+    ];
+    return pisahTilawatiAlquran(detail);
+  }, [kelasId, kelasGuru, namaKelasAktif]);
 
   /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
      Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
@@ -776,216 +607,32 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
             </div>
           )}
 
-          {/* ── Tilawati/Al-Qur'an -- dua bagian spt Riwayat Pembelajaran
-              (2026-09-03, diminta owner): "Peraga Tilawati" (pengulangan
-              materi) + "Buku Jilid" (Naik/Tetap per santri). Keduanya
-              tampil utk guru & admin. Kelas 4+: judul jadi "Al-Qur'an",
-              Peraga Tilawati & label "Buku Jilid Tilawati" disembunyikan
-              (diminta owner 2026-09-12, sama pola Riwayat Pembelajaran). ── */}
-          <div className="label-mikro mb-2">{pakaiAlquran ? "Al-Qur'an" : 'Tilawati'}</div>
-
-          {!pakaiAlquran && (
-            <>
-              <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Peraga Tilawati</div>
-              {loadingPeraga && <Skeleton className="mb-5 h-[52px] w-full" />}
-              {!loadingPeraga && (
-                <div className="kartu-premium mb-5 overflow-hidden">
-                  {peragaTampil.length === 0 ? (
-                    <p className="px-4 py-3 text-[13px] text-text-dim">
-                      Belum ada Peraga Tilawati yang disampaikan pada periode ini.
-                    </p>
-                  ) : (
-                    peragaTampil.map((b) => (
-                      <div
-                        key={b.jilid}
-                        className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                      >
-                        <span className="min-w-0 truncate text-[13px] font-semibold text-text">
-                          Peraga Tilawati {b.jilid === 'Paud' ? 'Paud' : `Jilid ${b.jilid}`}
-                        </span>
-                        <span className="flex shrink-0 items-baseline gap-1.5">
-                          {b.khatam > 0 ? (
-                            <span className="angka-metrik text-[15px] text-sage">{b.khatam}×</span>
-                          ) : (
-                            <span className="text-[11px] whitespace-nowrap text-text-faint">
-                              sedang berjalan
-                            </span>
-                          )}
-                          {b.terakhir && (
-                            <span className="text-[11px] whitespace-nowrap text-text-faint">
-                              terakhir {tanggalPendek(b.terakhir)}
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </>
+          {/* Tilawati / Al-Qur'an -- DIPISAH ke KartuMonitoringTilawati.tsx
+              (2026-09-13): kelas GABUNGAN bisa lintas-grade, render satu
+              kartu per grade yang ada anggotanya. */}
+          {tilawatiIds.length > 0 && (
+            <KartuMonitoringTilawati
+              judul="Tilawati"
+              pakaiAlquran={false}
+              anggotaIds={tilawatiIds}
+              kodeKelas={tilawatiGrade}
+              bulan={bulan}
+              tahun={tahun}
+              awal={periode.awal}
+              akhir={periode.akhir}
+            />
           )}
-
-          {!pakaiAlquran && (
-            <div className="mb-1.5 text-[12px] font-semibold text-text-dim">Buku Jilid Tilawati</div>
-          )}
-          {targetTilawati && (
-            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              Target {NAMA_BULAN[bulan - 1]}: {labelTargetPeriode(targetTilawati)}
-            </div>
-          )}
-          {targetAlquran && (
-            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              Target {NAMA_BULAN[bulan - 1]}:{' '}
-              {[targetAlquran.juz, targetAlquran.target].filter(Boolean).join(' · ')}
-            </div>
-          )}
-          {loadingTilawati && <Skeleton className="mb-5 h-[52px] w-full" />}
-          {errorTilawati && <p className="mb-5 text-[13px] text-red">{errorTilawati}</p>}
-          {!loadingTilawati && !errorTilawati && (
-            <div className="kartu-premium mb-5 overflow-hidden">
-              {tilawatiRingkas.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada santri di kelas ini.
-                </p>
-              ) : (
-                tilawatiRingkas.map((s) => {
-                  const posisi =
-                    s.terakhirJilid || s.terakhirHalaman
-                      ? [
-                          s.terakhirJilid
-                            ? /paud/i.test(s.terakhirJilid)
-                              ? 'Paud'
-                              : labelBukuJilid(s.terakhirJilid)
-                            : null,
-                          s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
-                          s.terakhirSurat,
-                          s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(' ')
-                      : null;
-                  /* Rubrik 4 tingkat BB/MB/BSH/BSB terhadap pedoman
-                     (diminta owner 2026-09-03). Kelas 4+ (Al-Qur'an,
-                     2026-09-12): target dari Kurikulum (Juz per
-                     semester), bukan pedoman statis Tilawati. */
-                  const sPos = posisiTilawati(s.terakhirJilid, s.terakhirHalaman);
-                  const status: StatusPencapaian | null = !s.adaCatatan
-                    ? null
-                    : pakaiAlquran
-                      ? statusPencapaianAlquran(
-                          posisiJuzTerakhir(s.terakhirJilid),
-                          targetAlquran?.juz ?? null,
-                          targetAlquran?.juzSemesterLalu ?? null,
-                        )
-                      : statusPencapaianTilawati(kodeKelasTilawati, bulan, sPos);
-                  return (
-                    <div
-                      key={s.santriId}
-                      className="flex items-start justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                    >
-                      <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-semibold text-text">
-                          {s.nama}
-                        </span>
-                        <span className="block text-[11px] text-text-faint">
-                          {s.adaCatatan ? (posisi ?? '—') : 'Belum ada catatan bulan ini'}
-                        </span>
-                      </span>
-                      <span className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
-                        {s.adaCatatan && (
-                          <>
-                            {s.naik > 0 && (
-                              <span className="rounded-full bg-sage-lembut px-2.5 py-1 text-[11px] font-bold text-sage">
-                                {s.naik}× Naik
-                              </span>
-                            )}
-                            {s.tetap > 0 && (
-                              <span className="rounded-full bg-brass-lembut px-2.5 py-1 text-[11px] font-bold text-brass">
-                                {s.tetap}× Tetap
-                              </span>
-                            )}
-                            <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-indigo">
-                              {s.halProgres} Hal
-                            </span>
-                          </>
-                        )}
-                        {status && (
-                          <span
-                            className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                              status === 'BB'
-                                ? 'bg-red-lembut text-red'
-                                : status === 'MB'
-                                  ? 'bg-brass-lembut text-brass'
-                                  : status === 'BSH'
-                                    ? 'bg-sage-lembut text-sage'
-                                    : 'bg-indigo-lembut text-indigo'
-                            }`}
-                            title={LABEL_STATUS_PENCAPAIAN[status].panjang}
-                          >
-                            {status}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          )}
-          {(targetTilawati || targetAlquran) && !loadingTilawati && !errorTilawati && (
-            <div className="mb-5 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2.5">
-              <div className="label-mikro mb-1.5">Keterangan</div>
-              <ul className="space-y-0.5 text-[11px] leading-snug text-text-dim">
-                {(['BB', 'MB', 'BSH', 'BSB'] as StatusPencapaian[]).map((k) => (
-                  <li key={k}>
-                    <span className="font-bold text-text">{LABEL_STATUS_PENCAPAIAN[k].singkat}</span>{' '}
-                    : {LABEL_STATUS_PENCAPAIAN[k].panjang} ({LABEL_STATUS_PENCAPAIAN[k].arti})
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* ── Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13,
-              diminta owner) -- kembar Buku Jilid Tilawati di atas, daftar
-              apa adanya per hari (TANPA rubrik BB/MB/BSH/BSB -- pedoman
-              posisi/target sekuensial Tilawati/Al-Qur'an tidak berlaku di
-              sini, surat dipilih bebas oleh guru per santri). ── */}
-          <div className="label-mikro mb-2">Hafalan Surat-Surat Al-Qur&rsquo;an</div>
-          {loadingHafalanSurat && <Skeleton className="mb-5 h-[52px] w-full" />}
-          {errorHafalanSurat && <p className="mb-5 text-[13px] text-red">{errorHafalanSurat}</p>}
-          {!loadingHafalanSurat && !errorHafalanSurat && (
-            <div className="kartu-premium mb-5 overflow-hidden">
-              {hafalanSuratRingkas.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada catatan Hafalan Surat pada periode ini.
-                </p>
-              ) : (
-                hafalanSuratRingkas.map((s) => (
-                  <div key={s.santriId} className="border-b border-border px-4 py-2.5 last:border-b-0">
-                    <div className="mb-1 text-[13px] font-semibold text-text">{s.nama}</div>
-                    {s.hari.map((h) => (
-                      <div key={h.id} className="flex items-center justify-between gap-2 py-0.5 text-[11.5px]">
-                        <span className="min-w-0 truncate text-text-dim">
-                          {formatTanggalHari(h.tanggal)}
-                          {h.surat ? ` · ${h.surat}` : ''}
-                          {h.ayat ? ` ayat ${h.ayat}` : ''}
-                        </span>
-                        {h.status && (
-                          <span
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
-                              h.status === 'naik' ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
-                            }`}
-                          >
-                            {h.status === 'naik' ? 'Naik' : 'Tetap'}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
+          {alquranIds.length > 0 && (
+            <KartuMonitoringTilawati
+              judul="Al-Qur'an"
+              pakaiAlquran={true}
+              anggotaIds={alquranIds}
+              kodeKelas={alquranGrade}
+              bulan={bulan}
+              tahun={tahun}
+              awal={periode.awal}
+              akhir={periode.akhir}
+            />
           )}
 
           {/* ── Sisi PER SANTRI -- SEMENTARA admin-only (2026-09-02

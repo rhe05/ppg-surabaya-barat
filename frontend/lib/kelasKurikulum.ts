@@ -46,18 +46,39 @@ export function pakaiAlquranUntukGrade(grade: string): boolean {
   return !KELAS_LABEL_BACA_HURUF.includes(grade);
 }
 
+/* Urutan kode Kurikulum -- dipakai bandingkan grade "tertinggi" (indeks
+   terbesar) antar anggota satu bucket. Kembar KELAS_KURIKULUM_URUT di
+   atas, diimpor lokal spy tidak perlu re-ekspor ulang di sini. */
+const URUT_GRADE = KELAS_KURIKULUM_URUT;
+
 /** Pisahkan anggota gabungan (id+nama kelas fisik) jadi dua kelompok
  *  kelas_id: yang masih Tilawati (grade PAUD-TK s.d. 3) & yang sudah
  *  Al-Qur'an (grade 4+). Kelas TANPA gabungan aktif selalu masuk SATU
- *  kelompok saja (anggotaDetail cuma berisi dirinya sendiri). */
+ *  kelompok saja (anggotaDetail cuma berisi dirinya sendiri).
+ *
+ *  `tilawatiGrade`/`alquranGrade` = grade TERTINGGI di masing-masing
+ *  bucket (dipakai Monitoring utk target Tilawati/Al-Qur'an per grade,
+ *  2026-09-13) -- '' kalau bucket itu kosong. Kasus lazim (gabungan 2
+ *  kelas, satu Tilawati satu Al-Qur'an) tiap bucket cuma berisi SATU
+ *  grade jadi ini akurat; kasus jarang (gabungan >1 kelas Tilawati
+ *  beda grade) target dihitung dari grade tertingginya saja -- edge
+ *  case yang belum diminta owner, bukan kesalahan pembulatan acak. */
 export function pisahTilawatiAlquran(
   anggotaDetail: { id: number; nama: string }[],
-): { tilawatiIds: number[]; alquranIds: number[] } {
+): { tilawatiIds: number[]; alquranIds: number[]; tilawatiGrade: string; alquranGrade: string } {
   const tilawatiIds: number[] = [];
   const alquranIds: number[] = [];
+  let tilawatiGrade = '';
+  let alquranGrade = '';
   for (const a of anggotaDetail) {
     const grade = gradeRuangDari(a.nama);
-    (pakaiAlquranUntukGrade(grade) ? alquranIds : tilawatiIds).push(a.id);
+    if (pakaiAlquranUntukGrade(grade)) {
+      alquranIds.push(a.id);
+      if (URUT_GRADE.indexOf(grade) > URUT_GRADE.indexOf(alquranGrade)) alquranGrade = grade;
+    } else {
+      tilawatiIds.push(a.id);
+      if (URUT_GRADE.indexOf(grade) > URUT_GRADE.indexOf(tilawatiGrade)) tilawatiGrade = grade;
+    }
   }
-  return { tilawatiIds, alquranIds };
+  return { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade };
 }
