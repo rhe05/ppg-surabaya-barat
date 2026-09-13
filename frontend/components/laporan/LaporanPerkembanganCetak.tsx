@@ -431,9 +431,9 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                   <tr>
                     {[
                       'Nama',
-                      ...(ngaji ? ['Pencapaian', 'Keterangan'] : []),
-                      ...(laporan.materiHafalanSurat ? ['Hafalan Surat (Materi Ngaji)', 'Keterangan'] : []),
-                      ...(laporan.materiHafalanDoa ? ["Hafalan Do'a (Materi Ngaji)", 'Keterangan'] : []),
+                      ...(ngaji ? ['Pencapaian', 'Ket'] : []),
+                      ...(laporan.materiHafalanSurat ? ['Hafalan Surat', 'Ket'] : []),
+                      ...(laporan.materiHafalanDoa ? ["Hafalan Do'a", 'Ket'] : []),
                     ].map((h, hi) => (
                       <th
                         key={`${h}-${hi}`}
@@ -489,7 +489,7 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                                   {hs?.pencapaian ?? '—'}
                                 </td>
                                 <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                                  {hs?.keterangan ?? 'Belum ada catatan bulan ini'}
+                                  {hs?.keterangan ?? '—'}
                                 </td>
                               </>
                             )}
@@ -499,7 +499,7 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                                   {hd?.pencapaian ?? '—'}
                                 </td>
                                 <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                                  {hd?.keterangan ?? 'Belum ada catatan bulan ini'}
+                                  {hd?.keterangan ?? '—'}
                                 </td>
                               </>
                             )}

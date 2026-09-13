@@ -396,7 +396,7 @@ export async function hitungMateriNgaji(
             .join(' ')
         : '—';
 
-      let keterangan = 'Belum ada catatan bulan ini';
+      let keterangan = '—';
       if (s.adaCatatan) {
         const status = pakaiAlquran
           ? statusPencapaianAlquran(

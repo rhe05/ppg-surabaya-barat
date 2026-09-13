@@ -437,7 +437,7 @@ export default function SantriProgressReport() {
               ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
                   .filter(Boolean)
                   .join(', ') || '—'
-              : 'Belum ada catatan bulan ini',
+              : '—',
           })),
         };
       } catch {
@@ -461,7 +461,7 @@ export default function SantriProgressReport() {
               ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
                   .filter(Boolean)
                   .join(', ') || '—'
-              : 'Belum ada catatan bulan ini',
+              : '—',
           })),
         };
       } catch {
