@@ -280,7 +280,13 @@ function AbsensiContent() {
         .eq('kelompok_id', kelompokId)
         .is('deleted_at', null)
         .order('nama');
-      if (kelasId) qSantri = qSantri.eq('kelas_id', Number(kelasId));
+      if (kelasId) {
+        /* Kelas yang sedang GABUNG AKTIF (2026-09-13) -- pakai anggotaId
+           (semua kelas_id fisik tergabung), bukan id tunggal, supaya
+           santri kelas yang digabung ikut ditampilkan utk diabsen. */
+        const anggotaId = kelasDetail.find((k) => k.id === Number(kelasId))?.anggotaId ?? [Number(kelasId)];
+        qSantri = qSantri.in('kelas_id', anggotaId);
+      }
 
       const santriRes = await qSantri;
       if (santriRes.error) throw new Error(santriRes.error.message);
@@ -326,7 +332,7 @@ function AbsensiContent() {
     } finally {
       setLoading(false);
     }
-  }, [kelompokId, tanggal, kelasId]);
+  }, [kelompokId, tanggal, kelasId, kelasDetail]);
 
   useEffect(() => {
     let cancelled = false;

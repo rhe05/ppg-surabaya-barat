@@ -50,6 +50,12 @@ export type KelasDetail = {
      sendiri TIDAK membedakannya (dicek: app lama juga tidak menandai kartu
      gate, cuma chip sesudahnya). */
   pinjam?: boolean;
+  /* Semua kelas_id FISIK yang tergabung ke kelas ini (Gabung Kelas
+     "tanpa batas waktu", 2026-09-13) -- undefined/[id] sendiri kalau
+     tidak sedang digabung. Query santri WAJIB pakai ini (bukan `id`
+     polos) supaya santri kelas yang digabung ikut tampil di Input
+     Absensi. Lihat lib/kelasGabungGilir.ts. */
+  anggotaId?: number[];
 };
 
 type Status = 'hadir' | 'izin' | 'sakit' | 'alpa';

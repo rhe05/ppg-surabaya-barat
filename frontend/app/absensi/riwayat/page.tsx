@@ -93,6 +93,9 @@ type Kelas = {
   jam_mulai: string | null;
   jam_selesai: string | null;
   kategori_kbm: { nama: string } | { nama: string }[] | null;
+  /* Semua kelas_id FISIK tergabung ke entri ini (Gabung Kelas "tanpa
+     batas waktu", 2026-09-13). Lihat lib/kelasGabungGilir.ts. */
+  anggotaId?: number[];
 };
 type Santri = { id: number; nama: string; nama_panggilan: string | null };
 
@@ -289,7 +292,8 @@ function RiwayatKehadiranContent() {
          Santri yang pindah/nonaktif SETELAH bulan ini dimulai juga tetap
          ikut tampil -- deleted_at dipakai sbg "sejak kapan tidak aktif",
          bukan cuma penanda hapus (lihat migrasi 20260821130000). */
-      const idsKelas = await santriIdsKelasPadaPeriode(kelasId, awal, akhir);
+      const anggotaId = kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId];
+      const idsKelas = await santriIdsKelasPadaPeriode(anggotaId, awal, akhir);
       const { data: dataSantri, error: errSantri } = idsKelas.length
         ? await supabase
             .from('santri')
@@ -344,7 +348,7 @@ function RiwayatKehadiranContent() {
     } finally {
       setLoading(false);
     }
-  }, [kelasId, bulan, tahun]);
+  }, [kelasId, bulan, tahun, kelasList]);
 
   useEffect(() => {
     muatMatrix();

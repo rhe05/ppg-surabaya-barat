@@ -13,15 +13,19 @@ import { supabase } from '@/lib/supabase';
    `mulai` & `selesai` di tabel itu INKLUSIF, selesai NULL = masih
    berlaku, jadi "beririsan dgn [awal, akhir]" = mulai <= akhir AND
    (selesai IS NULL OR selesai >= awal). */
+/* `kelasId` boleh array (2026-09-13, Gabung Kelas "tanpa batas waktu") --
+   dipakai kalau kelasnya sedang gabung aktif, supaya santri anggota
+   kelas yang digabung ikut terhitung. Lihat lib/kelasGabungGilir.ts
+   `anggotaId`. */
 export async function santriIdsKelasPadaPeriode(
-  kelasId: number,
+  kelasId: number | number[],
   awal: string,
   akhir: string,
 ): Promise<number[]> {
   const { data, error } = await supabase
     .from('santri_kelas_riwayat')
     .select('santri_id')
-    .eq('kelas_id', kelasId)
+    .in('kelas_id', Array.isArray(kelasId) ? kelasId : [kelasId])
     .lte('mulai', akhir)
     .or(`selesai.is.null,selesai.gte.${awal}`);
   if (error) throw new Error(error.message);

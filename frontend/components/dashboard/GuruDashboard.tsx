@@ -23,6 +23,10 @@ type Kelas = {
   ruangan: string | null;
   santri_count: number;
   kategori_kbm: Tersemat;
+  /* Semua kelas_id FISIK tergabung ke entri ini (Gabung Kelas "tanpa
+     batas waktu", 2026-09-13) -- [id] sendiri kalau tidak digabung.
+     Lihat lib/kelasGabungGilir.ts. */
+  anggotaId?: number[];
 };
 
 // Style_Main.html:695-700 (IA_GURU_KATEGORI_SINGKATAN_)
@@ -169,11 +173,20 @@ export default function GuruDashboard() {
 
      Paginasi wajib: PostgREST diam-diam memotong di 1000 baris. */
   const muatStatistik = useCallback(
-    async (kelasIds: number[], bulanDipilih: number, tahunDipilih: number) => {
+    async (daftarKelas: { id: number; anggotaId?: number[] }[], bulanDipilih: number, tahunDipilih: number) => {
+      const kelasIds = daftarKelas.map((k) => k.id);
       if (kelasIds.length === 0) {
         setStatistik({});
         return;
       }
+
+      /* Kelas yang sedang GABUNG AKTIF (2026-09-13, diminta owner: "card
+         ringkasan kehadiran jadi satu") -- santri dicari lewat SEMUA
+         kelas_id fisik (anggotaId), tapi diagregasi kembali ke id GRUP
+         (induk) supaya kartunya tetap satu, bukan pecah per kelas fisik. */
+      const petaFisikKeGrup = new Map<number, number>();
+      for (const k of daftarKelas) for (const fid of k.anggotaId ?? [k.id]) petaFisikKeGrup.set(fid, k.id);
+      const semuaFisikId = [...petaFisikKeGrup.keys()];
 
       const { awal, akhir } = batasBulan(tahunDipilih, bulanDipilih);
 
@@ -184,13 +197,13 @@ export default function GuruDashboard() {
       const { data: dataSantri, error: errSantri } = await supabase
         .from('santri')
         .select('id, kelas_id')
-        .in('kelas_id', kelasIds)
+        .in('kelas_id', semuaFisikId)
         .or(`deleted_at.is.null,deleted_at.gt.${awal}`);
       if (errSantri) throw new Error(errSantri.message);
 
       const kelasDariSantri = new Map<number, number>();
       (dataSantri ?? []).forEach((s) => {
-        if (s.kelas_id != null) kelasDariSantri.set(s.id, s.kelas_id);
+        if (s.kelas_id != null) kelasDariSantri.set(s.id, petaFisikKeGrup.get(s.kelas_id) ?? s.kelas_id);
       });
 
       const kosong = (): Statistik => ({ hariAktif: 0, hadir: 0, izin: 0, sakit: 0, alpa: 0 });
@@ -268,11 +281,7 @@ export default function GuruDashboard() {
       } catch {
         /* localStorage bisa dilempar (mode privat) — abaikan */
       }
-      await muatStatistik(
-        daftarKelas.map((k) => k.id),
-        bulan,
-        tahun,
-      );
+      await muatStatistik(daftarKelas, bulan, tahun);
     } catch (e) {
       /* Pesan aslinya DITERUSKAN (dulu ditelan jadi 'Error loading data'
          berbahasa Inggris yang tidak memberi petunjuk apa pun) --
