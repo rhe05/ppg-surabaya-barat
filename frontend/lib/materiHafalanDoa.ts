@@ -134,6 +134,44 @@ export function uraikanTargetDoa(teks: string | null): string[] {
     .filter((baris) => baris !== '');
 }
 
+/* ── Target "Hafalan Do'a" Laporan Perkembangan Santri (2026-09-14,
+   diminta owner: "untuk perincian target ... bisa ambil data dari
+   perincian materi klasikal saya sudah uraikan targetnya" -- kembar
+   PERSIS targetHafalanSuratSemester (lib/hafalanSurat.ts): sumber
+   kurikulum_prota.target/target2 SEMESTER INI (SUDAH diuraikan owner jadi
+   daftar bernomor), BUKAN kurikulum_probul bulanan yg sebagian besar
+   kelas belum diisi. `kodeKelas` TUNGGAL (bukan kumulatif). Baris
+   "Menerampilkan hafalan do'a pada jenjang sebelumnya" dibuang, sama
+   pola opsiHafalanDoa (borang Tambah Materi Klasikal). */
+type KategoriTersematProta = { nama: string } | { nama: string }[] | null;
+
+export async function targetHafalanDoaSemester(
+  kodeKelas: string,
+  tahun: number,
+  bulanKalender: number,
+): Promise<string | null> {
+  const semester: 1 | 2 = bulanKalender >= 7 ? 1 : 2;
+  const { data, error } = await supabase
+    .from('kurikulum_prota')
+    .select('target, target2, kategori_kbm(nama)')
+    .eq('kelompok_id', 1)
+    .eq('tahun', tahun)
+    .eq('kelas', kodeKelas);
+  if (error) throw new Error(error.message);
+
+  const baris = (data ?? []).find((p) => {
+    const k = p.kategori_kbm as KategoriTersematProta;
+    const nama = Array.isArray(k) ? k[0]?.nama : k?.nama;
+    return nama === "Hafalan Do'a-Do'a Harian";
+  }) as { target: string | null; target2: string | null } | undefined;
+  if (!baris) return null;
+
+  const daftar = uraikanTargetDoa(semester === 1 ? baris.target : baris.target2).filter(
+    (item) => !adalahMenerampilkanJenjangSebelumnya(item),
+  );
+  return daftar.length > 0 ? `Target Semester ${semester}: ${daftar.join(', ')}` : null;
+}
+
 /** Gabung target Semester 1 + Semester 2 jadi satu daftar tahunan. */
 export function gabungkanDoaDuaSemester(target1: string | null, target2: string | null): string[] {
   const hasil: string[] = [];

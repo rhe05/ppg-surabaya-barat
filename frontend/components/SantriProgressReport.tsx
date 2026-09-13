@@ -86,11 +86,16 @@ import {
   adalahAsmaulHusna,
   kelasKurikulumSampai,
   muatHafalanDoaKelas,
+  targetHafalanDoaSemester,
 } from '@/lib/materiHafalanDoa';
-import { suratDariTargetProta, normalisasiNamaSurat, muatHafalanSuratKelas } from '@/lib/hafalanSurat';
+import {
+  suratDariTargetProta,
+  normalisasiNamaSurat,
+  muatHafalanSuratKelas,
+  targetHafalanSuratSemester,
+} from '@/lib/hafalanSurat';
 import { hitungMateriNgaji } from '@/lib/tilawati';
 import { pisahTilawatiAlquran, gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
-import { targetKategoriBulanan } from '@/lib/targetAlquranKurikulum';
 
 type Guru = { id: number; nama: string };
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
@@ -445,11 +450,11 @@ export default function SantriProgressReport() {
         const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
           muatHafalanSuratKelas(kelasIds, awal, akhir),
           gradeTertinggiKelas
-            ? targetKategoriBulanan("Hafalan Surat-Surat Al-Qur'an", gradeTertinggiKelas, tahun, bulan)
+            ? targetHafalanSuratSemester(gradeTertinggiKelas, tahun, bulan)
             : Promise.resolve(null),
         ]);
         materiHafalanSurat = {
-          target: targetHafalanSurat ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanSurat}` : null,
+          target: targetHafalanSurat,
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan
@@ -476,12 +481,10 @@ export default function SantriProgressReport() {
       try {
         const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
           muatHafalanDoaKelas(kelasIds, awal, akhir),
-          gradeTertinggiKelas
-            ? targetKategoriBulanan("Hafalan Do'a-Do'a Harian", gradeTertinggiKelas, tahun, bulan)
-            : Promise.resolve(null),
+          gradeTertinggiKelas ? targetHafalanDoaSemester(gradeTertinggiKelas, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanDoa = {
-          target: targetHafalanDoa ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanDoa}` : null,
+          target: targetHafalanDoa,
           baris: hafalanDoaKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',

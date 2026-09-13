@@ -80,10 +80,9 @@ import { muatKelasGuru, muatKalenderKelompok } from '@/lib/dataGuru';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
-import { muatHafalanSuratKelas } from '@/lib/hafalanSurat';
-import { muatHafalanDoaKelas } from '@/lib/materiHafalanDoa';
+import { muatHafalanSuratKelas, targetHafalanSuratSemester } from '@/lib/hafalanSurat';
+import { muatHafalanDoaKelas, targetHafalanDoaSemester } from '@/lib/materiHafalanDoa';
 import { gradeRuangDari } from '@/lib/kelasKurikulum';
-import { targetKategoriBulanan } from '@/lib/targetAlquranKurikulum';
 
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
    "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
@@ -344,12 +343,10 @@ export default function GuruLaporanView() {
       try {
         const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
           muatHafalanSuratKelas(kelasIds, awal, akhir),
-          gradeKelasIni
-            ? targetKategoriBulanan("Hafalan Surat-Surat Al-Qur'an", gradeKelasIni, tahun, bulan)
-            : Promise.resolve(null),
+          gradeKelasIni ? targetHafalanSuratSemester(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanSurat = {
-          target: targetHafalanSurat ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanSurat}` : null,
+          target: targetHafalanSurat,
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan
@@ -374,12 +371,10 @@ export default function GuruLaporanView() {
       try {
         const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
           muatHafalanDoaKelas(kelasIds, awal, akhir),
-          gradeKelasIni
-            ? targetKategoriBulanan("Hafalan Do'a-Do'a Harian", gradeKelasIni, tahun, bulan)
-            : Promise.resolve(null),
+          gradeKelasIni ? targetHafalanDoaSemester(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanDoa = {
-          target: targetHafalanDoa ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanDoa}` : null,
+          target: targetHafalanDoa,
           baris: hafalanDoaKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',

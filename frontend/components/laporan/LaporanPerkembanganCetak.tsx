@@ -177,13 +177,14 @@ export type MateriNgajiList = MateriNgaji[];
    Keterangan), sumber beda: lib/hafalanSurat.ts `muatHafalanSuratKelas`
    (tabel hafalan_surat_pelaksanaan, terpisah dari Tilawati/Al-Qur'an). */
 export type HafalanSuratLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
-/* `target` (2026-09-14, diminta owner: "target hafalan surat dan
-   hafalan do'a bisa ambilkan dari kurikulum, saya sudah buatkan prota
-   dan probul nya") -- teks target BULAN BERJALAN dari
-   lib/targetAlquranKurikulum.ts `targetKategoriBulanan` (kurikulum_prota
-   -> promes -> probul kategori "Hafalan Surat-Surat Al-Qur'an"), SUDAH
-   diberi awalan "Target <Bulan>: " -- pola sama persis MateriNgaji.target
-   di atas. null kalau baris Prota/Promes/Probul kelas itu belum diisi. */
+/* `target` (2026-09-14, diminta owner: "untuk perincian target ... bisa
+   ambil data dari perincian materi klasikal saya sudah uraikan
+   targetnya") -- daftar dari lib/hafalanSurat.ts
+   `targetHafalanSuratSemester` (kurikulum_prota.target/target2 SEMESTER
+   INI, kategori "Hafalan Surat-Surat Al-Qur'an" -- BUKAN kurikulum_probul
+   bulanan, percobaan pertama 2026-09-14 ternyata sebagian besar kelas
+   belum diisi owner di situ), SUDAH diberi awalan "Target Semester N: ".
+   null kalau baris Prota kelas itu belum diisi utk semester ini. */
 export type MateriHafalanSurat = { baris: HafalanSuratLaporanBaris[]; target?: string | null };
 
 /* "Hafalan Do'a-Do'a Harian" per santri (2026-09-14, diminta owner:

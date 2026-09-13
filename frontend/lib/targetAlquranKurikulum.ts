@@ -112,58 +112,6 @@ export async function targetAlquranPeriode(
   };
 }
 
-/* Target bulanan generik utk kategori LAIN yang tidak punya rubrik
-   BB/MB/BSH/BSB per-kelas (Hafalan Surat-Surat Al-Qur'an, Hafalan
-   Do'a-Do'a Harian -- 2026-09-14, diminta owner: "target hafalan surat
-   dan hafalan do'a bisa ambilkan dari kurikulum, saya sudah buatkan
-   prota dan probul nya"). Chain query SAMA PERSIS targetAlquranPeriode
-   (kurikulum_prota -> promes -> probul, kelompok_id=1), TAPI tanpa
-   parsing Juz/semester-lalu -- kategori ini cuma butuh teks target bulan
-   berjalan apa adanya (guru pilih surat/do'a manapun yg relevan dari
-   teks itu, tidak ada posisi tunggal yg dibandingkan spt Juz santri). */
-export async function targetKategoriBulanan(
-  kategoriNama: string,
-  kodeKelas: string,
-  tahun: number,
-  bulanKalender: number,
-): Promise<string | null> {
-  const semester: 1 | 2 = bulanKalender >= 7 ? 1 : 2;
-  const bulanKe = semester === 1 ? bulanKalender - 6 : bulanKalender;
-
-  const { data: prota, error: eProta } = await supabase
-    .from('kurikulum_prota')
-    .select('id, kategori_kbm(nama)')
-    .eq('kelompok_id', KELOMPOK_KURIKULUM_BERSAMA_ID)
-    .eq('tahun', tahun)
-    .eq('kelas', kodeKelas);
-  if (eProta) throw new Error(eProta.message);
-
-  const baris = (prota ?? []).find((p) => {
-    const k = p.kategori_kbm as KategoriTersemat;
-    const nama = Array.isArray(k) ? k[0]?.nama : k?.nama;
-    return nama === kategoriNama;
-  });
-  if (!baris) return null;
-
-  const { data: promes, error: ePromes } = await supabase
-    .from('kurikulum_promes')
-    .select('id')
-    .eq('prota_id', baris.id)
-    .eq('semester', semester)
-    .maybeSingle();
-  if (ePromes) throw new Error(ePromes.message);
-  if (!promes) return null;
-
-  const { data: probul, error: eProbul } = await supabase
-    .from('kurikulum_probul')
-    .select('target')
-    .eq('promes_id', promes.id)
-    .eq('bulan', bulanKe)
-    .maybeSingle();
-  if (eProbul) throw new Error(eProbul.message);
-  return probul?.target ?? null;
-}
-
 /** "Juz 30" -> [30]; "Juz 24, 25 dan 26" -> [24,25,26]. */
 function uraikanAngkaJuz(label: string): number[] {
   return [...label.matchAll(/\d+/g)].map((m) => Number(m[0]));

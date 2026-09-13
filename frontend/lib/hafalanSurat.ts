@@ -169,6 +169,44 @@ export function suratDariTargetProta(teks: string | null): string[] {
   return barisHafalanDariTeks(teks).flatMap(uraikanBarisHafalan);
 }
 
+/* ── Target "Hafalan Surat" Laporan Perkembangan Santri (2026-09-14,
+   diminta owner: "untuk perincian target ... bisa ambil data dari
+   perincian materi klasikal saya sudah uraikan targetnya" -- GANTI dari
+   percobaan sebelumnya yg pakai kurikulum_probul (target BULANAN,
+   ternyata sebagian besar kelas belum diisi owner). Sumber SAMA PERSIS
+   opsiHafalanSurat (borang Tambah Materi Klasikal, Rencana Pembelajaran):
+   kurikulum_prota.target/target2 -- teks itu SUDAH diuraikan owner jadi
+   daftar bernomor per semester, jauh lebih lengkap drpd probul.
+   `kodeKelas` TUNGGAL (bukan kumulatif PAUD-TK s.d. kelas ini spt
+   opsiHafalanSurat di borang guru) krn laporan ini per-kelas, bukan
+   dropdown pilihan guru yg perlu opsi dari kelas di bawahnya jg. */
+type KategoriTersematProta = { nama: string } | { nama: string }[] | null;
+
+export async function targetHafalanSuratSemester(
+  kodeKelas: string,
+  tahun: number,
+  bulanKalender: number,
+): Promise<string | null> {
+  const semester: 1 | 2 = bulanKalender >= 7 ? 1 : 2;
+  const { data, error } = await supabase
+    .from('kurikulum_prota')
+    .select('target, target2, kategori_kbm(nama)')
+    .eq('kelompok_id', 1)
+    .eq('tahun', tahun)
+    .eq('kelas', kodeKelas);
+  if (error) throw new Error(error.message);
+
+  const baris = (data ?? []).find((p) => {
+    const k = p.kategori_kbm as KategoriTersematProta;
+    const nama = Array.isArray(k) ? k[0]?.nama : k?.nama;
+    return nama === "Hafalan Surat-Surat Al-Qur'an";
+  }) as { target: string | null; target2: string | null } | undefined;
+  if (!baris) return null;
+
+  const daftar = [...new Set(suratDariTargetProta(semester === 1 ? baris.target : baris.target2))];
+  return daftar.length > 0 ? `Target Semester ${semester}: ${daftar.join(', ')}` : null;
+}
+
 /* ── Laporan Hafalan Surat per santri (2026-09-13, diminta owner: tampilkan
    di Riwayat Pembelajaran) -- kembar dari muatTilawatiRingkas (lib/
    tilawati.ts), tabel beda: `hafalan_surat_pelaksanaan` (migrasi
