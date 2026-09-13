@@ -97,7 +97,23 @@ function BarisMateriRingkas({ m }: { m: MateriJurnal }) {
         <div className="text-[10.5px] text-text-faint">
           {[kategori, tgl ? formatTanggal(tgl) : null].filter(Boolean).join(' · ') || '—'}
         </div>
-        {rincian && <div className="text-[10.5px] leading-snug text-text-dim">{rincian}</div>}
+        {/* Hafalan Surat/Do'a klasikal disimpan di kolom terpisah
+            (klasikal_hafalan_surat/klasikal_hafalan_doa), BUKAN di judul --
+            sama bug yg diperbaiki di RiwayatPembelajaranView.tsx (fcdaa1c),
+            belum ikut diperbaiki di sini. */}
+        {m.klasikal_hafalan_surat && (
+          <div className="text-[10.5px] leading-snug text-text-dim">
+            <span className="font-semibold text-text">Hafalan Surat:</span> {m.klasikal_hafalan_surat}
+          </div>
+        )}
+        {m.klasikal_hafalan_doa && (
+          <div className="text-[10.5px] leading-snug text-text-dim">
+            <span className="font-semibold text-text">Hafalan Do&rsquo;a:</span> {m.klasikal_hafalan_doa}
+          </div>
+        )}
+        {!m.klasikal_hafalan_surat && !m.klasikal_hafalan_doa && rincian && (
+          <div className="text-[10.5px] leading-snug text-text-dim">{rincian}</div>
+        )}
       </div>
     </div>
   );
