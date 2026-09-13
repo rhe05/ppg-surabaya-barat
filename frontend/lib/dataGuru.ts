@@ -238,37 +238,78 @@ export function namaKategori(v: ProtaBaris['kategori_kbm']): string | null {
 
 export type PengulanganKelas = { nama_surat: string; jumlah: number; terakhir: string };
 
-/** "Surat ini sudah diulang berapa kali" utk satu kelas, satu rentang. */
+/* Gabung hasil beberapa panggilan RPC per-kelas jadi satu daftar --
+   dipakai kalau kelasnya sedang GABUNG AKTIF (2026-09-13, Gabung Kelas
+   "tanpa batas waktu"): RPC-nya sendiri cuma terima SATU p_kelas_id
+   (bukan array, tidak diubah -- migrasi RLS/RPC tambahan tidak sepadan
+   utk fitur ini), jadi dipanggil SEKALI per kelas_id fisik lalu
+   dijumlah di sisi klien. `terakhir` = tanggal PALING BARU antar semua
+   panggilan. */
+function gabungPengulangan<T extends { jumlah: number; terakhir: string }>(
+  hasil: T[][],
+  kunci: (b: T) => string,
+): T[] {
+  const peta = new Map<string, T>();
+  for (const baris of hasil) {
+    for (const b of baris) {
+      const k = kunci(b);
+      const ada = peta.get(k);
+      if (!ada) {
+        peta.set(k, { ...b });
+      } else {
+        ada.jumlah += b.jumlah;
+        if (b.terakhir > ada.terakhir) ada.terakhir = b.terakhir;
+      }
+    }
+  }
+  return [...peta.values()].sort((a, b) => b.jumlah - a.jumlah);
+}
+
+/** "Surat ini sudah diulang berapa kali" utk satu kelas (atau gabungan
+ *  beberapa kelas_id fisik, Gabung Kelas), satu rentang. */
 export async function muatPengulanganKelas(
-  kelasId: number,
+  kelasId: number | number[],
   awal: string,
   akhir: string
 ): Promise<PengulanganKelas[]> {
-  const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas', {
-    p_kelas_id: kelasId,
-    p_awal: awal,
-    p_akhir: akhir,
-  });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as PengulanganKelas[];
+  const ids = Array.isArray(kelasId) ? kelasId : [kelasId];
+  const hasil = await Promise.all(
+    ids.map(async (id) => {
+      const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas', {
+        p_kelas_id: id,
+        p_awal: awal,
+        p_akhir: akhir,
+      });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as PengulanganKelas[];
+    }),
+  );
+  return gabungPengulangan(hasil, (b) => b.nama_surat);
 }
 
 export type PengulanganKelasDoa = { nama_doa: string; jumlah: number; terakhir: string };
 
-/** "Do'a ini sudah diulang berapa kali" utk satu kelas, satu rentang --
- *  kembar dari muatPengulanganKelas (surat). Migrasi 20260903110000. */
+/** "Do'a ini sudah diulang berapa kali" utk satu kelas (atau gabungan),
+ *  satu rentang -- kembar dari muatPengulanganKelas (surat). Migrasi
+ *  20260903110000. */
 export async function muatPengulanganKelasDoa(
-  kelasId: number,
+  kelasId: number | number[],
   awal: string,
   akhir: string
 ): Promise<PengulanganKelasDoa[]> {
-  const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas_doa', {
-    p_kelas_id: kelasId,
-    p_awal: awal,
-    p_akhir: akhir,
-  });
-  if (error) throw new Error(error.message);
-  return (data ?? []) as PengulanganKelasDoa[];
+  const ids = Array.isArray(kelasId) ? kelasId : [kelasId];
+  const hasil = await Promise.all(
+    ids.map(async (id) => {
+      const { data, error } = await supabase.rpc('jurnal_pengulangan_kelas_doa', {
+        p_kelas_id: id,
+        p_awal: awal,
+        p_akhir: akhir,
+      });
+      if (error) throw new Error(error.message);
+      return (data ?? []) as PengulanganKelasDoa[];
+    }),
+  );
+  return gabungPengulangan(hasil, (b) => b.nama_doa);
 }
 
 export type PengulanganSantri = {

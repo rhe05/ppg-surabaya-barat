@@ -148,6 +148,17 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
   const [kelompokId, setKelompokId] = useState<number | null>(profile?.scope_kelompok_id ?? null);
   const [kelasAdmin, setKelasAdmin] = useState<KelasRingkas[]>([]);
   const [kelasId, setKelasId] = useState<number | ''>('');
+  /* Semua kelas_id FISIK tergabung ke kelasId (Gabung Kelas "tanpa batas
+     waktu", 2026-09-13) -- HANYA berlaku kalau kelasId berasal dari
+     daftar kelas GURU (kelasGuru, sudah menerapkan gabungan lewat
+     muatKelasGuru()); admin menelusuri kelasAdmin (kelas mana pun di
+     kelompoknya) TETAP per kelas fisik apa adanya -- pencocokan
+     kelasGuru gagal utk kelasId dari kelasAdmin, otomatis jatuh ke
+     [kelasId] scalar tanpa cabang tambahan. */
+  const anggotaId = useMemo(
+    () => (kelasId === '' ? [] : (kelasGuru.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId])),
+    [kelasId, kelasGuru],
+  );
 
   useEffect(() => {
     if (!adalahGuru || profile?.guru_id == null) return;
@@ -219,7 +230,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     let batal = false;
     setLoadingKelas(true);
     setErrorKelas(null);
-    muatPengulanganKelas(kelasId, periode.awal, periode.akhir)
+    muatPengulanganKelas(anggotaId, periode.awal, periode.akhir)
       .then((d) => {
         if (!batal) setBarisKelas(d);
       })
@@ -232,7 +243,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir]);
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
   /* ── Data per KELAS -- Hafalan Do'a (diminta owner 2026-09-03,
      ditampilkan DI BAWAH Hafalan Surat). Pola & rentang periode SAMA
@@ -249,7 +260,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     let batal = false;
     setLoadingKelasDoa(true);
     setErrorKelasDoa(null);
-    muatPengulanganKelasDoa(kelasId, periode.awal, periode.akhir)
+    muatPengulanganKelasDoa(anggotaId, periode.awal, periode.akhir)
       .then((d) => {
         if (!batal) setBarisKelasDoa(d);
       })
@@ -262,7 +273,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir]);
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
   /* ── Tilawati "Naik" per santri (2026-09-03, diminta owner) --
      laporan otomatis dari kartu "Tilawati" di Pelaksanaan. Tampil utk
@@ -279,7 +290,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     let batal = false;
     setLoadingTilawati(true);
     setErrorTilawati(null);
-    muatBukuJilidKelas(kelasId, periode.awal, periode.akhir)
+    muatBukuJilidKelas(anggotaId, periode.awal, periode.akhir)
       .then((d) => {
         if (!batal) setTilawatiRingkas(d);
       })
@@ -292,7 +303,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir]);
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
   /* ── Hafalan Surat-Surat Al-Qur'an per santri (2026-09-13, diminta
      owner: sudah ada di Riwayat Pembelajaran & Ringkasan Jurnal admin,
@@ -310,7 +321,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     let batal = false;
     setLoadingHafalanSurat(true);
     setErrorHafalanSurat(null);
-    muatHafalanSuratRingkas(kelasId, periode.awal, periode.akhir)
+    muatHafalanSuratRingkas(anggotaId, periode.awal, periode.akhir)
       .then((d) => {
         if (!batal) setHafalanSuratRingkas(d);
       })
@@ -323,7 +334,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir]);
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
   /* ── Peraga Tilawati (2026-09-03, diminta owner) -- materi ngaji
      ber-judul "Baca Huruf Al-Qur'an"/"Peraga Tilawati" yg disampaikan
@@ -338,7 +349,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     }
     let batal = false;
     setLoadingPeraga(true);
-    muatMateriBulan(kelasId, tahun, bulan)
+    muatMateriBulan(anggotaId, tahun, bulan)
       .then((d) => {
         if (batal) return;
         setPeragaMateri(
@@ -355,7 +366,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, tahun, bulan]);
+  }, [kelasId, tahun, bulan, anggotaId]);
 
   /* Dikelompokkan per JILID, angkanya = berapa kali jilid itu KHATAM
      (diminta owner 2026-09-03: "5x adalah pengulangan khatamnya", bukan
