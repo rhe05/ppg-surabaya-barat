@@ -83,15 +83,16 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
-import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
+import { muatHafalanSuratRingkas, targetHafalanSuratSemester, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
 import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
   muatHafalanDoaRingkas,
+  targetHafalanDoaSemester,
   type HafalanDoaRingkas,
 } from '@/lib/materiHafalanDoa';
-import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
+import { pisahTilawatiAlquran, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
 import KartuMonitoringTilawati from '@/components/monitoring/KartuMonitoringTilawati';
 
 type KelasRingkas = { id: number; nama: string };
@@ -309,6 +310,18 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return pisahTilawatiAlquran(detail);
   }, [kelasId, kelasGuru, namaKelasAktif]);
 
+  /* Grade TERTINGGI kelas ini (2026-09-14, diminta owner: "munculkan
+     target untuk hafalan surat dan hafalan doa") -- Hafalan Surat/Do'a
+     TIDAK dipisah per-grade spt Tilawati/Al-Qur'an (satu daftar ringkas
+     gabungan lintas-grade), jadi targetnya diambil dari grade tertinggi
+     kelas ini, dari tilawatiGrade/alquranGrade yang SUDAH dihitung di
+     atas (bukan hitung ulang cara lain) -- pola sama persis
+     SantriProgressReport.tsx (Laporan Perkembangan Santri admin). */
+  const gradeTertinggiKelas =
+    KELAS_KURIKULUM_URUT.indexOf(alquranGrade) > KELAS_KURIKULUM_URUT.indexOf(tilawatiGrade)
+      ? alquranGrade
+      : tilawatiGrade;
+
   /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
      Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
      ruang ini yang PUNYA baris Asmaul Husna, gabung 2 semesternya. */
@@ -375,6 +388,30 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     };
   }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
+  /* Target "Hafalan Surat-Surat Al-Qur'an" (2026-09-14, diminta owner:
+     "munculkan target untuk hafalan surat dan hafalan doa") -- sumber
+     kurikulum_prota.target/target2 SEMESTER INI, pola SAMA PERSIS
+     SantriProgressReport.tsx (Laporan Perkembangan Santri admin), lihat
+     lib/hafalanSurat.ts `targetHafalanSuratSemester`. */
+  const [targetHafalanSurat, setTargetHafalanSurat] = useState<string | null>(null);
+  useEffect(() => {
+    if (!gradeTertinggiKelas) {
+      setTargetHafalanSurat(null);
+      return;
+    }
+    let batal = false;
+    targetHafalanSuratSemester(gradeTertinggiKelas, tahun, bulan)
+      .then((t) => {
+        if (!batal) setTargetHafalanSurat(t);
+      })
+      .catch(() => {
+        if (!batal) setTargetHafalanSurat(null);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [gradeTertinggiKelas, tahun, bulan]);
+
   /* ── Data PELAKSANAAN per SANTRI -- Hafalan Do'a-Do'a Harian, pola SAMA
      PERSIS sisi Hafalan Surat di atas. ── */
   const [hafalanDoaRingkas, setHafalanDoaRingkas] = useState<HafalanDoaRingkas[]>([]);
@@ -402,6 +439,27 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       batal = true;
     };
   }, [kelasId, periode.awal, periode.akhir, anggotaId]);
+
+  /* Target "Hafalan Do'a-Do'a Harian", pola SAMA PERSIS sisi Hafalan
+     Surat di atas. */
+  const [targetHafalanDoa, setTargetHafalanDoa] = useState<string | null>(null);
+  useEffect(() => {
+    if (!gradeTertinggiKelas) {
+      setTargetHafalanDoa(null);
+      return;
+    }
+    let batal = false;
+    targetHafalanDoaSemester(gradeTertinggiKelas, tahun, bulan)
+      .then((t) => {
+        if (!batal) setTargetHafalanDoa(t);
+      })
+      .catch(() => {
+        if (!batal) setTargetHafalanDoa(null);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [gradeTertinggiKelas, tahun, bulan]);
 
   /* ── Data per SANTRI ── */
   const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
@@ -705,6 +763,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           {/* ── Hafalan Surat-Surat Al-Qur'an (Pelaksanaan) -- ringkas per
               santri, 2026-09-14 diminta owner. ── */}
           <div className="label-mikro mb-2">Hafalan Surat-Surat Al-Qur&apos;an</div>
+          {targetHafalanSurat && (
+            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+              {targetHafalanSurat}
+            </div>
+          )}
           {loadingHafalanSurat && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorHafalanSurat && <p className="mb-5 text-[13px] text-red">{errorHafalanSurat}</p>}
           {!loadingHafalanSurat && !errorHafalanSurat && (
@@ -751,6 +814,11 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           {/* ── Hafalan Do'a-Do'a Harian (Pelaksanaan) -- ringkas per
               santri, pola SAMA PERSIS sisi Hafalan Surat di atas. ── */}
           <div className="label-mikro mb-2">Hafalan Do&apos;a-Do&apos;a Harian</div>
+          {targetHafalanDoa && (
+            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+              {targetHafalanDoa}
+            </div>
+          )}
           {loadingHafalanDoa && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorHafalanDoa && <p className="mb-5 text-[13px] text-red">{errorHafalanDoa}</p>}
           {!loadingHafalanDoa && !errorHafalanDoa && (
