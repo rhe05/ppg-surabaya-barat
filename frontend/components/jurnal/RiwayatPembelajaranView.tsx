@@ -34,6 +34,7 @@ import {
   buangSemuaSinggahan,
 } from '@/lib/dataGuru';
 import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
+import { muatHafalanDoaRingkas, type HafalanDoaRingkas } from '@/lib/materiHafalanDoa';
 import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
 import KartuRiwayatTilawati from '@/components/jurnal/KartuRiwayatTilawati';
@@ -165,6 +166,65 @@ export default function RiwayatPembelajaranView() {
       push(e instanceof Error ? e.message : 'Gagal menghapus catatan.', 'error');
     } finally {
       setMenghapusHafalanSurat(false);
+    }
+  }
+
+  /* Laporan Hafalan Do'a-Do'a Harian per santri (2026-09-14, diminta
+     owner: "sekarang tampilkan di riwayat pembelajaran") -- kembar
+     PERSIS dari Hafalan Surat di atas, tabel beda (hafalan_doa_pelaksanaan,
+     migrasi 20260914100000, DELETE policy sudah dipasang sejak awal). */
+  const [hafalanDoaRingkas, setHafalanDoaRingkas] = useState<HafalanDoaRingkas[]>([]);
+  const [loadingHafalanDoa, setLoadingHafalanDoa] = useState(false);
+  const [hafalanDoaTerbuka, setHafalanDoaTerbuka] = useState(true);
+  const [hapusHafalanDoaId, setHapusHafalanDoaId] = useState<number | null>(null);
+  const [menghapusHafalanDoa, setMenghapusHafalanDoa] = useState(false);
+  const muatHafalanDoa = useCallback(async () => {
+    if (kelasId === '') {
+      setHafalanDoaRingkas([]);
+      return;
+    }
+    setLoadingHafalanDoa(true);
+    try {
+      const mm = String(bulan).padStart(2, '0');
+      const akhirHari = new Date(tahun, bulan, 0).getDate();
+      setHafalanDoaRingkas(
+        await muatHafalanDoaRingkas(anggotaId, `${tahun}-${mm}-01`, `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`),
+      );
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Gagal memuat Hafalan Do'a.", 'error');
+    } finally {
+      setLoadingHafalanDoa(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, tahun, bulan, anggotaId]);
+  useEffect(() => {
+    muatHafalanDoa();
+  }, [muatHafalanDoa]);
+
+  async function hapusCatatanHafalanDoa(id: number) {
+    if (profile?.role === 'pengunjung') {
+      push('Mode Pengunjung: menghapus permanen catatan ini belum tersedia.', 'info');
+      setHapusHafalanDoaId(null);
+      return;
+    }
+    setMenghapusHafalanDoa(true);
+    try {
+      const { data, error } = await supabase
+        .from('hafalan_doa_pelaksanaan')
+        .delete()
+        .eq('id', id)
+        .select('id');
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) {
+        throw new Error('Baris tidak terhapus -- kemungkinan bukan kelas Anda, atau sudah dihapus dari perangkat lain.');
+      }
+      setHapusHafalanDoaId(null);
+      push("Catatan Hafalan Do'a dihapus.", 'sukses');
+      await muatHafalanDoa();
+    } catch (e) {
+      push(e instanceof Error ? e.message : 'Gagal menghapus catatan.', 'error');
+    } finally {
+      setMenghapusHafalanDoa(false);
     }
   }
 
@@ -421,7 +481,7 @@ export default function RiwayatPembelajaranView() {
   async function segarkan() {
     buangSemuaSinggahan();
     setTilawatiRefreshKey((k) => k + 1);
-    await Promise.all([muat(), muatHafalanSurat()]);
+    await Promise.all([muat(), muatHafalanSurat(), muatHafalanDoa()]);
   }
 
   return (
@@ -821,6 +881,108 @@ export default function RiwayatPembelajaranView() {
                                       type="button"
                                       aria-label="Hapus catatan ini"
                                       onClick={() => setHapusHafalanSuratId(h.id)}
+                                      className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  )}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Hafalan Do'a-Do'a Harian -- kartu ke-5 (2026-09-14,
+                    diminta owner: "sekarang tampilkan di riwayat
+                    pembelajaran"). Kembar PERSIS kartu Hafalan Surat di
+                    atas, tabel beda (hafalan_doa_pelaksanaan), tanpa
+                    kolom ayat. */}
+                <div className="kartu-premium mb-4 overflow-hidden">
+                  <button
+                    type="button"
+                    onClick={() => setHafalanDoaTerbuka((v) => !v)}
+                    className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-4 text-left"
+                  >
+                    <span className="text-[15px] font-bold text-text">Hafalan Do&apos;a-Do&apos;a Harian</span>
+                    <span className="flex shrink-0 items-center gap-1.5">
+                      <span className="rounded-full bg-indigo-lembut px-2.5 py-1 text-[11px] font-bold text-violet">
+                        {hafalanDoaRingkas.length} Santri
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-text-faint transition-transform duration-150 ${
+                          hafalanDoaTerbuka ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </span>
+                  </button>
+                  {hafalanDoaTerbuka && (
+                    <div className="border-t border-border">
+                      {loadingHafalanDoa ? (
+                        <div className="p-3">
+                          <Skeleton className="h-[44px] w-full" />
+                        </div>
+                      ) : hafalanDoaRingkas.length === 0 ? (
+                        <p className="px-4 py-3 text-[13px] text-text-dim">
+                          Belum ada catatan Hafalan Do&apos;a pada {NAMA_BULAN[bulan - 1]} {tahun}.
+                        </p>
+                      ) : (
+                        hafalanDoaRingkas.map((s) => (
+                          <div
+                            key={s.santriId}
+                            className="border-b border-border pb-2 last:border-b-0"
+                          >
+                            <div className="px-4 pt-2.5 pb-1 text-[13px] font-bold text-text">
+                              {s.nama}
+                            </div>
+                            {s.hari.map((h) => (
+                              <div
+                                key={h.id}
+                                className="flex items-center justify-between gap-2 px-4 py-1 text-[12px]"
+                              >
+                                <span className="min-w-0 truncate text-text-dim">
+                                  {formatTanggalHari(h.tanggal)}
+                                  {h.doa ? ` · ${h.doa}` : ''}
+                                </span>
+                                <span className="flex shrink-0 items-center gap-1.5">
+                                  {h.status && (
+                                    <span
+                                      className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                        h.status === 'naik'
+                                          ? 'bg-sage-lembut text-sage'
+                                          : 'bg-brass-lembut text-brass'
+                                      }`}
+                                    >
+                                      {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                                    </span>
+                                  )}
+                                  {hapusHafalanDoaId === h.id ? (
+                                    <span className="flex items-center gap-1">
+                                      <button
+                                        type="button"
+                                        disabled={menghapusHafalanDoa}
+                                        onClick={() => hapusCatatanHafalanDoa(h.id)}
+                                        className="rounded-full bg-red px-2 py-0.5 text-[11px] font-bold text-white disabled:opacity-50"
+                                      >
+                                        Hapus
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setHapusHafalanDoaId(null)}
+                                        className="rounded-full border border-border px-2 py-0.5 text-[11px] font-bold text-text-dim"
+                                      >
+                                        Batal
+                                      </button>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      aria-label="Hapus catatan ini"
+                                      onClick={() => setHapusHafalanDoaId(h.id)}
                                       className="flex h-5 w-5 items-center justify-center rounded-full text-text-faint hover:bg-red-lembut hover:text-red"
                                     >
                                       <X size={13} />
