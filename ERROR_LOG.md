@@ -1614,6 +1614,35 @@ melayang WAJIB simulasikan `resize` juga, bukan cuma scroll.
 
 ---
 
+## #44 — Kartu "Ringkasan Jurnal" admin tidak tampilkan Klasikal Hafalan Surat/Do'a (2026-09-13)
+
+**Gejala** (owner/admin): guru isi materi Klasikal Hafalan Surat & Hafalan
+Do'a di kelas (mis. kelas Baban), tapi rinciannya tidak muncul di kartu
+"Ringkasan Jurnal" yang dilihat admin — padahal data tersimpan benar.
+
+**Akar masalah**: sama persis bug yang sudah diperbaiki di Riwayat
+Pembelajaran guru (`fcdaa1c`, 2026-09-12) — Hafalan Surat/Do'a Klasikal
+disimpan di kolom terpisah `jurnal_materi.klasikal_hafalan_surat` /
+`klasikal_hafalan_doa`, BUKAN di `judul`. `RingkasanJurnalKelp.tsx`
+(`BarisMateriRingkas`) masih render pakai `rincian` dari
+`pecahJudulMateri(judul)` saja — fix `fcdaa1c` cuma menyentuh
+`RiwayatPembelajaranView.tsx` (layar guru), kartu admin ini tak ikut
+diperbaiki walau datanya (`MateriJurnal.klasikal_hafalan_surat/doa`,
+`lib/dataGuru.ts`) sudah lengkap dimuat.
+
+**Penanganan**: baca `m.klasikal_hafalan_surat`/`m.klasikal_hafalan_doa`
+langsung di `BarisMateriRingkas`, sama pola dengan Riwayat guru; `rincian`
+cuma fallback kalau kedua kolom itu kosong. Monitoring (`app/monitoring/`)
+dicek — TIDAK pakai `pecahJudulMateri` sama sekali, jadi tidak kena bug ini.
+
+**Pelajaran**: kalau satu bug ditemukan di satu layar yang membaca kolom
+yang sama, WAJIB langsung grep semua pemakai (`pecahJudulMateri`,
+`klasikal_hafalan_surat`) — jangan tunda "belum dicek sesi ini" (sudah
+ditandai di memory sesi 2026-09-12 tapi baru dicek 2026-09-13 setelah
+dilaporkan admin).
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
