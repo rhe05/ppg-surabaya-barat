@@ -21,7 +21,7 @@
    ke `kelasIdFallback` kalau petanya belum sempat termuat. */
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Calendar, ArrowUp, Equal } from 'lucide-react';
+import { ArrowUp, Equal } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import Skeleton from '@/components/ui/Skeleton';
 import SelectKustom from '@/components/ui/SelectKustom';
@@ -47,6 +47,13 @@ function todayStr() {
 function tanggalPanjang(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
     weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+function tanggalSingkat(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
     day: 'numeric',
     month: 'long',
     year: 'numeric',
@@ -267,10 +274,9 @@ export default function KartuTilawatiAlquran({
             if (rect) setPosisiPicker({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
             setPickerTerbuka((v) => !v);
           }}
-          className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-semibold text-text active:scale-[0.97]"
+          className="shrink-0 text-[11px] font-semibold text-teal active:opacity-70"
         >
-          {tanggalPanjang(tanggal)}
-          <Calendar size={13} className="text-text-faint" />
+          {tanggalSingkat(tanggal)}
         </button>
       </div>
       <TanggalPicker

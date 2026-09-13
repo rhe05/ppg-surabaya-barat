@@ -158,6 +158,14 @@ function tanggalPanjang(iso: string) {
   });
 }
 
+function tanggalSingkat(iso: string) {
+  return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
 function tanggalPendek(iso: string) {
   return new Date(iso + 'T00:00:00').toLocaleDateString('id-ID', {
     day: 'numeric',
@@ -1487,10 +1495,9 @@ export default function PelaksanaanPembelajaranView() {
                     }
                     setHafalanSuratPickerTerbuka((v) => !v);
                   }}
-                  className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-panel-2 px-2.5 py-1 text-[11px] font-semibold text-text active:scale-[0.97]"
+                  className="shrink-0 text-[11px] font-semibold text-brass active:opacity-70"
                 >
-                  {tanggalPanjang(hafalanSuratTanggal)}
-                  <Calendar size={13} className="text-text-faint" />
+                  {tanggalSingkat(hafalanSuratTanggal)}
                 </button>
               </div>
               <TanggalPicker
