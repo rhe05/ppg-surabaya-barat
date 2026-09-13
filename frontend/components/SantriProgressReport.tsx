@@ -81,7 +81,7 @@ import {
   adalahAsmaulHusna,
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
-import { suratDariTargetProta, normalisasiNamaSurat } from '@/lib/hafalanSurat';
+import { suratDariTargetProta, normalisasiNamaSurat, muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 import { muatBukuJilidKelas, labelBukuJilid } from '@/lib/tilawati';
 import {
   targetTilawatiPeriode,
@@ -454,6 +454,34 @@ export default function SantriProgressReport() {
         materiNgaji = undefined;
       }
 
+      /* Hafalan Surat-Surat Al-Qur'an -- PER SANTRI, "di bawah Materi
+         Ngaji" (2026-09-13, diminta owner: sudah ada di Riwayat/
+         Ringkasan Jurnal/Monitoring, tampilkan jg di sini). Sumber SAMA
+         PERSIS ketiga layar itu (lib/hafalanSurat.ts
+         muatHafalanSuratKelas, tabel hafalan_surat_pelaksanaan --
+         terpisah dari Tilawati/Al-Qur'an di atas). Kegagalan TIDAK
+         menggagalkan seluruh laporan (pola sama materiKlasikal/
+         materiNgaji). */
+      let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
+      try {
+        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasId, awal, akhir);
+        materiHafalanSurat = {
+          baris: hafalanSuratKelas.map((s) => ({
+            nama: s.nama,
+            pencapaian: s.adaCatatan
+              ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
+              : '—',
+            keterangan: s.adaCatatan
+              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                  .filter(Boolean)
+                  .join(', ') || '—'
+              : 'Belum ada catatan bulan ini',
+          })),
+        };
+      } catch {
+        materiHafalanSurat = undefined;
+      }
+
       const baris = santri.map((s) => {
         const milik = absensiHariKerja.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
@@ -514,6 +542,7 @@ export default function SantriProgressReport() {
         baris,
         materiKlasikal,
         materiNgaji,
+        materiHafalanSurat,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat laporan.');

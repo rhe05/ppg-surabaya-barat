@@ -253,3 +253,81 @@ export async function muatHafalanSuratRingkas(
   }
   return [...peta.values()].sort((a, b) => a.nama.localeCompare(b.nama, 'id'));
 }
+
+/* ── SEMUA santri kelas (2026-09-13, diminta owner: tampilkan jg di
+   Laporan Perkembangan Santri, admin desktop) -- kembar dari
+   muatBukuJilidKelas (lib/tilawati.ts): beda dari muatHafalanSuratRingkas
+   di atas, ini menyertakan santri yang BELUM punya catatan sama sekali
+   (baris "Belum ada catatan"), dipakai tabel Nama/Pencapaian/Keterangan
+   yang sama polanya dgn "Materi Ngaji" di laporan itu. */
+export type HafalanSuratSantri = {
+  santriId: number;
+  nama: string;
+  naik: number;
+  tetap: number;
+  terakhirSurat: string | null;
+  terakhirAyat: string | null;
+  adaCatatan: boolean;
+};
+
+export async function muatHafalanSuratKelas(
+  kelasId: number,
+  awal: string,
+  akhir: string,
+): Promise<HafalanSuratSantri[]> {
+  const [sRes, hRes] = await Promise.all([
+    supabase
+      .from('santri')
+      .select('id, nama, nama_panggilan')
+      .eq('kelas_id', kelasId)
+      .is('deleted_at', null)
+      .order('nama'),
+    supabase
+      .from('hafalan_surat_pelaksanaan')
+      .select('santri_id, tanggal, status, surat, ayat')
+      .eq('kelas_id', kelasId)
+      .gte('tanggal', awal)
+      .lte('tanggal', akhir)
+      .order('tanggal', { ascending: true }),
+  ]);
+  if (sRes.error) throw new Error(sRes.error.message);
+  if (hRes.error) throw new Error(hRes.error.message);
+
+  const perSantri = new Map<
+    number,
+    { status: string | null; surat: string | null; ayat: string | null }[]
+  >();
+  for (const r of (hRes.data ?? []) as {
+    santri_id: number;
+    status: string | null;
+    surat: string | null;
+    ayat: string | null;
+  }[]) {
+    const arr = perSantri.get(r.santri_id) ?? [];
+    arr.push({ status: r.status, surat: r.surat, ayat: r.ayat });
+    perSantri.set(r.santri_id, arr);
+  }
+
+  return (
+    (sRes.data ?? []) as { id: number; nama: string; nama_panggilan: string | null }[]
+  ).map((s) => {
+    const arr = perSantri.get(s.id) ?? [];
+    const panggilan = s.nama_panggilan?.trim() || s.nama.trim().split(/\s+/)[0] || s.nama;
+    let naik = 0;
+    let tetap = 0;
+    for (const r of arr) {
+      if (r.status === 'naik') naik += 1;
+      else if (r.status === 'tetap') tetap += 1;
+    }
+    const last = arr.length > 0 ? arr[arr.length - 1] : null;
+    return {
+      santriId: s.id,
+      nama: panggilan,
+      naik,
+      tetap,
+      terakhirSurat: last?.surat ?? null,
+      terakhirAyat: last?.ayat ?? null,
+      adaCatatan: arr.length > 0,
+    };
+  });
+}
