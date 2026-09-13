@@ -48,6 +48,10 @@
       iaLaporanCekEligible_) -- sebelumnya cuma dipasang di guru mobile,
       sekarang berlaku jg di desktop admin. "Buat Laporan" (preview)
       TETAP boleh kapan saja, cuma tombol cetaknya yang dikunci.
+      ⚠️ DICABUT LAGI 2026-09-13 (diminta owner: "aktifkan, ini khusus
+      utk admin aplikasi saja") -- admin desktop TIDAK terkunci H-1 lagi
+      (cekEligible & tombol dibuka), GuruLaporanView.tsx (guru mobile)
+      TETAP terkunci H-1 spt semula, tidak disentuh.
    bebas spt app lama. Data guru/kelas SUDAH scoped RLS (pola sama dgn
    GuruList.tsx/GuruForm.tsx -- select tanpa filter scope manual).
 
@@ -142,18 +146,6 @@ function jam(v: string | null) {
   return v ? v.slice(0, 5) : null;
 }
 
-// iaLaporanCekEligible_ (Script_Main.html:2273-2280) — sama persis dgn
-// components/laporan/GuruLaporanView.tsx, diminta owner berlaku jg di
-// desktop admin (sebelumnya cuma dipasang di guru mobile): laporan 1
-// bulan baru boleh diunduh mulai H-1 sebelum akhir bulan itu.
-function cekEligible(bulan: number, tahun: number) {
-  const lastDay = new Date(tahun, bulan, 0).getDate();
-  const dua = (n: number) => String(n).padStart(2, '0');
-  const h1 = `${tahun}-${dua(bulan)}-${dua(lastDay - 1)}`;
-  const hariIni = new Date().toISOString().slice(0, 10);
-  return { eligible: hariIni >= h1, lastDay };
-}
-
 function klasifikasi(hadir: number, izin: number, alpa: number, total: number) {
   if (total === 0) return 'Belum Ada Data';
   const persen = Math.round((hadir / total) * 100);
@@ -177,8 +169,6 @@ export default function SantriProgressReport() {
   const [laporan, setLaporan] = useState<LaporanPerkembangan | null>(null);
   const [membuat, setMembuat] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const { eligible, lastDay } = cekEligible(bulan, tahun);
 
   useEffect(() => {
     supabase
@@ -615,7 +605,7 @@ export default function SantriProgressReport() {
 
         <button
           type="button"
-          disabled={!laporan || !eligible}
+          disabled={!laporan}
           onClick={unduhPdf}
           className="cursor-pointer rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[13px] font-semibold text-text transition-all duration-200 hover:bg-border disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -623,18 +613,11 @@ export default function SantriProgressReport() {
         </button>
       </div>
 
-      {/* H-1: iaLaporanCekEligible_ sama persis dgn GuruLaporanView.tsx --
-          diminta owner berlaku jg di desktop admin. Cuma tombol "Unduh
-          PDF" yg dikunci; "Buat Laporan" (preview) tetap boleh kapan saja
-          supaya admin masih bisa memantau progres bulan berjalan. */}
-      {!eligible && (
-        <div className="mb-4 rounded-[var(--radius)] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3 text-[12.5px] text-[#92400E]">
-          ⏳ Laporan {NAMA_BULAN[bulan - 1]} {tahun} baru bisa diunduh mulai tanggal {lastDay - 1} atau{' '}
-          {lastDay} {NAMA_BULAN[bulan - 1]} (H-1 sebelum akhir bulan).
-        </div>
-      )}
-
-      {laporan && eligible && (
+      {/* Kunci H-1 (iaLaporanCekEligible_) DICABUT khusus admin desktop
+         (2026-09-13, diminta owner: "aktifkan, ini khusus utk admin
+         aplikasi saja") -- GuruLaporanView.tsx (guru mobile) TETAP
+         terkunci H-1, tidak disentuh. */}
+      {laporan && (
         <p className="mb-4 text-[11.5px] text-text-faint print:hidden">
           Membuka dialog cetak browser — pilih tujuan &ldquo;Simpan sebagai PDF&rdquo;.
         </p>
