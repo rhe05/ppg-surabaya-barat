@@ -132,3 +132,98 @@ export async function hapusGabung(id: number): Promise<void> {
   const { error } = await supabase.from('kelas_gabung').delete().eq('id', id);
   if (error) throw new Error(error.message);
 }
+
+/* ── Terapkan Gabung Kelas ke layar OPERASIONAL guru (2026-09-13, diminta
+   owner: "seumpama card ringkasan kehadiran jadi satu ... termasuk
+   ketika input kehadiran ... jurnal ... monitoring ... laporan
+   perkembangan santri"). BEDA dari muatGabungAktif di atas (dipakai
+   Pengumuman, per-TANGGAL spesifik yang sedang dilihat) -- ini utk
+   layar guru yang berpatokan ke HARI INI (guru login & memilih kelas
+   memakai kondisi sekarang, bukan tanggal arbitrer).
+
+   Dasar aksesnya: RLS jurnal_materi/tilawati_pelaksanaan/
+   hafalan_surat_pelaksanaan sudah diperluas (migrasi 20260913140000,
+   fungsi kelas_gabung_aktif_ke_guru) supaya guru kelas INDUK bisa
+   baca/tulis data kelas yang digabung ke dia -- santri & absensi TIDAK
+   perlu perluasan RLS (sudah longgar se-kelompok utk peran guru). */
+
+export type GabungAktifRingkas = { kelas_id: number; kelas_induk_id: number };
+
+function hariIniIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Semua penggabungan yang AKTIF HARI INI di satu kelompok (tanggal_selesai
+ *  NULL = tanpa batas, dianggap aktif terus sampai dibatalkan). */
+export async function muatGabunganAktifKelompok(kelompokId: number): Promise<GabungAktifRingkas[]> {
+  const tgl = hariIniIso();
+  const { data, error } = await supabase
+    .from('kelas_gabung')
+    .select('kelas_id, kelas_induk_id')
+    .eq('kelompok_id', kelompokId)
+    .lte('tanggal_mulai', tgl)
+    .or(`tanggal_selesai.gte.${tgl},tanggal_selesai.is.null`);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as GabungAktifRingkas[];
+}
+
+export type KelasBisaGabung = { id: number; nama: string; santri_count: number | null };
+export type KelasTergabung<T> = T & { anggotaId: number[] };
+
+/** Terapkan penggabungan aktif ke daftar kelas seorang guru:
+ *  - Kelas yang SEDANG digabung KE kelas lain (`kelas_id` di kelas_gabung)
+ *    dilipat KELUAR dari daftar -- sama pola Pengumuman Jadwal KBM
+ *    ("berhenti muncul sebagai sesi tersendiri, namanya menempel ke
+ *    induk").
+ *  - Kelas yang JADI INDUK dapat entri gabungan: nama disambung " & ",
+ *    santri_count dijumlah, `anggotaId` berisi SEMUA kelas_id fisik
+ *    (termasuk kelas milik GURU LAIN kalau itu yang digabung ke sini) --
+ *    query santri/absensi/jurnal/tilawati/hafalan-surat WAJIB pakai
+ *    `.in('kelas_id', anggotaId)`, BUKAN `.eq('kelas_id', id)`, supaya
+ *    data kelas yang digabung ikut terbaca.
+ *  - Kelas yang tidak tersentuh gabungan apa pun: `anggotaId` = [id]
+ *    sendiri, apa adanya. */
+export async function terapkanGabunganAktif<T extends KelasBisaGabung>(
+  kelasMilik: T[],
+  kelompokId: number,
+): Promise<KelasTergabung<T>[]> {
+  if (kelasMilik.length === 0) return [];
+  const gabungan = await muatGabunganAktifKelompok(kelompokId);
+  if (gabungan.length === 0) return kelasMilik.map((k) => ({ ...k, anggotaId: [k.id] }));
+
+  const petaMilik = new Map(kelasMilik.map((k) => [k.id, k]));
+  const terlipat = new Set(gabungan.map((g) => g.kelas_id));
+
+  /* Kelas anggota gabungan yang BUKAN milik guru ini (mis. digabung dari
+     kelas guru lain) -- perlu nama & santri_count-nya lewat query
+     tambahan (tabel kelas kecil, murah, RLS santri/kelas guru sudah
+     longgar se-kelompok). */
+  const idAsing = [...new Set(gabungan.map((g) => g.kelas_id).filter((id) => !petaMilik.has(id)))];
+  const petaAsing = new Map<number, KelasBisaGabung>();
+  if (idAsing.length > 0) {
+    const { data, error } = await supabase.from('kelas').select('id, nama, santri_count').in('id', idAsing);
+    if (error) throw new Error(error.message);
+    for (const r of (data ?? []) as KelasBisaGabung[]) petaAsing.set(r.id, r);
+  }
+  const cariAnggota = (id: number): KelasBisaGabung | undefined => petaMilik.get(id) ?? petaAsing.get(id);
+
+  const hasil: KelasTergabung<T>[] = [];
+  for (const k of kelasMilik) {
+    if (terlipat.has(k.id)) continue;
+    const anggota = gabungan.filter((g) => g.kelas_induk_id === k.id);
+    if (anggota.length === 0) {
+      hasil.push({ ...k, anggotaId: [k.id] });
+      continue;
+    }
+    const namaAnggota = anggota.map((g) => cariAnggota(g.kelas_id)?.nama).filter((n): n is string => !!n);
+    const santriTambahan = anggota.reduce((sum, g) => sum + (cariAnggota(g.kelas_id)?.santri_count ?? 0), 0);
+    hasil.push({
+      ...k,
+      nama: [k.nama, ...namaAnggota].join(' & '),
+      santri_count: (k.santri_count ?? 0) + santriTambahan,
+      anggotaId: [k.id, ...anggota.map((g) => g.kelas_id)],
+    });
+  }
+  return hasil;
+}

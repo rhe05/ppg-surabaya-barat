@@ -29,6 +29,7 @@
 
 import { supabase } from '@/lib/supabase';
 import { muatOverrideKelompok } from '@/lib/kalenderKelompok';
+import { terapkanGabunganAktif } from '@/lib/kelasGabungGilir';
 
 const UMUR_MS = 60_000;
 
@@ -68,23 +69,34 @@ export type KelasJurnal = {
   jam_selesai: string | null;
   santri_count: number | null;
   kategori_kbm: { nama: string } | { nama: string }[] | null;
+  /* Semua kelas_id FISIK yang tergabung ke entri ini (2026-09-13, Gabung
+     Kelas "tanpa batas waktu", diminta owner: satu tampilan gabungan di
+     semua layar guru). [id] sendiri kalau tidak sedang digabung dengan
+     siapa pun. Query santri/absensi/jurnal/tilawati/hafalan-surat WAJIB
+     pakai `.in('kelas_id', anggotaId)`, BUKAN `.eq('kelas_id', id)` --
+     lihat lib/kelasGabungGilir.ts `terapkanGabunganAktif`. */
+  anggotaId: number[];
 };
 
 /** Daftar kelas yang diampu seorang guru. Dipakai semua layar guru.
     Termasuk kelas yang dia ampu sebagai guru gilir kedua (`guru_id_2`,
     Data Kelas) -- kalau tidak, guru kedua tak bisa lihat/isi jurnal &
     tilawati kelas giliran-nya. RLS jurnal/tilawati menerima keduanya
-    (migrasi 20260909100000). */
+    (migrasi 20260909100000). Kelas yang sedang GABUNG AKTIF (migrasi
+    20260913140000) dilipat jadi satu entri gabungan -- lihat
+    terapkanGabunganAktif. */
 export function muatKelasGuru(guruId: number): Promise<KelasJurnal[]> {
   return ambil(`kelas:${guruId}`, async () => {
     const { data, error } = await supabase
       .from('kelas')
-      .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama)')
+      .select('id, nama, ruangan, jam_mulai, jam_selesai, santri_count, kategori_kbm(nama), kelompok_id')
       .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
       .is('deleted_at', null)
       .order('nama');
     if (error) throw new Error(error.message);
-    return (data ?? []) as unknown as KelasJurnal[];
+    const kelasMilik = (data ?? []) as unknown as (KelasJurnal & { kelompok_id: number })[];
+    if (kelasMilik.length === 0) return [];
+    return terapkanGabunganAktif(kelasMilik, kelasMilik[0].kelompok_id);
   });
 }
 
