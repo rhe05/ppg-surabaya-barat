@@ -65,6 +65,7 @@ import {
   saringAbsensiHariKerja,
   type PetaOverride,
 } from '@/lib/kalenderKelompok';
+import { terapkanGabunganAktif } from '@/lib/kelasGabungGilir';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
@@ -98,7 +99,18 @@ import {
 import { KATEGORI_BACAAN_ALQURAN, KELAS_LABEL_BACA_HURUF, namaMateriTampil } from '@/lib/kategori';
 
 type Guru = { id: number; nama: string };
-type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
+/* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
+   "tanpa batas waktu", 2026-09-13, diminta owner: "laporannya dijadikan
+   satu"). Lihat lib/kelasGabungGilir.ts. */
+type Kelas = {
+  id: number;
+  nama: string;
+  jam_mulai: string | null;
+  jam_selesai: string | null;
+  ruangan: string | null;
+  santri_count: number | null;
+  anggotaId: number[];
+};
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string; kelompok_id: number | null };
 
@@ -197,13 +209,19 @@ export default function SantriProgressReport() {
     }
     supabase
       .from('kelas')
-      .select('id, nama, jam_mulai, jam_selesai, ruangan')
+      .select('id, nama, jam_mulai, jam_selesai, ruangan, santri_count, kelompok_id')
       // guru utama ATAU guru gilir kedua (kelas.guru_id_2)
       .or(`guru_id.eq.${guruId},guru_id_2.eq.${guruId}`)
       .is('deleted_at', null)
       .order('nama')
-      .then(({ data }) => {
-        const list = (data ?? []) as Kelas[];
+      .then(async ({ data }) => {
+        const mentah = (data ?? []) as (Kelas & { kelompok_id: number })[];
+        /* Kelas yang sedang GABUNG AKTIF (2026-09-13, diminta owner:
+           "laporannya dijadikan satu") dilipat jadi satu entri gabungan --
+           sama pola muatKelasGuru() (lib/dataGuru.ts), tapi dipanggil
+           terpisah di sini krn admin memilih guru & kelas bebas (bukan
+           guru yang login). */
+        const list = mentah.length > 0 ? await terapkanGabunganAktif(mentah, mentah[0].kelompok_id) : [];
         setKelasList(list);
         // Guru pegang 1 kelas -> otomatis terpilih (bukan "pilihan", cuma
         // satu-satunya kemungkinan). Guru pegang >1 kelas -> WAJIB dipilih
@@ -227,9 +245,11 @@ export default function SantriProgressReport() {
     setLaporan(null);
     try {
       // WAJIB satu kelas (diminta owner) -- tidak ada lagi jalur "gabungan
-      // semua kelas guru".
+      // semua kelas guru". `kelasIds` di bawah pakai anggotaId (BUKAN
+      // cuma id kelas terpilih) supaya kelas yang sedang Gabung Kelas
+      // aktif (2026-09-13) ikut terhitung di laporan.
       const kelasDipakai = kelasList.filter((k) => k.id === kelasId);
-      const kelasIds = kelasDipakai.map((k) => k.id);
+      const kelasIds = kelasDipakai.flatMap((k) => k.anggotaId);
       const { awal, akhir } = batasBulan(tahun, bulan);
 
       /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
@@ -303,8 +323,8 @@ export default function SantriProgressReport() {
       let materiKlasikal: LaporanPerkembangan['materiKlasikal'];
       try {
         const [barisKlasikal, barisDoa] = await Promise.all([
-          muatPengulanganKelas(kelasId, awal, akhir),
-          muatPengulanganKelasDoa(kelasId, awal, akhir),
+          muatPengulanganKelas(kelasIds, awal, akhir),
+          muatPengulanganKelasDoa(kelasIds, awal, akhir),
         ]);
 
         /* Surat: HANYA materi milik grade kelas ini (diminta owner
@@ -399,7 +419,7 @@ export default function SantriProgressReport() {
         const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
         if (kelasProta) {
           const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(kelasProta);
-          const bukuJilid = await muatBukuJilidKelas(kelasId, awal, akhir);
+          const bukuJilid = await muatBukuJilidKelas(kelasIds, awal, akhir);
           const targetAlquran = pakaiAlquran
             ? await targetAlquranPeriode(kelasProta, tahun, bulan)
             : null;
@@ -464,7 +484,7 @@ export default function SantriProgressReport() {
          materiNgaji). */
       let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
       try {
-        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasId, awal, akhir);
+        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasIds, awal, akhir);
         materiHafalanSurat = {
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,

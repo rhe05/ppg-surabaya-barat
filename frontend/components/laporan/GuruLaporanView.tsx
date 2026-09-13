@@ -82,7 +82,17 @@ import LaporanPerkembanganCetak, {
 } from '@/components/laporan/LaporanPerkembanganCetak';
 import { muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 
-type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
+/* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
+   "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
+   lib/kelasGabungGilir.ts. */
+type Kelas = {
+  id: number;
+  nama: string;
+  jam_mulai: string | null;
+  jam_selesai: string | null;
+  ruangan: string | null;
+  anggotaId?: number[];
+};
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string };
 
@@ -221,7 +231,9 @@ export default function GuruLaporanView() {
           : 'Pilih kelas terlebih dahulu — laporan wajib per kelas.',
       );
     }
-    const kelasIds = [kelasId];
+    // anggotaId (Gabung Kelas "tanpa batas waktu", 2026-09-13) -- kelas
+    // yang sedang digabung ikut terhitung di laporan.
+    const kelasIds = kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId];
     const { awal, akhir } = batasBulan(tahun, bulan);
 
     /* Santri yang pindah/nonaktif SETELAH bulan ini dimulai tetap ikut --
@@ -318,9 +330,10 @@ export default function GuruLaporanView() {
          menggagalkan seluruh laporan. */
       if (kelasId === '') return; // sudah dicegat buatLaporan(), narrow tipe saja
       const { awal, akhir } = batasBulan(tahun, bulan);
+      const kelasIds = kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId];
       let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
       try {
-        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasId, awal, akhir);
+        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasIds, awal, akhir);
         materiHafalanSurat = {
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,
