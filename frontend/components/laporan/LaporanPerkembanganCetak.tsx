@@ -162,6 +162,14 @@ export type MateriNgaji = {
   target: string | null;
   baris: MateriNgajiBaris[];
 };
+/* ARRAY (2026-09-13, diminta owner: kelas Gabung Kelas bisa lintas-grade
+   -- "card Tilawati utk anak kelas 3, card Al-Qur'an utk anak kelas 4")
+   -- 0 elemen (kelas tanpa grade angka), 1 elemen (kelas biasa, SAMA
+   perilakunya dgn dulu SATU objek), atau 2 elemen (gabungan lintas-
+   grade: satu blok Tilawati, satu blok Al-Qur'an, masing2 tabel
+   sendiri). Dihitung lib/tilawati.ts `hitungMateriNgaji` sekali per
+   blok, BUKAN sekali dari grade tertinggi seluruh gabungan. */
+export type MateriNgajiList = MateriNgaji[];
 
 /* "Hafalan Surat-Surat Al-Qur'an" per santri (2026-09-13, diminta owner:
    sudah ada di Riwayat/Ringkasan Jurnal/Monitoring, tampilkan jg di sini)
@@ -187,8 +195,9 @@ export type LaporanPerkembangan = {
   /* Opsional & admin-desktop-only, lihat catatan PUTARAN KELIMA di
      kepala berkas. */
   materiKlasikal?: MateriKlasikal;
-  /* Opsional & admin-desktop-only jg, lihat komentar MateriNgaji di atas. */
-  materiNgaji?: MateriNgaji;
+  /* Opsional & admin-desktop-only jg, lihat komentar MateriNgajiList di
+     atas -- ARRAY (0/1/2 blok, tergantung Gabung Kelas lintas-grade). */
+  materiNgaji?: MateriNgajiList;
   /* Opsional & admin-desktop-only jg, lihat komentar MateriHafalanSurat
      di atas. */
   materiHafalanSurat?: MateriHafalanSurat;
@@ -366,20 +375,31 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           diberi akhiran "Klasikal"/"Materi Ngaji" spy tidak ambigu lagi
           (pola SAMA dgn Monitoring Pencapaian Materi yg SUDAH benar:
           "Klasikal - Hafalan Surat" vs "Hafalan Surat-Surat Al-Qur'an"). */}
-      {(laporan.materiNgaji || laporan.materiHafalanSurat) && (
-        <div className="cetak-jaga-utuh mt-5 sm:mt-6">
+      {/* Gabung Kelas lintas-grade (2026-09-13, diminta owner): materiNgaji
+          sekarang ARRAY 0/1/2 elemen -- render SATU tabel per elemen (tiap
+          elemen = satu grade/track). Kalau array kosong tapi
+          materiHafalanSurat ADA (kelas tanpa grade angka spt "Pra Remaja
+          SMP"), tetap render SATU tabel Hafalan-Surat-saja (sentinel
+          `null` di array blok) -- perilaku identik versi lama. */}
+      {(laporan.materiNgaji && laporan.materiNgaji.length > 0
+        ? laporan.materiNgaji
+        : laporan.materiHafalanSurat
+          ? [null]
+          : []
+      ).map((ngaji, i) => (
+        <div key={i} className="cetak-jaga-utuh mt-5 sm:mt-6">
           <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            {laporan.materiNgaji ? 'Materi Ngaji' : 'Hafalan Surat Materi Ngaji'}
+            {ngaji ? 'Materi Ngaji' : 'Hafalan Surat Materi Ngaji'}
           </div>
-          {laporan.materiNgaji && (
+          {ngaji && (
             <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
-              {laporan.materiNgaji.judul}
+              {ngaji.judul}
               {laporan.materiHafalanSurat ? ' & Hafalan Surat Materi Ngaji' : ''}
             </div>
           )}
-          {laporan.materiNgaji?.target && (
+          {ngaji?.target && (
             <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              {laporan.materiNgaji.target}
+              {ngaji.target}
             </div>
           )}
           <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
@@ -388,11 +408,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                 <tr>
                   {[
                     'Nama',
-                    ...(laporan.materiNgaji ? ['Pencapaian', 'Keterangan'] : []),
+                    ...(ngaji ? ['Pencapaian', 'Keterangan'] : []),
                     ...(laporan.materiHafalanSurat ? ['Hafalan Surat (Materi Ngaji)', 'Keterangan'] : []),
-                  ].map((h, i) => (
+                  ].map((h, hi) => (
                     <th
-                      key={`${h}-${i}`}
+                      key={`${h}-${hi}`}
                       className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
                     >
                       {h}
@@ -401,22 +421,22 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                 </tr>
               </thead>
               <tbody>
-                {(laporan.materiNgaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).length === 0 ? (
+                {(ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).length === 0 ? (
                   <tr>
                     <td
-                      colSpan={1 + (laporan.materiNgaji ? 2 : 0) + (laporan.materiHafalanSurat ? 2 : 0)}
+                      colSpan={1 + (ngaji ? 2 : 0) + (laporan.materiHafalanSurat ? 2 : 0)}
                       className="px-4 py-8 text-center text-text-faint"
                     >
                       Belum ada santri di kelas ini.
                     </td>
                   </tr>
                 ) : (
-                  (laporan.materiNgaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).map((b) => {
+                  (ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).map((b) => {
                     const hs = laporan.materiHafalanSurat?.baris.find((h) => h.nama === b.nama);
                     return (
                       <tr key={b.nama}>
                         <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
-                        {laporan.materiNgaji && (
+                        {ngaji && (
                           <>
                             <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
                               {b.pencapaian}
@@ -429,12 +449,10 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                         {laporan.materiHafalanSurat && (
                           <>
                             <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {laporan.materiNgaji ? (hs?.pencapaian ?? '—') : b.pencapaian}
+                              {ngaji ? (hs?.pencapaian ?? '—') : b.pencapaian}
                             </td>
                             <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {laporan.materiNgaji
-                                ? (hs?.keterangan ?? 'Belum ada catatan bulan ini')
-                                : b.keterangan}
+                              {ngaji ? (hs?.keterangan ?? 'Belum ada catatan bulan ini') : b.keterangan}
                             </td>
                           </>
                         )}
@@ -446,7 +464,7 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
             </table>
           </div>
         </div>
-      )}
+      ))}
     </div>
   );
 }

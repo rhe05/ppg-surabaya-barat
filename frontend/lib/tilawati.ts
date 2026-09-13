@@ -5,8 +5,16 @@
    membatasi ke kelas milik guru / scope admin. */
 
 import { supabase } from './supabase';
-import { posisiTilawati } from './pedomanTilawati';
+import {
+  posisiTilawati,
+  targetTilawatiPeriode,
+  labelTargetPeriode,
+  statusPencapaianTilawati,
+  LABEL_STATUS_PENCAPAIAN,
+} from './pedomanTilawati';
 import { DAFTAR_SURAT } from './suratAlQuran';
+import { targetAlquranPeriode, posisiJuzTerakhir, statusPencapaianAlquran } from './targetAlquranKurikulum';
+import { KATEGORI_BACAAN_ALQURAN, KELAS_LABEL_BACA_HURUF, namaMateriTampil } from './kategori';
 
 export type TilawatiStatus = 'naik' | 'tetap';
 
@@ -330,4 +338,77 @@ export async function muatBukuJilidKelas(
       adaCatatan: arr.length > 0,
     };
   });
+}
+
+/* ── "Materi Ngaji" utk Laporan Perkembangan Santri (2026-09-12, dipindah
+   ke sini 2026-09-13 dari SantriProgressReport.tsx) -- per santri,
+   sumber & rumus SAMA PERSIS kartu "Tilawati"/"Al-Qur'an" di Monitoring
+   Pencapaian Materi (muatBukuJilidKelas + status BB/MB/BSH/BSB).
+
+   Dipisah jadi FUNGSI MURNI (bukan inline di komponen) supaya bisa
+   dipanggil DUA KALI kalau kelasnya sedang Gabung Kelas lintas-grade
+   (2026-09-13, diminta owner: "sesuaikan dengan kelasnya ... laporannya
+   dijadikan satu") -- sekali per grade/anggotaIds dari
+   pisahTilawatiAlquran (lib/kelasKurikulum.ts), BUKAN sekali dari grade
+   tertinggi seluruh gabungan (yg akan salah target/rubrik utk anggota
+   grade rendah). `grade` di sini = tilawatiGrade/alquranGrade dari
+   fungsi itu, BUKAN lagi kelasProtaDari(kelasDipakai[0].nama) polos. */
+export type MateriNgajiBarisHasil = { nama: string; pencapaian: string; keterangan: string };
+export type MateriNgajiHasil = {
+  judul: string;
+  target: string | null;
+  baris: MateriNgajiBarisHasil[];
+};
+
+export async function hitungMateriNgaji(
+  anggotaIds: number[],
+  grade: string,
+  tahun: number,
+  bulan: number,
+  namaBulan: string,
+  awal: string,
+  akhir: string,
+): Promise<MateriNgajiHasil | null> {
+  if (grade === '' || anggotaIds.length === 0) return null;
+  const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(grade);
+  const bukuJilid = await muatBukuJilidKelas(anggotaIds, awal, akhir);
+  const targetAlquran = pakaiAlquran ? await targetAlquranPeriode(grade, tahun, bulan) : null;
+  const targetTilawati = pakaiAlquran ? null : targetTilawatiPeriode(grade, bulan);
+
+  const targetTeks = pakaiAlquran
+    ? [targetAlquran?.juz, targetAlquran?.target].filter(Boolean).join(' · ') || null
+    : targetTilawati
+      ? labelTargetPeriode(targetTilawati)
+      : null;
+
+  return {
+    judul: namaMateriTampil(KATEGORI_BACAAN_ALQURAN, grade),
+    target: targetTeks ? `Target ${namaBulan}: ${targetTeks}` : null,
+    baris: bukuJilid.map((s) => {
+      const pencapaian = s.adaCatatan
+        ? [
+            s.terakhirJilid ? (/paud/i.test(s.terakhirJilid) ? 'Paud' : labelBukuJilid(s.terakhirJilid)) : null,
+            s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
+            s.terakhirSurat,
+            s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null,
+          ]
+            .filter(Boolean)
+            .join(' ')
+        : '—';
+
+      let keterangan = 'Belum ada catatan bulan ini';
+      if (s.adaCatatan) {
+        const status = pakaiAlquran
+          ? statusPencapaianAlquran(
+              posisiJuzTerakhir(s.terakhirJilid),
+              targetAlquran?.juz ?? null,
+              targetAlquran?.juzSemesterLalu ?? null,
+            )
+          : statusPencapaianTilawati(grade, bulan, posisiTilawati(s.terakhirJilid, s.terakhirHalaman));
+        keterangan = status ? LABEL_STATUS_PENCAPAIAN[status].singkat : '—';
+      }
+
+      return { nama: s.nama, pencapaian, keterangan };
+    }),
+  };
 }

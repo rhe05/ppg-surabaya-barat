@@ -83,20 +83,8 @@ import {
   kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 import { suratDariTargetProta, normalisasiNamaSurat, muatHafalanSuratKelas } from '@/lib/hafalanSurat';
-import { muatBukuJilidKelas, labelBukuJilid } from '@/lib/tilawati';
-import {
-  targetTilawatiPeriode,
-  statusPencapaianTilawati,
-  posisiTilawati,
-  labelTargetPeriode,
-  LABEL_STATUS_PENCAPAIAN,
-} from '@/lib/pedomanTilawati';
-import {
-  targetAlquranPeriode,
-  posisiJuzTerakhir,
-  statusPencapaianAlquran,
-} from '@/lib/targetAlquranKurikulum';
-import { KATEGORI_BACAAN_ALQURAN, KELAS_LABEL_BACA_HURUF, namaMateriTampil } from '@/lib/kategori';
+import { hitungMateriNgaji } from '@/lib/tilawati';
+import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
 
 type Guru = { id: number; nama: string };
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
@@ -110,6 +98,7 @@ type Kelas = {
   ruangan: string | null;
   santri_count: number | null;
   anggotaId: number[];
+  anggotaDetail: { id: number; nama: string }[];
 };
 type Santri = { id: number; nama: string; kelas_id: number | null };
 type Absensi = { santri_id: number; tanggal: string; status: string; kelompok_id: number | null };
@@ -411,65 +400,27 @@ export default function SantriProgressReport() {
 
       /* Materi Ngaji (2026-09-12, diminta owner): "di bawah Hafalan
          Do'a" -- PER SANTRI, sumber & rumus SAMA PERSIS dgn kartu
-         "Tilawati"/"Al-Qur'an" di Monitoring Pencapaian Materi
-         (muatBukuJilidKelas + status BB/MB/BSH/BSB). Kegagalan di sini
-         TIDAK menggagalkan seluruh laporan (pola sama materiKlasikal). */
+         "Tilawati"/"Al-Qur'an" di Monitoring Pencapaian Materi. Dipindah
+         ke fungsi murni lib/tilawati.ts `hitungMateriNgaji` (2026-09-13)
+         supaya bisa dipanggil DUA KALI kalau kelasnya sedang Gabung
+         Kelas lintas-grade (diminta owner: "sesuaikan dengan kelasnya
+         ... laporannya dijadikan satu") -- sekali per grade/anggotaIds
+         dari pisahTilawatiAlquran, BUKAN sekali dari grade tertinggi
+         seluruh gabungan (salah target/rubrik utk anggota grade rendah).
+         Kegagalan TIDAK menggagalkan seluruh laporan (pola sama
+         materiKlasikal). */
       let materiNgaji: LaporanPerkembangan['materiNgaji'];
       try {
-        const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
-        if (kelasProta) {
-          const pakaiAlquran = !KELAS_LABEL_BACA_HURUF.includes(kelasProta);
-          const bukuJilid = await muatBukuJilidKelas(kelasIds, awal, akhir);
-          const targetAlquran = pakaiAlquran
-            ? await targetAlquranPeriode(kelasProta, tahun, bulan)
-            : null;
-          const targetTilawati = pakaiAlquran ? null : targetTilawatiPeriode(kelasProta, bulan);
-
-          /* Teks target bulan ini -- KONSEP SAMA PERSIS dgn kotak
-             "Target [Bulan]: ..." di Monitoring Pencapaian Materi
-             (diminta owner 2026-09-12). null kalau kelas di luar
-             pedoman Tilawati & belum ada data Kurikulum Al-Qur'an. */
-          const targetTeks = pakaiAlquran
-            ? [targetAlquran?.juz, targetAlquran?.target].filter(Boolean).join(' · ') || null
-            : targetTilawati
-              ? labelTargetPeriode(targetTilawati)
-              : null;
-
-          materiNgaji = {
-            judul: namaMateriTampil(KATEGORI_BACAAN_ALQURAN, kelasProta),
-            target: targetTeks ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetTeks}` : null,
-            baris: bukuJilid.map((s) => {
-              const pencapaian = s.adaCatatan
-                ? [
-                    s.terakhirJilid
-                      ? /paud/i.test(s.terakhirJilid)
-                        ? 'Paud'
-                        : labelBukuJilid(s.terakhirJilid)
-                      : null,
-                    s.terakhirHalaman ? `Hal ${s.terakhirHalaman}` : null,
-                    s.terakhirSurat,
-                    s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' ')
-                : '—';
-
-              let keterangan = 'Belum ada catatan bulan ini';
-              if (s.adaCatatan) {
-                const status = pakaiAlquran
-                  ? statusPencapaianAlquran(
-                      posisiJuzTerakhir(s.terakhirJilid),
-                      targetAlquran?.juz ?? null,
-                      targetAlquran?.juzSemesterLalu ?? null,
-                    )
-                  : statusPencapaianTilawati(kelasProta, bulan, posisiTilawati(s.terakhirJilid, s.terakhirHalaman));
-                keterangan = status ? LABEL_STATUS_PENCAPAIAN[status].singkat : '—';
-              }
-
-              return { nama: s.nama, pencapaian, keterangan };
-            }),
-          };
-        }
+        const detail =
+          kelasDipakai.length === 1
+            ? kelasDipakai[0].anggotaDetail
+            : kelasDipakai.map((k) => ({ id: k.id, nama: k.nama }));
+        const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = pisahTilawatiAlquran(detail);
+        const hasil = await Promise.all([
+          hitungMateriNgaji(tilawatiIds, tilawatiGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
+          hitungMateriNgaji(alquranIds, alquranGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
+        ]);
+        materiNgaji = hasil.filter((h): h is NonNullable<typeof h> => h !== null);
       } catch {
         materiNgaji = undefined;
       }
