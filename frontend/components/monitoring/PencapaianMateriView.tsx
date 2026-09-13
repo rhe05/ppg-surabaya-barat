@@ -88,6 +88,8 @@ import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
+  muatHafalanDoaRingkas,
+  type HafalanDoaRingkas,
 } from '@/lib/materiHafalanDoa';
 import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
 import KartuMonitoringTilawati from '@/components/monitoring/KartuMonitoringTilawati';
@@ -335,6 +337,71 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       })),
     [barisKelasDoa, targetAsmaulHusna],
   );
+
+  /* ── Data PELAKSANAAN per SANTRI -- Hafalan Surat-Surat Al-Qur'an
+     (2026-09-14, diminta owner: "tampilkan juga di monitoring pencapaian
+     materi" -- kartu "Hafalan Surat"/"Hafalan Do'a" di Pelaksanaan sudah
+     ada sejak 2026-09-13/14 & sudah tampil di Riwayat, tinggal Monitoring
+     yang belum). Ringkas PER SANTRI (jumlah Naik/Tetap + terakhir),
+     kembar pola KartuMonitoringTilawati tapi cukup ringkas polos di sini
+     (tanpa rubrik BB/MB/BSH/BSB -- itu KHUSUS progres Tilawati/Al-Qur'an
+     menuju target Juz, tidak berlaku utk hafalan surat/do'a lepas).
+     Ditampilkan utk SEMUA peran (beda dari sisi "Per Santri" Klasikal di
+     bawah yang sengaja disembunyikan dari guru) -- biayanya sama ringan
+     dgn Tilawati yg sudah dilihat guru. */
+  const [hafalanSuratRingkas, setHafalanSuratRingkas] = useState<HafalanSuratRingkas[]>([]);
+  const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
+  const [errorHafalanSurat, setErrorHafalanSurat] = useState<string | null>(null);
+  useEffect(() => {
+    if (kelasId === '') {
+      setHafalanSuratRingkas([]);
+      return;
+    }
+    let batal = false;
+    setLoadingHafalanSurat(true);
+    setErrorHafalanSurat(null);
+    muatHafalanSuratRingkas(anggotaId, periode.awal, periode.akhir)
+      .then((d) => {
+        if (!batal) setHafalanSuratRingkas(d);
+      })
+      .catch((e) => {
+        if (!batal) setErrorHafalanSurat(e instanceof Error ? e.message : 'Gagal memuat data.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingHafalanSurat(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
+
+  /* ── Data PELAKSANAAN per SANTRI -- Hafalan Do'a-Do'a Harian, pola SAMA
+     PERSIS sisi Hafalan Surat di atas. ── */
+  const [hafalanDoaRingkas, setHafalanDoaRingkas] = useState<HafalanDoaRingkas[]>([]);
+  const [loadingHafalanDoa, setLoadingHafalanDoa] = useState(false);
+  const [errorHafalanDoa, setErrorHafalanDoa] = useState<string | null>(null);
+  useEffect(() => {
+    if (kelasId === '') {
+      setHafalanDoaRingkas([]);
+      return;
+    }
+    let batal = false;
+    setLoadingHafalanDoa(true);
+    setErrorHafalanDoa(null);
+    muatHafalanDoaRingkas(anggotaId, periode.awal, periode.akhir)
+      .then((d) => {
+        if (!batal) setHafalanDoaRingkas(d);
+      })
+      .catch((e) => {
+        if (!batal) setErrorHafalanDoa(e instanceof Error ? e.message : 'Gagal memuat data.');
+      })
+      .finally(() => {
+        if (!batal) setLoadingHafalanDoa(false);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
 
   /* ── Data per SANTRI ── */
   const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
@@ -633,6 +700,95 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
               awal={periode.awal}
               akhir={periode.akhir}
             />
+          )}
+
+          {/* ── Hafalan Surat-Surat Al-Qur'an (Pelaksanaan) -- ringkas per
+              santri, 2026-09-14 diminta owner. ── */}
+          <div className="label-mikro mb-2">Hafalan Surat-Surat Al-Qur&apos;an</div>
+          {loadingHafalanSurat && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {errorHafalanSurat && <p className="mb-5 text-[13px] text-red">{errorHafalanSurat}</p>}
+          {!loadingHafalanSurat && !errorHafalanSurat && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {hafalanSuratRingkas.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada catatan Hafalan Surat pada periode ini.
+                </p>
+              ) : (
+                hafalanSuratRingkas.map((s) => (
+                  <div
+                    key={s.santriId}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
+                      {s.terakhir && (
+                        <div className="truncate text-[11px] text-text-faint">
+                          Terakhir: {[s.terakhirSurat, s.terakhirAyat ? `ayat ${s.terakhirAyat}` : null]
+                            .filter(Boolean)
+                            .join(' ')}{' '}
+                          · {tanggalPendek(s.terakhir)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {s.naik > 0 && (
+                        <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
+                          {s.naik}× Naik
+                        </span>
+                      )}
+                      {s.tetap > 0 && (
+                        <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
+                          {s.tetap}× Tetap
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* ── Hafalan Do'a-Do'a Harian (Pelaksanaan) -- ringkas per
+              santri, pola SAMA PERSIS sisi Hafalan Surat di atas. ── */}
+          <div className="label-mikro mb-2">Hafalan Do&apos;a-Do&apos;a Harian</div>
+          {loadingHafalanDoa && <Skeleton className="mb-5 h-[52px] w-full" />}
+          {errorHafalanDoa && <p className="mb-5 text-[13px] text-red">{errorHafalanDoa}</p>}
+          {!loadingHafalanDoa && !errorHafalanDoa && (
+            <div className="kartu-premium mb-5 overflow-hidden">
+              {hafalanDoaRingkas.length === 0 ? (
+                <p className="px-4 py-3 text-[13px] text-text-dim">
+                  Belum ada catatan Hafalan Do&apos;a pada periode ini.
+                </p>
+              ) : (
+                hafalanDoaRingkas.map((s) => (
+                  <div
+                    key={s.santriId}
+                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                  >
+                    <div className="min-w-0">
+                      <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
+                      {s.terakhir && (
+                        <div className="truncate text-[11px] text-text-faint">
+                          Terakhir: {s.terakhirDoa ?? '—'} · {tanggalPendek(s.terakhir)}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {s.naik > 0 && (
+                        <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
+                          {s.naik}× Naik
+                        </span>
+                      )}
+                      {s.tetap > 0 && (
+                        <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
+                          {s.tetap}× Tetap
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           )}
 
           {/* ── Sisi PER SANTRI -- SEMENTARA admin-only (2026-09-02
