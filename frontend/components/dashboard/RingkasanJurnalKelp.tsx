@@ -22,6 +22,7 @@ import Skeleton from '@/components/ui/Skeleton';
 import PemilihBulanTahun from '@/components/ui/PemilihBulanTahun';
 import { muatMateriBulan, type MateriJurnal } from '@/lib/dataGuru';
 import { muatTilawatiRingkas, labelBukuJilid, type TilawatiRingkas } from '@/lib/tilawati';
+import { muatHafalanSuratRingkas, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
 import { pecahJudulMateri } from '@/lib/judulMateri';
 import {
   muatRingkasanJurnalPerKelas,
@@ -126,10 +127,12 @@ function SubJudulRiwayat({ children }: { children: ReactNode }) {
 function DetailRiwayatKelas({
   materi,
   tilawati,
+  hafalanSurat,
   loading,
 }: {
   materi: MateriJurnal[];
   tilawati: TilawatiRingkas[];
+  hafalanSurat: HafalanSuratRingkas[];
   loading: boolean;
 }) {
   if (loading) {
@@ -202,6 +205,36 @@ function DetailRiwayatKelas({
           ))
         )}
       </div>
+      <div className="border-t border-border pt-2.5">
+        <SubJudulRiwayat>Hafalan Surat-Surat Al-Qur&rsquo;an</SubJudulRiwayat>
+        {hafalanSurat.length === 0 ? (
+          <p className="text-[11.5px] text-text-faint">Belum ada catatan Hafalan Surat.</p>
+        ) : (
+          hafalanSurat.map((s) => (
+            <div key={s.santriId} className="mb-2 last:mb-0">
+              <div className="text-[12px] font-bold text-text">{s.nama}</div>
+              {s.hari.map((h) => (
+                <div key={h.id} className="flex items-center justify-between gap-2 py-0.5 text-[11px]">
+                  <span className="min-w-0 truncate text-text-dim">
+                    {formatTanggal(h.tanggal)}
+                    {h.surat ? ` · ${h.surat}` : ''}
+                    {h.ayat ? ` ayat ${h.ayat}` : ''}
+                  </span>
+                  {h.status && (
+                    <span
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                        h.status === 'naik' ? 'bg-sage-lembut text-sage' : 'bg-brass-lembut text-brass'
+                      }`}
+                    >
+                      {h.status === 'naik' ? 'Naik' : 'Tetap'}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
@@ -252,7 +285,10 @@ export default function RingkasanJurnalKelp({
      ganti (lihat useEffect di bawah `muat`), supaya tidak menampilkan
      detail bulan yang salah kalau admin ganti bulan lalu buka lagi. */
   const [detailKelas, setDetailKelas] = useState<
-    Record<number, { materi: MateriJurnal[]; tilawati: TilawatiRingkas[]; loading: boolean }>
+    Record<
+      number,
+      { materi: MateriJurnal[]; tilawati: TilawatiRingkas[]; hafalanSurat: HafalanSuratRingkas[]; loading: boolean }
+    >
   >({});
 
   const muat = useCallback(async () => {
@@ -281,20 +317,29 @@ export default function RingkasanJurnalKelp({
   async function muatDetailKelas(kelasId: number) {
     setDetailKelas((prev) => ({
       ...prev,
-      [kelasId]: { materi: prev[kelasId]?.materi ?? [], tilawati: prev[kelasId]?.tilawati ?? [], loading: true },
+      [kelasId]: {
+        materi: prev[kelasId]?.materi ?? [],
+        tilawati: prev[kelasId]?.tilawati ?? [],
+        hafalanSurat: prev[kelasId]?.hafalanSurat ?? [],
+        loading: true,
+      },
     }));
     try {
       const mm = String(bulan).padStart(2, '0');
       const akhirHari = new Date(tahun, bulan, 0).getDate();
       const awal = `${tahun}-${mm}-01`;
       const akhir = `${tahun}-${mm}-${String(akhirHari).padStart(2, '0')}`;
-      const [materi, tilawati] = await Promise.all([
+      const [materi, tilawati, hafalanSurat] = await Promise.all([
         muatMateriBulan(kelasId, tahun, bulan),
         muatTilawatiRingkas(kelasId, awal, akhir),
+        muatHafalanSuratRingkas(kelasId, awal, akhir),
       ]);
-      setDetailKelas((prev) => ({ ...prev, [kelasId]: { materi, tilawati, loading: false } }));
+      setDetailKelas((prev) => ({ ...prev, [kelasId]: { materi, tilawati, hafalanSurat, loading: false } }));
     } catch {
-      setDetailKelas((prev) => ({ ...prev, [kelasId]: { materi: [], tilawati: [], loading: false } }));
+      setDetailKelas((prev) => ({
+        ...prev,
+        [kelasId]: { materi: [], tilawati: [], hafalanSurat: [], loading: false },
+      }));
     }
   }
 
@@ -627,6 +672,7 @@ export default function RingkasanJurnalKelp({
                     <DetailRiwayatKelas
                       materi={detailKelas[k.kelasId]?.materi ?? []}
                       tilawati={detailKelas[k.kelasId]?.tilawati ?? []}
+                      hafalanSurat={detailKelas[k.kelasId]?.hafalanSurat ?? []}
                       loading={detailKelas[k.kelasId]?.loading ?? true}
                     />
                   </div>
