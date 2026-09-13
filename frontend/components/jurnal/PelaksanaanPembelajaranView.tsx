@@ -72,6 +72,7 @@ import TarikUntukSegarkan from '@/components/ui/TarikUntukSegarkan';
 import { kelasTargetKumulatif } from '@/lib/kelasKurikulum';
 import { jumlahAyatSurat } from '@/lib/suratAlQuran';
 import { barisHafalanDariTeks, uraikanBarisHafalan } from '@/lib/hafalanSurat';
+import { uraikanTargetDoa, adalahMenerampilkanJenjangSebelumnya } from '@/lib/materiHafalanDoa';
 import {
   TILAWATI_MAKS_HALAMAN,
   OPSI_BUKU_JILID,
@@ -545,13 +546,152 @@ export default function PelaksanaanPembelajaranView() {
     );
   }
 
-  /* Kurikulum "Hafalan Surat-Surat Al-Qur'an" (data BERSAMA, kelompok_id
-     tetap = 1, sama pola SantriProgressReport.tsx/RencanaPembelajaranView.tsx
-     -- lihat opsiHafalanSurat di bawah). */
-  const [protaHafalanSurat, setProtaHafalanSurat] = useState<Awaited<ReturnType<typeof muatProtaKelompok>>>([]);
+  /* Kurikulum BERSAMA (kelompok_id tetap = 1, sama pola
+     SantriProgressReport.tsx/RencanaPembelajaranView.tsx) -- SATU fetch
+     dipakai DUA opsi (opsiHafalanSurat & opsiHafalanDoa di bawah), krn
+     kategorinya beda tapi sumber tabelnya sama (kurikulum_prota kelompok
+     1). Dulu bernama `protaHafalanSurat` sebelum kartu Hafalan Do'a ada
+     (2026-09-14). */
+  const [protaKelompokBersama, setProtaKelompokBersama] = useState<Awaited<ReturnType<typeof muatProtaKelompok>>>([]);
   useEffect(() => {
-    muatProtaKelompok(1, tahun).then(setProtaHafalanSurat);
+    muatProtaKelompok(1, tahun).then(setProtaKelompokBersama);
   }, [tahun]);
+
+  /* ── Kartu "Hafalan Do'a-Do'a Harian" (2026-09-14, diminta owner: "isinya
+     kurang lebih seperti card hafalan surat") -- mekanik & tabel PERSIS
+     pola Hafalan Surat di atas, BEDA hanya kolomnya (doa, bukan
+     surat/ayat) -- do'a tidak punya rentang ayat. Tabel
+     hafalan_doa_pelaksanaan (migrasi 20260914100000), UNIQUE
+     (santri_id, tanggal) -> upsert. */
+  type BarisHafalanDoa = { doa: string; status: '' | 'naik' | 'tetap' };
+  const BARIS_HAFALAN_DOA_KOSONG: BarisHafalanDoa = { doa: '', status: '' };
+  const [hafalanDoaCardTerbuka, setHafalanDoaCardTerbuka] = useState(false);
+  const [hafalanDoaSantri, setHafalanDoaSantri] = useState<{ id: number; nama: string }[]>([]);
+  const kelasAsliSantriHafalanDoaRef = useRef<Map<number, number>>(new Map());
+  const [hafalanDoa, setHafalanDoa] = useState<Record<number, BarisHafalanDoa>>({});
+  const [loadingHafalanDoa, setLoadingHafalanDoa] = useState(false);
+  const [hafalanDoaTanggal, setHafalanDoaTanggal] = useState(todayStr());
+  const [hafalanDoaPickerTerbuka, setHafalanDoaPickerTerbuka] = useState(false);
+  const [posisiHafalanDoaPicker, setPosisiHafalanDoaPicker] = useState<PosisiPicker | null>(null);
+  const hafalanDoaTanggalBtnRef = useRef<HTMLButtonElement>(null);
+  const hafalanDoaRef = useRef<Record<number, BarisHafalanDoa>>({});
+  hafalanDoaRef.current = hafalanDoa;
+  const tundaHafalanDoaRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
+  useEffect(() => {
+    const timers = tundaHafalanDoaRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  const muatHafalanDoa = useCallback(async () => {
+    if (kelasId === '') {
+      setHafalanDoaSantri([]);
+      setHafalanDoa({});
+      return;
+    }
+    setLoadingHafalanDoa(true);
+    try {
+      const hariIni = hafalanDoaTanggal;
+      const [sRes, hRes] = await Promise.all([
+        supabase.from('santri').select('id, nama, kelas_id').in('kelas_id', anggotaId).is('deleted_at', null).order('nama'),
+        supabase
+          .from('hafalan_doa_pelaksanaan')
+          .select('santri_id, tanggal, doa, status')
+          .in('kelas_id', anggotaId)
+          .lte('tanggal', hariIni)
+          .order('tanggal', { ascending: true }),
+      ]);
+      if (sRes.error) throw new Error(sRes.error.message);
+      if (hRes.error) throw new Error(hRes.error.message);
+      const santriRows = (sRes.data ?? []) as { id: number; nama: string; kelas_id: number }[];
+      setHafalanDoaSantri(santriRows.map((s) => ({ id: s.id, nama: s.nama })));
+      kelasAsliSantriHafalanDoaRef.current = new Map(santriRows.map((s) => [s.id, s.kelas_id]));
+
+      const perSantri = new Map<number, (BarisHafalanDoa & { tanggal: string })[]>();
+      for (const r of (hRes.data ?? []) as {
+        santri_id: number;
+        tanggal: string;
+        doa: string | null;
+        status: string | null;
+      }[]) {
+        const arr = perSantri.get(r.santri_id) ?? [];
+        arr.push({
+          tanggal: r.tanggal,
+          doa: r.doa ?? '',
+          status: (r.status as '' | 'naik' | 'tetap') || '',
+        });
+        perSantri.set(r.santri_id, arr);
+      }
+      const peta: Record<number, BarisHafalanDoa> = {};
+      for (const [sid, arr] of perSantri) {
+        const todayRow = arr.find((x) => x.tanggal === hariIni);
+        const last = [...arr].reverse().find((x) => x.tanggal < hariIni);
+        const adaIsiTgl = !!todayRow && (todayRow.doa !== '' || todayRow.status !== '');
+        if (adaIsiTgl) {
+          peta[sid] = { doa: todayRow!.doa, status: todayRow!.status };
+        } else if (last) {
+          /* Do'a dibawa apa adanya (TANPA tebak lanjutan) -- sama alasan
+             Hafalan Surat: urutan do'a per kelas tidak seragam. */
+          peta[sid] = { doa: last.doa, status: '' };
+        }
+      }
+      setHafalanDoa(peta);
+    } catch (e) {
+      push(e instanceof Error ? e.message : "Gagal memuat Hafalan Do'a.", 'error');
+    } finally {
+      setLoadingHafalanDoa(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [kelasId, hafalanDoaTanggal, anggotaId]);
+  useEffect(() => {
+    muatHafalanDoa();
+  }, [muatHafalanDoa]);
+
+  const simpanHafalanDoa = useCallback(
+    async (santriId: number) => {
+      if (kelasId === '') return;
+      const b = hafalanDoaRef.current[santriId] ?? BARIS_HAFALAN_DOA_KOSONG;
+      try {
+        const { error } = await supabase.from('hafalan_doa_pelaksanaan').upsert(
+          {
+            kelas_id: kelasAsliSantriHafalanDoaRef.current.get(santriId) ?? kelasId,
+            santri_id: santriId,
+            tanggal: hafalanDoaTanggal,
+            doa: b.doa.trim() === '' ? null : b.doa.trim(),
+            status: b.status === '' ? null : b.status,
+            dibuat_oleh: profile?.id ?? null,
+          },
+          { onConflict: 'santri_id,tanggal' },
+        );
+        if (error) throw new Error(error.message);
+      } catch (e) {
+        push(e instanceof Error ? e.message : "Gagal menyimpan Hafalan Do'a.", 'error');
+      }
+    },
+    [kelasId, hafalanDoaTanggal, profile?.id, push],
+  );
+
+  function ubahHafalanDoa(santriId: number, patch: Partial<BarisHafalanDoa>, langsung: boolean) {
+    setHafalanDoa((prev) => {
+      const cur: BarisHafalanDoa = prev[santriId] ?? BARIS_HAFALAN_DOA_KOSONG;
+      return { ...prev, [santriId]: { ...cur, ...patch } };
+    });
+    const timers = tundaHafalanDoaRef.current;
+    const lama = timers.get(santriId);
+    if (lama) clearTimeout(lama);
+    timers.set(
+      santriId,
+      setTimeout(
+        () => {
+          timers.delete(santriId);
+          void simpanHafalanDoa(santriId);
+        },
+        langsung ? 0 : 700,
+      ),
+    );
+  }
 
   /* ── Penyimpanan OTOMATIS (2026-09-02, diminta owner) ──────────────
      Tombol "Simpan Pelaksanaan" dihapus: tiap centang langsung ditulis,
@@ -836,13 +976,13 @@ export default function PelaksanaanPembelajaranView() {
      Materi Klasikal): kumulatif PAUD-TK s.d. kelas ruang guru, dari
      kurikulum_prota kategori "Hafalan Surat-Surat Al-Qur'an". */
   const opsiHafalanSurat = useMemo(() => {
-    if (kelasAktif == null || protaHafalanSurat.length === 0) return [];
+    if (kelasAktif == null || protaKelompokBersama.length === 0) return [];
     const kelasTarget = kelasTargetKumulatif(kelasAktif.nama);
     const urutKelas = (k: string | null) => {
       const i = kelasTarget.indexOf(k ?? '');
       return i === -1 ? Number.MAX_SAFE_INTEGER : i;
     };
-    const barisTerurut = [...protaHafalanSurat]
+    const barisTerurut = [...protaKelompokBersama]
       .filter((b) => kelasTarget.includes(b.kelas ?? ''))
       .sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
     const peta = new Map<string, { value: string; label: string }>();
@@ -857,7 +997,40 @@ export default function PelaksanaanPembelajaranView() {
       }
     }
     return [...peta.values()];
-  }, [kelasAktif, protaHafalanSurat]);
+  }, [kelasAktif, protaKelompokBersama]);
+
+  /* Opsi Do'a utk kartu "Hafalan Do'a-Do'a Harian" -- SUMBER & LOGIKA
+     SAMA POLA opsiHafalanSurat di atas (kumulatif PAUD-TK s.d. kelas
+     ruang guru, dari kurikulum_prota), penguraian teksnya beda:
+     uraikanTargetDoa (baris bernomor polos), bukan format "s/d". Baris
+     instruksi "Menerampilkan hafalan do'a pada jenjang sebelumnya"
+     dibuang (bukan materi baru), sama seperti opsiHafalanDoa di
+     RencanaPembelajaranView.tsx -- TIDAK dipakai gabungkanDoaDuaSemester
+     krn di sini cukup daftar apa adanya per kelas/semester, tidak perlu
+     digabung Asmaul Husna-nya jadi satu (guru pilih rentang yg sedang
+     benar2 diajarkan). */
+  const opsiHafalanDoa = useMemo(() => {
+    if (kelasAktif == null || protaKelompokBersama.length === 0) return [];
+    const kelasTarget = kelasTargetKumulatif(kelasAktif.nama);
+    const urutKelas = (k: string | null) => {
+      const i = kelasTarget.indexOf(k ?? '');
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+    const barisTerurut = [...protaKelompokBersama]
+      .filter((b) => kelasTarget.includes(b.kelas ?? ''))
+      .sort((a, b) => urutKelas(a.kelas) - urutKelas(b.kelas));
+    const peta = new Map<string, { value: string; label: string }>();
+    for (const b of barisTerurut) {
+      if (namaKategori(b.kategori_kbm) !== "Hafalan Do'a-Do'a Harian") continue;
+      for (const teks of [b.target, b.target2]) {
+        for (const item of uraikanTargetDoa(teks)) {
+          if (adalahMenerampilkanJenjangSebelumnya(item)) continue;
+          if (!peta.has(item)) peta.set(item, { value: item, label: item });
+        }
+      }
+    }
+    return [...peta.values()];
+  }, [kelasAktif, protaKelompokBersama]);
 
   function alasanTerkunci(b: Baris): string | null {
     const hariIni = todayStr();
@@ -883,6 +1056,15 @@ export default function PelaksanaanPembelajaranView() {
       ? `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`
       : hafalanSuratTanggal > todayStr()
         ? `Baru bisa diisi ${tanggalPanjang(hafalanSuratTanggal)}.`
+        : null;
+
+  /* Kunci input Hafalan Do'a -- konsep & aturan SAMA PERSIS Hafalan
+     Surat di atas. */
+  const alasanHafalanDoaTerkunci: string | null =
+    hafalanDoaTanggal === todayStr() && jamMulaiKelas && jamKini < jamMulaiKelas
+      ? `Sesi ngaji kelas ini baru mulai jam ${jamMulaiKelas.replace(':', '.')}.`
+      : hafalanDoaTanggal > todayStr()
+        ? `Baru bisa diisi ${tanggalPanjang(hafalanDoaTanggal)}.`
         : null;
 
   /* Tanggal yang dicatat saat guru mencentang: tanggal RENCANA-nya
@@ -929,7 +1111,7 @@ export default function PelaksanaanPembelajaranView() {
   async function segarkan() {
     buangSemuaSinggahan();
     setTilawatiRefreshKey((k) => k + 1);
-    await Promise.all([muat(), muatAsad(), muatHafalanSurat()]);
+    await Promise.all([muat(), muatAsad(), muatHafalanSurat(), muatHafalanDoa()]);
   }
 
   /* ── Dua kartu "Materi Klasikal" / "Materi Ngaji" (2026-09-03, diminta
@@ -1606,6 +1788,124 @@ export default function PelaksanaanPembelajaranView() {
                                       type="button"
                                       disabled={terkunci}
                                       onClick={() => ubahHafalanSurat(s.id, { status: aktif ? '' : opt }, true)}
+                                      className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
+                                        aktif
+                                          ? 'text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
+                                          : 'bg-transparent text-text-dim'
+                                      }`}
+                                      style={aktif ? { background: warna } : undefined}
+                                    >
+                                      <Ikon size={15} strokeWidth={2.6} />
+                                      {label}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Kartu "Hafalan Do'a-Do'a Harian" (2026-09-14, diminta owner:
+                "isinya kurang lebih seperti card hafalan surat") -- per
+                santri: Do'a (opsi = kumulatif target kurikulum kelas ini)
+                + sakelar Naik/Tetap. TANPA field Ayat (do'a tidak punya
+                rentang ayat). Tabel hafalan_doa_pelaksanaan terpisah dari
+                hafalan_surat_pelaksanaan. */}
+            <div
+              className="kartu-premium mb-4 overflow-hidden"
+              style={{ borderLeftWidth: 3, borderLeftColor: 'var(--violet)' }}
+            >
+              <div className="flex items-center justify-between gap-2 p-4">
+                <button
+                  type="button"
+                  onClick={() => setHafalanDoaCardTerbuka((v) => !v)}
+                  className="flex min-w-0 cursor-pointer items-center gap-2 border-none bg-transparent p-0 text-left"
+                >
+                  <span className="text-[15px] font-bold text-text">Hafalan Do&apos;a-Do&apos;a Harian</span>
+                </button>
+                <button
+                  ref={hafalanDoaTanggalBtnRef}
+                  type="button"
+                  onClick={() => {
+                    const rect = hafalanDoaTanggalBtnRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      setPosisiHafalanDoaPicker({
+                        top: rect.bottom + 6,
+                        right: window.innerWidth - rect.right,
+                      });
+                    }
+                    setHafalanDoaPickerTerbuka((v) => !v);
+                  }}
+                  className="shrink-0 text-[11px] font-semibold text-violet active:opacity-70"
+                >
+                  {tanggalSingkat(hafalanDoaTanggal)}
+                </button>
+              </div>
+              <TanggalPicker
+                terbuka={hafalanDoaPickerTerbuka}
+                posisi={posisiHafalanDoaPicker}
+                nilai={hafalanDoaTanggal}
+                onPilih={(v) => {
+                  setHafalanDoaTanggal(v);
+                  setHafalanDoaPickerTerbuka(false);
+                }}
+                onTutup={() => setHafalanDoaPickerTerbuka(false)}
+                tanggalNonaktif={(tglStr) => (tglStr > todayStr() ? { alasan: 'Belum terjadi' } : null)}
+              />
+              {hafalanDoaCardTerbuka && (
+                <div className="border-t border-border">
+                  <div className="p-3">
+                    {loadingHafalanDoa && hafalanDoaSantri.length === 0 ? (
+                      <div className="flex flex-col gap-2.5">
+                        <Skeleton className="h-[92px] w-full" />
+                        <Skeleton className="h-[92px] w-full" />
+                      </div>
+                    ) : hafalanDoaSantri.length === 0 ? (
+                      <p className="text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2.5">
+                        {alasanHafalanDoaTerkunci && (
+                          <p className="rounded-[var(--radius)] bg-panel-2 px-3 py-2 text-[12px] leading-snug text-text-dim">
+                            {alasanHafalanDoaTerkunci}
+                          </p>
+                        )}
+                        {hafalanDoaSantri.map((s) => {
+                          const t = hafalanDoa[s.id] ?? BARIS_HAFALAN_DOA_KOSONG;
+                          const terkunci = alasanHafalanDoaTerkunci !== null;
+                          return (
+                            <div
+                              key={s.id}
+                              className="rounded-[var(--radius)] border border-border bg-panel p-3"
+                            >
+                              <div className="mb-2 text-[13px] font-bold text-text">{s.nama}</div>
+                              <div>
+                                <label className="label-mikro mb-1 block">Do&apos;a</label>
+                                <SelectKustom
+                                  value={t.doa}
+                                  onChange={(v) => ubahHafalanDoa(s.id, { doa: v }, true)}
+                                  disabled={terkunci}
+                                  placeholder="Pilih Do'a"
+                                  opsi={opsiHafalanDoa}
+                                />
+                              </div>
+                              <div className="mt-2.5 flex gap-1.5 rounded-full bg-panel-2 p-1">
+                                {([
+                                  { opt: 'naik', label: 'Naik', Ikon: ArrowUp, warna: 'var(--sage)' },
+                                  { opt: 'tetap', label: 'Tetap', Ikon: Equal, warna: 'var(--indigo)' },
+                                ] as const).map(({ opt, label, Ikon, warna }) => {
+                                  const aktif = t.status === opt;
+                                  return (
+                                    <button
+                                      key={opt}
+                                      type="button"
+                                      disabled={terkunci}
+                                      onClick={() => ubahHafalanDoa(s.id, { status: aktif ? '' : opt }, true)}
                                       className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-2 text-[13px] font-bold transition-all duration-150 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 ${
                                         aktif
                                           ? 'text-white shadow-[0_2px_8px_rgba(0,0,0,0.15)]'
