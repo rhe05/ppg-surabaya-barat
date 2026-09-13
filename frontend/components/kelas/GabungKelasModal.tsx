@@ -59,6 +59,12 @@ export default function GabungKelasModal({
   const [indukId, setIndukId] = useState('');
   const [mulai, setMulai] = useState(hariIni());
   const [selesai, setSelesai] = useState(hariIni());
+  /* "Tanpa batas waktu" (2026-09-13, diminta owner: admin sering tidak
+     tahu sampai kapan gurunya izin/kelas digabung) -- tanggal_selesai
+     NULL di DB (migrasi 20260913130000), bukan tanggal jauh ke depan yg
+     ditebak. `selesai` tetap disimpan di state selagi checkbox ini aktif
+     (biar tidak hilang kalau dibatalkan lagi), TAPI diabaikan saat kirim. */
+  const [tanpaBatas, setTanpaBatas] = useState(false);
   const [jamMulai, setJamMulai] = useState('');
   const [jamSelesai, setJamSelesai] = useState('');
   const [ruangan, setRuangan] = useState('');
@@ -118,7 +124,7 @@ export default function GabungKelasModal({
     setError(null);
     if (!kelasId || !indukId) return setError('Pilih kelas yang digabung dan kelas induknya.');
     if (kelasId === indukId) return setError('Kelas dan kelas induk tidak boleh sama.');
-    if (selesai < mulai) return setError('Tanggal selesai tidak boleh sebelum tanggal mulai.');
+    if (!tanpaBatas && selesai < mulai) return setError('Tanggal selesai tidak boleh sebelum tanggal mulai.');
     setSibuk(true);
     try {
       await simpanGabung(
@@ -127,7 +133,7 @@ export default function GabungKelasModal({
           kelas_id: Number(kelasId),
           kelas_induk_id: Number(indukId),
           tanggal_mulai: mulai,
-          tanggal_selesai: selesai,
+          tanggal_selesai: tanpaBatas ? null : selesai,
           jam_mulai: jamMulai || null,
           jam_selesai: jamSelesai || null,
           ruangan: ruangan.trim() || null,
@@ -138,6 +144,7 @@ export default function GabungKelasModal({
       sukses('Penggabungan kelas disimpan.');
       setKelasId('');
       setIndukId('');
+      setTanpaBatas(false);
       await muat();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan.');
@@ -232,16 +239,33 @@ export default function GabungKelasModal({
               </button>
             </div>
             <div>
-              <label className={LABEL}>Sampai *</label>
-              <button
-                type="button"
-                ref={refSelesai}
-                onClick={() => bukaTgl('selesai', refSelesai)}
-                className={`${INPUT} flex items-center justify-between text-left`}
-              >
-                {fmtTgl(selesai)}
-                <CalendarDays size={14} className="shrink-0 text-text-faint" />
-              </button>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className={`${LABEL} mb-0`}>Sampai {tanpaBatas ? '' : '*'}</label>
+                <label className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-text-dim">
+                  <input
+                    type="checkbox"
+                    checked={tanpaBatas}
+                    onChange={(e) => setTanpaBatas(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-brass"
+                  />
+                  Tanpa batas waktu
+                </label>
+              </div>
+              {tanpaBatas ? (
+                <div className={`${INPUT} flex items-center text-text-faint`}>
+                  Tanpa batas waktu (sampai dibatalkan)
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  ref={refSelesai}
+                  onClick={() => bukaTgl('selesai', refSelesai)}
+                  className={`${INPUT} flex items-center justify-between text-left`}
+                >
+                  {fmtTgl(selesai)}
+                  <CalendarDays size={14} className="shrink-0 text-text-faint" />
+                </button>
+              )}
             </div>
             <div>
               <label className={LABEL}>Jam Mulai</label>
@@ -299,7 +323,7 @@ export default function GabungKelasModal({
                       {namaKelas.get(g.kelas_induk_id) ?? `#${g.kelas_induk_id}`}
                     </div>
                     <div className="text-[11px] text-text-dim">
-                      {fmtTgl(g.tanggal_mulai)} s/d {fmtTgl(g.tanggal_selesai)}
+                      {fmtTgl(g.tanggal_mulai)} {g.tanggal_selesai ? `s/d ${fmtTgl(g.tanggal_selesai)}` : '· Tanpa batas waktu'}
                       {g.jam_mulai ? ` · ${g.jam_mulai.slice(0, 5)}-${(g.jam_selesai ?? '').slice(0, 5)}` : ''}
                       {g.ruangan ? ` · ${g.ruangan}` : ''}
                     </div>

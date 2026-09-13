@@ -62,7 +62,10 @@ export async function muatKelasRingkas(kelompokId: number): Promise<KelasRingkas
 
 /* Penggabungan yang AKTIF pada satu tanggal. Key = kelas_id yang ikut
    bergabung (kelas yang "hilang" dari daftar sesi dan menempel ke
-   induknya). */
+   induknya). `tanggal_selesai` NULL = tanpa batas waktu (migrasi
+   20260913130000) -- WAJIB `.or(...is.null)`, krn `.gte()` polos di
+   Postgres/PostgREST SELALU false thd NULL, jadi penggabungan tanpa
+   batas tidak akan pernah terbaca aktif kalau cuma `.gte()`. */
 export async function muatGabungAktif(
   kelompokId: number,
   tanggal: string,
@@ -72,7 +75,7 @@ export async function muatGabungAktif(
     .select('kelas_id, kelas_induk_id, jam_mulai, jam_selesai, ruangan, catatan')
     .eq('kelompok_id', kelompokId)
     .lte('tanggal_mulai', tanggal)
-    .gte('tanggal_selesai', tanggal);
+    .or(`tanggal_selesai.gte.${tanggal},tanggal_selesai.is.null`);
   if (error) throw new Error(error.message);
   const peta = new Map<number, GabungKelas>();
   for (const g of (data ?? []) as GabungKelas[]) peta.set(g.kelas_id, g);
@@ -85,7 +88,8 @@ export type BarisGabung = {
   kelas_id: number;
   kelas_induk_id: number;
   tanggal_mulai: string;
-  tanggal_selesai: string;
+  /* null = tanpa batas waktu (migrasi 20260913130000). */
+  tanggal_selesai: string | null;
   jam_mulai: string | null;
   jam_selesai: string | null;
   ruangan: string | null;
@@ -110,7 +114,7 @@ export async function simpanGabung(
     kelas_id: number;
     kelas_induk_id: number;
     tanggal_mulai: string;
-    tanggal_selesai: string;
+    tanggal_selesai: string | null;
     jam_mulai: string | null;
     jam_selesai: string | null;
     ruangan: string | null;
