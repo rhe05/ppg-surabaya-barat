@@ -213,6 +213,14 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
 
   return (
     <div id="laporan-cetak" className="rounded-card border border-border bg-panel p-5 shadow-[var(--shadow-card)] sm:p-6">
+      {/* Watermark pojok kanan atas (2026-09-13, diminta owner) --
+          identitas sumber unduhan, ikut tercetak (bagian dari
+          #laporan-cetak, bukan print:hidden). Baris tersendiri di ATAS
+          judul (bukan absolute overlay) supaya tidak bertabrakan dgn
+          judul yang center-aligned di layar sempit (guru mobile). */}
+      <div className="mb-2 text-right text-[9px] font-semibold text-sage sm:text-[10px]">
+        Diunduh dari Ruang Ngaji — Platform Manajemen Ngaji
+      </div>
       <div className="mb-5 text-center sm:mb-6">
         <div className="text-[17px] font-extrabold text-text sm:text-[19px]">Laporan Perkembangan Santri</div>
         <div className="mt-1 text-[12.5px] text-text sm:text-[13px]">{laporan.periode}</div>
