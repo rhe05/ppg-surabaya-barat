@@ -225,6 +225,24 @@ function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: s
   );
 }
 
+/* Kartu target per kategori Materi Ngaji (2026-09-14, diminta owner) --
+   chrome SAMA PERSIS KartuMetrik di atas (rounded-card/border/shadow-card,
+   label kecil-tebal-kapital) supaya satu bahasa visual dgn 5 kartu KPI
+   kehadiran, cuma isinya kalimat target (bukan angka besar) jadi `nilai`
+   diganti baris teks biasa. Tanpa target (null) -- kartu tetap tampil
+   labelnya saja, TANPA placeholder "Belum ada target" (premium = rapi,
+   bukan penuh keterangan kosong). */
+function KartuTargetMateri({ label, warna, target }: { label: string; warna: string; target: string | null }) {
+  return (
+    <div className="rounded-card border border-border bg-panel p-3.5 shadow-[var(--shadow-card)]">
+      <div className="text-[10.5px] font-bold tracking-[0.4px] uppercase" style={{ color: warna }}>
+        {label}
+      </div>
+      {target && <div className="mt-1.5 text-[12px] leading-snug font-semibold text-text">{target}</div>}
+    </div>
+  );
+}
+
 export default function LaporanPerkembanganCetak({ laporan }: { laporan: LaporanPerkembangan }) {
   const pct = (n: number) => (laporan.totalSantri ? Math.round((n / laporan.totalSantri) * 100) : 0);
 
@@ -392,17 +410,6 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           spt "Pra Remaja SMP"), tetap render SATU tabel Hafalan-saja
           (sentinel `null` di array blok) -- perilaku identik versi lama. */}
       {(() => {
-        /* Label section digabung (2026-09-14, diminta owner: "tampilkan
-           juga di laporan perkembangan santri" utk Hafalan Do'a) --
-           SAMA pola label "Hafalan Surat Materi Ngaji" yang sudah ada,
-           tinggal digabung kalau kedua sumber ada ("Hafalan Surat &
-           Hafalan Do'a Materi Ngaji"). */
-        const labelTambahan = [
-          laporan.materiHafalanSurat ? 'Hafalan Surat' : null,
-          laporan.materiHafalanDoa ? "Hafalan Do'a" : null,
-        ]
-          .filter(Boolean)
-          .join(' & ');
         const blokList =
           laporan.materiNgaji && laporan.materiNgaji.length > 0
             ? laporan.materiNgaji
@@ -412,19 +419,26 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         return blokList.map((ngaji, i) => (
           <div key={i} className="cetak-jaga-utuh mt-5 sm:mt-6">
             <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-              {ngaji ? 'Materi Ngaji' : `${labelTambahan} Materi Ngaji`}
+              Materi Ngaji
             </div>
-            {ngaji && (
-              <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
-                {ngaji.judul}
-                {labelTambahan ? ` & ${labelTambahan} Materi Ngaji` : ''}
-              </div>
-            )}
-            {ngaji?.target && (
-              <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-                {ngaji.target}
-              </div>
-            )}
+            {/* Target PER KATEGORI, satu kartu per kolom (2026-09-14,
+                diminta owner: "munculkan target bulan tersebut di setiap
+                kategori" -- dulu cuma Baca Huruf Al-Qur'an/Tilawati yang
+                punya kotak target, Hafalan Surat & Hafalan Do'a polos
+                tanpa apa-apa di atasnya). Urutan kiri-ke-kanan SAMA PERSIS
+                urutan kolomnya di tabel di bawah, warna aksen ikut warna
+                kartu masing-masing di Pelaksanaan (indigo=Ngaji,
+                brass=Hafalan Surat, violet=Hafalan Do'a) supaya bahasa
+                warnanya konsisten di seluruh app. */}
+            <div className="cetak-jaga-utuh mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+              {ngaji && <KartuTargetMateri label={ngaji.judul} warna="var(--indigo)" target={ngaji.target} />}
+              {laporan.materiHafalanSurat && (
+                <KartuTargetMateri label="Hafalan Surat" warna="var(--brass)" target={`Target ${laporan.periode}`} />
+              )}
+              {laporan.materiHafalanDoa && (
+                <KartuTargetMateri label="Hafalan Do'a" warna="var(--violet)" target={`Target ${laporan.periode}`} />
+              )}
+            </div>
             <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
               <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
                 <thead className="border-b border-border bg-panel-2">
