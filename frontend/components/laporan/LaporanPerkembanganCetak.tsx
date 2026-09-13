@@ -179,6 +179,13 @@ export type MateriNgajiList = MateriNgaji[];
 export type HafalanSuratLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
 export type MateriHafalanSurat = { baris: HafalanSuratLaporanBaris[] };
 
+/* "Hafalan Do'a-Do'a Harian" per santri (2026-09-14, diminta owner:
+   "tampilkan juga di laporan perkembangan santri") -- kembar PERSIS
+   MateriHafalanSurat di atas, sumber lib/materiHafalanDoa.ts
+   `muatHafalanDoaKelas` (tabel hafalan_doa_pelaksanaan). */
+export type HafalanDoaLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
+export type MateriHafalanDoa = { baris: HafalanDoaLaporanBaris[] };
+
 export type LaporanPerkembangan = {
   guruNama: string;
   periode: string;
@@ -201,6 +208,9 @@ export type LaporanPerkembangan = {
   /* Opsional & admin-desktop-only jg, lihat komentar MateriHafalanSurat
      di atas. */
   materiHafalanSurat?: MateriHafalanSurat;
+  /* Opsional (guru mobile & admin desktop, 2026-09-14), lihat komentar
+     MateriHafalanDoa di atas. */
+  materiHafalanDoa?: MateriHafalanDoa;
 };
 
 function KartuMetrik({ label, nilai, warna, catatan }: { label: string; nilai: string; warna: string; catatan: string }) {
@@ -378,93 +388,132 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
       {/* Gabung Kelas lintas-grade (2026-09-13, diminta owner): materiNgaji
           sekarang ARRAY 0/1/2 elemen -- render SATU tabel per elemen (tiap
           elemen = satu grade/track). Kalau array kosong tapi
-          materiHafalanSurat ADA (kelas tanpa grade angka spt "Pra Remaja
-          SMP"), tetap render SATU tabel Hafalan-Surat-saja (sentinel
-          `null` di array blok) -- perilaku identik versi lama. */}
-      {(laporan.materiNgaji && laporan.materiNgaji.length > 0
-        ? laporan.materiNgaji
-        : laporan.materiHafalanSurat
-          ? [null]
-          : []
-      ).map((ngaji, i) => (
-        <div key={i} className="cetak-jaga-utuh mt-5 sm:mt-6">
-          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            {ngaji ? 'Materi Ngaji' : 'Hafalan Surat Materi Ngaji'}
-          </div>
-          {ngaji && (
-            <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
-              {ngaji.judul}
-              {laporan.materiHafalanSurat ? ' & Hafalan Surat Materi Ngaji' : ''}
+          materiHafalanSurat/materiHafalanDoa ADA (kelas tanpa grade angka
+          spt "Pra Remaja SMP"), tetap render SATU tabel Hafalan-saja
+          (sentinel `null` di array blok) -- perilaku identik versi lama. */}
+      {(() => {
+        /* Label section digabung (2026-09-14, diminta owner: "tampilkan
+           juga di laporan perkembangan santri" utk Hafalan Do'a) --
+           SAMA pola label "Hafalan Surat Materi Ngaji" yang sudah ada,
+           tinggal digabung kalau kedua sumber ada ("Hafalan Surat &
+           Hafalan Do'a Materi Ngaji"). */
+        const labelTambahan = [
+          laporan.materiHafalanSurat ? 'Hafalan Surat' : null,
+          laporan.materiHafalanDoa ? "Hafalan Do'a" : null,
+        ]
+          .filter(Boolean)
+          .join(' & ');
+        const blokList =
+          laporan.materiNgaji && laporan.materiNgaji.length > 0
+            ? laporan.materiNgaji
+            : laporan.materiHafalanSurat || laporan.materiHafalanDoa
+              ? [null]
+              : [];
+        return blokList.map((ngaji, i) => (
+          <div key={i} className="cetak-jaga-utuh mt-5 sm:mt-6">
+            <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
+              {ngaji ? 'Materi Ngaji' : `${labelTambahan} Materi Ngaji`}
             </div>
-          )}
-          {ngaji?.target && (
-            <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              {ngaji.target}
-            </div>
-          )}
-          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-            <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
-              <thead className="border-b border-border bg-panel-2">
-                <tr>
-                  {[
-                    'Nama',
-                    ...(ngaji ? ['Pencapaian', 'Keterangan'] : []),
-                    ...(laporan.materiHafalanSurat ? ['Hafalan Surat (Materi Ngaji)', 'Keterangan'] : []),
-                  ].map((h, hi) => (
-                    <th
-                      key={`${h}-${hi}`}
-                      className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).length === 0 ? (
+            {ngaji && (
+              <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
+                {ngaji.judul}
+                {labelTambahan ? ` & ${labelTambahan} Materi Ngaji` : ''}
+              </div>
+            )}
+            {ngaji?.target && (
+              <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+                {ngaji.target}
+              </div>
+            )}
+            <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
+              <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
+                <thead className="border-b border-border bg-panel-2">
                   <tr>
-                    <td
-                      colSpan={1 + (ngaji ? 2 : 0) + (laporan.materiHafalanSurat ? 2 : 0)}
-                      className="px-4 py-8 text-center text-text-faint"
-                    >
-                      Belum ada santri di kelas ini.
-                    </td>
+                    {[
+                      'Nama',
+                      ...(ngaji ? ['Pencapaian', 'Keterangan'] : []),
+                      ...(laporan.materiHafalanSurat ? ['Hafalan Surat (Materi Ngaji)', 'Keterangan'] : []),
+                      ...(laporan.materiHafalanDoa ? ["Hafalan Do'a (Materi Ngaji)", 'Keterangan'] : []),
+                    ].map((h, hi) => (
+                      <th
+                        key={`${h}-${hi}`}
+                        className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
-                ) : (
-                  (ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).map((b) => {
-                    const hs = laporan.materiHafalanSurat?.baris.find((h) => h.nama === b.nama);
-                    return (
-                      <tr key={b.nama}>
-                        <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
-                        {ngaji && (
-                          <>
-                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {b.pencapaian}
-                            </td>
-                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {b.keterangan}
-                            </td>
-                          </>
-                        )}
-                        {laporan.materiHafalanSurat && (
-                          <>
-                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {ngaji ? (hs?.pencapaian ?? '—') : b.pencapaian}
-                            </td>
-                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
-                              {ngaji ? (hs?.keterangan ?? 'Belum ada catatan bulan ini') : b.keterangan}
-                            </td>
-                          </>
-                        )}
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {(ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? laporan.materiHafalanDoa?.baris ?? [])
+                    .length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={
+                          1 +
+                          (ngaji ? 2 : 0) +
+                          (laporan.materiHafalanSurat ? 2 : 0) +
+                          (laporan.materiHafalanDoa ? 2 : 0)
+                        }
+                        className="px-4 py-8 text-center text-text-faint"
+                      >
+                        Belum ada santri di kelas ini.
+                      </td>
+                    </tr>
+                  ) : (
+                    (ngaji?.baris ?? laporan.materiHafalanSurat?.baris ?? laporan.materiHafalanDoa?.baris ?? []).map(
+                      (b) => {
+                        /* Dicocokkan by nama (bukan by index) thd sumbernya
+                           SENDIRI -- berlaku jg saat sumber itu KEBETULAN
+                           jadi sumber `b` (base), hasilnya identik dgn
+                           `b` apa adanya, jadi tidak perlu cabang khusus
+                           lagi spt versi 2-sumber lama. */
+                        const hs = laporan.materiHafalanSurat?.baris.find((h) => h.nama === b.nama);
+                        const hd = laporan.materiHafalanDoa?.baris.find((h) => h.nama === b.nama);
+                        return (
+                          <tr key={b.nama}>
+                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
+                            {ngaji && (
+                              <>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {b.pencapaian}
+                                </td>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {b.keterangan}
+                                </td>
+                              </>
+                            )}
+                            {laporan.materiHafalanSurat && (
+                              <>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {hs?.pencapaian ?? '—'}
+                                </td>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {hs?.keterangan ?? 'Belum ada catatan bulan ini'}
+                                </td>
+                              </>
+                            )}
+                            {laporan.materiHafalanDoa && (
+                              <>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {hd?.pencapaian ?? '—'}
+                                </td>
+                                <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                                  {hd?.keterangan ?? 'Belum ada catatan bulan ini'}
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        );
+                      },
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      ))}
+        ));
+      })()}
     </div>
   );
 }

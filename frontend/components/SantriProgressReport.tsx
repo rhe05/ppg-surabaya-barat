@@ -85,6 +85,7 @@ import {
   uraikanTargetDoa,
   adalahAsmaulHusna,
   kelasKurikulumSampai,
+  muatHafalanDoaKelas,
 } from '@/lib/materiHafalanDoa';
 import { suratDariTargetProta, normalisasiNamaSurat, muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 import { hitungMateriNgaji } from '@/lib/tilawati';
@@ -443,6 +444,30 @@ export default function SantriProgressReport() {
         materiHafalanSurat = undefined;
       }
 
+      /* Hafalan Do'a-Do'a Harian -- PER SANTRI, "di sebelah Hafalan Surat
+         Materi Ngaji" (2026-09-14, diminta owner: "tampilkan juga di
+         laporan perkembangan santri"). Sumber SAMA pola Hafalan Surat di
+         atas, tabel beda: lib/materiHafalanDoa.ts muatHafalanDoaKelas
+         (tabel hafalan_doa_pelaksanaan). Kegagalan TIDAK menggagalkan
+         seluruh laporan (pola sama materiHafalanSurat). */
+      let materiHafalanDoa: LaporanPerkembangan['materiHafalanDoa'];
+      try {
+        const hafalanDoaKelas = await muatHafalanDoaKelas(kelasIds, awal, akhir);
+        materiHafalanDoa = {
+          baris: hafalanDoaKelas.map((s) => ({
+            nama: s.nama,
+            pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
+            keterangan: s.adaCatatan
+              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                  .filter(Boolean)
+                  .join(', ') || '—'
+              : 'Belum ada catatan bulan ini',
+          })),
+        };
+      } catch {
+        materiHafalanDoa = undefined;
+      }
+
       const baris = santri.map((s) => {
         const milik = absensiHariKerja.filter((a) => a.santri_id === s.id);
         const hadir = milik.filter((a) => a.status === 'hadir').length;
@@ -504,6 +529,7 @@ export default function SantriProgressReport() {
         materiKlasikal,
         materiNgaji,
         materiHafalanSurat,
+        materiHafalanDoa,
       });
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal memuat laporan.');

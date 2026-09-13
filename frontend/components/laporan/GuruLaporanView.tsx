@@ -81,6 +81,7 @@ import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
 import { muatHafalanSuratKelas } from '@/lib/hafalanSurat';
+import { muatHafalanDoaKelas } from '@/lib/materiHafalanDoa';
 
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
    "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
@@ -351,6 +352,28 @@ export default function GuruLaporanView() {
         materiHafalanSurat = undefined;
       }
 
+      /* Hafalan Do'a-Do'a Harian -- PER SANTRI, pola SAMA PERSIS Hafalan
+         Surat di atas (2026-09-14, diminta owner: "tampilkan juga di
+         laporan perkembangan santri"). Tabel beda: lib/materiHafalanDoa.ts
+         muatHafalanDoaKelas. Kegagalan TIDAK menggagalkan seluruh laporan. */
+      let materiHafalanDoa: LaporanPerkembangan['materiHafalanDoa'];
+      try {
+        const hafalanDoaKelas = await muatHafalanDoaKelas(kelasIds, awal, akhir);
+        materiHafalanDoa = {
+          baris: hafalanDoaKelas.map((s) => ({
+            nama: s.nama,
+            pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
+            keterangan: s.adaCatatan
+              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                  .filter(Boolean)
+                  .join(', ') || '—'
+              : 'Belum ada catatan bulan ini',
+          })),
+        };
+      } catch {
+        materiHafalanDoa = undefined;
+      }
+
       setLaporan({
         guruNama: profile?.display_name ?? '-',
         periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
@@ -365,6 +388,7 @@ export default function GuruLaporanView() {
         totalSakit: baris.filter((b) => b.status === 'Sakit').length,
         baris,
         materiHafalanSurat,
+        materiHafalanDoa,
       });
     } catch (e) {
       setErrorMuat(e instanceof Error ? e.message : 'Gagal membuat laporan.');
