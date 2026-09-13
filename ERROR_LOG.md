@@ -1643,6 +1643,53 @@ dilaporkan admin).
 
 ---
 
+## #45 — Laporan Perkembangan Santri: Hafalan Surat tampil, Hafalan Do'a tidak (2026-09-13)
+
+**Gejala** (admin, kelas Ratna Wati "2 A"/"2 B" Kelp Petemon): kartu "Materi
+Klasikal" di Laporan Perkembangan Santri menampilkan Hafalan Surat dengan
+benar, tapi Hafalan Do'a kosong walau guru sudah rutin mengisi materinya.
+
+**Dibuktikan lewat SQL diagnostik produksi** (`jurnal_materi` kelas 2A/2B
+bulan berjalan): mayoritas do'a yang diajarkan ("Doa dan dzikir setelah
+sholat", "Doa masuk dan keluar rumah", dst) ternyata milik Prota **grade 1**
+(diulang wajar sesuai instruksi "Menerampilkan hafalan do'a pada jenjang
+sebelumnya"), dan Asmaul Husna diajar bertahap ("1 sampai 45", lalu progres
+lanjut) — bukan langsung penuh dalam satu baris.
+
+**Akar masalah — DUA bug independen** di kartu "Materi Klasikal" (dipakai
+`SantriProgressReport.tsx` & `PencapaianMateriView.tsx` Monitoring):
+1. `SantriProgressReport.tsx` menyaring Hafalan Do'a HANYA ke Prota grade
+   kelas itu sendiri (persis pola Hafalan Surat) — tapi Prota Do'a per-grade
+   cuma daftar do'a BARU semester itu (bukan rentang "s/d" seperti Surat
+   yang otomatis mencakup jenjang bawah), jadi semua do'a jenjang
+   sebelumnya yang diulang guru hilang total dari laporan.
+2. `ringkasPengulanganDoa()` (`lib/materiHafalanDoa.ts`) mensyaratkan SATU
+   baris materi tunggal menutupi rentang PENUH gabungan semester 1+2
+   (mis. grade 2 = "1 sampai 60") sebelum Asmaul Husna dihitung — progres
+   bertahap harian tidak pernah memenuhi ini sendirian, jadi praktis tidak
+   pernah tampil sama sekali di kedua layar (Laporan & Monitoring) yang
+   memakai fungsi ini.
+
+**Penanganan**: (1) Do'a di `SantriProgressReport.tsx` dibuat KUMULATIF
+PAUD-TK s.d. grade kelas (`kelasKurikulumSampai`, pola sama dgn
+`opsiHafalanDoa` di `RencanaPembelajaranView.tsx`), Surat TETAP grade-
+sendiri (tidak disentuh — mekanismenya sudah benar via rentang "s/d").
+(2) `ringkasPengulanganDoa()` diubah dari "satu baris harus menutupi
+target" jadi UNION rentang (`min(dari)`..`max(sampai)`) dari SEMUA baris
+Asmaul Husna pada periode itu — progres bertahap yang gabungannya
+menutupi target baru dihitung tercapai. Perbaikan (2) otomatis berlaku juga
+ke Monitoring Pencapaian Materi (fungsi dipakai bersama).
+
+**Pelajaran**: dua fitur "kembar" (Surat vs Do'a) yang kelihatan simetris
+di kode bisa punya asumsi data yang beda total (rentang vs daftar diskrit)
+— jangan asumsikan pola filter yang benar untuk satu kembar otomatis benar
+untuk kembarnya. Diagnosis WAJIB dari data produksi asli (SQL diagnostik
+`jurnal_materi` + `kurikulum_prota`), bukan cuma baca kode — di sesi ini
+dugaan awal ("Prota kosong") salah dan baru ketahuan setelah lihat data
+materi yang benar-benar diinput guru.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

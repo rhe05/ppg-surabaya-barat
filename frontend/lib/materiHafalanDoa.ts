@@ -63,9 +63,13 @@ export function targetAsmaulHusnaDari(
 
 /** Ringkas hasil RPC pengulangan Hafalan Do'a untuk DITAMPILKAN (diminta
  *  owner 2026-09-03): item non-Asmaul-Husna apa adanya; SEMUA baris
- *  "Asmaul Husna (X sampai Y)" digabung jadi SATU, dan cuma dihitung
- *  kalau rentang yang disampaikan MENUTUPI target penuh kelas
- *  (`dari<=targetMin && sampai>=targetMax`) -- rentang parsial dibuang.
+ *  "Asmaul Husna (X sampai Y)" digabung jadi SATU, dihitung dari UNION
+ *  rentang SELURUH baris pada periode itu (bukan satu baris tunggal --
+ *  diperbaiki 2026-09-13, ERROR_LOG #45: guru mengisi progres bertahap
+ *  per hari, mis. "1 sampai 20" lalu "21 sampai 45", tidak pernah dalam
+ *  satu baris menutupi target penuh kelas sekaligus, jadi versi lama
+ *  TIDAK PERNAH menghitungnya). Baru dianggap tercapai kalau union
+ *  rentang (`min(dari)`..`max(sampai)`) MENUTUPI target penuh kelas.
  *  Kalau target tidak diketahui, Asmaul Husna disembunyikan seluruhnya. */
 export function ringkasPengulanganDoa<
   T extends { nama_doa: string; jumlah: number; terakhir?: string },
@@ -79,15 +83,18 @@ export function ringkasPengulanganDoa<
   if (!target) return hasil;
   let jumlah = 0;
   let terakhir = '';
+  let dariMin: number | null = null;
+  let sampaiMax: number | null = null;
   for (const b of baris) {
     if (!adalahAsmaulHusna(b.nama_doa)) continue;
     const r = uraikanRentangAsmaulHusna(b.nama_doa);
-    if (r && r.dari <= target.dari && r.sampai >= target.sampai) {
-      jumlah += b.jumlah;
-      if ((b.terakhir ?? '') > terakhir) terakhir = b.terakhir ?? '';
-    }
+    if (!r) continue;
+    dariMin = dariMin === null ? r.dari : Math.min(dariMin, r.dari);
+    sampaiMax = sampaiMax === null ? r.sampai : Math.max(sampaiMax, r.sampai);
+    jumlah += b.jumlah;
+    if ((b.terakhir ?? '') > terakhir) terakhir = b.terakhir ?? '';
   }
-  if (jumlah > 0) {
+  if (jumlah > 0 && dariMin !== null && sampaiMax !== null && dariMin <= target.dari && sampaiMax >= target.sampai) {
     hasil.push({
       nama_doa: `Asmaul Husna (${target.dari} sampai ${target.sampai})`,
       jumlah,

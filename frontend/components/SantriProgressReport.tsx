@@ -79,6 +79,7 @@ import {
   ringkasPengulanganDoa,
   uraikanTargetDoa,
   adalahAsmaulHusna,
+  kelasKurikulumSampai,
 } from '@/lib/materiHafalanDoa';
 import { suratDariTargetProta, normalisasiNamaSurat } from '@/lib/hafalanSurat';
 import { muatBukuJilidKelas, labelBukuJilid } from '@/lib/tilawati';
@@ -306,14 +307,23 @@ export default function SantriProgressReport() {
           muatPengulanganKelasDoa(kelasId, awal, akhir),
         ]);
 
-        /* HANYA materi milik grade kelas ini (diminta owner 2026-09-03,
-           "seumpama ngajinya kelas 3 maka cukup tampilkan hasil materi
-           klasikal di kelas 3 saja"). RPC mengembalikan realisasi
-           klasikal RUANG ini apa adanya -- bisa memuat surat/doa jenjang
-           di bawahnya krn cek-list Klasikal di Rencana bersifat kumulatif
-           PAUD-TK s.d. kelas ruang. Saring ke daftar target Prota grade
-           kelas itu sendiri (kelasProtaDari -> satu grade, BUKAN
-           kumulatif). KHUSUS layar ini -- fitur lain tidak disentuh. */
+        /* Surat: HANYA materi milik grade kelas ini (diminta owner
+           2026-09-03, "seumpama ngajinya kelas 3 maka cukup tampilkan
+           hasil materi klasikal di kelas 3 saja"). RPC mengembalikan
+           realisasi klasikal RUANG ini apa adanya -- bisa memuat surat/
+           doa jenjang di bawahnya krn cek-list Klasikal di Rencana
+           bersifat kumulatif PAUD-TK s.d. kelas ruang. Saring ke daftar
+           target Prota grade kelas itu sendiri (kelasProtaDari -> satu
+           grade, BUKAN kumulatif) -- ini AMAN utk Surat krn teks Prota-
+           nya sendiri berbentuk RENTANG "s/d" yg sudah mencakup jenjang
+           di bawahnya.
+
+           Do'a: BEDA (diubah 2026-09-13, ERROR_LOG #45) -- Prota Do'a
+           per-grade cuma daftar do'a BARU semester itu (bukan rentang),
+           jadi kalau disaring grade-sendiri-saja spt Surat, do'a jenjang
+           sebelumnya yg diulang guru hilang semua dari laporan. Do'a
+           dibuat KUMULATIF di bawah (lihat `gradeKumulatif`), Surat
+           TETAP grade-sendiri seperti semula. */
         const kelasProta = kelasDipakai.length === 1 ? kelasProtaDari(kelasDipakai[0].nama) : null;
         const prota = kelasProta
           ? await muatProtaKelompok(KELOMPOK_KURIKULUM_BERSAMA_ID, tahun)
@@ -340,8 +350,26 @@ export default function SantriProgressReport() {
             suratKelas.has(normalisasiNamaSurat(b.nama_surat)),
           );
 
+          /* Do'a KUMULATIF PAUD-TK s.d. grade kelas ini (diubah
+             2026-09-13, diminta owner, ERROR_LOG #45) -- BEDA dari Surat
+             di atas yg cukup grade sendiri (teks Prota Surat "s/d" sudah
+             otomatis mencakup jenjang di bawahnya). Prota Do'a per-grade
+             cuma daftar do'a BARU semester itu (bukan rentang), jadi
+             tanpa union lintas-grade, do'a jenjang sebelumnya yang wajar
+             diulang guru ("Menerampilkan hafalan do'a pada jenjang
+             sebelumnya") hilang semua dari laporan -- persis pola
+             opsiHafalanDoa (RencanaPembelajaranView.tsx) yg SUDAH
+             kumulatif, kartu ini menyusul. */
+          const gradeKumulatif = new Set(kelasKurikulumSampai(kelasDipakai[0].nama));
           const doaKelas = new Set(
-            [barisDoaProta?.target ?? null, barisDoaProta?.target2 ?? null]
+            prota
+              .filter(
+                (p) =>
+                  gradeKumulatif.has(p.kelas ?? '') &&
+                  (namaKategori(p.kategori_kbm) ?? '').toLowerCase().includes('hafalan do') &&
+                  (namaKategori(p.kategori_kbm) ?? '').toLowerCase().includes('harian'),
+              )
+              .flatMap((p) => [p.target, p.target2])
               .flatMap((t) => uraikanTargetDoa(t))
               .map((s) => s.trim().toLowerCase()),
           );
