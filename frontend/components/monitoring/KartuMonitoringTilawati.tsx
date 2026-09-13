@@ -304,19 +304,6 @@ export default function KartuMonitoringTilawati({
           )}
         </div>
       )}
-      {(targetTilawati || targetAlquran) && !loadingTilawati && !errorTilawati && (
-        <div className="mb-5 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2.5">
-          <div className="label-mikro mb-1.5">Keterangan</div>
-          <ul className="space-y-0.5 text-[11px] leading-snug text-text-dim">
-            {(['BB', 'MB', 'BSH', 'BSB'] as StatusPencapaian[]).map((k) => (
-              <li key={k}>
-                <span className="font-bold text-text">{LABEL_STATUS_PENCAPAIAN[k].singkat}</span>{' '}
-                : {LABEL_STATUS_PENCAPAIAN[k].panjang} ({LABEL_STATUS_PENCAPAIAN[k].arti})
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </>
   );
 }

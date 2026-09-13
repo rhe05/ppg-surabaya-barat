@@ -93,6 +93,7 @@ import {
   type HafalanDoaRingkas,
 } from '@/lib/materiHafalanDoa';
 import { pisahTilawatiAlquran, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
+import { LABEL_STATUS_PENCAPAIAN, type StatusPencapaian } from '@/lib/pedomanTilawati';
 import KartuMonitoringTilawati from '@/components/monitoring/KartuMonitoringTilawati';
 
 type KelasRingkas = { id: number; nama: string };
@@ -897,6 +898,27 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
                   </div>
                 ))}
             </>
+          )}
+
+          {/* Keterangan rubrik BB/MB/BSH/BSB -- DIPINDAH ke sini (2026-09-14,
+              diminta owner: "cukup munculkan satu saja dan letakan paling
+              bawah"). Dulu dirender DI DALAM KartuMonitoringTilawati.tsx,
+              sekali per kartu -- kelas lintas-grade (Gabung Kelas) bisa
+              merender kartu Tilawati DAN Al-Qur'an sekaligus, jadi
+              keterangannya dobel. Satu kartu di sini, PALING BAWAH layar,
+              tampil kalau minimal satu kartu Tilawati/Al-Qur'an ada. */}
+          {(tilawatiIds.length > 0 || alquranIds.length > 0) && (
+            <div className="mt-2 rounded-[var(--radius)] border border-border bg-panel-2 px-3 py-2.5">
+              <div className="label-mikro mb-1.5">Keterangan</div>
+              <ul className="space-y-0.5 text-[11px] leading-snug text-text-dim">
+                {(['BB', 'MB', 'BSH', 'BSB'] as StatusPencapaian[]).map((k) => (
+                  <li key={k}>
+                    <span className="font-bold text-text">{LABEL_STATUS_PENCAPAIAN[k].singkat}</span>{' '}
+                    : {LABEL_STATUS_PENCAPAIAN[k].panjang} ({LABEL_STATUS_PENCAPAIAN[k].arti})
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </>
       )}
