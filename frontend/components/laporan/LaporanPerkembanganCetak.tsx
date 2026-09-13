@@ -177,14 +177,21 @@ export type MateriNgajiList = MateriNgaji[];
    Keterangan), sumber beda: lib/hafalanSurat.ts `muatHafalanSuratKelas`
    (tabel hafalan_surat_pelaksanaan, terpisah dari Tilawati/Al-Qur'an). */
 export type HafalanSuratLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
-export type MateriHafalanSurat = { baris: HafalanSuratLaporanBaris[] };
+/* `target` (2026-09-14, diminta owner: "target hafalan surat dan
+   hafalan do'a bisa ambilkan dari kurikulum, saya sudah buatkan prota
+   dan probul nya") -- teks target BULAN BERJALAN dari
+   lib/targetAlquranKurikulum.ts `targetKategoriBulanan` (kurikulum_prota
+   -> promes -> probul kategori "Hafalan Surat-Surat Al-Qur'an"), SUDAH
+   diberi awalan "Target <Bulan>: " -- pola sama persis MateriNgaji.target
+   di atas. null kalau baris Prota/Promes/Probul kelas itu belum diisi. */
+export type MateriHafalanSurat = { baris: HafalanSuratLaporanBaris[]; target?: string | null };
 
 /* "Hafalan Do'a-Do'a Harian" per santri (2026-09-14, diminta owner:
    "tampilkan juga di laporan perkembangan santri") -- kembar PERSIS
    MateriHafalanSurat di atas, sumber lib/materiHafalanDoa.ts
    `muatHafalanDoaKelas` (tabel hafalan_doa_pelaksanaan). */
 export type HafalanDoaLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
-export type MateriHafalanDoa = { baris: HafalanDoaLaporanBaris[] };
+export type MateriHafalanDoa = { baris: HafalanDoaLaporanBaris[]; target?: string | null };
 
 export type LaporanPerkembangan = {
   guruNama: string;
@@ -433,10 +440,18 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
             <div className="cetak-jaga-utuh mb-3 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
               {ngaji && <KartuTargetMateri label={ngaji.judul} warna="var(--indigo)" target={ngaji.target} />}
               {laporan.materiHafalanSurat && (
-                <KartuTargetMateri label="Hafalan Surat" warna="var(--brass)" target={`Target ${laporan.periode}`} />
+                <KartuTargetMateri
+                  label="Hafalan Surat"
+                  warna="var(--brass)"
+                  target={laporan.materiHafalanSurat.target ?? null}
+                />
               )}
               {laporan.materiHafalanDoa && (
-                <KartuTargetMateri label="Hafalan Do'a" warna="var(--violet)" target={`Target ${laporan.periode}`} />
+                <KartuTargetMateri
+                  label="Hafalan Do'a"
+                  warna="var(--violet)"
+                  target={laporan.materiHafalanDoa.target ?? null}
+                />
               )}
             </div>
             <div className="overflow-x-auto rounded-[var(--radius)] border border-border">

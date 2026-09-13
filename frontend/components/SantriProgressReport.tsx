@@ -89,7 +89,8 @@ import {
 } from '@/lib/materiHafalanDoa';
 import { suratDariTargetProta, normalisasiNamaSurat, muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 import { hitungMateriNgaji } from '@/lib/tilawati';
-import { pisahTilawatiAlquran } from '@/lib/kelasKurikulum';
+import { pisahTilawatiAlquran, gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
+import { targetKategoriBulanan } from '@/lib/targetAlquranKurikulum';
 
 type Guru = { id: number; nama: string };
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
@@ -400,13 +401,28 @@ export default function SantriProgressReport() {
          seluruh gabungan (salah target/rubrik utk anggota grade rendah).
          Kegagalan TIDAK menggagalkan seluruh laporan (pola sama
          materiKlasikal). */
+      /* Anggota fisik kelas (dipakai pisahTilawatiAlquran DAN grade
+         tertinggi utk target Hafalan Surat/Do'a di bawah -- SATU sumber,
+         jangan hitung ulang beda cara di tiap blok). */
+      const detailAnggota =
+        kelasDipakai.length === 1
+          ? kelasDipakai[0].anggotaDetail
+          : kelasDipakai.map((k) => ({ id: k.id, nama: k.nama }));
+      /* Grade TERTINGGI di antara anggota (2026-09-14, diminta owner:
+         "target hafalan surat dan hafalan do'a bisa ambilkan dari
+         kurikulum") -- Hafalan Surat/Do'a TIDAK dipisah per-grade spt
+         Tilawati/Al-Qur'an (satu tabel gabungan lintas-grade), jadi
+         targetnya diambil dari grade tertinggi kelas ini, pola SAMA
+         "tertinggi" yang dipakai pisahTilawatiAlquran utk grade Tilawati/
+         Al-Qur'an masing2 bucket. */
+      const gradeTertinggiKelas = detailAnggota.reduce((top, d) => {
+        const g = gradeRuangDari(d.nama);
+        return KELAS_KURIKULUM_URUT.indexOf(g) > KELAS_KURIKULUM_URUT.indexOf(top) ? g : top;
+      }, '');
+
       let materiNgaji: LaporanPerkembangan['materiNgaji'];
       try {
-        const detail =
-          kelasDipakai.length === 1
-            ? kelasDipakai[0].anggotaDetail
-            : kelasDipakai.map((k) => ({ id: k.id, nama: k.nama }));
-        const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = pisahTilawatiAlquran(detail);
+        const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = pisahTilawatiAlquran(detailAnggota);
         const hasil = await Promise.all([
           hitungMateriNgaji(tilawatiIds, tilawatiGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
           hitungMateriNgaji(alquranIds, alquranGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
@@ -426,8 +442,14 @@ export default function SantriProgressReport() {
          materiNgaji). */
       let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
       try {
-        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasIds, awal, akhir);
+        const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
+          muatHafalanSuratKelas(kelasIds, awal, akhir),
+          gradeTertinggiKelas
+            ? targetKategoriBulanan("Hafalan Surat-Surat Al-Qur'an", gradeTertinggiKelas, tahun, bulan)
+            : Promise.resolve(null),
+        ]);
         materiHafalanSurat = {
+          target: targetHafalanSurat ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanSurat}` : null,
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan
@@ -452,8 +474,14 @@ export default function SantriProgressReport() {
          seluruh laporan (pola sama materiHafalanSurat). */
       let materiHafalanDoa: LaporanPerkembangan['materiHafalanDoa'];
       try {
-        const hafalanDoaKelas = await muatHafalanDoaKelas(kelasIds, awal, akhir);
+        const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
+          muatHafalanDoaKelas(kelasIds, awal, akhir),
+          gradeTertinggiKelas
+            ? targetKategoriBulanan("Hafalan Do'a-Do'a Harian", gradeTertinggiKelas, tahun, bulan)
+            : Promise.resolve(null),
+        ]);
         materiHafalanDoa = {
+          target: targetHafalanDoa ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanDoa}` : null,
           baris: hafalanDoaKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',

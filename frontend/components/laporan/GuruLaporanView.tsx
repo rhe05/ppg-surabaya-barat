@@ -82,6 +82,8 @@ import LaporanPerkembanganCetak, {
 } from '@/components/laporan/LaporanPerkembanganCetak';
 import { muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 import { muatHafalanDoaKelas } from '@/lib/materiHafalanDoa';
+import { gradeRuangDari } from '@/lib/kelasKurikulum';
+import { targetKategoriBulanan } from '@/lib/targetAlquranKurikulum';
 
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
    "tanpa batas waktu", 2026-09-13) -- dari muatKelasGuru(), lihat
@@ -332,10 +334,22 @@ export default function GuruLaporanView() {
       if (kelasId === '') return; // sudah dicegat buatLaporan(), narrow tipe saja
       const { awal, akhir } = batasBulan(tahun, bulan);
       const kelasIds = kelasList.find((k) => k.id === kelasId)?.anggotaId ?? [kelasId];
+      /* Grade kelas ini (2026-09-14, diminta owner: "target hafalan surat
+         dan hafalan do'a bisa ambilkan dari kurikulum") -- versi guru
+         TIDAK memisah lintas-grade spt admin desktop (lihat catatan
+         PUTARAN KELIMA di atas, materiNgaji sengaja tidak diisi di sini),
+         jadi cukup grade dari nama kelas terpilih apa adanya. */
+      const gradeKelasIni = gradeRuangDari(kelasDipilih?.nama ?? '');
       let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
       try {
-        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasIds, awal, akhir);
+        const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
+          muatHafalanSuratKelas(kelasIds, awal, akhir),
+          gradeKelasIni
+            ? targetKategoriBulanan("Hafalan Surat-Surat Al-Qur'an", gradeKelasIni, tahun, bulan)
+            : Promise.resolve(null),
+        ]);
         materiHafalanSurat = {
+          target: targetHafalanSurat ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanSurat}` : null,
           baris: hafalanSuratKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan
@@ -358,8 +372,14 @@ export default function GuruLaporanView() {
          muatHafalanDoaKelas. Kegagalan TIDAK menggagalkan seluruh laporan. */
       let materiHafalanDoa: LaporanPerkembangan['materiHafalanDoa'];
       try {
-        const hafalanDoaKelas = await muatHafalanDoaKelas(kelasIds, awal, akhir);
+        const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
+          muatHafalanDoaKelas(kelasIds, awal, akhir),
+          gradeKelasIni
+            ? targetKategoriBulanan("Hafalan Do'a-Do'a Harian", gradeKelasIni, tahun, bulan)
+            : Promise.resolve(null),
+        ]);
         materiHafalanDoa = {
+          target: targetHafalanDoa ? `Target ${NAMA_BULAN[bulan - 1]}: ${targetHafalanDoa}` : null,
           baris: hafalanDoaKelas.map((s) => ({
             nama: s.nama,
             pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
