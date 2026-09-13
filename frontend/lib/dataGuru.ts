@@ -76,6 +76,12 @@ export type KelasJurnal = {
      pakai `.in('kelas_id', anggotaId)`, BUKAN `.eq('kelas_id', id)` --
      lihat lib/kelasGabungGilir.ts `terapkanGabunganAktif`. */
   anggotaId: number[];
+  /* id+NAMA ASLI tiap kelas fisik tergabung (2026-09-13, diminta owner:
+     "gabungan dua kelas ... card Tilawati utk anak kelas 3, card
+     Al-Qur'an utk anak kelas 4") -- dipakai lib/kelasKurikulum.ts
+     `pisahTilawatiAlquran` menentukan grade PER ANGGOTA (nama gabungan
+     di atas sudah disambung " & ", tidak bisa lagi dipakai per-anggota). */
+  anggotaDetail: { id: number; nama: string }[];
 };
 
 /** Daftar kelas yang diampu seorang guru. Dipakai semua layar guru.

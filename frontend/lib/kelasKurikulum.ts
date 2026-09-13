@@ -26,3 +26,38 @@ export function kelasTargetKumulatif(namaRuangRaw: string): string[] {
   const batasAtas = angka.length > 0 ? Math.max(...angka) : 0;
   return KELAS_KURIKULUM_URUT.slice(0, batasAtas + 1);
 }
+
+/* ── Kartu "Tilawati" vs "Al-Qur'an" bercabang per ANGGOTA gabungan
+   (2026-09-13, diminta owner: "dikarenakan gabungan dua kelas ...
+   munculkan dua card, card Tilawati utk anak kelas 3, card Al-Qur'an
+   utk anak kelas 4") -- SEBELUM Gabung Kelas, satu kelas fisik = satu
+   grade = satu kartu (pakaiAlquran polos). Kelas GABUNGAN bisa memuat
+   DUA grade sekaligus (mis. kelas 3 + Pra Remaja SMP), jadi keputusan
+   "Tilawati atau Al-Qur'an" harus dihitung PER ANGGOTA fisik, bukan per
+   grade tertinggi gabungan (yg akan salah memaksa SEMUA anak masuk
+   kartu Al-Qur'an walau sebagian masih kelas 3). */
+import { KELAS_LABEL_BACA_HURUF } from './kategori';
+
+export function gradeRuangDari(namaRuang: string): string {
+  return kelasTargetKumulatif(namaRuang).at(-1) ?? '';
+}
+
+export function pakaiAlquranUntukGrade(grade: string): boolean {
+  return !KELAS_LABEL_BACA_HURUF.includes(grade);
+}
+
+/** Pisahkan anggota gabungan (id+nama kelas fisik) jadi dua kelompok
+ *  kelas_id: yang masih Tilawati (grade PAUD-TK s.d. 3) & yang sudah
+ *  Al-Qur'an (grade 4+). Kelas TANPA gabungan aktif selalu masuk SATU
+ *  kelompok saja (anggotaDetail cuma berisi dirinya sendiri). */
+export function pisahTilawatiAlquran(
+  anggotaDetail: { id: number; nama: string }[],
+): { tilawatiIds: number[]; alquranIds: number[] } {
+  const tilawatiIds: number[] = [];
+  const alquranIds: number[] = [];
+  for (const a of anggotaDetail) {
+    const grade = gradeRuangDari(a.nama);
+    (pakaiAlquranUntukGrade(grade) ? alquranIds : tilawatiIds).push(a.id);
+  }
+  return { tilawatiIds, alquranIds };
+}

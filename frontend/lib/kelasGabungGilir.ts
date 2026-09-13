@@ -169,7 +169,18 @@ export async function muatGabunganAktifKelompok(kelompokId: number): Promise<Gab
 }
 
 export type KelasBisaGabung = { id: number; nama: string; santri_count: number | null };
-export type KelasTergabung<T> = T & { anggotaId: number[] };
+export type AnggotaGabung = { id: number; nama: string };
+export type KelasTergabung<T> = T & {
+  anggotaId: number[];
+  /* id+NAMA ASLI tiap kelas fisik tergabung (2026-09-13, diminta owner:
+     "gabungan dua kelas ... untuk anak kelas 3 di card Tilawati, anak
+     kelas 4 di card Al-Qur'an") -- `nama` di objek gabungan sudah
+     disambung " & ", jadi tidak bisa lagi dipakai menentukan grade per
+     ANGGOTA; pakai anggotaDetail + lib/kelasKurikulum.ts
+     `kelasTargetKumulatif` utk itu. Selalu berisi minimal diri sendiri,
+     walau tidak sedang gabung. */
+  anggotaDetail: AnggotaGabung[];
+};
 
 /** Terapkan penggabungan aktif ke daftar kelas seorang guru:
  *  - Kelas yang SEDANG digabung KE kelas lain (`kelas_id` di kelas_gabung)
@@ -190,7 +201,8 @@ export async function terapkanGabunganAktif<T extends KelasBisaGabung>(
 ): Promise<KelasTergabung<T>[]> {
   if (kelasMilik.length === 0) return [];
   const gabungan = await muatGabunganAktifKelompok(kelompokId);
-  if (gabungan.length === 0) return kelasMilik.map((k) => ({ ...k, anggotaId: [k.id] }));
+  if (gabungan.length === 0)
+    return kelasMilik.map((k) => ({ ...k, anggotaId: [k.id], anggotaDetail: [{ id: k.id, nama: k.nama }] }));
 
   const petaMilik = new Map(kelasMilik.map((k) => [k.id, k]));
   const terlipat = new Set(gabungan.map((g) => g.kelas_id));
@@ -213,7 +225,7 @@ export async function terapkanGabunganAktif<T extends KelasBisaGabung>(
     if (terlipat.has(k.id)) continue;
     const anggota = gabungan.filter((g) => g.kelas_induk_id === k.id);
     if (anggota.length === 0) {
-      hasil.push({ ...k, anggotaId: [k.id] });
+      hasil.push({ ...k, anggotaId: [k.id], anggotaDetail: [{ id: k.id, nama: k.nama }] });
       continue;
     }
     const namaAnggota = anggota.map((g) => cariAnggota(g.kelas_id)?.nama).filter((n): n is string => !!n);
@@ -223,6 +235,10 @@ export async function terapkanGabunganAktif<T extends KelasBisaGabung>(
       nama: [k.nama, ...namaAnggota].join(' & '),
       santri_count: (k.santri_count ?? 0) + santriTambahan,
       anggotaId: [k.id, ...anggota.map((g) => g.kelas_id)],
+      anggotaDetail: [
+        { id: k.id, nama: k.nama },
+        ...anggota.map((g) => ({ id: g.kelas_id, nama: cariAnggota(g.kelas_id)?.nama ?? `#${g.kelas_id}` })),
+      ],
     });
   }
   return hasil;

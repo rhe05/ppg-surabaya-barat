@@ -6,8 +6,121 @@
 
 import { supabase } from './supabase';
 import { posisiTilawati } from './pedomanTilawati';
+import { DAFTAR_SURAT } from './suratAlQuran';
 
 export type TilawatiStatus = 'naik' | 'tetap';
+
+/* ── Konstanta & helper borang input Tilawati/Al-Qur'an (2026-09-13,
+   dipindah dari PelaksanaanPembelajaranView.tsx) -- dipakai bersama
+   komponen kartu itu & KartuTilawatiAlquran.tsx (kartu ganda utk kelas
+   Gabung Kelas lintas-grade), supaya tidak diam-diam ngedrift kalau
+   ditulis dua kali. Tilawati: Buku Jilid maks 6, Halaman maks 44
+   (diminta owner). Lanjutan Al-Qur'an (2026-09-11): setelah Jilid 6,
+   "Juz 1".."Juz 30" -- nilainya string persis "Juz N" (dicek
+   labelBukuJilid()/posisiTilawati() di atas/bawah supaya tetap terurut &
+   terformat benar di layar lain). */
+export const TILAWATI_MAKS_JILID = 6;
+export const TILAWATI_MAKS_JUZ = 30;
+export const TILAWATI_MAKS_HALAMAN = 44;
+/* Buku Jilid: "Paud" (buku sebelum Jilid 1), Jilid 1-6, lalu Juz 1-30. */
+export const OPSI_BUKU_JILID = [
+  { value: 'Paud', label: 'Paud' },
+  ...Array.from({ length: TILAWATI_MAKS_JILID }, (_, i) => ({
+    value: String(i + 1),
+    label: `Jilid ${i + 1}`,
+  })),
+  ...Array.from({ length: TILAWATI_MAKS_JUZ }, (_, i) => ({
+    value: `Juz ${i + 1}`,
+    label: `Juz ${i + 1}`,
+  })),
+];
+/* Kartu "Al-Qur'an" kelas 4+ (2026-09-12, diminta owner): Juz 1-30 polos
+   (tanpa Paud/Jilid -- itu punya OPSI_BUKU_JILID di atas, khusus kartu
+   Tilawati kelas PAUD-TK s.d. 3) + 114 Surat (lib/suratAlQuran.ts).
+   value HARUS format "Juz N" (bukan angka polos) -- disimpan langsung ke
+   kolom `buku_jilid` yang sama dgn dipakai OPSI_BUKU_JILID/
+   lanjutkanTilawati/labelBukuJilid/posisiTilawati, yang semuanya
+   mengenali pola persis "Juz N" via regex. Angka polos akan salah
+   dibaca sbg Jilid N biasa di layar lain (Riwayat/Ringkasan/Monitoring). */
+export const OPSI_JUZ_ALQURAN = Array.from({ length: TILAWATI_MAKS_JUZ }, (_, i) => ({
+  value: `Juz ${i + 1}`,
+  label: `Juz ${i + 1}`,
+}));
+export const OPSI_SURAT_ALQURAN = DAFTAR_SURAT.map((s) => ({
+  value: s.nama,
+  label: `${s.nomor}. ${s.nama}`,
+  sublabel: `${s.jumlahAyat} ayat`,
+}));
+export function jepitTilawati(v: string, maks: number): string {
+  const d = v.replace(/[^0-9]/g, '');
+  if (d === '') return '';
+  return String(Math.min(Math.max(Number(d), 1), maks));
+}
+/* Halaman Tilawati disimpan sbg SATU kolom teks di DB (tak berubah,
+   tanpa migrasi) -- tapi diedit lewat DUA kolom kecil "Dari"/"Sampai"
+   (diminta owner 2026-09-12: kadang generus baca lebih dari 1 halaman
+   dalam satu pertemuan). "24" (satu halaman) tetap tersimpan apa
+   adanya; "24-25" (rentang) cuma dipakai kalau dari != sampai --
+   backward-compatible dgn catatan lama yang masih satu angka polos. */
+export function uraikanHalaman(h: string): { dari: string; sampai: string } {
+  const cocok = h.match(/^(\d+)\s*-\s*(\d+)$/);
+  if (cocok) return { dari: cocok[1], sampai: cocok[2] };
+  return { dari: h, sampai: h };
+}
+export function gabungHalaman(dari: string, sampai: string): string {
+  if (dari === '' && sampai === '') return '';
+  const d = dari || sampai;
+  const s = sampai || dari;
+  return d === s ? d : `${d}-${s}`;
+}
+/* Prefill hari ini dari catatan terakhir: kalau terakhir "naik", halaman
+   maju satu; kalau lewat 44, pindah jilid berikutnya halaman 1 (maks
+   jilid 6). Status hari ini dikosongkan -- guru yang memutuskan. */
+export function lanjutkanTilawati(last: { jilid: string; halaman: string; status: string }): {
+  jilid: string;
+  halaman: string;
+  surat: string;
+  ayat: string;
+  status: '' | 'naik' | 'tetap';
+} {
+  const cocokJuz = last.jilid.match(/^Juz\s*(\d+)$/i);
+  let juz: number | null = cocokJuz ? Number(cocokJuz[1]) : null;
+  let jil: number | null = cocokJuz ? null : Number(last.jilid);
+  if (jil != null && !Number.isFinite(jil)) jil = null;
+  /* Lanjutkan dari SISI "sampai" -- kalau kemarin rentang "24-25" (baca
+     2 halaman), besok mulai dari halaman 26, bukan dari 24 lagi. */
+  let hal = Number(uraikanHalaman(last.halaman).sampai);
+  if (last.status === 'naik' && Number.isFinite(hal) && hal >= 1) {
+    hal += 1;
+    if (hal > TILAWATI_MAKS_HALAMAN) {
+      hal = 1;
+      if (juz != null) {
+        juz = Math.min(juz + 1, TILAWATI_MAKS_JUZ);
+      } else if (jil != null && jil >= 1) {
+        if (jil >= TILAWATI_MAKS_JILID) {
+          juz = 1;
+          jil = null;
+        } else {
+          jil += 1;
+        }
+      }
+    }
+  }
+  const jilidBaru =
+    juz != null
+      ? `Juz ${juz}`
+      : jil != null && jil >= 1
+        ? String(Math.min(jil, TILAWATI_MAKS_JILID))
+        : last.jilid;
+  return {
+    jilid: jilidBaru,
+    halaman:
+      Number.isFinite(hal) && hal >= 1 ? String(Math.min(hal, TILAWATI_MAKS_HALAMAN)) : last.halaman,
+    surat: '',
+    ayat: '',
+    status: '',
+  };
+}
 
 /* Label tampil Buku Jilid -- "Paud" -> "Tilawati Paud", "Juz N" (lanjutan
    Al-Qur'an setelah khatam Jilid 6, 2026-09-11) tampil apa adanya (JANGAN
