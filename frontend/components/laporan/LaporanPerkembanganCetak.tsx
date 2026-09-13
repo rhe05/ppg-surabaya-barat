@@ -332,18 +332,31 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         </div>
       )}
 
-      {/* Materi Ngaji -- SEPARATE dari Materi Klasikal (bukan hafalan
-          kelompok, per santri): "di bawah Hafalan Do'a" (diminta owner
-          2026-09-12). */}
-      {laporan.materiNgaji && (
+      {/* Materi Ngaji + Hafalan Surat-Surat Al-Qur'an -- SATU tabel
+          (diubah 2026-09-13, diminta owner: "letakan di sebelah Bacaan
+          Al-Qur'an ... namanya ngikut, tidak terlalu banyak kolom
+          [tabel]" -- sebelumnya dua tabel terpisah tiap-tiap py kolom
+          Nama sendiri, jadi nama santri tampil dobel). Digabung per
+          santri lewat Map nama -> baris Hafalan Surat (kedua daftar
+          berasal dari roster kelas yang sama, tapi dicocokkan by nama,
+          BUKAN by index -- lebih aman kalau suatu saat sumbernya beda
+          urutan). Kolom Hafalan Surat hanya muncul kalau datanya ADA
+          (laporan.materiHafalanSurat ada). Section TETAP muncul kalau
+          SALAH SATU ada saja -- kelas tanpa grade angka (mis. "Pra
+          Remaja SMP") tidak punya materiNgaji (kelasProtaDari -> null)
+          tapi tetap bisa punya catatan Hafalan Surat. */}
+      {(laporan.materiNgaji || laporan.materiHafalanSurat) && (
         <div className="cetak-jaga-utuh mt-5 sm:mt-6">
           <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            Materi Ngaji
+            {laporan.materiNgaji ? 'Materi Ngaji' : "Hafalan Surat-Surat Al-Qur'an"}
           </div>
-          <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
-            {laporan.materiNgaji.judul}
-          </div>
-          {laporan.materiNgaji.target && (
+          {laporan.materiNgaji && (
+            <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
+              {laporan.materiNgaji.judul}
+              {laporan.materiHafalanSurat ? " & Hafalan Surat-Surat Al-Qur'an" : ''}
+            </div>
+          )}
+          {laporan.materiNgaji?.target && (
             <div className="mb-2.5 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
               {laporan.materiNgaji.target}
             </div>
@@ -352,9 +365,13 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
             <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
               <thead className="border-b border-border bg-panel-2">
                 <tr>
-                  {['Nama', 'Pencapaian', 'Keterangan'].map((h) => (
+                  {[
+                    'Nama',
+                    ...(laporan.materiNgaji ? ['Pencapaian', 'Keterangan'] : []),
+                    ...(laporan.materiHafalanSurat ? ['Hafalan Surat', 'Keterangan'] : []),
+                  ].map((h, i) => (
                     <th
-                      key={h}
+                      key={`${h}-${i}`}
                       className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
                     >
                       {h}
@@ -363,64 +380,46 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                 </tr>
               </thead>
               <tbody>
-                {laporan.materiNgaji.baris.length === 0 ? (
+                {(laporan.materiNgaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).length === 0 ? (
                   <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-text-faint">
-                      Belum ada santri di kelas ini.
-                    </td>
-                  </tr>
-                ) : (
-                  laporan.materiNgaji.baris.map((b) => (
-                    <tr key={b.nama}>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.pencapaian}</td>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.keterangan}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Hafalan Surat-Surat Al-Qur'an -- SEPARATE dari Materi Ngaji (per
-          santri, tabel hafalan_surat_pelaksanaan), "di bawah Materi
-          Ngaji" (2026-09-13, diminta owner). */}
-      {laporan.materiHafalanSurat && (
-        <div className="cetak-jaga-utuh mt-5 sm:mt-6">
-          <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            Hafalan Surat-Surat Al-Qur&rsquo;an
-          </div>
-          <div className="overflow-x-auto rounded-[var(--radius)] border border-border">
-            <table className="w-full border-collapse text-left text-[12px] sm:text-[13px]">
-              <thead className="border-b border-border bg-panel-2">
-                <tr>
-                  {['Nama', 'Pencapaian', 'Keterangan'].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 py-2.5 text-[10px] font-bold tracking-[0.3px] text-text uppercase sm:px-4 sm:py-3 sm:text-[11px]"
+                    <td
+                      colSpan={1 + (laporan.materiNgaji ? 2 : 0) + (laporan.materiHafalanSurat ? 2 : 0)}
+                      className="px-4 py-8 text-center text-text-faint"
                     >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {laporan.materiHafalanSurat.baris.length === 0 ? (
-                  <tr>
-                    <td colSpan={3} className="px-4 py-8 text-center text-text-faint">
                       Belum ada santri di kelas ini.
                     </td>
                   </tr>
                 ) : (
-                  laporan.materiHafalanSurat.baris.map((b) => (
-                    <tr key={b.nama}>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.pencapaian}</td>
-                      <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.keterangan}</td>
-                    </tr>
-                  ))
+                  (laporan.materiNgaji?.baris ?? laporan.materiHafalanSurat?.baris ?? []).map((b) => {
+                    const hs = laporan.materiHafalanSurat?.baris.find((h) => h.nama === b.nama);
+                    return (
+                      <tr key={b.nama}>
+                        <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">{b.nama}</td>
+                        {laporan.materiNgaji && (
+                          <>
+                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                              {b.pencapaian}
+                            </td>
+                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                              {b.keterangan}
+                            </td>
+                          </>
+                        )}
+                        {laporan.materiHafalanSurat && (
+                          <>
+                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                              {laporan.materiNgaji ? (hs?.pencapaian ?? '—') : b.pencapaian}
+                            </td>
+                            <td className="border-b border-border px-3 py-2 text-text sm:px-4 sm:py-2.5">
+                              {laporan.materiNgaji
+                                ? (hs?.keterangan ?? 'Belum ada catatan bulan ini')
+                                : b.keterangan}
+                            </td>
+                          </>
+                        )}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
