@@ -296,11 +296,11 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
           </div>
 
           <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
-            Hafalan Surat
+            Hafalan Surat Klasikal
           </div>
           {laporan.materiKlasikal.hafSurat.length === 0 ? (
             <div className="mb-4 text-[11px] text-text-faint">
-              Belum ada materi Klasikal Hafalan Surat yang disampaikan pada periode ini.
+              Belum ada Hafalan Surat Klasikal yang disampaikan pada periode ini.
             </div>
           ) : (
             <div className="mb-4 grid grid-cols-2 divide-x divide-y divide-border overflow-hidden rounded-xl border border-border sm:grid-cols-5">
@@ -340,28 +340,41 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
         </div>
       )}
 
-      {/* Materi Ngaji + Hafalan Surat-Surat Al-Qur'an -- SATU tabel
-          (diubah 2026-09-13, diminta owner: "letakan di sebelah Bacaan
-          Al-Qur'an ... namanya ngikut, tidak terlalu banyak kolom
-          [tabel]" -- sebelumnya dua tabel terpisah tiap-tiap py kolom
-          Nama sendiri, jadi nama santri tampil dobel). Digabung per
-          santri lewat Map nama -> baris Hafalan Surat (kedua daftar
-          berasal dari roster kelas yang sama, tapi dicocokkan by nama,
-          BUKAN by index -- lebih aman kalau suatu saat sumbernya beda
-          urutan). Kolom Hafalan Surat hanya muncul kalau datanya ADA
+      {/* Materi Ngaji + Hafalan Surat Materi Ngaji -- SATU tabel (diubah
+          2026-09-13, diminta owner: "letakan di sebelah Bacaan Al-Qur'an
+          ... namanya ngikut, tidak terlalu banyak kolom [tabel]" --
+          sebelumnya dua tabel terpisah tiap-tiap py kolom Nama sendiri,
+          jadi nama santri tampil dobel). Digabung per santri lewat Map
+          nama -> baris Hafalan Surat (kedua daftar berasal dari roster
+          kelas yang sama, tapi dicocokkan by nama, BUKAN by index --
+          lebih aman kalau suatu saat sumbernya beda urutan). Kolom
+          Hafalan Surat hanya muncul kalau datanya ADA
           (laporan.materiHafalanSurat ada). Section TETAP muncul kalau
           SALAH SATU ada saja -- kelas tanpa grade angka (mis. "Pra
           Remaja SMP") tidak punya materiNgaji (kelasProtaDari -> null)
-          tapi tetap bisa punya catatan Hafalan Surat. */}
+          tapi tetap bisa punya catatan Hafalan Surat.
+
+          ⚠️ PENAMAAN (2026-09-13, diminta owner, laporan kelas Baban Kelp
+          Petemon): "Hafalan Surat" polos dipakai DUA KALI dgn ARTI BEDA
+          di laporan yang sama -- sub-judul "Materi Klasikal" di atas
+          (aggregat class-wide dari checklist Klasikal, RPC
+          jurnal_pengulangan_kelas) vs kolom tabel di sini (PER SANTRI,
+          dari kartu "Hafalan Surat-Surat Al-Qur'an" di Pelaksanaan,
+          tabel hafalan_surat_pelaksanaan) -- data & sumbernya BEDA TOTAL
+          walau namanya kebetulan sama, gampang disalahsangka satu
+          fitur/dobel-hitung. Label di sini & di "Materi Klasikal" SELALU
+          diberi akhiran "Klasikal"/"Materi Ngaji" spy tidak ambigu lagi
+          (pola SAMA dgn Monitoring Pencapaian Materi yg SUDAH benar:
+          "Klasikal - Hafalan Surat" vs "Hafalan Surat-Surat Al-Qur'an"). */}
       {(laporan.materiNgaji || laporan.materiHafalanSurat) && (
         <div className="cetak-jaga-utuh mt-5 sm:mt-6">
           <div className="mb-2.5 text-[12px] font-bold tracking-[0.3px] text-text uppercase sm:text-[12.5px]">
-            {laporan.materiNgaji ? 'Materi Ngaji' : "Hafalan Surat-Surat Al-Qur'an"}
+            {laporan.materiNgaji ? 'Materi Ngaji' : 'Hafalan Surat Materi Ngaji'}
           </div>
           {laporan.materiNgaji && (
             <div className="mb-1.5 text-[11px] font-bold tracking-[0.3px] text-text-dim uppercase">
               {laporan.materiNgaji.judul}
-              {laporan.materiHafalanSurat ? " & Hafalan Surat-Surat Al-Qur'an" : ''}
+              {laporan.materiHafalanSurat ? ' & Hafalan Surat Materi Ngaji' : ''}
             </div>
           )}
           {laporan.materiNgaji?.target && (
@@ -376,7 +389,7 @@ export default function LaporanPerkembanganCetak({ laporan }: { laporan: Laporan
                   {[
                     'Nama',
                     ...(laporan.materiNgaji ? ['Pencapaian', 'Keterangan'] : []),
-                    ...(laporan.materiHafalanSurat ? ['Hafalan Surat', 'Keterangan'] : []),
+                    ...(laporan.materiHafalanSurat ? ['Hafalan Surat (Materi Ngaji)', 'Keterangan'] : []),
                   ].map((h, i) => (
                     <th
                       key={`${h}-${i}`}

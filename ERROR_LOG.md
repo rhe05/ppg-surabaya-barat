@@ -1690,6 +1690,35 @@ materi yang benar-benar diinput guru.
 
 ---
 
+## #46 — "Hafalan Surat" ambigu (2 fitur beda nama sama) di Laporan Perkembangan Santri (2026-09-13)
+
+**Gejala** (owner/admin, laporan kelas Baban Kelp Petemon): label "Hafalan
+Surat" muncul dua kali di laporan yang sama dengan ARTI BEDA -- sub-judul
+di bawah "Materi Klasikal" (aggregat class-wide dari checklist Klasikal,
+RPC `jurnal_pengulangan_kelas`) vs kolom tabel di bawah "Materi Ngaji"
+(PER SANTRI, dari kartu "Hafalan Surat-Surat Al-Qur'an" di Pelaksanaan,
+tabel `hafalan_surat_pelaksanaan`) -- terlihat spt satu fitur/dobel-hitung
+padahal sumber datanya beda total.
+
+**Akar masalah**: penamaan, bukan bug data -- kedua sumber memang berbeda
+sejak awal (lihat [[ppg-hafalan-surat-pelaksanaan-2026-09-13]]), tapi
+label di `LaporanPerkembanganCetak.tsx` sama-sama cuma "Hafalan Surat"
+polos. Monitoring Pencapaian Materi SUDAH benar sejak awal ("Klasikal -
+Hafalan Surat" vs "Hafalan Surat-Surat Al-Qur'an") -- laporan ini yang
+belum ikut pola itu.
+
+**Perbaikan**: label diberi akhiran eksplisit -- "Hafalan Surat Klasikal"
+(di bawah Materi Klasikal) vs "Hafalan Surat (Materi Ngaji)" (kolom tabel
+gabungan Materi Ngaji, judul section fallback jadi "Hafalan Surat Materi
+Ngaji" kalau kelas tak punya grade angka spt "Pra Remaja SMP").
+
+**Pelajaran**: kalau dua fitur beda sumber data kebetulan punya nama
+domain yang sama ("Hafalan Surat"), WAJIB beri qualifier di SETIAP label
+yang bisa tampil berdekatan -- jangan asumsikan konteks section di
+atasnya cukup menjelaskan, terutama di laporan cetak yang dibaca sekilas.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
