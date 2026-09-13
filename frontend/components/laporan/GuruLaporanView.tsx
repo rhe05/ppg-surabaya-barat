@@ -80,6 +80,7 @@ import { muatKelasGuru, muatKalenderKelompok } from '@/lib/dataGuru';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
+import { muatHafalanSuratKelas } from '@/lib/hafalanSurat';
 
 type Kelas = { id: number; nama: string; jam_mulai: string | null; jam_selesai: string | null; ruangan: string | null };
 type Santri = { id: number; nama: string; kelas_id: number | null };
@@ -309,6 +310,34 @@ export default function GuruLaporanView() {
           : '—';
       const ruanganLabel = kelasDipilih?.ruangan || '—';
 
+      /* Hafalan Surat-Surat Al-Qur'an -- PER SANTRI (2026-09-13, diminta
+         owner: sudah ada di versi admin desktop, tampilkan jg di sini).
+         BEDA dari materiKlasikal/materiNgaji yg sengaja tidak diisi di
+         versi guru (lihat catatan PUTARAN KELIMA SantriProgressReport.tsx)
+         -- fitur ini diminta eksplisit jg utk mobile. Kegagalan TIDAK
+         menggagalkan seluruh laporan. */
+      if (kelasId === '') return; // sudah dicegat buatLaporan(), narrow tipe saja
+      const { awal, akhir } = batasBulan(tahun, bulan);
+      let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
+      try {
+        const hafalanSuratKelas = await muatHafalanSuratKelas(kelasId, awal, akhir);
+        materiHafalanSurat = {
+          baris: hafalanSuratKelas.map((s) => ({
+            nama: s.nama,
+            pencapaian: s.adaCatatan
+              ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
+              : '—',
+            keterangan: s.adaCatatan
+              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                  .filter(Boolean)
+                  .join(', ') || '—'
+              : 'Belum ada catatan bulan ini',
+          })),
+        };
+      } catch {
+        materiHafalanSurat = undefined;
+      }
+
       setLaporan({
         guruNama: profile?.display_name ?? '-',
         periode: `${NAMA_BULAN[bulan - 1]} ${tahun}`,
@@ -322,6 +351,7 @@ export default function GuruLaporanView() {
         totalAlpa: baris.filter((b) => b.status === 'Alpa').length,
         totalSakit: baris.filter((b) => b.status === 'Sakit').length,
         baris,
+        materiHafalanSurat,
       });
     } catch (e) {
       setErrorMuat(e instanceof Error ? e.message : 'Gagal membuat laporan.');
