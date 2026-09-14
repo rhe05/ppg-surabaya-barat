@@ -9,7 +9,7 @@
      peran, kelompok). */
 
 import Image from 'next/image';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -21,6 +21,7 @@ import {
   History,
   Layers,
   LogOut,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -50,10 +51,40 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const tombolRef = useRef<HTMLButtonElement>(null);
 
+  /* Prefetch semua tujuan drawer sekali di mount, pola SAMA PERSIS
+     GuruBottomNav.tsx/AdminBottomNav.tsx. */
+  useEffect(() => {
+    for (const m of DRAWER) router.prefetch(m.href);
+  }, [router]);
+
+  /* Tujuan yg sedang dinavigasi dari drawer -- pola SAMA PERSIS
+     GuruBottomNav.tsx/AdminBottomNav.tsx (2026-09-14, diminta owner:
+     "sekarang untuk admin dan penerobos" -- audit menyeluruh
+     menemukan drawer ini py bug identik: ditutup SEKETIKA sebelum
+     navigasi selesai, menyingkap halaman sebelumnya sesaat). Drawer
+     TETAP TERBUKA (item yg diklik diberi spinner, item lain
+     diredupkan+dikunci) sampai `isPending` selesai, baru ditutup. */
+  const [tujuanDinavigasi, setTujuanDinavigasi] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (tujuanDinavigasi && !isPending) {
+      setDrawer(false);
+      setTujuanDinavigasi(null);
+    }
+  }, [isPending, tujuanDinavigasi]);
+
   function bukaMenu() {
     const r = tombolRef.current?.getBoundingClientRect();
     if (r) setPos({ top: r.bottom + 8, right: Math.max(8, window.innerWidth - r.right) });
     setDrawer(true);
+  }
+
+  function pergi(href: string) {
+    setTujuanDinavigasi(href);
+    startTransition(() => {
+      router.push(href);
+    });
   }
 
   async function keluar() {
@@ -130,23 +161,27 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
               {DRAWER.map((m) => {
                 const Ikon = m.ikon;
                 const on = pathname === m.href || pathname.startsWith(m.href + '/');
+                const sedangDituju = tujuanDinavigasi === m.href && isPending;
                 return (
                   <button
                     key={m.href}
                     type="button"
                     role="menuitem"
-                    onClick={() => {
-                      setDrawer(false);
-                      router.push(m.href);
-                    }}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left active:bg-bg"
+                    onClick={() => pergi(m.href)}
+                    disabled={isPending}
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left transition-opacity duration-150 active:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
+                    style={sedangDituju ? { opacity: 1 } : undefined}
                   >
                     <span
                       className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] ${
                         on ? 'bg-navy text-white' : 'bg-navy-lembut text-navy'
                       }`}
                     >
-                      <Ikon size={16} strokeWidth={2} />
+                      {sedangDituju ? (
+                        <Loader2 size={16} strokeWidth={2} className="animate-spin" />
+                      ) : (
+                        <Ikon size={16} strokeWidth={2} />
+                      )}
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[13px] font-semibold text-text">{m.label}</span>
@@ -160,7 +195,8 @@ export default function JamaahChrome({ tampilkanHero = false }: { tampilkanHero?
                 type="button"
                 role="menuitem"
                 onClick={keluar}
-                className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left text-[13px] font-semibold text-red active:bg-bg"
+                disabled={isPending}
+                className="flex w-full cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-2.5 text-left text-[13px] font-semibold text-red disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-red-lembut text-red">
                   <LogOut size={16} strokeWidth={2} />
