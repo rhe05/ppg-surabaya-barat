@@ -590,11 +590,22 @@ export default function PengumumanKbmComposer({
      biaya, proses sangat cepat, dan tidak berpengaruh ke supabase") --
      skema URL "wa.me/?text=..." bawaan WhatsApp: TANPA nomor tujuan,
      jadi WhatsApp sendiri yang menampilkan pemilih kontak/grup ke siapa
-     mau dikirim. 100% klien (buka tab baru ke wa.me), TIDAK ada
-     panggilan Supabase sama sekali -- terpisah total dari `simpan()`
-     (yang menulis ke tabel `pengumuman`). */
+     mau dikirim. 100% klien, TIDAK ada panggilan Supabase sama sekali --
+     terpisah total dari `simpan()` (yang menulis ke tabel `pengumuman`).
+
+     ⚠️ `location.href`, BUKAN `window.open(..., '_blank')` (diminta
+     owner 2026-09-14: "loading nya lama banget") -- app ini PWA
+     `display: 'standalone'` (app/manifest.ts). Di PWA standalone TIDAK
+     ADA konsep "tab": `window.open` dgn `_blank` terpaksa membuka
+     proses/jendela browser BARU dari nol, kelihatan lambat (bisa
+     beberapa detik). `wa.me` justru dirancang sbg App Link/deep-link
+     ke aplikasi WhatsApp -- itu cuma langsung & cepat kalau navigasinya
+     di WINDOW YANG SAMA, spy OS bisa langsung mengambil-alih ke app
+     WhatsApp tanpa basa-basi buka tab baru dulu. Tidak ada risiko
+     kehilangan data krn ini bukan form submit -- teksnya sudah selesai
+     disusun & sekadar diserahkan ke WhatsApp. */
   function bagikanWhatsapp() {
-    window.open(`https://wa.me/?text=${encodeURIComponent(teks)}`, '_blank');
+    window.location.href = `https://wa.me/?text=${encodeURIComponent(teks)}`;
   }
 
   async function simpan() {
