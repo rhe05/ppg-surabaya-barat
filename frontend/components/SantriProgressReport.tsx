@@ -95,7 +95,7 @@ import {
   targetHafalanSuratBulanan,
 } from '@/lib/hafalanSurat';
 import { hitungMateriNgaji } from '@/lib/tilawati';
-import { pisahTilawatiAlquran, gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
+import { gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
 
 type Guru = { id: number; nama: string };
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
@@ -399,15 +399,14 @@ export default function SantriProgressReport() {
          Do'a" -- PER SANTRI, sumber & rumus SAMA PERSIS dgn kartu
          "Tilawati"/"Al-Qur'an" di Monitoring Pencapaian Materi. Dipindah
          ke fungsi murni lib/tilawati.ts `hitungMateriNgaji` (2026-09-13)
-         supaya bisa dipanggil DUA KALI kalau kelasnya sedang Gabung
+         supaya bisa dipanggil per grade kalau kelasnya sedang Gabung
          Kelas lintas-grade (diminta owner: "sesuaikan dengan kelasnya
-         ... laporannya dijadikan satu") -- sekali per grade/anggotaIds
-         dari pisahTilawatiAlquran, BUKAN sekali dari grade tertinggi
-         seluruh gabungan (salah target/rubrik utk anggota grade rendah).
-         Kegagalan TIDAK menggagalkan seluruh laporan (pola sama
-         materiKlasikal). */
-      /* Anggota fisik kelas (dipakai pisahTilawatiAlquran DAN kelompok
-         grade utk Hafalan Surat/Do'a di bawah -- SATU sumber, jangan
+         ... laporannya dijadikan satu"), BUKAN sekali dari grade
+         tertinggi seluruh gabungan (salah target/rubrik utk anggota
+         grade rendah). Kegagalan TIDAK menggagalkan seluruh laporan
+         (pola sama materiKlasikal). */
+      /* Anggota fisik kelas (dipakai `kelompokGradeHafalan` di bawah --
+         SATU sumber dipakai Materi Ngaji & Hafalan Surat/Do'a, jangan
          hitung ulang beda cara di tiap blok). */
       const detailAnggota =
         kelasDipakai.length === 1
@@ -416,11 +415,15 @@ export default function SantriProgressReport() {
       /* Kelompok PER GRADE (2026-09-14, diminta owner: "khusus kelas
          yang gabung ... bedakan target sesuai kelasnya masing-masing,
          kelas 1 jelas beda target hafalan surat dan hafalan doa nya
-         dengan kelas 2" -- percobaan pertama pakai "grade tertinggi"
-         SALAH persis kasus ini). Hafalan Surat/Do'a dikelompokkan per
-         grade FISIK anggota (bisa >2 kelompok), masing2 dapat target &
-         roster SENDIRI -- pola SAMA PERSIS PencapaianMateriView.tsx
-         (Monitoring) `kelompokGradeHafalan`. */
+         dengan kelas 2" -- percobaan "grade tertinggi" SALAH persis
+         kasus ini). DIPAKAI BERSAMA Materi Ngaji, Hafalan Surat, DAN
+         Hafalan Do'a (2026-09-14, diminta owner: "saya mau satu kolom
+         ... yang dipisah kelasnya dan target per kelas") -- SATU
+         pengelompokan grade FISIK anggota (bisa >2 kelompok) dipakai
+         KETIGA sumber data itu, supaya nanti bisa dicocokkan per grade
+         yang SAMA saat digabung jadi satu tabel per kelas di
+         LaporanPerkembanganCetak.tsx. Pola SAMA PERSIS
+         PencapaianMateriView.tsx (Monitoring) `kelompokGradeHafalan`. */
       const kelompokGradeHafalan = (() => {
         const peta = new Map<string, number[]>();
         for (const d of detailAnggota) {
@@ -437,11 +440,23 @@ export default function SantriProgressReport() {
 
       let materiNgaji: LaporanPerkembangan['materiNgaji'];
       try {
-        const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = pisahTilawatiAlquran(detailAnggota);
-        const hasil = await Promise.all([
-          hitungMateriNgaji(tilawatiIds, tilawatiGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
-          hitungMateriNgaji(alquranIds, alquranGrade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
-        ]);
+        /* SATU panggilan PER GRADE dari `kelompokGradeHafalan` (2026-09-14,
+           diminta owner: "saya ndk mau di pisah, saya mau satu kolom ...
+           yang di pisah adalah kelasnya dan target per kelas, kelas 1
+           datanya sendiri targetnya juga sendiri, kelas 2 datanya sendiri
+           targetnya juga sendiri") -- DULU dipanggil 2x dari
+           pisahTilawatiAlquran (bucket Tilawati vs Al-Qur'an, cuma 2
+           kemungkinan), TAPI kelas 1 & kelas 2 SAMA-SAMA bucket Tilawati
+           jadi tetap tergabung salah. `hitungMateriNgaji` sendiri sudah
+           menentukan gaya Tilawati/Al-Qur'an dari `grade`-nya (kode
+           tunggal), jadi aman dipanggil per grade EXACT -- SATU sumber
+           pengelompokan dgn Hafalan Surat/Do'a di bawah, hasilnya
+           otomatis bisa dicocokkan per grade saat dirender. */
+        const hasil = await Promise.all(
+          kelompokGradeHafalan.map(({ grade, kelasIds: kelasIdsGrade }) =>
+            hitungMateriNgaji(kelasIdsGrade, grade, tahun, bulan, NAMA_BULAN[bulan - 1], awal, akhir),
+          ),
+        );
         materiNgaji = hasil.filter((h): h is NonNullable<typeof h> => h !== null);
       } catch {
         materiNgaji = undefined;

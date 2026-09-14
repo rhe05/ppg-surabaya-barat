@@ -355,6 +355,12 @@ export async function muatBukuJilidKelas(
    fungsi itu, BUKAN lagi kelasProtaDari(kelasDipakai[0].nama) polos. */
 export type MateriNgajiBarisHasil = { nama: string; pencapaian: string; keterangan: string };
 export type MateriNgajiHasil = {
+  /* `grade` (2026-09-14, diminta owner: "saya ndk mau di pisah, saya mau
+     satu kolom ... yang di pisah adalah kelasnya dan target per kelas")
+     -- dipakai LaporanPerkembanganCetak.tsx mencocokkan blok Materi
+     Ngaji dgn blok Hafalan Surat/Do'a MILIK GRADE YANG SAMA sebelum
+     digabung jadi satu tabel per kelas. */
+  grade: string;
   judul: string;
   target: string | null;
   baris: MateriNgajiBarisHasil[];
@@ -382,6 +388,7 @@ export async function hitungMateriNgaji(
       : null;
 
   return {
+    grade,
     judul: namaMateriTampil(KATEGORI_BACAAN_ALQURAN, grade),
     target: targetTeks ? `Target ${namaBulan}: ${targetTeks}` : null,
     baris: bukuJilid.map((s) => {
