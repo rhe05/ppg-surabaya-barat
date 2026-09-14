@@ -345,20 +345,23 @@ export default function GuruLaporanView() {
           muatHafalanSuratKelas(kelasIds, awal, akhir),
           gradeKelasIni ? targetHafalanSuratBulanan(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
-        materiHafalanSurat = {
-          target: targetHafalanSurat,
-          baris: hafalanSuratKelas.map((s) => ({
-            nama: s.nama,
-            pencapaian: s.adaCatatan
-              ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
-              : '—',
-            keterangan: s.adaCatatan
-              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
-                  .filter(Boolean)
-                  .join(', ') || '—'
-              : '—',
-          })),
-        };
+        materiHafalanSurat = [
+          {
+            grade: gradeKelasIni,
+            target: targetHafalanSurat,
+            baris: hafalanSuratKelas.map((s) => ({
+              nama: s.nama,
+              pencapaian: s.adaCatatan
+                ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
+                : '—',
+              keterangan: s.adaCatatan
+                ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                    .filter(Boolean)
+                    .join(', ') || '—'
+                : '—',
+            })),
+          },
+        ];
       } catch {
         materiHafalanSurat = undefined;
       }
@@ -373,18 +376,21 @@ export default function GuruLaporanView() {
           muatHafalanDoaKelas(kelasIds, awal, akhir),
           gradeKelasIni ? targetHafalanDoaBulanan(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
-        materiHafalanDoa = {
-          target: targetHafalanDoa,
-          baris: hafalanDoaKelas.map((s) => ({
-            nama: s.nama,
-            pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
-            keterangan: s.adaCatatan
-              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
-                  .filter(Boolean)
-                  .join(', ') || '—'
-              : '—',
-          })),
-        };
+        materiHafalanDoa = [
+          {
+            grade: gradeKelasIni,
+            target: targetHafalanDoa,
+            baris: hafalanDoaKelas.map((s) => ({
+              nama: s.nama,
+              pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
+              keterangan: s.adaCatatan
+                ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                    .filter(Boolean)
+                    .join(', ') || '—'
+                : '—',
+            })),
+          },
+        ];
       } catch {
         materiHafalanDoa = undefined;
       }

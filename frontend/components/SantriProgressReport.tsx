@@ -406,24 +406,34 @@ export default function SantriProgressReport() {
          seluruh gabungan (salah target/rubrik utk anggota grade rendah).
          Kegagalan TIDAK menggagalkan seluruh laporan (pola sama
          materiKlasikal). */
-      /* Anggota fisik kelas (dipakai pisahTilawatiAlquran DAN grade
-         tertinggi utk target Hafalan Surat/Do'a di bawah -- SATU sumber,
-         jangan hitung ulang beda cara di tiap blok). */
+      /* Anggota fisik kelas (dipakai pisahTilawatiAlquran DAN kelompok
+         grade utk Hafalan Surat/Do'a di bawah -- SATU sumber, jangan
+         hitung ulang beda cara di tiap blok). */
       const detailAnggota =
         kelasDipakai.length === 1
           ? kelasDipakai[0].anggotaDetail
           : kelasDipakai.map((k) => ({ id: k.id, nama: k.nama }));
-      /* Grade TERTINGGI di antara anggota (2026-09-14, diminta owner:
-         "target hafalan surat dan hafalan do'a bisa ambilkan dari
-         kurikulum") -- Hafalan Surat/Do'a TIDAK dipisah per-grade spt
-         Tilawati/Al-Qur'an (satu tabel gabungan lintas-grade), jadi
-         targetnya diambil dari grade tertinggi kelas ini, pola SAMA
-         "tertinggi" yang dipakai pisahTilawatiAlquran utk grade Tilawati/
-         Al-Qur'an masing2 bucket. */
-      const gradeTertinggiKelas = detailAnggota.reduce((top, d) => {
-        const g = gradeRuangDari(d.nama);
-        return KELAS_KURIKULUM_URUT.indexOf(g) > KELAS_KURIKULUM_URUT.indexOf(top) ? g : top;
-      }, '');
+      /* Kelompok PER GRADE (2026-09-14, diminta owner: "khusus kelas
+         yang gabung ... bedakan target sesuai kelasnya masing-masing,
+         kelas 1 jelas beda target hafalan surat dan hafalan doa nya
+         dengan kelas 2" -- percobaan pertama pakai "grade tertinggi"
+         SALAH persis kasus ini). Hafalan Surat/Do'a dikelompokkan per
+         grade FISIK anggota (bisa >2 kelompok), masing2 dapat target &
+         roster SENDIRI -- pola SAMA PERSIS PencapaianMateriView.tsx
+         (Monitoring) `kelompokGradeHafalan`. */
+      const kelompokGradeHafalan = (() => {
+        const peta = new Map<string, number[]>();
+        for (const d of detailAnggota) {
+          const g = gradeRuangDari(d.nama);
+          if (!g) continue;
+          const arr = peta.get(g) ?? [];
+          arr.push(d.id);
+          peta.set(g, arr);
+        }
+        return [...peta.entries()]
+          .sort((a, b) => KELAS_KURIKULUM_URUT.indexOf(a[0]) - KELAS_KURIKULUM_URUT.indexOf(b[0]))
+          .map(([grade, kelasIdsGrade]) => ({ grade, kelasIds: kelasIdsGrade }));
+      })();
 
       let materiNgaji: LaporanPerkembangan['materiNgaji'];
       try {
@@ -447,26 +457,29 @@ export default function SantriProgressReport() {
          materiNgaji). */
       let materiHafalanSurat: LaporanPerkembangan['materiHafalanSurat'];
       try {
-        const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
-          muatHafalanSuratKelas(kelasIds, awal, akhir),
-          gradeTertinggiKelas
-            ? targetHafalanSuratBulanan(gradeTertinggiKelas, tahun, bulan)
-            : Promise.resolve(null),
-        ]);
-        materiHafalanSurat = {
-          target: targetHafalanSurat,
-          baris: hafalanSuratKelas.map((s) => ({
-            nama: s.nama,
-            pencapaian: s.adaCatatan
-              ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
-              : '—',
-            keterangan: s.adaCatatan
-              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
-                  .filter(Boolean)
-                  .join(', ') || '—'
-              : '—',
-          })),
-        };
+        materiHafalanSurat = await Promise.all(
+          kelompokGradeHafalan.map(async ({ grade, kelasIds: kelasIdsGrade }) => {
+            const [hafalanSuratKelas, target] = await Promise.all([
+              muatHafalanSuratKelas(kelasIdsGrade, awal, akhir),
+              targetHafalanSuratBulanan(grade, tahun, bulan),
+            ]);
+            return {
+              grade,
+              target,
+              baris: hafalanSuratKelas.map((s) => ({
+                nama: s.nama,
+                pencapaian: s.adaCatatan
+                  ? [s.terakhirSurat, s.terakhirAyat ? `Ayat ${s.terakhirAyat}` : null].filter(Boolean).join(' ')
+                  : '—',
+                keterangan: s.adaCatatan
+                  ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                      .filter(Boolean)
+                      .join(', ') || '—'
+                  : '—',
+              })),
+            };
+          }),
+        );
       } catch {
         materiHafalanSurat = undefined;
       }
@@ -479,22 +492,27 @@ export default function SantriProgressReport() {
          seluruh laporan (pola sama materiHafalanSurat). */
       let materiHafalanDoa: LaporanPerkembangan['materiHafalanDoa'];
       try {
-        const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
-          muatHafalanDoaKelas(kelasIds, awal, akhir),
-          gradeTertinggiKelas ? targetHafalanDoaBulanan(gradeTertinggiKelas, tahun, bulan) : Promise.resolve(null),
-        ]);
-        materiHafalanDoa = {
-          target: targetHafalanDoa,
-          baris: hafalanDoaKelas.map((s) => ({
-            nama: s.nama,
-            pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
-            keterangan: s.adaCatatan
-              ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
-                  .filter(Boolean)
-                  .join(', ') || '—'
-              : '—',
-          })),
-        };
+        materiHafalanDoa = await Promise.all(
+          kelompokGradeHafalan.map(async ({ grade, kelasIds: kelasIdsGrade }) => {
+            const [hafalanDoaKelas, target] = await Promise.all([
+              muatHafalanDoaKelas(kelasIdsGrade, awal, akhir),
+              targetHafalanDoaBulanan(grade, tahun, bulan),
+            ]);
+            return {
+              grade,
+              target,
+              baris: hafalanDoaKelas.map((s) => ({
+                nama: s.nama,
+                pencapaian: s.adaCatatan ? (s.terakhirDoa ?? '—') : '—',
+                keterangan: s.adaCatatan
+                  ? [s.naik > 0 ? `${s.naik}× Naik` : null, s.tetap > 0 ? `${s.tetap}× Tetap` : null]
+                      .filter(Boolean)
+                      .join(', ') || '—'
+                  : '—',
+              })),
+            };
+          }),
+        );
       } catch {
         materiHafalanDoa = undefined;
       }
