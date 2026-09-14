@@ -274,7 +274,7 @@ function MonitoringContent() {
           TIDAK diubah (di luar cakupan permintaan owner kali ini,
           layarnya masih dibungkus AdminSidebar apa adanya). */}
       {adalahGuru && <JurnalHeaderChrome tampilkanHero={false} />}
-      <div className={adalahGuru ? 'px-[18px] pt-4 pb-10' : 'mx-auto max-w-5xl p-6'}>
+      <div className={adalahGuru ? 'px-[18px] pt-4 pb-24' : 'mx-auto max-w-5xl p-6'}>
       {/* Judul guru DIPINDAH ke dalam PencapaianMateriView (2026-09-02
           malam, diminta owner): "letakan ikon kalender ... sejajar dgn
           judul", pola SAMA PERSIS Riwayat Pembelajaran (judul+chip kelas
