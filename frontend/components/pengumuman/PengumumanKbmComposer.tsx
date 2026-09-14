@@ -339,6 +339,18 @@ export default function PengumumanKbmComposer({
 
         const kelasData = j.kelas_id != null ? petaKelas.get(j.kelas_id) : undefined;
         const ikut = j.kelas_id != null ? namaKelasGabung.get(j.kelas_id) : undefined;
+        /* Nama kelas SESI ITU SENDIRI (2026-09-14, diminta owner: "data
+           yang tampil di pengumuman saat ini adalah data yang lama") --
+           WAJIB dari `kelas.nama` LIVE (petaKelas via kelas_id), BUKAN
+           `j.kelas` (teks beku disalin ke jadwal_kbm saat baris itu
+           dibuat, tidak ikut ter-update saat admin merestrukturisasi
+           Data Kelas, mis. "2 & 3A" dipecah jadi "2A"/"2B"/"3&4"). Baris
+           gabungan (`ikut`, line di atas) SUDAH benar pakai
+           `petaKelas.get(...)?.nama` sejak awal -- BUG-nya nama kelas
+           UTAMA di sini yang masih polos `j.kelas`, tidak konsisten.
+           Fallback ke `j.kelas` cuma utk baris lama yang `kelas_id`-nya
+           belum tertaut sama sekali. */
+        const namaKelasIni = kelasData?.nama ?? j.kelas;
         /* Jam & ruangan gabungan ditentukan admin -- diambil dari baris
            kelas_gabung mana pun yang menunjuk ke induk ini. */
         const aturan =
@@ -349,7 +361,7 @@ export default function PengumumanKbmComposer({
         daftar.push({
           id: j.id,
           kategori: j.kategori,
-          kelas: ikut && ikut.length > 0 ? `${j.kelas} & ${ikut.join(' & ')}` : j.kelas,
+          kelas: ikut && ikut.length > 0 ? `${namaKelasIni} & ${ikut.join(' & ')}` : namaKelasIni,
           guru_id: kelasData ? guruGiliran(kelasData, tanggal) : j.guru_id,
           jam_mulai: (ikut && aturan?.jam_mulai) || j.jam_mulai,
           jam_selesai: (ikut && aturan?.jam_selesai) || j.jam_selesai,
