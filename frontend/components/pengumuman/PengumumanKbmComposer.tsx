@@ -20,7 +20,7 @@
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Copy, Check, Info } from 'lucide-react';
+import { Calendar, Copy, Check, Info, MessageCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
@@ -585,6 +585,18 @@ export default function PengumumanKbmComposer({
     }
   }
 
+  /* Bagikan lewat WhatsApp (2026-09-14, diminta owner: "kak dina bisa
+     share jadwal dari aplikasi terserah mau dikirimkan ke siapa, tanpa
+     biaya, proses sangat cepat, dan tidak berpengaruh ke supabase") --
+     skema URL "wa.me/?text=..." bawaan WhatsApp: TANPA nomor tujuan,
+     jadi WhatsApp sendiri yang menampilkan pemilih kontak/grup ke siapa
+     mau dikirim. 100% klien (buka tab baru ke wa.me), TIDAK ada
+     panggilan Supabase sama sekali -- terpisah total dari `simpan()`
+     (yang menulis ke tabel `pengumuman`). */
+  function bagikanWhatsapp() {
+    window.open(`https://wa.me/?text=${encodeURIComponent(teks)}`, '_blank');
+  }
+
   async function simpan() {
     setMenyimpan(true);
     setError(null);
@@ -759,10 +771,22 @@ export default function PengumumanKbmComposer({
           {tersalin ? <Check size={15} /> : <Copy size={15} />}
           {tersalin ? 'Tersalin' : 'Salin Teks'}
         </button>
-        <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' flex-1'}>
-          {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
+        {/* Tombol WhatsApp -- pola & warna sama KELAS_TOMBOL_UTAMA
+            (flex/rounded/padding), cuma warnanya hijau WhatsApp (#25D366)
+            spy langsung dikenali guru sbg jalur berbagi, beda dari
+            "Simpan Pengumuman" (kuning brass, menulis ke Supabase). */}
+        <button
+          type="button"
+          onClick={bagikanWhatsapp}
+          className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-[#25D366] bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 active:scale-[0.97]"
+        >
+          <MessageCircle size={15} />
+          WhatsApp
         </button>
       </div>
+      <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
+        {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
+      </button>
     </div>
   );
 }
