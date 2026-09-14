@@ -92,7 +92,7 @@ import {
   targetHafalanDoaBulanan,
   type HafalanDoaRingkas,
 } from '@/lib/materiHafalanDoa';
-import { pisahTilawatiAlquran, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
+import { pisahTilawatiAlquran, gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
 import { LABEL_STATUS_PENCAPAIAN, type StatusPencapaian } from '@/lib/pedomanTilawati';
 import KartuMonitoringTilawati from '@/components/monitoring/KartuMonitoringTilawati';
 
@@ -106,6 +106,12 @@ const NAMA_BULAN = [
 function formatTanggalHari(iso: string) {
   const d = new Date(iso + 'T00:00:00');
   return `${String(d.getDate()).padStart(2, '0')} ${NAMA_BULAN[d.getMonth()]}`;
+}
+
+/* Label kelompok grade Hafalan Surat/Do'a (2026-09-14) -- sama pola
+   `labelKelasKurikulum` (RencanaPembelajaranView.tsx, tidak diekspor). */
+function labelKelasKurikulum(grade: string) {
+  return grade === 'PAUD-TK' ? 'PAUD/TK' : `Kelas ${grade}`;
 }
 
 const INPUT =
@@ -303,25 +309,38 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      Utk admin (kelasAdmin, tidak lewat muatKelasGuru) anggotaDetail
      jatuh ke [{id: kelasId, nama: namaKelasAktif}] -- satu kelas fisik
      apa adanya, tidak digabung. */
-  const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = useMemo(() => {
-    if (kelasId === '') return { tilawatiIds: [], alquranIds: [], tilawatiGrade: '', alquranGrade: '' };
-    const detail = kelasGuru.find((k) => k.id === kelasId)?.anggotaDetail ?? [
-      { id: kelasId, nama: namaKelasAktif },
-    ];
-    return pisahTilawatiAlquran(detail);
+  const detailAnggota = useMemo(() => {
+    if (kelasId === '') return [];
+    return kelasGuru.find((k) => k.id === kelasId)?.anggotaDetail ?? [{ id: kelasId, nama: namaKelasAktif }];
   }, [kelasId, kelasGuru, namaKelasAktif]);
 
-  /* Grade TERTINGGI kelas ini (2026-09-14, diminta owner: "munculkan
-     target untuk hafalan surat dan hafalan doa") -- Hafalan Surat/Do'a
-     TIDAK dipisah per-grade spt Tilawati/Al-Qur'an (satu daftar ringkas
-     gabungan lintas-grade), jadi targetnya diambil dari grade tertinggi
-     kelas ini, dari tilawatiGrade/alquranGrade yang SUDAH dihitung di
-     atas (bukan hitung ulang cara lain) -- pola sama persis
-     SantriProgressReport.tsx (Laporan Perkembangan Santri admin). */
-  const gradeTertinggiKelas =
-    KELAS_KURIKULUM_URUT.indexOf(alquranGrade) > KELAS_KURIKULUM_URUT.indexOf(tilawatiGrade)
-      ? alquranGrade
-      : tilawatiGrade;
+  const { tilawatiIds, alquranIds, tilawatiGrade, alquranGrade } = useMemo(() => {
+    if (kelasId === '') return { tilawatiIds: [], alquranIds: [], tilawatiGrade: '', alquranGrade: '' };
+    return pisahTilawatiAlquran(detailAnggota);
+  }, [kelasId, detailAnggota]);
+
+  /* Kelompok PER GRADE (2026-09-14, diminta owner: "khusus kelas yang
+     gabung ... bedakan target sesuai kelasnya masing-masing, kelas 1
+     jelas beda target hafalan surat dan hafalan doa nya dengan kelas 2"):
+     Hafalan Surat/Do'a dulu ikut pola Tilawati/Al-Qur'an (SATU target
+     dari grade TERTINGGI gabungan) -- ternyata SALAH utk kasus ini,
+     krn beda grade jelas beda target kurikulumnya sendiri-sendiri
+     (bukan cuma beda "Tilawati vs Al-Qur'an" spt Buku Jilid/Juz).
+     Dikelompokkan per grade FISIK anggota (bisa lebih dari 2 kelompok,
+     mis. kelas 1+2+3 gabung -> 3 kelompok), diurutkan kumulatif. */
+  const kelompokGradeHafalan = useMemo(() => {
+    const peta = new Map<string, number[]>();
+    for (const d of detailAnggota) {
+      const g = gradeRuangDari(d.nama);
+      if (!g) continue;
+      const arr = peta.get(g) ?? [];
+      arr.push(d.id);
+      peta.set(g, arr);
+    }
+    return [...peta.entries()]
+      .sort((a, b) => KELAS_KURIKULUM_URUT.indexOf(a[0]) - KELAS_KURIKULUM_URUT.indexOf(b[0]))
+      .map(([grade, kelasIds]) => ({ grade, kelasIds }));
+  }, [detailAnggota]);
 
   /* Rentang target Asmaul Husna utk kelas terpilih: ambil baris Prota
      Hafalan Do'a milik kode kelas Kurikulum TERTINGGI yang relevan utk
@@ -362,21 +381,37 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      menuju target Juz, tidak berlaku utk hafalan surat/do'a lepas).
      Ditampilkan utk SEMUA peran (beda dari sisi "Per Santri" Klasikal di
      bawah yang sengaja disembunyikan dari guru) -- biayanya sama ringan
-     dgn Tilawati yg sudah dilihat guru. */
-  const [hafalanSuratRingkas, setHafalanSuratRingkas] = useState<HafalanSuratRingkas[]>([]);
+     dgn Tilawati yg sudah dilihat guru.
+
+     DIKELOMPOKKAN PER GRADE (2026-09-14, diminta owner: "khusus kelas
+     yang gabung ... bedakan target sesuai kelasnya masing-masing") --
+     dulu SATU daftar+target gabungan dari `anggotaId` polos (grade
+     tertinggi), sekarang satu blok (target+ringkas) PER GRADE dari
+     `kelompokGradeHafalan`, supaya kelas 1 & kelas 2 dlm Gabung Kelas yg
+     sama tidak lagi berbagi target yg SALAH utk salah satunya. */
+  type BlokHafalanSurat = { grade: string; target: string | null; ringkas: HafalanSuratRingkas[] };
+  const [hafalanSuratPerGrade, setHafalanSuratPerGrade] = useState<BlokHafalanSurat[]>([]);
   const [loadingHafalanSurat, setLoadingHafalanSurat] = useState(false);
   const [errorHafalanSurat, setErrorHafalanSurat] = useState<string | null>(null);
   useEffect(() => {
-    if (kelasId === '') {
-      setHafalanSuratRingkas([]);
+    if (kelompokGradeHafalan.length === 0) {
+      setHafalanSuratPerGrade([]);
       return;
     }
     let batal = false;
     setLoadingHafalanSurat(true);
     setErrorHafalanSurat(null);
-    muatHafalanSuratRingkas(anggotaId, periode.awal, periode.akhir)
-      .then((d) => {
-        if (!batal) setHafalanSuratRingkas(d);
+    Promise.all(
+      kelompokGradeHafalan.map(async ({ grade, kelasIds }) => {
+        const [ringkas, target] = await Promise.all([
+          muatHafalanSuratRingkas(kelasIds, periode.awal, periode.akhir),
+          targetHafalanSuratBulanan(grade, tahun, bulan),
+        ]);
+        return { grade, target, ringkas };
+      }),
+    )
+      .then((hasil) => {
+        if (!batal) setHafalanSuratPerGrade(hasil);
       })
       .catch((e) => {
         if (!batal) setErrorHafalanSurat(e instanceof Error ? e.message : 'Gagal memuat data.');
@@ -387,48 +422,33 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
-
-  /* Target "Hafalan Surat-Surat Al-Qur'an" (2026-09-14, diminta owner:
-     "munculkan target untuk hafalan surat dan hafalan doa") -- sumber
-     kurikulum_prota.target/target2 SEMESTER INI, pola SAMA PERSIS
-     SantriProgressReport.tsx (Laporan Perkembangan Santri admin), lihat
-     lib/hafalanSurat.ts `targetHafalanSuratBulanan`. */
-  const [targetHafalanSurat, setTargetHafalanSurat] = useState<string | null>(null);
-  useEffect(() => {
-    if (!gradeTertinggiKelas) {
-      setTargetHafalanSurat(null);
-      return;
-    }
-    let batal = false;
-    targetHafalanSuratBulanan(gradeTertinggiKelas, tahun, bulan)
-      .then((t) => {
-        if (!batal) setTargetHafalanSurat(t);
-      })
-      .catch(() => {
-        if (!batal) setTargetHafalanSurat(null);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [gradeTertinggiKelas, tahun, bulan]);
+  }, [kelompokGradeHafalan, periode.awal, periode.akhir, tahun, bulan]);
 
   /* ── Data PELAKSANAAN per SANTRI -- Hafalan Do'a-Do'a Harian, pola SAMA
-     PERSIS sisi Hafalan Surat di atas. ── */
-  const [hafalanDoaRingkas, setHafalanDoaRingkas] = useState<HafalanDoaRingkas[]>([]);
+     PERSIS sisi Hafalan Surat di atas (dikelompokkan per grade jg). ── */
+  type BlokHafalanDoa = { grade: string; target: string | null; ringkas: HafalanDoaRingkas[] };
+  const [hafalanDoaPerGrade, setHafalanDoaPerGrade] = useState<BlokHafalanDoa[]>([]);
   const [loadingHafalanDoa, setLoadingHafalanDoa] = useState(false);
   const [errorHafalanDoa, setErrorHafalanDoa] = useState<string | null>(null);
   useEffect(() => {
-    if (kelasId === '') {
-      setHafalanDoaRingkas([]);
+    if (kelompokGradeHafalan.length === 0) {
+      setHafalanDoaPerGrade([]);
       return;
     }
     let batal = false;
     setLoadingHafalanDoa(true);
     setErrorHafalanDoa(null);
-    muatHafalanDoaRingkas(anggotaId, periode.awal, periode.akhir)
-      .then((d) => {
-        if (!batal) setHafalanDoaRingkas(d);
+    Promise.all(
+      kelompokGradeHafalan.map(async ({ grade, kelasIds }) => {
+        const [ringkas, target] = await Promise.all([
+          muatHafalanDoaRingkas(kelasIds, periode.awal, periode.akhir),
+          targetHafalanDoaBulanan(grade, tahun, bulan),
+        ]);
+        return { grade, target, ringkas };
+      }),
+    )
+      .then((hasil) => {
+        if (!batal) setHafalanDoaPerGrade(hasil);
       })
       .catch((e) => {
         if (!batal) setErrorHafalanDoa(e instanceof Error ? e.message : 'Gagal memuat data.');
@@ -439,28 +459,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
     return () => {
       batal = true;
     };
-  }, [kelasId, periode.awal, periode.akhir, anggotaId]);
-
-  /* Target "Hafalan Do'a-Do'a Harian", pola SAMA PERSIS sisi Hafalan
-     Surat di atas. */
-  const [targetHafalanDoa, setTargetHafalanDoa] = useState<string | null>(null);
-  useEffect(() => {
-    if (!gradeTertinggiKelas) {
-      setTargetHafalanDoa(null);
-      return;
-    }
-    let batal = false;
-    targetHafalanDoaBulanan(gradeTertinggiKelas, tahun, bulan)
-      .then((t) => {
-        if (!batal) setTargetHafalanDoa(t);
-      })
-      .catch(() => {
-        if (!batal) setTargetHafalanDoa(null);
-      });
-    return () => {
-      batal = true;
-    };
-  }, [gradeTertinggiKelas, tahun, bulan]);
+  }, [kelompokGradeHafalan, periode.awal, periode.akhir, tahun, bulan]);
 
   /* ── Data per SANTRI ── */
   const [barisSantri, setBarisSantri] = useState<PengulanganSantri[]>([]);
@@ -762,102 +761,129 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
           )}
 
           {/* ── Hafalan Surat-Surat Al-Qur'an (Pelaksanaan) -- ringkas per
-              santri, 2026-09-14 diminta owner. ── */}
+              santri, DIKELOMPOKKAN PER GRADE (2026-09-14, diminta owner:
+              "khusus kelas yang gabung ... bedakan target sesuai
+              kelasnya masing-masing") -- satu blok target+daftar PER
+              GRADE, label "Kelas N" cuma muncul kalau kelasnya sedang
+              Gabung >1 grade (kelasnya sendiri sudah jelas dari kartu
+              kelas biasa, label tidak perlu diulang). */}
           <div className="label-mikro mb-2">Hafalan Surat-Surat Al-Qur&apos;an</div>
-          {targetHafalanSurat && (
-            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              {targetHafalanSurat}
-            </div>
-          )}
           {loadingHafalanSurat && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorHafalanSurat && <p className="mb-5 text-[13px] text-red">{errorHafalanSurat}</p>}
           {!loadingHafalanSurat && !errorHafalanSurat && (
-            <div className="kartu-premium mb-5 overflow-hidden">
-              {hafalanSuratRingkas.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada catatan Hafalan Surat pada periode ini.
-                </p>
-              ) : (
-                hafalanSuratRingkas.map((s) => (
-                  <div
-                    key={s.santriId}
-                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
-                      {s.terakhir && (
-                        <div className="truncate text-[11px] text-text-faint">
-                          Terakhir: {[s.terakhirSurat, s.terakhirAyat ? `ayat ${s.terakhirAyat}` : null]
-                            .filter(Boolean)
-                            .join(' ')}{' '}
-                          · {tanggalPendek(s.terakhir)}
+            hafalanSuratPerGrade.length === 0 ? (
+              <p className="mb-5 px-1 text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
+            ) : (
+              hafalanSuratPerGrade.map(({ grade, target, ringkas }) => (
+                <div key={grade} className="mb-5">
+                  {hafalanSuratPerGrade.length > 1 && (
+                    <div className="mb-1.5 text-[12px] font-semibold text-text-dim">{labelKelasKurikulum(grade)}</div>
+                  )}
+                  {target && (
+                    <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+                      {target}
+                    </div>
+                  )}
+                  <div className="kartu-premium overflow-hidden">
+                    {ringkas.length === 0 ? (
+                      <p className="px-4 py-3 text-[13px] text-text-dim">
+                        Belum ada catatan Hafalan Surat pada periode ini.
+                      </p>
+                    ) : (
+                      ringkas.map((s) => (
+                        <div
+                          key={s.santriId}
+                          className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
+                            {s.terakhir && (
+                              <div className="truncate text-[11px] text-text-faint">
+                                Terakhir: {[s.terakhirSurat, s.terakhirAyat ? `ayat ${s.terakhirAyat}` : null]
+                                  .filter(Boolean)
+                                  .join(' ')}{' '}
+                                · {tanggalPendek(s.terakhir)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {s.naik > 0 && (
+                              <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
+                                {s.naik}× Naik
+                              </span>
+                            )}
+                            {s.tetap > 0 && (
+                              <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
+                                {s.tetap}× Tetap
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {s.naik > 0 && (
-                        <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
-                          {s.naik}× Naik
-                        </span>
-                      )}
-                      {s.tetap > 0 && (
-                        <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
-                          {s.tetap}× Tetap
-                        </span>
-                      )}
-                    </div>
+                      ))
+                    )}
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              ))
+            )
           )}
 
-          {/* ── Hafalan Do'a-Do'a Harian (Pelaksanaan) -- ringkas per
-              santri, pola SAMA PERSIS sisi Hafalan Surat di atas. ── */}
+          {/* ── Hafalan Do'a-Do'a Harian (Pelaksanaan) -- pola SAMA PERSIS
+              sisi Hafalan Surat di atas, dikelompokkan per grade jg. ── */}
           <div className="label-mikro mb-2">Hafalan Do&apos;a-Do&apos;a Harian</div>
-          {targetHafalanDoa && (
-            <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
-              {targetHafalanDoa}
-            </div>
-          )}
           {loadingHafalanDoa && <Skeleton className="mb-5 h-[52px] w-full" />}
           {errorHafalanDoa && <p className="mb-5 text-[13px] text-red">{errorHafalanDoa}</p>}
           {!loadingHafalanDoa && !errorHafalanDoa && (
-            <div className="kartu-premium mb-5 overflow-hidden">
-              {hafalanDoaRingkas.length === 0 ? (
-                <p className="px-4 py-3 text-[13px] text-text-dim">
-                  Belum ada catatan Hafalan Do&apos;a pada periode ini.
-                </p>
-              ) : (
-                hafalanDoaRingkas.map((s) => (
-                  <div
-                    key={s.santriId}
-                    className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
-                  >
-                    <div className="min-w-0">
-                      <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
-                      {s.terakhir && (
-                        <div className="truncate text-[11px] text-text-faint">
-                          Terakhir: {s.terakhirDoa ?? '—'} · {tanggalPendek(s.terakhir)}
+            hafalanDoaPerGrade.length === 0 ? (
+              <p className="mb-5 px-1 text-[13px] text-text-dim">Belum ada santri di kelas ini.</p>
+            ) : (
+              hafalanDoaPerGrade.map(({ grade, target, ringkas }) => (
+                <div key={grade} className="mb-5">
+                  {hafalanDoaPerGrade.length > 1 && (
+                    <div className="mb-1.5 text-[12px] font-semibold text-text-dim">{labelKelasKurikulum(grade)}</div>
+                  )}
+                  {target && (
+                    <div className="mb-2 rounded-[var(--radius)] bg-indigo-lembut px-3 py-2 text-[12px] font-semibold text-indigo">
+                      {target}
+                    </div>
+                  )}
+                  <div className="kartu-premium overflow-hidden">
+                    {ringkas.length === 0 ? (
+                      <p className="px-4 py-3 text-[13px] text-text-dim">
+                        Belum ada catatan Hafalan Do&apos;a pada periode ini.
+                      </p>
+                    ) : (
+                      ringkas.map((s) => (
+                        <div
+                          key={s.santriId}
+                          className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 last:border-b-0"
+                        >
+                          <div className="min-w-0">
+                            <div className="truncate text-[13px] font-semibold text-text">{s.nama}</div>
+                            {s.terakhir && (
+                              <div className="truncate text-[11px] text-text-faint">
+                                Terakhir: {s.terakhirDoa ?? '—'} · {tanggalPendek(s.terakhir)}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-1.5">
+                            {s.naik > 0 && (
+                              <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
+                                {s.naik}× Naik
+                              </span>
+                            )}
+                            {s.tetap > 0 && (
+                              <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
+                                {s.tetap}× Tetap
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1.5">
-                      {s.naik > 0 && (
-                        <span className="rounded-full bg-sage-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-sage">
-                          {s.naik}× Naik
-                        </span>
-                      )}
-                      {s.tetap > 0 && (
-                        <span className="rounded-full bg-brass-lembut px-2 py-0.5 text-[11px] font-bold whitespace-nowrap text-brass">
-                          {s.tetap}× Tetap
-                        </span>
-                      )}
-                    </div>
+                      ))
+                    )}
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              ))
+            )
           )}
 
           {/* ── Sisi PER SANTRI -- SEMENTARA admin-only (2026-09-02
