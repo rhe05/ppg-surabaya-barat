@@ -1,24 +1,30 @@
-/* Suspense fallback route-level -- diminta owner 2026-08-23, laporan
-   "dulu klik langsung bereaksi, sekarang ada jeda" (lihat komentar
-   panjang di components/dashboard/MenuGuru.tsx). Next.js App Router
-   menampilkan berkas ini SEKETIKA begitu navigasi ke segmen ini (dan
-   segmen di bawahnya, kalau ada) dimulai -- pengaman tambahan di luar
-   prefetch (MenuGuru/JurnalChooser/KehadiranChooser): kalau prefetch
-   belum sempat selesai (mis. koneksi lambat), guru tetap melihat
-   sesuatu yg jelas "sedang berpindah", bukan diam menunggu halaman
-   sebelumnya utuh atau berkedip ke konten yg salah.
-
-   Sama gaya dgn RequireAuth.tsx (logo berdenyut, netral) -- BUKAN
-   skeleton bentuk halaman tertentu, krn berkas ini dibagi sama semua
-   route di bawah segmen ini (mis. loading.tsx di app/jurnal/ jg
-   dipakai /jurnal/rencana, /jurnal/pelaksanaan, /jurnal/riwayat). */
-import Image from 'next/image';
+/* Suspense fallback route-level (2026-09-14, diminta owner: "audit
+   semuanya apakah masih ada yang seperti itu" -- diganti dari logo
+   berdenyut generik jadi skeleton berbentuk konten, pola sama
+   app/pengumuman/loading.tsx). `/dashboard` TIDAK punya sub-route,
+   jadi aman spesifik: topbar+hero (greeting) lalu kartu ringkasan +
+   daftar kartu kelas (GuruDashboard.tsx). */
+import Skeleton from '@/components/ui/Skeleton';
 
 export default function Loading() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-bg">
-      <Image src="/logo-ruang-ngaji.png" alt="Ruang Ngaji" width={40} height={36} className="animate-pulse" />
-      <div className="h-1.5 w-24 animate-pulse rounded-full bg-panel-2" />
+    <main className="min-h-screen bg-bg">
+      <div className="flex items-center justify-between border-b border-border bg-panel px-[18px] py-3">
+        <Skeleton className="h-7 w-28" />
+        <Skeleton className="h-8 w-8 rounded-full" />
+      </div>
+      <div className="mx-4 mt-4 flex flex-col gap-2 rounded-[20px] border border-border p-5">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-3 w-28" />
+        <Skeleton className="h-3 w-32" />
+      </div>
+      <div className="px-[18px] pt-4 pb-24">
+        <Skeleton className="mb-4 h-16 w-full" />
+        <div className="flex flex-col gap-2.5">
+          <Skeleton className="h-[76px] w-full" />
+          <Skeleton className="h-[76px] w-full" />
+        </div>
+      </div>
     </main>
   );
 }

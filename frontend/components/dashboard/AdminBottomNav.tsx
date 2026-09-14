@@ -10,7 +10,7 @@
    (halaman turunan Data Master -> tab "Data" tetap aktif). */
 
 import { createPortal } from 'react-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
@@ -24,6 +24,7 @@ import {
   Banknote,
   LogOut,
   X,
+  Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
@@ -57,9 +58,38 @@ export default function AdminBottomNav() {
     { label: 'Registrasi', href: hrefRegistrasi, ikon: ClipboardCheck },
   ];
 
+  /* Prefetch semua tujuan tab + isi sheet sekali di awal, pola SAMA
+     PERSIS GuruBottomNav.tsx (2026-09-14, diminta owner: "audit
+     semuanya apakah masih ada yang seperti itu" -- ditemukan file ini
+     TIDAK PERNAH prefetch sama sekali). */
+  useEffect(() => {
+    for (const t of TAB) router.prefetch(t.href);
+    for (const m of lainnya) router.prefetch(m.href);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, hrefRegistrasi]);
+
+  /* Tujuan yg sedang dinavigasi dari sheet "Menu" -- pola SAMA PERSIS
+     GuruBottomNav.tsx (2026-09-14, diminta owner: bug sheet ditutup
+     SEKETIKA sebelum navigasi selesai, menyingkap halaman sebelumnya
+     sesaat -- ditemukan lewat audit menyeluruh, versi admin ini belum
+     ikut diperbaiki sama sekali). Sheet TETAP TERBUKA (item yg diketuk
+     diberi spinner, item lain diredupkan+dikunci) sampai `isPending`
+     selesai, baru ditutup. */
+  const [tujuanDinavigasi, setTujuanDinavigasi] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    if (tujuanDinavigasi && !isPending) {
+      setMenuTerbuka(false);
+      setTujuanDinavigasi(null);
+    }
+  }, [isPending, tujuanDinavigasi]);
+
   function pergi(href: string) {
-    setMenuTerbuka(false);
-    router.push(href);
+    setTujuanDinavigasi(href);
+    startTransition(() => {
+      router.push(href);
+    });
   }
   async function keluar() {
     setMenuTerbuka(false);
@@ -129,14 +159,21 @@ export default function AdminBottomNav() {
               <div className="flex flex-col">
                 {lainnya.map((m) => {
                   const Ikon = m.ikon;
+                  const sedangDituju = tujuanDinavigasi === m.href && isPending;
                   return (
                     <button
                       key={m.href}
                       type="button"
                       onClick={() => pergi(m.href)}
-                      className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-text active:bg-bg"
+                      disabled={isPending}
+                      className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-text transition-opacity duration-150 active:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
+                      style={sedangDituju ? { opacity: 1 } : undefined}
                     >
-                      <Ikon size={18} strokeWidth={2} className="shrink-0 text-sage" />
+                      {sedangDituju ? (
+                        <Loader2 size={18} strokeWidth={2} className="shrink-0 animate-spin text-sage" />
+                      ) : (
+                        <Ikon size={18} strokeWidth={2} className="shrink-0 text-sage" />
+                      )}
                       {m.label}
                     </button>
                   );
@@ -145,7 +182,8 @@ export default function AdminBottomNav() {
                 <button
                   type="button"
                   onClick={keluar}
-                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-red active:bg-bg"
+                  disabled={isPending}
+                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-red disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <LogOut size={18} strokeWidth={2} className="shrink-0 text-red" />
                   Keluar
