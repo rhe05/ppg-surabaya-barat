@@ -134,23 +134,36 @@ export function uraikanTargetDoa(teks: string | null): string[] {
     .filter((baris) => baris !== '');
 }
 
-/* ── Target "Hafalan Do'a" Laporan Perkembangan Santri (2026-09-14,
-   diminta owner: "untuk perincian target ... bisa ambil data dari
-   perincian materi klasikal saya sudah uraikan targetnya" -- kembar
-   PERSIS targetHafalanSuratSemester (lib/hafalanSurat.ts): sumber
-   kurikulum_prota.target/target2 SEMESTER INI (SUDAH diuraikan owner jadi
-   daftar bernomor), BUKAN kurikulum_probul bulanan yg sebagian besar
-   kelas belum diisi. `kodeKelas` TUNGGAL (bukan kumulatif). Baris
-   "Menerampilkan hafalan do'a pada jenjang sebelumnya" dibuang, sama
-   pola opsiHafalanDoa (borang Tambah Materi Klasikal). */
+const NAMA_BULAN_DOA = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
+
+/* ── Target "Hafalan Do'a" Laporan Perkembangan Santri & Monitoring
+   Pencapaian Materi (2026-09-14, diminta owner: "untuk perincian target
+   ... bisa ambil data dari perincian materi klasikal saya sudah uraikan
+   targetnya", lalu "target yang di tampilkan adalah target per bulan
+   bukan target per semester") -- kembar PERSIS targetHafalanSuratBulanan
+   (lib/hafalanSurat.ts): sumber kurikulum_prota.target/target2 -- teks
+   itu daftar BERNOMOR per semester, 1 baris = 1 bulan (persis
+   kurikulum_probul yg dicontek dari sini, lihat baris Prota kelas 1
+   Hafalan Do'a: "1. Asmaul Husna (1-10)\n2. Doa dan Dzikir setelah
+   sholat\n..." == probul bulanKe 1-6 persis), jadi AMBIL BARIS ke
+   `bulanKe` saja -- BUKAN gabungan semua baris semester spt percobaan
+   pertama. "Menerampilkan hafalan do'a pada jenjang sebelumnya" dibuang
+   SEBELUM diindeks (bukan materi baru, jangan ikut menggeser nomor
+   bulan), sama pola opsiHafalanDoa (borang Tambah Materi Klasikal).
+   Baris berlebih dijepit ke baris TERAKHIR yang ada. `kodeKelas`
+   TUNGGAL (bukan kumulatif). */
 type KategoriTersematProta = { nama: string } | { nama: string }[] | null;
 
-export async function targetHafalanDoaSemester(
+export async function targetHafalanDoaBulanan(
   kodeKelas: string,
   tahun: number,
   bulanKalender: number,
 ): Promise<string | null> {
   const semester: 1 | 2 = bulanKalender >= 7 ? 1 : 2;
+  const bulanKe = semester === 1 ? bulanKalender - 6 : bulanKalender;
   const { data, error } = await supabase
     .from('kurikulum_prota')
     .select('target, target2, kategori_kbm(nama)')
@@ -169,7 +182,9 @@ export async function targetHafalanDoaSemester(
   const daftar = uraikanTargetDoa(semester === 1 ? baris.target : baris.target2).filter(
     (item) => !adalahMenerampilkanJenjangSebelumnya(item),
   );
-  return daftar.length > 0 ? `Target Semester ${semester}: ${daftar.join(', ')}` : null;
+  if (daftar.length === 0) return null;
+  const idx = Math.min(bulanKe - 1, daftar.length - 1);
+  return `Target ${NAMA_BULAN_DOA[bulanKalender - 1]}: ${daftar[idx]}`;
 }
 
 /** Gabung target Semester 1 + Semester 2 jadi satu daftar tahunan. */

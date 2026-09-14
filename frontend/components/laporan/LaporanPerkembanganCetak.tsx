@@ -179,12 +179,14 @@ export type MateriNgajiList = MateriNgaji[];
 export type HafalanSuratLaporanBaris = { nama: string; pencapaian: string; keterangan: string };
 /* `target` (2026-09-14, diminta owner: "untuk perincian target ... bisa
    ambil data dari perincian materi klasikal saya sudah uraikan
-   targetnya") -- daftar dari lib/hafalanSurat.ts
-   `targetHafalanSuratSemester` (kurikulum_prota.target/target2 SEMESTER
-   INI, kategori "Hafalan Surat-Surat Al-Qur'an" -- BUKAN kurikulum_probul
-   bulanan, percobaan pertama 2026-09-14 ternyata sebagian besar kelas
-   belum diisi owner di situ), SUDAH diberi awalan "Target Semester N: ".
-   null kalau baris Prota kelas itu belum diisi utk semester ini. */
+   targetnya", lalu "target yang di tampilkan adalah target per bulan
+   bukan target per semester") -- baris BULAN INI dari lib/hafalanSurat.ts
+   `targetHafalanSuratBulanan` (kurikulum_prota.target/target2 diuraikan
+   jadi daftar bernomor per semester, 1 baris = 1 bulan -- diambil baris
+   ke bulan berjalan saja, BUKAN gabungan semua bulan semester, dan
+   BUKAN kurikulum_probul yg sebagian besar kelas belum diisi owner di
+   situ), SUDAH diberi awalan "Target <Bulan>: ". null kalau baris Prota
+   kelas itu belum diisi utk semester ini. */
 export type MateriHafalanSurat = { baris: HafalanSuratLaporanBaris[]; target?: string | null };
 
 /* "Hafalan Do'a-Do'a Harian" per santri (2026-09-14, diminta owner:

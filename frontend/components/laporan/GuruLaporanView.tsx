@@ -80,8 +80,8 @@ import { muatKelasGuru, muatKalenderKelompok } from '@/lib/dataGuru';
 import LaporanPerkembanganCetak, {
   type LaporanPerkembangan,
 } from '@/components/laporan/LaporanPerkembanganCetak';
-import { muatHafalanSuratKelas, targetHafalanSuratSemester } from '@/lib/hafalanSurat';
-import { muatHafalanDoaKelas, targetHafalanDoaSemester } from '@/lib/materiHafalanDoa';
+import { muatHafalanSuratKelas, targetHafalanSuratBulanan } from '@/lib/hafalanSurat';
+import { muatHafalanDoaKelas, targetHafalanDoaBulanan } from '@/lib/materiHafalanDoa';
 import { gradeRuangDari } from '@/lib/kelasKurikulum';
 
 /* anggotaId: semua kelas_id FISIK tergabung ke kelas ini (Gabung Kelas
@@ -343,7 +343,7 @@ export default function GuruLaporanView() {
       try {
         const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
           muatHafalanSuratKelas(kelasIds, awal, akhir),
-          gradeKelasIni ? targetHafalanSuratSemester(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
+          gradeKelasIni ? targetHafalanSuratBulanan(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanSurat = {
           target: targetHafalanSurat,
@@ -371,7 +371,7 @@ export default function GuruLaporanView() {
       try {
         const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
           muatHafalanDoaKelas(kelasIds, awal, akhir),
-          gradeKelasIni ? targetHafalanDoaSemester(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
+          gradeKelasIni ? targetHafalanDoaBulanan(gradeKelasIni, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanDoa = {
           target: targetHafalanDoa,

@@ -83,13 +83,13 @@ import {
   type ProtaBaris,
 } from '@/lib/dataGuru';
 import { rentangBulan } from '@/lib/periodeAkademik';
-import { muatHafalanSuratRingkas, targetHafalanSuratSemester, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
+import { muatHafalanSuratRingkas, targetHafalanSuratBulanan, type HafalanSuratRingkas } from '@/lib/hafalanSurat';
 import {
   targetAsmaulHusnaDari,
   ringkasPengulanganDoa,
   kelasKurikulumSampai,
   muatHafalanDoaRingkas,
-  targetHafalanDoaSemester,
+  targetHafalanDoaBulanan,
   type HafalanDoaRingkas,
 } from '@/lib/materiHafalanDoa';
 import { pisahTilawatiAlquran, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
@@ -393,7 +393,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
      "munculkan target untuk hafalan surat dan hafalan doa") -- sumber
      kurikulum_prota.target/target2 SEMESTER INI, pola SAMA PERSIS
      SantriProgressReport.tsx (Laporan Perkembangan Santri admin), lihat
-     lib/hafalanSurat.ts `targetHafalanSuratSemester`. */
+     lib/hafalanSurat.ts `targetHafalanSuratBulanan`. */
   const [targetHafalanSurat, setTargetHafalanSurat] = useState<string | null>(null);
   useEffect(() => {
     if (!gradeTertinggiKelas) {
@@ -401,7 +401,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       return;
     }
     let batal = false;
-    targetHafalanSuratSemester(gradeTertinggiKelas, tahun, bulan)
+    targetHafalanSuratBulanan(gradeTertinggiKelas, tahun, bulan)
       .then((t) => {
         if (!batal) setTargetHafalanSurat(t);
       })
@@ -450,7 +450,7 @@ export default function PencapaianMateriView({ judul }: { judul?: string } = {})
       return;
     }
     let batal = false;
-    targetHafalanDoaSemester(gradeTertinggiKelas, tahun, bulan)
+    targetHafalanDoaBulanan(gradeTertinggiKelas, tahun, bulan)
       .then((t) => {
         if (!batal) setTargetHafalanDoa(t);
       })

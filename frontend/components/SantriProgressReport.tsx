@@ -86,13 +86,13 @@ import {
   adalahAsmaulHusna,
   kelasKurikulumSampai,
   muatHafalanDoaKelas,
-  targetHafalanDoaSemester,
+  targetHafalanDoaBulanan,
 } from '@/lib/materiHafalanDoa';
 import {
   suratDariTargetProta,
   normalisasiNamaSurat,
   muatHafalanSuratKelas,
-  targetHafalanSuratSemester,
+  targetHafalanSuratBulanan,
 } from '@/lib/hafalanSurat';
 import { hitungMateriNgaji } from '@/lib/tilawati';
 import { pisahTilawatiAlquran, gradeRuangDari, KELAS_KURIKULUM_URUT } from '@/lib/kelasKurikulum';
@@ -450,7 +450,7 @@ export default function SantriProgressReport() {
         const [hafalanSuratKelas, targetHafalanSurat] = await Promise.all([
           muatHafalanSuratKelas(kelasIds, awal, akhir),
           gradeTertinggiKelas
-            ? targetHafalanSuratSemester(gradeTertinggiKelas, tahun, bulan)
+            ? targetHafalanSuratBulanan(gradeTertinggiKelas, tahun, bulan)
             : Promise.resolve(null),
         ]);
         materiHafalanSurat = {
@@ -481,7 +481,7 @@ export default function SantriProgressReport() {
       try {
         const [hafalanDoaKelas, targetHafalanDoa] = await Promise.all([
           muatHafalanDoaKelas(kelasIds, awal, akhir),
-          gradeTertinggiKelas ? targetHafalanDoaSemester(gradeTertinggiKelas, tahun, bulan) : Promise.resolve(null),
+          gradeTertinggiKelas ? targetHafalanDoaBulanan(gradeTertinggiKelas, tahun, bulan) : Promise.resolve(null),
         ]);
         materiHafalanDoa = {
           target: targetHafalanDoa,
