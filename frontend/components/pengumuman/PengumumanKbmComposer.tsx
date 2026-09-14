@@ -322,13 +322,24 @@ export default function PengumumanKbmComposer({
 
          Format teks WA-nya sendiri TIDAK berubah sama sekali (diminta
          owner) -- yang berubah cuma ISI baris kelas/pengajar/jam. */
+      /* BUG (2026-09-14, ditemukan owner: "yang gabung kelas 4 dan kelas
+         3 saat ini hanya muncul info nya kelas 4 saja") -- versi lama
+         mengambil nama kelas yang IKUT GABUNG dari baris `jadwal_kbm`
+         MILIK KELAS ITU SENDIRI (loop `terpilih`), padahal kelas yang
+         ikut gabung MEMANG SENGAJA tidak selalu punya baris jadwal
+         sendiri (case Kelp Petemon: kelas "3" gabung ke "4" tanpa
+         jadwal_kbm terpisah) -- namanya jadi TIDAK PERNAH ketemu, sesi
+         induk tampil polos tanpa "& <nama>". Diperbaiki: ambil LANGSUNG
+         dari `gabungAktif` (SEMUA hubungan gabung yang aktif tanggal
+         ini, sudah dimuat via muatGabungAktif di atas) + `petaKelas`
+         (nama live) -- TIDAK bergantung sama sekali pada ada/tidaknya
+         baris jadwal_kbm milik kelas yang digabung. */
       const namaKelasGabung = new Map<number, string[]>();
-      for (const j of terpilih) {
-        if (j.kelas_id == null) continue;
-        const g = gabungAktif.get(j.kelas_id);
-        if (!g) continue;
+      for (const [kelasId, g] of gabungAktif) {
+        const nama = petaKelas.get(kelasId)?.nama;
+        if (!nama) continue;
         const arr = namaKelasGabung.get(g.kelas_induk_id) ?? [];
-        arr.push(petaKelas.get(j.kelas_id)?.nama ?? j.kelas);
+        arr.push(nama);
         namaKelasGabung.set(g.kelas_induk_id, arr);
       }
 
