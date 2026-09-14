@@ -11,7 +11,7 @@
 **Repo**: https://github.com/rhe05/ppg-surabaya-barat (privat, akun rhe05)
 **Owner**: rheza354@gmail.com
 **Supabase project ref**: `fnhqtkqswxsqmjxynldg`
-**Last Updated**: 2026-09-09
+**Last Updated**: 2026-09-14
 
 ---
 
@@ -159,6 +159,46 @@ per-kelompok atau per-guru)
 
 ---
 
+## Navigasi & Transisi Halaman (WAJIB — tiap tambah rute/menu baru)
+
+> Lahir dari audit menyeluruh 2026-09-14 (mulai dari bug Pengumuman
+> "sekilas kelihatan Dashboard"), commits `113f40d`/`cc6de6b`/`f2065bb`.
+> Detail lengkap + daftar file yang sudah dibereskan: memory
+> `feedback-transisi-navigasi-guru-mobile-2026-09-14`.
+
+1. **Tiap route baru (`app/<fitur>/page.tsx`) WAJIB py `loading.tsx`**
+   di segmen yang sama. Next.js diam total tanpa itu.
+2. **Route TANPA sub-route di bawahnya** → `loading.tsx` WAJIB skeleton
+   berbentuk konten (bukan logo berdenyut generik). Pakai
+   `components/ui/SkeletonHalaman.tsx` (topbar+judul+N kartu) utk
+   bentuk list/kartu sederhana; buat skeleton custom kalau bentuknya
+   khas (hero+greeting spt Dashboard/Reports). Kecuali halaman berbentuk
+   teks/form murni (mis. kebijakan privasi, onboarding) — di situ
+   fallback netral (logo berdenyut) lebih jujur drpd skeleton kartu yg
+   salah bentuk.
+3. **Route DENGAN sub-route** (mis. `/jurnal` → `/jurnal/rencana`,
+   `/absensi` → `/absensi/riwayat`) → `loading.tsx` TETAP generik netral
+   (logo berdenyut) — dibagi ke SEMUA sub-route-nya, tidak bisa
+   spesifik satu bentuk. JANGAN diganti skeleton konten.
+4. **Overlay/sheet/drawer (`createPortal`) yang navigasi ke rute lain**
+   (bottom-sheet "Menu", dropdown hamburger, dst) — WAJIB:
+   - `router.prefetch()` semua tujuan saat overlay mount.
+   - Bungkus `router.push()` dgn `useTransition()`, TAHAN overlay tetap
+     terbuka (item yg diklik dikasih spinner `Loader2 animate-spin`,
+     item lain `disabled` + redup) sampai `isPending` `false`, BARU
+     tutup overlay. Overlay yang ditutup SEBELUM navigasi selesai
+     menyingkap halaman SEBELUMNYA sesaat — persis bug Pengumuman.
+   - Contoh rujukan: `GuruBottomNav.tsx`, `AdminBottomNav.tsx`,
+     `JamaahChrome.tsx`.
+   - **KECUALI** `KehadiranChooser.tsx`/`JurnalChooser.tsx` — pola ini
+     SUDAH PERNAH dicoba di situ (2026-08-23) dan DIBATALKAN krn bikin
+     app terasa lambat di SEMUA navigasi. Baca komentar di file itu
+     SEBELUM mengubah pola navigasinya; kalau nemu komentar serupa
+     ("dikembalikan"/"dibatalkan") di file lain, itu keputusan yang
+     sudah diuji, bukan bug yang terlewat.
+
+---
+
 ## Sejarah / arsip (JANGAN dikerjakan)
 
 - **`13_AppsScript/`** — app GAS + Google Sheets, mati 2026-08-18. `FILE_MAP.md`,
@@ -178,4 +218,6 @@ per-kelompok atau per-guru)
 `SECURITY_PERFORMANCE_AUDIT_2026-09-10.md` (audit),
 `frontend/AGENTS.md` (aturan Next.js versi ini),
 `frontend/AUTH_SETUP.md`, memory `~/.claude/projects/.../memory/MEMORY.md`
-(indeks riwayat sesi).
+(indeks riwayat sesi) — termasuk
+`feedback-transisi-navigasi-guru-mobile-2026-09-14` (rujukan lengkap
+bagian "Navigasi & Transisi Halaman" di atas).
