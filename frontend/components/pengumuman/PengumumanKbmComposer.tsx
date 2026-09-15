@@ -774,9 +774,10 @@ export default function PengumumanKbmComposer({
       {/* Kartu "Kegiatan KBM" (2026-09-15, diminta owner) -- membungkus
          penyusun jadwal KBM yang sudah ada supaya layar Pengumuman siap
          menaungi BEBERAPA jenis kegiatan sekaligus (KBM cuma yang
-         pertama). Catatan/Pratinjau/tombol aksi di bawah TETAP di luar
-         kartu ini -- itu milik pengumuman GABUNGAN semua kegiatan,
-         bukan cuma KBM. */}
+         pertama). Catatan/Pratinjau/tombol aksi ikut di DALAM kartu ini
+         DAN ikut terlipat bersamanya (diminta owner: "ikut terlipat di
+         dalamnya, ter hide di dalamnya") -- walau isinya (teks pratinjau)
+         tetap menggabungkan SEMUA kartu kegiatan, bukan cuma KBM. */}
       <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
         <button
           type="button"
@@ -941,17 +942,14 @@ export default function PengumumanKbmComposer({
           })}
         </div>
       )}
-        </div>
-        )}
 
-        {/* Catatan/Pratinjau/tombol aksi (2026-09-15, diminta owner: "letakan
-           di dalam card kegiatan kbm") -- dipindah ke dalam kartu ini, TAPI
-           di LUAR `{kbmTerbuka && (...)}` di atas, supaya tetap kelihatan
-           & bisa dipakai walau kartu jadwalnya sedang dilipat. Perlu diingat:
-           `teks` pratinjau di bawah tetap menggabungkan SEMUA kartu kegiatan
-           (termasuk kartu kegiatan tambahan di luar sini), bukan cuma isi
-           kartu ini -- cuma LETAKnya yang dipindah, bukan cakupannya. */}
-        <div className="mt-3 flex flex-col gap-4">
+        {/* Catatan/Pratinjau/tombol aksi (2026-09-15, diminta owner: "ikut
+           terlipat di dalamnya") -- SATU wrapper dengan jadwal KBM di atas,
+           bukan wrapper terpisah, supaya ikut sembunyi saat kartu dilipat.
+           Perlu diingat: `teks` pratinjau di bawah tetap menggabungkan SEMUA
+           kartu kegiatan (termasuk kartu kegiatan tambahan di luar kartu
+           ini), bukan cuma isi kartu KBM ini saja -- yang berubah cuma
+           tampilannya ikut lipat/buka, bukan cakupan isinya. */}
           <div>
             <label className={KELAS_LABEL}>Catatan (baris terpisah, otomatis diberi nomor)</label>
             <textarea
@@ -1019,6 +1017,7 @@ export default function PengumumanKbmComposer({
             {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
           </button>
         </div>
+        )}
       </div>
 
       {/* Kartu kegiatan TAMBAHAN, bebas isi (2026-09-15, diminta owner:
