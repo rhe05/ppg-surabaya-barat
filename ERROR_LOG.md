@@ -1747,6 +1747,36 @@ cuma hidup selama komponen belum re-mount.
 
 ---
 
+## #48 — Guru iPhone "tidak bisa install/buka" -- sebenarnya cuma tidak tahu caranya (2026-09-15)
+
+**Gejala** (keluhan guru, Kelp Bangun Rejo): "diaplikasiku ... tidak bisa
+install atau buka melalui hp iphone".
+
+**Diagnosis** (ditanya ke owner via AskUserQuestion sebelum menyimpulkan
+apa pun): setelah digali, Safari-nya sendiri bisa buka halaman NORMAL --
+yang gagal cuma "install". Ini bukan bug teknis: iPhone memang TIDAK
+punya tombol "Install" spt Android (`beforeinstallprompt` tidak ada di
+WebKit/iOS sama sekali), satu-satunya jalan pasang ke layar utama adalah
+Safari > ikon Bagikan > "Tambah ke Layar Utama". `AjakanPasangApp.tsx`
+(sejak 2026-09-01) SUDAH menjelaskan ini lewat bilah otomatis -- tapi
+bilah itu MUNCUL SEKALI lalu hilang selamanya begitu ditutup
+(localStorage). Guru yang menutupnya sebelum sempat paham tidak py jalan
+lain melihatnya lagi -- itu akar keluhannya, bukan aplikasi gagal buka.
+
+**Perbaikan**: `CaraPasangAppModal.tsx` baru -- petunjuk yang SAMA (deteksi
+iOS/Android/sudah-terpasang) tapi dipanggil MANUAL kapan pun dari menu
+"Cara Pasang Aplikasi" (GuruBottomNav.tsx & AdminBottomNav.tsx, sheet
+"Menu"), TIDAK terikat localStorage. iOS dapat 4 langkah eksplisit
+(Safari -> Bagikan -> Tambah ke Layar Utama -> Tambah), Android dapat
+langkah titik-tiga Chrome -> Instal aplikasi.
+
+**Pelajaran**: petunjuk sekali-tampil (dismiss-once) utk sesuatu yang
+BENAR tapi tidak jadi ditangkap penggunanya sepenuhnya perlu jalan
+kedua yang bisa dipanggil ulang -- jangan andalkan satu bilah otomatis
+sbg satu-satunya sumber penjelasan permanen.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.

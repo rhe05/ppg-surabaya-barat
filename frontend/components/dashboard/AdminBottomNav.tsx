@@ -22,11 +22,13 @@ import {
   BarChart3,
   ClipboardCheck,
   Banknote,
+  Smartphone,
   LogOut,
   X,
   Loader2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import CaraPasangAppModal from '@/components/ui/CaraPasangAppModal';
 
 type Tab = { label: string; href: string; ikon: typeof Home; cocok: string[] };
 
@@ -45,6 +47,8 @@ export default function AdminBottomNav() {
   const pathname = usePathname() ?? '';
   const { profile, signOut } = useAuth();
   const [menuTerbuka, setMenuTerbuka] = useState(false);
+  /* "Cara Pasang Aplikasi" (2026-09-15) -- pola sama persis GuruBottomNav.tsx. */
+  const [pasangTerbuka, setPasangTerbuka] = useState(false);
 
   const aktif = (t: Tab) => t.cocok.some((c) => pathname === c || pathname.startsWith(c + '/'));
   const menuAktif = TAB.every((t) => !aktif(t));
@@ -99,6 +103,7 @@ export default function AdminBottomNav() {
 
   return (
     <>
+      <CaraPasangAppModal terbuka={pasangTerbuka} onTutup={() => setPasangTerbuka(false)} />
       <nav
         data-admin-nav
         className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-panel pb-[env(safe-area-inset-bottom)] shadow-[0_-2px_12px_rgba(15,23,42,0.06)] md:hidden"
@@ -178,6 +183,18 @@ export default function AdminBottomNav() {
                     </button>
                   );
                 })}
+                <div className="my-1 h-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuTerbuka(false);
+                    setPasangTerbuka(true);
+                  }}
+                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-text active:bg-bg"
+                >
+                  <Smartphone size={18} strokeWidth={2} className="shrink-0 text-sage" />
+                  Cara Pasang Aplikasi
+                </button>
                 <div className="my-1 h-px bg-border" />
                 <button
                   type="button"

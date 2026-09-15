@@ -39,6 +39,7 @@ import {
   UserRound,
   FileText,
   Activity,
+  Smartphone,
   LogOut,
   X,
   Loader2,
@@ -46,6 +47,7 @@ import {
 import { useAuth } from '@/lib/auth-context';
 import KehadiranChooser from '@/components/dashboard/KehadiranChooser';
 import JurnalChooser from '@/components/dashboard/JurnalChooser';
+import CaraPasangAppModal from '@/components/ui/CaraPasangAppModal';
 
 type Tab = {
   label: string;
@@ -85,6 +87,12 @@ export default function GuruBottomNav() {
   const [menuTerbuka, setMenuTerbuka] = useState(false);
   const [kehadiranTerbuka, setKehadiranTerbuka] = useState(false);
   const [jurnalTerbuka, setJurnalTerbuka] = useState(false);
+  /* "Cara Pasang Aplikasi" (2026-09-15) -- BEDA dari AjakanPasangApp.tsx
+     (bilah otomatis, sekali muncul lalu hilang selamanya begitu ditutup):
+     ini pemicu manual yang bisa dibuka ulang kapan pun dari Menu, utk
+     guru yang sudah kadung menutup bilahnya tanpa sempat paham caranya
+     (keluhan guru iPhone Kelp Bangun Rejo). */
+  const [pasangTerbuka, setPasangTerbuka] = useState(false);
   /* Tujuan yg sedang dinavigasi dari sheet "Menu" -- dipakai bareng
      `isPending` di bawah utk menahan sheet TETAP TERBUKA (dgn spinner
      di item yg diketuk) sampai navigasi benar2 selesai (2026-09-14,
@@ -140,6 +148,7 @@ export default function GuruBottomNav() {
     <>
       <KehadiranChooser terbuka={kehadiranTerbuka} onTutup={() => setKehadiranTerbuka(false)} />
       <JurnalChooser terbuka={jurnalTerbuka} onTutup={() => setJurnalTerbuka(false)} />
+      <CaraPasangAppModal terbuka={pasangTerbuka} onTutup={() => setPasangTerbuka(false)} />
 
       {/* max-w-[430px] mx-auto di <nav> ITU SENDIRI, bukan cuma pembungkus
           di dalamnya -- kalau cuma isinya yg dibatasi, latar putih nav
@@ -228,6 +237,18 @@ export default function GuruBottomNav() {
                     </button>
                   );
                 })}
+                <div className="my-1 h-px bg-border" />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenuTerbuka(false);
+                    setPasangTerbuka(true);
+                  }}
+                  className="flex cursor-pointer items-center gap-3 rounded-[10px] border-none bg-transparent px-2 py-3 text-left text-[14px] font-semibold text-text active:bg-bg"
+                >
+                  <Smartphone size={18} strokeWidth={2} className="shrink-0 text-sage" />
+                  Cara Pasang Aplikasi
+                </button>
                 <div className="my-1 h-px bg-border" />
                 <button
                   type="button"
