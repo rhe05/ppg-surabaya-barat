@@ -20,7 +20,7 @@
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Copy, Check, Info, MessageCircle, Merge } from 'lucide-react';
+import { Calendar, Copy, Check, Info, MessageCircle, Merge, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
@@ -188,6 +188,22 @@ export default function PengumumanKbmComposer({
      sudah otomatis "Diganti". */
   const [guruIzinSet, setGuruIzinSet] = useState<Set<number>>(new Set());
   const [catatan, setCatatan] = useState(CATATAN_DEFAULT);
+  /* Kartu kegiatan tambahan di luar KBM (2026-09-15, diminta owner) --
+     judul+isi teks bebas, TIDAK disimpan ke DB manapun (beda dari Catatan
+     yang memang template dipakai ulang) -- cuma bagian dari pengumuman
+     yang sedang disusun sesi ini, hilang begitu komponen di-mount ulang,
+     sama spt override status sesi KBM. */
+  type KegiatanLain = { id: string; judul: string; isi: string };
+  const [kegiatanLain, setKegiatanLain] = useState<KegiatanLain[]>([]);
+  function tambahKegiatan() {
+    setKegiatanLain((prev) => [...prev, { id: crypto.randomUUID(), judul: '', isi: '' }]);
+  }
+  function ubahKegiatan(id: string, field: 'judul' | 'isi', nilai: string) {
+    setKegiatanLain((prev) => prev.map((k) => (k.id === id ? { ...k, [field]: nilai } : k)));
+  }
+  function hapusKegiatan(id: string) {
+    setKegiatanLain((prev) => prev.filter((k) => k.id !== id));
+  }
   /* Jumlah baris jadwal_kbm kelompok ini TANPA saringan hari -- dipakai
      hanya utk membedakan "belum ada jadwal sama sekali" dari "ada, tapi
      tidak berjalan di hari ini" pada pesan layar kosong. */
@@ -648,6 +664,20 @@ export default function PengumumanKbmComposer({
       }
     }
 
+    /* Kartu kegiatan tambahan -- lanjut penomoran dari sesi KBM di atas,
+       jadi terbaca satu daftar kegiatan yang sama, bukan dua daftar
+       terpisah. Kartu kosong (judul & isi kosong dua-duanya) dilewati,
+       tidak ikut membuat nomor kosong di teks WA. */
+    for (const k of kegiatanLain) {
+      const judul = k.judul.trim();
+      const isi = k.isi.trim();
+      if (!judul && !isi) continue;
+      nomor += 1;
+      baris.push('');
+      baris.push(`${angkaEmoji(nomor)} *${judul || 'Kegiatan'}*`);
+      if (isi) isi.split('\n').forEach((baris_) => baris.push(baris_));
+    }
+
     if (nomor === 0) {
       baris.push('');
       baris.push('_(Belum ada Jadwal KBM di tanggal ini)_');
@@ -669,7 +699,7 @@ export default function PengumumanKbmComposer({
     baris.push('Wassalamualaikum Wr. Wb.');
 
     return baris.join('\n');
-  }, [jadwalUrut, overrides, namaGuru, namaKelompok, tanggalLabel, catatan, guruIzinSet]);
+  }, [jadwalUrut, overrides, namaGuru, namaKelompok, tanggalLabel, catatan, guruIzinSet, kegiatanLain]);
 
   async function salin() {
     try {
@@ -737,6 +767,14 @@ export default function PengumumanKbmComposer({
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Kartu "Kegiatan KBM" (2026-09-15, diminta owner) -- membungkus
+         penyusun jadwal KBM yang sudah ada supaya layar Pengumuman siap
+         menaungi BEBERAPA jenis kegiatan sekaligus (KBM cuma yang
+         pertama). Catatan/Pratinjau/tombol aksi di bawah TETAP di luar
+         kartu ini -- itu milik pengumuman GABUNGAN semua kegiatan,
+         bukan cuma KBM. */}
+      <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
+        <h2 className="mb-3 text-[14px] font-extrabold text-text">Kegiatan KBM</h2>
       <div>
         <label className={KELAS_LABEL}>Tanggal KBM</label>
         <button
@@ -887,6 +925,51 @@ export default function PengumumanKbmComposer({
           })}
         </div>
       )}
+      </div>
+
+      {/* Kartu kegiatan TAMBAHAN, bebas isi (2026-09-15, diminta owner:
+         "berikan juga tombol utk menambah card yang lain editable dan
+         fleksible") -- beda dari kartu Kegiatan KBM di atas yang datanya
+         otomatis dari jadwal_kbm, ini judul+isi teks bebas sepenuhnya,
+         utk kegiatan yang belum (atau tidak akan pernah) punya komposer
+         khusus sendiri. Ikut masuk ke pengumuman gabungan lewat `teks`
+         di bawah, bernomor lanjutan dari sesi KBM. TIDAK disimpan ke DB
+         apa pun -- isinya cuma bagian dari pengumuman yang sedang disusun
+         SAAT INI, bukan template yang dipakai ulang spt Catatan. */}
+      {kegiatanLain.map((k) => (
+        <div key={k.id} className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
+          <div className="mb-2 flex items-center gap-2">
+            <input
+              className={KELAS_SELECT + ' flex-1 font-bold'}
+              placeholder="Nama kegiatan"
+              value={k.judul}
+              onChange={(e) => ubahKegiatan(k.id, 'judul', e.target.value)}
+            />
+            <button
+              type="button"
+              aria-label="Hapus kartu kegiatan"
+              onClick={() => hapusKegiatan(k.id)}
+              className="shrink-0 cursor-pointer border-none bg-transparent p-1 text-red active:opacity-60"
+            >
+              <Trash2 size={16} />
+            </button>
+          </div>
+          <textarea
+            rows={3}
+            className={KELAS_SELECT + ' py-2.5'}
+            placeholder="Isi pengumuman kegiatan ini"
+            value={k.isi}
+            onChange={(e) => ubahKegiatan(k.id, 'isi', e.target.value)}
+          />
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={tambahKegiatan}
+        className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed border-border bg-transparent px-4 py-2.5 text-[12.5px] font-semibold text-text-dim transition-colors hover:bg-panel-2"
+      >
+        <Plus size={14} /> Tambah Kegiatan
+      </button>
 
       <div>
         <label className={KELAS_LABEL}>Catatan (baris terpisah, otomatis diberi nomor)</label>
