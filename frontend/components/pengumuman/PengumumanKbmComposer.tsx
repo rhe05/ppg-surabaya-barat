@@ -51,8 +51,26 @@ type Jadwal = {
   keterangan: string | null;
 };
 type Guru = { id: number; nama: string };
-type StatusSesi = 'hadir' | 'diganti' | 'libur';
-type Override = { status: StatusSesi; penggantiId?: number };
+type StatusSesi = 'hadir' | 'diganti' | 'libur' | 'dialihkan';
+type Override = { status: StatusSesi; penggantiId?: number; dialihkanKe?: string };
+
+/* "Dialihkan" (2026-09-15, diminta owner): dua jenjang ini paling sering
+   pindah ke kegiatan pengajian lain (Teks/Daerahan/Desa Kumpul/dst),
+   BEDA dari "Diganti" (guru lain, kelas TETAP jalan spt biasa) -- di sini
+   KELAS-nya sendiri yang tidak jalan, digantikan kegiatan lain sama
+   sekali. Sengaja cuma dua jenjang ini (bukan semua kategori) -- jenjang
+   lain jarang berubah, owner: "karena yang sering berubah hanya dua ini". */
+const KATEGORI_BISA_DIALIHKAN = ['Pra Remaja SMP', 'Remaja SMA'];
+/* Contoh isian, BUKAN daftar tertutup -- kolomnya tetap teks bebas
+   (input drop-down), owner minta tetap fleksibel: "bisa di tambah
+   kegiatan yang lain". Kolom <datalist> di bawah cuma bantu ketik cepat. */
+const CONTOH_DIALIHKAN = [
+  'Pengajian Teks',
+  'Pengajian Daerahan',
+  'Pengajian Desa Kumpul',
+  'Pengajian Penerobosan Pusat',
+  'Pengajian CAI',
+];
 
 const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const NAMA_BULAN = [
@@ -111,14 +129,17 @@ function hariAktifTerdekat(mulai: string, cek: CekNonaktif): string {
   return mulai;
 }
 
-/* Tiga status sesi + warna aktifnya. Label sengaja pendek ("Diganti",
-   bukan "Izin - Diganti") supaya muat di sepertiga lebar kartu pada HP
-   sempit tanpa terpotong. */
+/* Status sesi baku + warna aktifnya. Label sengaja pendek ("Diganti",
+   bukan "Izin - Diganti") supaya muat di seperempat lebar kartu pada HP
+   sempit tanpa terpotong. "Dialihkan" TIDAK dimasukkan di sini -- cuma
+   muncul di kartu kategori KATEGORI_BISA_DIALIHKAN (lihat pemakaiannya
+   di render kartu sesi). */
 const STATUS_SESI: { nilai: StatusSesi; label: string; bg: string }[] = [
   { nilai: 'hadir', label: 'Hadir', bg: 'bg-sage' },
   { nilai: 'diganti', label: 'Diganti', bg: 'bg-brass' },
   { nilai: 'libur', label: 'Libur', bg: 'bg-red' },
 ];
+const STATUS_DIALIHKAN = { nilai: 'dialihkan' as const, label: 'Dialihkan', bg: 'bg-indigo' };
 
 const KELAS_LABEL = 'mb-1.5 block text-[12px] font-semibold text-text-dim';
 const KELAS_SELECT =
@@ -456,11 +477,18 @@ export default function PengumumanKbmComposer({
   function setStatus(id: number, status: StatusSesi) {
     setOverrides((prev) => ({
       ...prev,
-      [id]: { status, penggantiId: status === 'diganti' ? prev[id]?.penggantiId : undefined },
+      [id]: {
+        status,
+        penggantiId: status === 'diganti' ? prev[id]?.penggantiId : undefined,
+        dialihkanKe: status === 'dialihkan' ? prev[id]?.dialihkanKe : undefined,
+      },
     }));
   }
   function setPengganti(id: number, penggantiId: number) {
     setOverrides((prev) => ({ ...prev, [id]: { status: 'diganti', penggantiId } }));
+  }
+  function setDialihkanKe(id: number, dialihkanKe: string) {
+    setOverrides((prev) => ({ ...prev, [id]: { status: 'dialihkan', dialihkanKe } }));
   }
 
   const jadwalUrut = useMemo(
@@ -479,6 +507,14 @@ export default function PengumumanKbmComposer({
       jadwalUrut.filter((j) => {
         const ov = overrides[j.id];
         return ov?.status === 'diganti' && !ov.penggantiId;
+      }).length,
+    [jadwalUrut, overrides],
+  );
+  const jumlahDialihkanBelumDiisi = useMemo(
+    () =>
+      jadwalUrut.filter((j) => {
+        const ov = overrides[j.id];
+        return ov?.status === 'dialihkan' && !ov.dialihkanKe?.trim();
       }).length,
     [jadwalUrut, overrides],
   );
@@ -521,6 +557,11 @@ export default function PengumumanKbmComposer({
          tidak boleh berubah (diminta owner). */
       sedangIzin?: boolean;
       menungguPengganti?: boolean;
+      /* "Dialihkan" (2026-09-15) -- kelas TIDAK jalan spt biasa, dipindah
+         total ke kegiatan lain (Pengajian Teks/Daerahan/dst). Beda dari
+         "Diganti": guru yang berubah, "Dialihkan": kegiatannya berubah. */
+      dialihkanKe?: string;
+      dialihkanKosong?: boolean;
     };
     const efektif: Efektif[] = [];
     for (const j of jadwalUrut) {
@@ -539,6 +580,9 @@ export default function PengumumanKbmComposer({
            akan menunggu orang yang tidak datang. Ditandai terang-terangan
            supaya penyusun sadar pengumumannya belum siap dikirim. */
         efektif.push({ ...j, menungguPengganti: true });
+      } else if (ov?.status === 'dialihkan') {
+        const namaKegiatan = ov.dialihkanKe?.trim();
+        efektif.push(namaKegiatan ? { ...j, dialihkanKe: namaKegiatan } : { ...j, dialihkanKosong: true });
       } else {
         efektif.push(j);
       }
@@ -586,15 +630,21 @@ export default function PengumumanKbmComposer({
         nomor += 1;
         baris.push('');
         baris.push(`${angkaEmoji(nomor)} *Kelas ${kat}*`);
-        baris.push(
-          j.menungguPengganti
-            ? `📍 *Pengajar : _(izin -- pengganti belum ditentukan)_*`
-            : `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari}${j.sedangIzin ? ` yang sedang izin` : ''})_` : ''}`
-        );
-        baris.push(
-          `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
-        );
-        baris.push(`*Tempat : ${j.ruangan ?? '-'}*`);
+        if (j.dialihkanKe) {
+          baris.push(`📍 *Dialihkan ke ${j.dialihkanKe}*`);
+        } else if (j.dialihkanKosong) {
+          baris.push(`📍 *Dialihkan -- kegiatan belum diisi*`);
+        } else {
+          baris.push(
+            j.menungguPengganti
+              ? `📍 *Pengajar : _(izin -- pengganti belum ditentukan)_*`
+              : `📍 *Pengajar ${namaGuru(j.guru_id)}*${j.penggantiDari ? ` _(menggantikan ${j.penggantiDari}${j.sedangIzin ? ` yang sedang izin` : ''})_` : ''}`
+          );
+          baris.push(
+            `⏰ Jam : ${formatJam(j.jam_mulai)} - ${formatJam(j.jam_selesai)} WIB${j.keterangan ? ' (' + j.keterangan + ')' : ''}`
+          );
+          baris.push(`*Tempat : ${j.ruangan ?? '-'}*`);
+        }
       }
     }
 
@@ -743,6 +793,12 @@ export default function PengumumanKbmComposer({
           {jadwalUrut.map((j) => {
             const ov = overrides[j.id];
             const status = ov?.status ?? 'hadir';
+            /* Tombol "Dialihkan" cuma utk dua jenjang yang sering pindah
+               kegiatan (owner 2026-09-15) -- jenjang lain tetap 3 status
+               spt semula. */
+            const opsiStatus = KATEGORI_BISA_DIALIHKAN.includes(j.kategori)
+              ? [...STATUS_SESI, STATUS_DIALIHKAN]
+              : STATUS_SESI;
             return (
               <div key={j.id} className="rounded-[var(--radius)] border border-border bg-panel p-3">
                 {/* Info kelas: 3 baris ber-truncate, TIDAK lagi berebut ruang
@@ -773,7 +829,7 @@ export default function PengumumanKbmComposer({
                     tombol), bukan panjang teks opsi, jadi tidak mungkin
                     melebar lagi seberapa pun sempit layarnya. */}
                 <div className="mt-2.5 flex gap-1 rounded-[var(--radius)] border border-border bg-panel-2 p-0.5">
-                  {STATUS_SESI.map((s) => {
+                  {opsiStatus.map((s) => {
                     const on = status === s.nilai;
                     return (
                       <button
@@ -805,6 +861,27 @@ export default function PengumumanKbmComposer({
                       ))}
                   </select>
                 )}
+                {status === 'dialihkan' && (
+                  <>
+                    {/* Teks BEBAS, bukan pilihan tertutup (diminta owner:
+                        "berikan juga editable atau fleksible bisa di
+                        tambah kegiatan yang lain") -- <datalist> cuma
+                        bantu ketik cepat lewat contoh yang sudah ada,
+                        tidak membatasi isian ke daftar itu saja. */}
+                    <input
+                      list={`dialihkan-opsi-${j.id}`}
+                      className={KELAS_SELECT + ' mt-2'}
+                      placeholder="Nama kegiatan pengganti, mis. Pengajian Teks"
+                      value={ov?.dialihkanKe ?? ''}
+                      onChange={(e) => setDialihkanKe(j.id, e.target.value)}
+                    />
+                    <datalist id={`dialihkan-opsi-${j.id}`}>
+                      {CONTOH_DIALIHKAN.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </>
+                )}
               </div>
             );
           })}
@@ -831,6 +908,17 @@ export default function PengumumanKbmComposer({
           <span>
             {jumlahBelumAdaPengganti} sesi gurunya sedang izin dan penggantinya belum dipilih.
             Tentukan pengganti dulu sebelum pengumuman dikirim.
+          </span>
+        </div>
+      )}
+      {/* Sama polanya dgn peringatan pengganti di atas -- sesi ditandai
+          Dialihkan tapi kolom nama kegiatannya masih kosong. */}
+      {jumlahDialihkanBelumDiisi > 0 && (
+        <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
+          <span className="shrink-0">⚠️</span>
+          <span>
+            {jumlahDialihkanBelumDiisi} sesi ditandai Dialihkan tapi nama kegiatannya belum diisi.
+            Isi dulu sebelum pengumuman dikirim.
           </span>
         </div>
       )}
