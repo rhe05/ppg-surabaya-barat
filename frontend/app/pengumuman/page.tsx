@@ -380,6 +380,7 @@ function PengumumanContent() {
             kelompokId={kelompokId}
             namaKelompok={namaKelompokTerpilih}
             onTersimpan={muat}
+            olehId={profile?.id ?? null}
           />
         </div>
       )}
@@ -484,7 +485,11 @@ function PengumumanGuruView() {
           Susun pengumuman jadwal KBM hari ini, lalu salin ke grup WA wali murid.
         </p>
         {kelompokId ? (
-          <PengumumanKbmComposer kelompokId={kelompokId} namaKelompok={namaKelompok ?? ''} />
+          <PengumumanKbmComposer
+            kelompokId={kelompokId}
+            namaKelompok={namaKelompok ?? ''}
+            olehId={profile?.id ?? null}
+          />
         ) : (
           <p className="text-[13px] text-text-dim">Kelompok belum diketahui.</p>
         )}

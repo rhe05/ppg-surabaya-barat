@@ -20,11 +20,12 @@
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Copy, Check, Info, MessageCircle } from 'lucide-react';
+import { Calendar, Copy, Check, Info, MessageCircle, Merge } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
 import SkeletonKartuList from '@/components/ui/SkeletonKartuList';
+import GabungKelasModal from '@/components/kelas/GabungKelasModal';
 import {
   muatKelasRingkas,
   muatGabungAktif,
@@ -134,10 +135,16 @@ export default function PengumumanKbmComposer({
   kelompokId,
   namaKelompok,
   onTersimpan,
+  olehId = null,
 }: {
   kelompokId: number;
   namaKelompok: string;
   onTersimpan?: () => void;
+  /* Dipakai sbg kelas_gabung.dibuat_oleh saat guru menggabung kelas
+     langsung dari sini (2026-09-15, diminta owner: "guru bisa eksekusi
+     sendiri tanpa izin ke admin kelp"). Opsional -- kalau pemanggil tidak
+     mengirim, GabungKelasModal cukup menyimpan NULL. */
+  olehId?: string | null;
 }) {
   /* Aturan akhir pekan + libur nasional itu statis (fungsi murni, tanpa
      DB), jadi tanggal awalnya sudah bisa benar SEKETIKA -- tidak ada
@@ -177,6 +184,18 @@ export default function PengumumanKbmComposer({
   const [pesan, setPesan] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  /* "Gabung Kelas" langsung dari Pengumuman (2026-09-15, diminta owner) --
+     dulu cuma bisa lewat Data Kelas (admin_kelompok). RLS `kelas_gabung`
+     kini juga menerima peran guru (migrasi 20260915100000), scoped ke
+     kelompoknya sendiri -- BEBAS kelas mana pun ke kelas induk mana pun
+     di kelompok itu, tidak dibatasi ke kelas yang dia ampu (pilihan owner).
+     Modalnya sendiri (GabungKelasModal) tidak berubah sama sekali, cuma
+     dipasang di sini juga. */
+  const [kelasOpsi, setKelasOpsi] = useState<
+    { id: number; nama: string; jam_mulai: string; jam_selesai: string; ruangan: string }[]
+  >([]);
+  const [gabungTerbuka, setGabungTerbuka] = useState(false);
+
   useEffect(() => {
     supabase
       .from('guru')
@@ -185,6 +204,13 @@ export default function PengumumanKbmComposer({
       .is('deleted_at', null)
       .order('nama')
       .then(({ data }) => setGuruList(data ?? []));
+    supabase
+      .from('kelas')
+      .select('id, nama, jam_mulai, jam_selesai, ruangan')
+      .eq('kelompok_id', kelompokId)
+      .is('deleted_at', null)
+      .order('nama')
+      .then(({ data }) => setKelasOpsi(data ?? []));
   }, [kelompokId]);
 
   /* Kalender dikunci sama persis dgn Input Kehadiran (diminta owner
@@ -658,6 +684,18 @@ export default function PengumumanKbmComposer({
         />
       </div>
 
+      {/* Pemicu Gabung Kelas -- ditaruh di bawah tanggal, sebelum daftar
+          sesi, supaya guru yang baru sadar jamnya perlu diubah tidak perlu
+          scroll jauh. Efeknya baru terlihat di pratinjau setelah `muat()`
+          dipanggil ulang (lihat onTutup di bawah). */}
+      <button
+        type="button"
+        onClick={() => setGabungTerbuka(true)}
+        className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-border bg-panel-2 px-4 py-2.5 text-[12.5px] font-semibold text-text-dim transition-colors hover:bg-border"
+      >
+        <Merge size={14} /> Gabung Kelas & Ubah Jam
+      </button>
+
       {/* Skeleton berbentuk kartu sesi, bukan teks "Memuat..." polos --
           tingginya mendekati kartu asli sehingga isi di bawahnya tidak
           melompat saat data datang (sumber kedipan kedua). */}
@@ -798,6 +836,21 @@ export default function PengumumanKbmComposer({
       <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
         {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
       </button>
+
+      {gabungTerbuka && (
+        <GabungKelasModal
+          kelompokId={kelompokId}
+          kelasList={kelasOpsi}
+          olehId={olehId}
+          onTutup={() => {
+            setGabungTerbuka(false);
+            /* Muat ulang supaya pratinjau langsung mencerminkan gabungan
+               yang baru saja disimpan/dibatalkan -- tanpa ini guru harus
+               ganti tanggal bolak-balik dulu baru terlihat. */
+            muat();
+          }}
+        />
+      )}
     </div>
   );
 }
