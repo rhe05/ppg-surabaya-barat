@@ -20,7 +20,7 @@
    membetulkan jadwal beneran tetap lewat layar /jadwal. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar, Copy, Check, Info, MessageCircle, Merge, Plus, Trash2 } from 'lucide-react';
+import { Calendar, Copy, Check, Info, MessageCircle, Merge, Plus, Trash2, ChevronDown } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { KATEGORI_JENJANG } from '@/lib/kategori';
 import TanggalPicker, { type PosisiPicker } from '@/components/ui/TanggalPicker';
@@ -179,6 +179,10 @@ export default function PengumumanKbmComposer({
   const dipilihManual = useRef(false);
   const [pickerTerbuka, setPickerTerbuka] = useState(false);
   const [posisiPicker, setPosisiPicker] = useState<PosisiPicker | null>(null);
+  /* Kartu "Kegiatan KBM" bisa dilipat (2026-09-15, diminta owner: "kalau
+     saya klik langsung terhide spt di fitur jurnal") -- pola & mulai
+     dari `true` disalin dari KartuRiwayatTilawati.tsx. */
+  const [kbmTerbuka, setKbmTerbuka] = useState(true);
 
   const [jadwalList, setJadwalList] = useState<Jadwal[]>([]);
   const [guruList, setGuruList] = useState<Guru[]>([]);
@@ -774,7 +778,19 @@ export default function PengumumanKbmComposer({
          kartu ini -- itu milik pengumuman GABUNGAN semua kegiatan,
          bukan cuma KBM. */}
       <div className="rounded-card border border-border bg-panel p-4 shadow-[var(--shadow-card)]">
-        <h2 className="mb-3 text-[14px] font-extrabold text-text">Kegiatan KBM</h2>
+        <button
+          type="button"
+          onClick={() => setKbmTerbuka((v) => !v)}
+          className="flex w-full cursor-pointer items-center justify-between gap-2 border-none bg-transparent p-0 text-left"
+        >
+          <span className="text-[14px] font-extrabold text-text">Kegiatan KBM</span>
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-text-faint transition-transform duration-150 ${kbmTerbuka ? 'rotate-180' : ''}`}
+          />
+        </button>
+        {kbmTerbuka && (
+        <div className="mt-3 flex flex-col gap-4">
       <div>
         <label className={KELAS_LABEL}>Tanggal KBM</label>
         <button
@@ -925,6 +941,8 @@ export default function PengumumanKbmComposer({
           })}
         </div>
       )}
+        </div>
+        )}
       </div>
 
       {/* Kartu kegiatan TAMBAHAN, bebas isi (2026-09-15, diminta owner:
@@ -963,13 +981,6 @@ export default function PengumumanKbmComposer({
           />
         </div>
       ))}
-      <button
-        type="button"
-        onClick={tambahKegiatan}
-        className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed border-border bg-transparent px-4 py-2.5 text-[12.5px] font-semibold text-text-dim transition-colors hover:bg-panel-2"
-      >
-        <Plus size={14} /> Tambah Kegiatan
-      </button>
 
       <div>
         <label className={KELAS_LABEL}>Catatan (baris terpisah, otomatis diberi nomor)</label>
@@ -1036,6 +1047,17 @@ export default function PengumumanKbmComposer({
       </div>
       <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
         {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
+      </button>
+
+      {/* Ditaruh PALING BAWAH (diminta owner 2026-09-15) -- housekeeping
+         "tambah kartu kegiatan baru", terpisah dari alur susun/pratinjau/
+         kirim di atasnya supaya tidak menyela alur utama. */}
+      <button
+        type="button"
+        onClick={tambahKegiatan}
+        className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-dashed border-border bg-transparent px-4 py-2.5 text-[12.5px] font-semibold text-text-dim transition-colors hover:bg-panel-2"
+      >
+        <Plus size={14} /> Tambah Kegiatan
       </button>
 
       {gabungTerbuka && (
