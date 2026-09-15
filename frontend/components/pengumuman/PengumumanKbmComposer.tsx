@@ -213,6 +213,26 @@ export default function PengumumanKbmComposer({
       .then(({ data }) => setKelasOpsi(data ?? []));
   }, [kelompokId]);
 
+  /* Muat template Catatan tersimpan milik kelompok ini (2026-09-15,
+     perbaikan bug: sebelumnya `catatan` cuma state lokal, jadi "Simpan
+     Pengumuman" tidak benar-benar menyimpan ISIAN catatan -- kembali ke
+     CATATAN_DEFAULT tiap refresh). Belum pernah disimpan (baris belum
+     ada) -> tetap pakai CATATAN_DEFAULT, bukan kosong. */
+  useEffect(() => {
+    let batal = false;
+    supabase
+      .from('pengumuman_catatan')
+      .select('catatan')
+      .eq('kelompok_id', kelompokId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!batal && data?.catatan) setCatatan(data.catatan);
+      });
+    return () => {
+      batal = true;
+    };
+  }, [kelompokId]);
+
   /* Kalender dikunci sama persis dgn Input Kehadiran (diminta owner
      2026-08-28): Sabtu/Minggu & tanggal merah nasional tidak bisa dipilih,
      DITUMPANGI pengecualian per kelompok (kalender_kelompok) -- tanggal
@@ -646,6 +666,16 @@ export default function PengumumanKbmComposer({
         tanggal,
       });
       if (err) throw new Error(err.message);
+      /* Simpan template Catatan-nya juga (bukan cuma teks jadi di atas) --
+         supaya isian ini tetap ada lain kali komposer dibuka, TIDAK
+         kembali ke CATATAN_DEFAULT bawaan kode (bug dilaporkan owner
+         2026-09-15). Galat di sini SENGAJA tidak menggagalkan simpan
+         pengumuman utamanya -- cukup dicatat, jangan sampai guru pikir
+         pengumumannya gagal tersimpan gara-gara catatan. */
+      const { error: errCatatan } = await supabase
+        .from('pengumuman_catatan')
+        .upsert({ kelompok_id: kelompokId, catatan, diubah_oleh: olehId });
+      if (errCatatan) console.error('Gagal menyimpan template catatan:', errCatatan.message);
       setPesan('Pengumuman tersimpan.');
       onTersimpan?.();
     } catch (e) {

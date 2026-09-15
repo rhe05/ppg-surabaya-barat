@@ -1719,6 +1719,34 @@ atasnya cukup menjelaskan, terutama di laporan cetak yang dibaca sekilas.
 
 ---
 
+## #47 — Catatan Pengumuman Jadwal KBM kembali ke default setelah refresh (2026-09-15)
+
+**Gejala** (guru, layar Pengumuman): kotak "Catatan" diedit, "Simpan
+Pengumuman" ditekan, tapi begitu halaman di-refresh isinya kembali ke
+teks bawaan ("Datang tepat waktu, jangan terlambat", dst).
+
+**Akar masalah**: `catatan` di `PengumumanKbmComposer.tsx` cuma STATE
+REACT lokal (`useState(CATATAN_DEFAULT)`), tidak pernah ditulis ke DB.
+"Simpan Pengumuman" cuma menyimpan TEKS JADI (kolom `pengumuman.isi`)
+sebagai entri riwayat baru -- template catatannya sendiri tidak pernah
+disimpan utk dipakai lagi, jadi tiap kali komponen di-mount ulang (mis.
+refresh) ia mulai dari `CATATAN_DEFAULT` lagi.
+
+**Perbaikan**: tabel baru `pengumuman_catatan` (migrasi `20260915110000`,
+SATU baris per kelompok -- ini boilerplate dipakai ulang, bukan riwayat).
+Komposer memuat baris ini saat mount (fallback ke `CATATAN_DEFAULT` kalau
+belum pernah disimpan), dan `simpan()` sekarang juga `upsert` ke tabel ini
+selain insert ke `pengumuman`. RLS disalin pola `kelas_gabung_*`
+(`[[ppg-gabung-kelas-guru-pengumuman-2026-09-15]]`) -- guru & admin_kelompok
+boleh baca+tulis, scoped ke kelompoknya sendiri.
+
+**Pelajaran**: field draft/template yang MESTINYA dipakai ulang (bukan
+riwayat sekali-jalan) harus punya tempat penyimpanan sendiri di DB sejak
+awal -- state React polos terlihat "tersimpan" krn tidak error, padahal
+cuma hidup selama komponen belum re-mount.
+
+---
+
 ## Prosedur Debugging Cepat (urutan baku)
 
 1. **Baca file ini dulu** — cocokkan gejala.
