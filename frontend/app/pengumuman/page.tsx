@@ -351,10 +351,7 @@ function PengumumanContent() {
       <AdminHeader judul="Pengumuman" />
       <div className="mx-auto w-full max-w-[560px] px-[18px] pt-4 pb-10">
       {dialog}
-      <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
-      <p className="mb-5 text-[12.5px] text-text-dim">
-        Susun pengumuman jadwal KBM, lalu salin ke grup WA wali murid.
-      </p>
+      <h1 className="mb-5 text-[17px] font-bold text-text">Pengumuman</h1>
 
       {!terkunciSatuKelompok && (
         <div className="mb-5">
@@ -480,10 +477,7 @@ function PengumumanGuruView() {
     <main className="flex min-h-screen flex-col bg-bg">
       <JurnalHeaderChrome tampilkanHero={false} />
       <div className="flex-1 p-4">
-        <h1 className="mb-1 text-[17px] font-bold text-text">Pengumuman Jadwal KBM</h1>
-        <p className="mb-5 text-[12.5px] text-text-dim">
-          Susun pengumuman jadwal KBM hari ini, lalu salin ke grup WA wali murid.
-        </p>
+        <h1 className="mb-5 text-[17px] font-bold text-text">Pengumuman</h1>
         {kelompokId ? (
           <PengumumanKbmComposer
             kelompokId={kelompokId}
