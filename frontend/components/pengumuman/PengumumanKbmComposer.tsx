@@ -943,6 +943,82 @@ export default function PengumumanKbmComposer({
       )}
         </div>
         )}
+
+        {/* Catatan/Pratinjau/tombol aksi (2026-09-15, diminta owner: "letakan
+           di dalam card kegiatan kbm") -- dipindah ke dalam kartu ini, TAPI
+           di LUAR `{kbmTerbuka && (...)}` di atas, supaya tetap kelihatan
+           & bisa dipakai walau kartu jadwalnya sedang dilipat. Perlu diingat:
+           `teks` pratinjau di bawah tetap menggabungkan SEMUA kartu kegiatan
+           (termasuk kartu kegiatan tambahan di luar sini), bukan cuma isi
+           kartu ini -- cuma LETAKnya yang dipindah, bukan cakupannya. */}
+        <div className="mt-3 flex flex-col gap-4">
+          <div>
+            <label className={KELAS_LABEL}>Catatan (baris terpisah, otomatis diberi nomor)</label>
+            <textarea
+              rows={3}
+              className={KELAS_SELECT + ' py-2.5'}
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+            />
+          </div>
+
+          {/* Penjaga terakhir sebelum pengumuman disalin: ada sesi yang
+              gurunya izin tapi penggantinya belum dipilih. Tanpa peringatan
+              ini, teksnya tetap tersalin dan wali murid membaca "pengganti
+              belum ditentukan" tanpa ada yang sadar. */}
+          {jumlahBelumAdaPengganti > 0 && (
+            <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
+              <span className="shrink-0">⚠️</span>
+              <span>
+                {jumlahBelumAdaPengganti} sesi gurunya sedang izin dan penggantinya belum dipilih.
+                Tentukan pengganti dulu sebelum pengumuman dikirim.
+              </span>
+            </div>
+          )}
+          {/* Sama polanya dgn peringatan pengganti di atas -- sesi ditandai
+              Dialihkan tapi kolom nama kegiatannya masih kosong. */}
+          {jumlahDialihkanBelumDiisi > 0 && (
+            <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
+              <span className="shrink-0">⚠️</span>
+              <span>
+                {jumlahDialihkanBelumDiisi} sesi ditandai Dialihkan tapi nama kegiatannya belum diisi.
+                Isi dulu sebelum pengumuman dikirim.
+              </span>
+            </div>
+          )}
+
+          <div>
+            <label className={KELAS_LABEL}>Pratinjau</label>
+            <pre className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-[var(--radius)] border border-border bg-panel-2 p-3.5 font-sans text-[12.5px] leading-relaxed text-text">
+              {teks}
+            </pre>
+          </div>
+
+          {pesan && <p className="text-[13px] text-sage">{pesan}</p>}
+          {error && <p className="text-[13px] text-red">{error}</p>}
+
+          <div className="flex gap-2.5">
+            <button type="button" onClick={salin} className={KELAS_TOMBOL_SEKUNDER + ' flex-1'}>
+              {tersalin ? <Check size={15} /> : <Copy size={15} />}
+              {tersalin ? 'Tersalin' : 'Salin Teks'}
+            </button>
+            {/* Tombol WhatsApp -- pola & warna sama KELAS_TOMBOL_UTAMA
+                (flex/rounded/padding), cuma warnanya hijau WhatsApp (#25D366)
+                spy langsung dikenali guru sbg jalur berbagi, beda dari
+                "Simpan Pengumuman" (kuning brass, menulis ke Supabase). */}
+            <button
+              type="button"
+              onClick={bagikanWhatsapp}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-[#25D366] bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 active:scale-[0.97]"
+            >
+              <MessageCircle size={15} />
+              WhatsApp
+            </button>
+          </div>
+          <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
+            {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
+          </button>
+        </div>
       </div>
 
       {/* Kartu kegiatan TAMBAHAN, bebas isi (2026-09-15, diminta owner:
@@ -981,73 +1057,6 @@ export default function PengumumanKbmComposer({
           />
         </div>
       ))}
-
-      <div>
-        <label className={KELAS_LABEL}>Catatan (baris terpisah, otomatis diberi nomor)</label>
-        <textarea
-          rows={3}
-          className={KELAS_SELECT + ' py-2.5'}
-          value={catatan}
-          onChange={(e) => setCatatan(e.target.value)}
-        />
-      </div>
-
-      {/* Penjaga terakhir sebelum pengumuman disalin: ada sesi yang
-          gurunya izin tapi penggantinya belum dipilih. Tanpa peringatan
-          ini, teksnya tetap tersalin dan wali murid membaca "pengganti
-          belum ditentukan" tanpa ada yang sadar. */}
-      {jumlahBelumAdaPengganti > 0 && (
-        <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
-          <span className="shrink-0">⚠️</span>
-          <span>
-            {jumlahBelumAdaPengganti} sesi gurunya sedang izin dan penggantinya belum dipilih.
-            Tentukan pengganti dulu sebelum pengumuman dikirim.
-          </span>
-        </div>
-      )}
-      {/* Sama polanya dgn peringatan pengganti di atas -- sesi ditandai
-          Dialihkan tapi kolom nama kegiatannya masih kosong. */}
-      {jumlahDialihkanBelumDiisi > 0 && (
-        <div className="flex items-start gap-2 rounded-[var(--radius)] border border-[rgba(217,119,6,0.3)] bg-[rgba(217,119,6,0.06)] px-3.5 py-2.5 text-[12px] font-semibold text-brass">
-          <span className="shrink-0">⚠️</span>
-          <span>
-            {jumlahDialihkanBelumDiisi} sesi ditandai Dialihkan tapi nama kegiatannya belum diisi.
-            Isi dulu sebelum pengumuman dikirim.
-          </span>
-        </div>
-      )}
-
-      <div>
-        <label className={KELAS_LABEL}>Pratinjau</label>
-        <pre className="max-h-[420px] overflow-y-auto whitespace-pre-wrap rounded-[var(--radius)] border border-border bg-panel-2 p-3.5 font-sans text-[12.5px] leading-relaxed text-text">
-          {teks}
-        </pre>
-      </div>
-
-      {pesan && <p className="text-[13px] text-sage">{pesan}</p>}
-      {error && <p className="text-[13px] text-red">{error}</p>}
-
-      <div className="flex gap-2.5">
-        <button type="button" onClick={salin} className={KELAS_TOMBOL_SEKUNDER + ' flex-1'}>
-          {tersalin ? <Check size={15} /> : <Copy size={15} />}
-          {tersalin ? 'Tersalin' : 'Salin Teks'}
-        </button>
-        {/* Tombol WhatsApp -- pola & warna sama KELAS_TOMBOL_UTAMA
-            (flex/rounded/padding), cuma warnanya hijau WhatsApp (#25D366)
-            spy langsung dikenali guru sbg jalur berbagi, beda dari
-            "Simpan Pengumuman" (kuning brass, menulis ke Supabase). */}
-        <button
-          type="button"
-          onClick={bagikanWhatsapp}
-          className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-[#25D366] bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 active:scale-[0.97]"
-        >
-          <MessageCircle size={15} />
-          WhatsApp
-        </button>
-      </div>
-      <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
-        {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
-      </button>
 
       {/* Ditaruh PALING BAWAH (diminta owner 2026-09-15) -- housekeeping
          "tambah kartu kegiatan baru", terpisah dari alur susun/pratinjau/
