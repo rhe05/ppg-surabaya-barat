@@ -995,27 +995,30 @@ export default function PengumumanKbmComposer({
           {pesan && <p className="text-[13px] text-sage">{pesan}</p>}
           {error && <p className="text-[13px] text-red">{error}</p>}
 
-          <div className="flex gap-2.5">
-            <button type="button" onClick={salin} className={KELAS_TOMBOL_SEKUNDER + ' flex-1'}>
+          {/* Tiga tombol satu baris (diminta owner 2026-09-15) -- label
+              "Simpan" dipendekkan dari "Simpan Pengumuman" spy tetap muat
+              berdampingan dgn dua tombol lain di layar HP sempit. */}
+          <div className="flex gap-2">
+            <button type="button" onClick={salin} className={KELAS_TOMBOL_SEKUNDER + ' flex-1 px-2'}>
               {tersalin ? <Check size={15} /> : <Copy size={15} />}
               {tersalin ? 'Tersalin' : 'Salin Teks'}
             </button>
             {/* Tombol WhatsApp -- pola & warna sama KELAS_TOMBOL_UTAMA
                 (flex/rounded/padding), cuma warnanya hijau WhatsApp (#25D366)
                 spy langsung dikenali guru sbg jalur berbagi, beda dari
-                "Simpan Pengumuman" (kuning brass, menulis ke Supabase). */}
+                "Simpan" (kuning brass, menulis ke Supabase). */}
             <button
               type="button"
               onClick={bagikanWhatsapp}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-[#25D366] bg-[#25D366] px-4 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 active:scale-[0.97]"
+              className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-[var(--radius)] border border-[#25D366] bg-[#25D366] px-2 py-2.5 text-[13px] font-semibold text-white transition-all duration-200 active:scale-[0.97]"
             >
               <MessageCircle size={15} />
               WhatsApp
             </button>
+            <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' flex-1 px-2'}>
+              {menyimpan ? 'Menyimpan...' : 'Simpan'}
+            </button>
           </div>
-          <button type="button" onClick={simpan} disabled={menyimpan} className={KELAS_TOMBOL_UTAMA + ' w-full'}>
-            {menyimpan ? 'Menyimpan...' : 'Simpan Pengumuman'}
-          </button>
         </div>
         )}
       </div>
